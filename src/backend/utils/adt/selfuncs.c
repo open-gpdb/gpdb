@@ -3726,6 +3726,7 @@ convert_numeric_to_scalar(Datum value, Oid typid, bool *failure)
 		case REGTYPEOID:
 		case REGCONFIGOID:
 		case REGDICTIONARYOID:
+		case REGROLEOID:
 			/* we can treat OIDs as integers... */
 			return (double) DatumGetObjectId(value);
 	}
