@@ -2317,11 +2317,11 @@ pg_get_function_arguments(PG_FUNCTION_ARGS)
 	StringInfoData buf;
 	HeapTuple	proctup;
 
-	initStringInfo(&buf);
-
 	proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
 	if (!HeapTupleIsValid(proctup))
-		elog(ERROR, "cache lookup failed for function %u", funcid);
+		PG_RETURN_NULL();
+
+	initStringInfo(&buf);
 
 	(void) print_function_arguments(&buf, proctup, false, true);
 
@@ -2343,11 +2343,11 @@ pg_get_function_identity_arguments(PG_FUNCTION_ARGS)
 	StringInfoData buf;
 	HeapTuple	proctup;
 
-	initStringInfo(&buf);
-
 	proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
 	if (!HeapTupleIsValid(proctup))
-		elog(ERROR, "cache lookup failed for function %u", funcid);
+		PG_RETURN_NULL();
+
+	initStringInfo(&buf);
 
 	(void) print_function_arguments(&buf, proctup, false, false);
 
@@ -2368,11 +2368,11 @@ pg_get_function_result(PG_FUNCTION_ARGS)
 	StringInfoData buf;
 	HeapTuple	proctup;
 
-	initStringInfo(&buf);
-
 	proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
 	if (!HeapTupleIsValid(proctup))
-		elog(ERROR, "cache lookup failed for function %u", funcid);
+		PG_RETURN_NULL();
+
+	initStringInfo(&buf);
 
 	print_function_rettype(&buf, proctup);
 
@@ -2602,7 +2602,7 @@ pg_get_function_arg_default(PG_FUNCTION_ARGS)
 
 	proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(funcid));
 	if (!HeapTupleIsValid(proctup))
-		elog(ERROR, "cache lookup failed for function %u", funcid);
+		PG_RETURN_NULL();
 
 	numargs = get_func_arg_info(proctup, &argtypes, &argnames, &argmodes);
 	if (nth_arg < 1 || nth_arg > numargs || !is_input_argument(nth_arg - 1, argmodes))
