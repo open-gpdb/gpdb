@@ -127,7 +127,9 @@ extern PGDLLIMPORT LWLockPadded *MainLWLockArray;
 #define AutoFileLock				(&MainLWLockArray[35].lock)
 #define ReplicationSlotAllocationLock	(&MainLWLockArray[36].lock)
 #define ReplicationSlotControlLock		(&MainLWLockArray[37].lock)
-#define PG_NUM_INDIVIDUAL_LWLOCKS		38
+#define BackendRandomLock				(&MainLWLockArray[38].lock)
+
+#define PG_NUM_INDIVIDUAL_LWLOCKS		39
 
 /* Additional individual locks in GPDB */
 #define SharedSnapshotLock			(&MainLWLockArray[PG_NUM_INDIVIDUAL_LWLOCKS + 1].lock)

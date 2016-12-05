@@ -781,6 +781,7 @@ enable_gpperfmon
 enable_orafce
 enable_debug_extensions
 enable_gpfdist
+enable_strong_random
 enable_rpath
 default_port
 PORTNAME
@@ -850,6 +851,7 @@ enable_gpfdist
 enable_debug_extensions
 enable_orafce
 enable_gpperfmon
+enable_strong_random
 enable_debug
 enable_profiling
 enable_coverage
@@ -1537,6 +1539,7 @@ Optional Features:
                           include debug extensions in gpcontrib
   --enable-orafce         build with Oracle compatibility functions
   --enable-gpperfmon      build with gpperfmon
+  --disable-strong-random do not use a strong random number source
   --enable-debug          build with debugging symbols (-g)
   --enable-profiling      build with profiling enabled
   --enable-coverage       build with coverage testing instrumentation
@@ -3304,6 +3307,31 @@ if test "${enable_gpfdist+set}" = set; then :
 
 else
   enable_gpfdist=yes
+
+fi
+
+#
+# Random number generation
+#
+
+
+# Check whether --enable-strong-random was given.
+if test "${enable_strong_random+set}" = set; then :
+  enableval=$enable_strong_random;
+  case $enableval in
+    yes)
+      :
+      ;;
+    no)
+      :
+      ;;
+    *)
+      as_fn_error $? "no argument expected for --enable-strong-random option" "$LINENO" 5
+      ;;
+  esac
+
+else
+  enable_strong_random=yes
 
 fi
 

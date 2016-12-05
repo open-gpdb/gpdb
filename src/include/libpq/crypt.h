@@ -18,7 +18,8 @@
 #include "libpq/libpq-be.h"
 #include "libpq/md5.h"
 
-extern int hashed_passwd_verify(const Port *port, const char *role,
-				 char *client_pass, char **logdetail);
+
+extern int md5_crypt_verify(const Port *port, const char *role,
+				 char *client_pass, char *md5_salt, int md5_salt_len, char **logdetail);
 
 #endif

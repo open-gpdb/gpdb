@@ -419,6 +419,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
+/* Define to use have a strong random number source */
+#define HAVE_STRONG_RANDOM 1
+
 /* Define to 1 if you have the `strtoll' function. */
 #ifdef HAVE_LONG_LONG_INT_64
 #define HAVE_STRTOLL 1
@@ -704,6 +707,9 @@
 /* Define to 1 if "static inline" works without unwanted warnings from
    compilations where static inline functions are defined but not called. */
 #define PG_USE_INLINE 1
+
+/* Define to use /dev/urandom for random number generation */
+/* #undef USE_DEV_URANDOM */
 
 /* Define to 1 if you want 64-bit integer timestamp and interval support.
    (--enable-integer-datetimes) */

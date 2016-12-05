@@ -587,6 +587,9 @@
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
 
+/* Define to use have a strong random number source */
+#undef HAVE_STRONG_RANDOM
+
 /* Define to 1 if you have the `strtoll' function. */
 #undef HAVE_STRTOLL
 
@@ -931,6 +934,11 @@
 
 /* Define to 1 if you want float4 values to be passed by value. (Always
    defined in GPDB) */
+/* Define to use /dev/urandom for random number generation */
+#undef USE_DEV_URANDOM
+
+/* Define to 1 if you want float4 values to be passed by value.
+   (--enable-float4-byval) */
 #undef USE_FLOAT4_BYVAL
 
 /* Define to 1 if you want float8, int8, etc values to be passed by value.

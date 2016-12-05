@@ -227,6 +227,12 @@ PGAC_ARG_BOOL(enable, gpperfmon, no,
               [build with gpperfmon])
 AC_SUBST(enable_gpperfmon)
 
+# Random number generation
+#
+PGAC_ARG_BOOL(enable, strong-random, yes,
+              [do not use a strong random number source])
+AC_SUBST(enable_strong_random)
+
 #
 # --enable-debug adds -g to compiler flags
 #
@@ -2509,6 +2515,7 @@ if test "$PORTNAME" != "win32"; then
 else
   LATCH_IMPLEMENTATION="src/backend/port/win32_latch.c"
 fi
+
 
 # If not set in template file, set bytes to use libc memset()
 if test x"$MEMSET_LOOP_LIMIT" = x"" ; then

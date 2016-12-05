@@ -658,7 +658,6 @@ sub mkvcbuild
 			'sha1.c',             'sha2.c',
 			'internal.c',         'internal-sha2.c',
 			'blf.c',              'rijndael.c',
-			'fortuna.c',          'random.c',
 			'pgp-mpi-internal.c', 'imath.c');
 	}
 	$pgcrypto->AddReference($postgres);
