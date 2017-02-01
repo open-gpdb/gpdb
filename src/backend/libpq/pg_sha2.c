@@ -16,9 +16,7 @@
 
 #include "sha2.h"
 
-#include "libpq/password_hash.h"
 #include "libpq/pg_sha2.h"
-#include "postmaster/postmaster.h"
 
 static void
 to_hex(uint8 b[SHA256_DIGEST_LENGTH], char *s)

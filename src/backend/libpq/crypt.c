@@ -1,10 +1,8 @@
 /*-------------------------------------------------------------------------
  *
  * crypt.c
- *	  Look into the password file and check the encrypted password with
- *	  the one passed in from the frontend.
- *
- * Original coding by Todd A. Brandys
+ *	  Functions for dealing with encrypted passwords stored in
+ *	  pg_authid.rolpassword.
  *
  * Portions Copyright (c) 1996-2014, PostgreSQL Global Development Group
  * Portions Copyright (c) 1994, Regents of the University of California
@@ -23,30 +21,11 @@
 #include "catalog/pg_authid.h"
 #include "libpq/crypt.h"
 #include "libpq/md5.h"
-#include "libpq/password_hash.h"
 #include "libpq/pg_sha2.h"
 #include "miscadmin.h"
 #include "utils/builtins.h"
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
-
-bool
-hash_password(const char *passwd, char *salt, size_t salt_len, char *buf)
-{
-	switch (password_hash_algorithm)
-	{
-		case PASSWORD_HASH_MD5:
-			return pg_md5_encrypt(passwd, salt, salt_len, buf);
-		case PASSWORD_HASH_SHA_256:
-			return pg_sha256_encrypt(passwd, salt, salt_len, buf);
-			break;
-		default:
-			elog(ERROR,
-				 "unknown password hash algorithm number %d",
-				 password_hash_algorithm);
-	}
-	return false; /* we never get here */
-}
 
 
 /*
@@ -142,6 +121,89 @@ get_role_password(const char *role, char **shadow_pass, char **logdetail)
 
 
 /*
+ * What kind of a password verifier is 'shadow_pass'?
+ */
+PasswordType
+get_password_type(const char *shadow_pass)
+{
+	if (strncmp(shadow_pass, "md5", 3) == 0 && strlen(shadow_pass) == MD5_PASSWD_LEN)
+		return PASSWORD_TYPE_MD5;
+	else if((strncmp(shadow_pass, SHA256_PREFIX, strlen(SHA256_PREFIX)) == 0)
+		&& strlen(shadow_pass) == SHA256_PASSWD_LEN)
+		return PASSWORD_TYPE_SHA256;
+	return PASSWORD_TYPE_PLAINTEXT;
+}
+
+/*
+ * Given a user-supplied password, convert it into a verifier of
+ * 'target_type' kind.
+ *
+ * If the password looks like a valid MD5 hash, it is stored as it is.
+ * We cannot reverse the hash, so even if the caller requested a plaintext
+ * plaintext password, the MD5 hash is returned.
+ */
+char *
+encrypt_password(PasswordType target_type, const char *role,
+				 const char *password)
+{
+	PasswordType guessed_type = get_password_type(password);
+	char	   *encrypted_password;
+
+	switch (target_type)
+	{
+		case PASSWORD_TYPE_PLAINTEXT:
+
+			/*
+			 * We cannot convert a hashed password back to plaintext, so just
+			 * store the password as it was, whether it was hashed or not.
+			 */
+			return pstrdup(password);
+
+		case PASSWORD_TYPE_MD5:
+			switch (guessed_type)
+			{
+				case PASSWORD_TYPE_PLAINTEXT:
+					encrypted_password = palloc(MD5_PASSWD_LEN + 1);
+
+					if (!pg_md5_encrypt(password, role, strlen(role),
+										encrypted_password))
+						elog(ERROR, "password encryption failed");
+					return encrypted_password;
+				case PASSWORD_TYPE_SHA256:
+					/*
+					 * cannot convert a sha256 verifier to an md5 hash, so fall
+					 * through to save the sha256 verifier instead
+					 */
+				case PASSWORD_TYPE_MD5:
+					return pstrdup(password);
+			}
+		case PASSWORD_TYPE_SHA256:
+			switch (guessed_type)
+			{
+				case PASSWORD_TYPE_PLAINTEXT:
+					encrypted_password = palloc(SHA256_PASSWD_LEN + 1);
+
+					if (!pg_sha256_encrypt(password, (char *)role, strlen(role), encrypted_password))
+						elog(ERROR, "password encryption failed");
+					return encrypted_password;
+				case PASSWORD_TYPE_MD5:
+					/*
+					 * cannot convert a md5 verifier to an sha256 hash, so fall
+					 * through to save the md5 verifier instead.
+					 */
+				case PASSWORD_TYPE_SHA256:
+					return pstrdup(password);
+			}
+	}
+
+	/*
+	 * This shouldn't happen, because the above switch statements should
+	 * handle every combination of source and target password types.
+	 */
+	elog(ERROR, "cannot encrypt password to requested type");
+}
+
+/*
  * Check MD5 authentication response, and return STATUS_OK or STATUS_ERROR.
  *
  * 'shadow_pass' is the user's correct password or password hash, as stored
@@ -171,32 +233,40 @@ md5_crypt_verify(const char *role, const char *shadow_pass,
 	 * below: the only possible error is out-of-memory, which is unlikely, and
 	 * if it did happen adding a psprintf call would only make things worse.
 	 */
-	if (isMD5(shadow_pass))
+	switch (get_password_type(shadow_pass))
 	{
-		/* stored password already encrypted, only do salt */
-		if (!pg_md5_encrypt(shadow_pass + strlen("md5"),
-							md5_salt, md5_salt_len,
-							crypt_pwd))
-		{
+		case PASSWORD_TYPE_MD5:
+			/* stored password already encrypted, only do salt */
+			if (!pg_md5_encrypt(shadow_pass + strlen("md5"),
+								md5_salt, md5_salt_len,
+								crypt_pwd))
+			{
+				return STATUS_ERROR;
+			}
+			break;
+
+		case PASSWORD_TYPE_PLAINTEXT:
+			/* stored password is plain, double-encrypt */
+			if (!pg_md5_encrypt(shadow_pass,
+								role,
+								strlen(role),
+								crypt_pwd2))
+			{
+				return STATUS_ERROR;
+			}
+			if (!pg_md5_encrypt(crypt_pwd2 + strlen("md5"),
+								md5_salt, md5_salt_len,
+								crypt_pwd))
+			{
+				return STATUS_ERROR;
+			}
+			break;
+
+		default:
+			/* unknown password hash format. */
+			*logdetail = psprintf(_("User \"%s\" has a password that cannot be used with MD5 authentication."),
+								  role);
 			return STATUS_ERROR;
-		}
-	}
-	else
-	{
-		/* stored password is plain, double-encrypt */
-		if (!pg_md5_encrypt(shadow_pass,
-							role,
-							strlen(role),
-							crypt_pwd2))
-		{
-			return STATUS_ERROR;
-		}
-		if (!pg_md5_encrypt(crypt_pwd2 + strlen("md5"),
-							md5_salt, md5_salt_len,
-							crypt_pwd))
-		{
-			return STATUS_ERROR;
-		}
 	}
 
 	if (strcmp(client_pass, crypt_pwd) == 0)
@@ -235,34 +305,46 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 	 * the password the client sent, and compare the hashes.  Otherwise
 	 * compare the plaintext passwords directly.
 	 */
-	if (isMD5(shadow_pass))
+	switch (get_password_type(shadow_pass))
 	{
-		if (!pg_md5_encrypt(client_pass,
-							role,
-							strlen(role),
-							crypt_client_pass))
-		{
+		case PASSWORD_TYPE_MD5:
+			if (!pg_md5_encrypt(client_pass,
+								role,
+								strlen(role),
+								crypt_client_pass))
+			{
+				/*
+				 * We do not bother setting logdetail for pg_md5_encrypt
+				 * failure: the only possible error is out-of-memory, which is
+				 * unlikely, and if it did happen adding a psprintf call would
+				 * only make things worse.
+				 */
+				return STATUS_ERROR;
+			}
+			client_pass = crypt_client_pass;
+			break;
+		case PASSWORD_TYPE_PLAINTEXT:
+			break;
+		case PASSWORD_TYPE_SHA256:
+			/* Encrypt user-supplied password to match the stored SHA-256 */
+			if (!pg_sha256_encrypt(client_pass,
+								   (char *)role,
+								   strlen(role),
+								   crypt_client_pass2))
+			{
+				return STATUS_ERROR;
+			}
+			client_pass = crypt_client_pass2;
+			break;
+		default:
+
 			/*
-			 * We do not bother setting logdetail for pg_md5_encrypt failure:
-			 * the only possible error is out-of-memory, which is unlikely,
-			 * and if it did happen adding a psprintf call would only make
-			 * things worse.
+			 * This shouldn't happen. Plain "password" authentication should
+			 * be possible with any kind of stored password hash.
 			 */
+			*logdetail = psprintf(_("Password of user \"%s\" is in unrecognized format."),
+								  role);
 			return STATUS_ERROR;
-		}
-		client_pass = crypt_client_pass;
-	}
-	else if (isSHA256(shadow_pass))
-	{
-		/* Encrypt user-supplied password to match the stored SHA-256 */
-		if (!pg_sha256_encrypt(client_pass,
-							   role,
-							   strlen(role),
-							   crypt_client_pass2))
-		{
-			return STATUS_ERROR;
-		}
-		client_pass = crypt_client_pass2;
 	}
 
 	if (strcmp(client_pass, shadow_pass) == 0)
