@@ -2494,6 +2494,8 @@ if test x"$USE_OPENSSL_RANDOM" = x"" && test x"$USE_WIN32_RANDOM" = x"" && test 
 fi
 
 AC_MSG_CHECKING([which random number source to use])
+if test "$enable_strong_random" = yes ; then
+
 if test x"$USE_OPENSSL_RANDOM" = x"1" ; then
   AC_DEFINE(USE_OPENSSL_RANDOM, 1, [Define to use OpenSSL for random number generation])
   AC_MSG_RESULT([OpenSSL])
@@ -2508,7 +2510,8 @@ else
 no source of strong random numbers was found
 PostgreSQL can use OpenSSL or /dev/urandom as a source of random numbers.])
 fi
-
+  AC_DEFINE(HAVE_STRONG_RANDOM, 1, [Define to use have a strong random number source])
+fi
 # Select latch implementation type.
 if test "$PORTNAME" != "win32"; then
   LATCH_IMPLEMENTATION="src/backend/port/unix_latch.c"

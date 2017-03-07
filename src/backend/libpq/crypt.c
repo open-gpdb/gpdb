@@ -22,6 +22,7 @@
 #include "libpq/crypt.h"
 #include "libpq/md5.h"
 #include "libpq/pg_sha2.h"
+#include "libpq/scram.h"
 #include "miscadmin.h"
 #include "utils/builtins.h"
 #include "utils/syscache.h"
@@ -128,9 +129,11 @@ get_password_type(const char *shadow_pass)
 {
 	if (strncmp(shadow_pass, "md5", 3) == 0 && strlen(shadow_pass) == MD5_PASSWD_LEN)
 		return PASSWORD_TYPE_MD5;
-	else if((strncmp(shadow_pass, SHA256_PREFIX, strlen(SHA256_PREFIX)) == 0)
+	if((strncmp(shadow_pass, SHA256_PREFIX, strlen(SHA256_PREFIX)) == 0)
 		&& strlen(shadow_pass) == SHA256_PASSWD_LEN)
 		return PASSWORD_TYPE_SHA256;
+	if (strncmp(shadow_pass, "scram-sha-256:", strlen("scram-sha-256:")) == 0)
+		return PASSWORD_TYPE_SCRAM;
 	return PASSWORD_TYPE_PLAINTEXT;
 }
 
@@ -170,9 +173,16 @@ encrypt_password(PasswordType target_type, const char *role,
 						elog(ERROR, "password encryption failed");
 					return encrypted_password;
 				case PASSWORD_TYPE_SHA256:
+
 					/*
-					 * cannot convert a sha256 verifier to an md5 hash, so fall
+					 * cannot convert a sha256 verifier to an MD5 hash, so fall
 					 * through to save the sha256 verifier instead
+					 */
+				case PASSWORD_TYPE_SCRAM:
+
+					/*
+					 * cannot convert a SCRAM verifier to an MD5 hash, so fall
+					 * through to save the SCRAM verifier instead.
 					 */
 				case PASSWORD_TYPE_MD5:
 					return pstrdup(password);
@@ -183,15 +193,43 @@ encrypt_password(PasswordType target_type, const char *role,
 				case PASSWORD_TYPE_PLAINTEXT:
 					encrypted_password = palloc(SHA256_PASSWD_LEN + 1);
 
-					if (!pg_sha256_encrypt(password, (char *)role, strlen(role), encrypted_password))
+					if (!pg_sha256_encrypt(password, (char *) role, strlen(role), encrypted_password))
 						elog(ERROR, "password encryption failed");
 					return encrypted_password;
 				case PASSWORD_TYPE_MD5:
+
 					/*
-					 * cannot convert a md5 verifier to an sha256 hash, so fall
-					 * through to save the md5 verifier instead.
+					 * cannot convert a MD5 verifier to an sha256 hash, so fall
+					 * through to save the MD5 verifier instead.
+					 */
+				case PASSWORD_TYPE_SCRAM:
+
+					/*
+					 * cannot convert a SCRAM verifier to an MD5 hash, so fall
+					 * through to save the SCRAM verifier instead.
 					 */
 				case PASSWORD_TYPE_SHA256:
+					return pstrdup(password);
+			}
+		case PASSWORD_TYPE_SCRAM:
+			switch (guessed_type)
+			{
+				case PASSWORD_TYPE_PLAINTEXT:
+					return scram_build_verifier(role, password, 0);
+
+				case PASSWORD_TYPE_MD5:
+
+					/*
+					 * cannot convert an MD5 hash to a SCRAM verifier, so fall
+					 * through to save the MD5 hash instead.
+					 */
+				case PASSWORD_TYPE_SHA256:
+
+					/*
+					 * cannot convert a sha256 verifier to a SCRAM verifier, so fall
+					 * through to save the sha256 verifier instead
+					 */
+				case PASSWORD_TYPE_SCRAM:
 					return pstrdup(password);
 			}
 	}
@@ -201,6 +239,7 @@ encrypt_password(PasswordType target_type, const char *role,
 	 * handle every combination of source and target password types.
 	 */
 	elog(ERROR, "cannot encrypt password to requested type");
+	return NULL;				/* keep compiler quiet */
 }
 
 /*

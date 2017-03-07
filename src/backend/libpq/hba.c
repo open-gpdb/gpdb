@@ -92,6 +92,30 @@ static MemoryContext parsed_hba_context = NULL;
 static List *parsed_ident_lines = NIL;
 static MemoryContext parsed_ident_context = NULL;
 
+/*
+ * The following character array represents the names of the authentication
+ * methods that are supported by PostgreSQL.
+ *
+ * Note: keep this in sync with the UserAuth enum in hba.h.
+ */
+static const char *const UserAuthName[] =
+{
+	"reject",
+	"implicit reject",			/* Not a user-visible option */
+	"trust",
+	"ident",
+	"password",
+	"md5",
+	"scram",
+	"gss",
+	"sspi",
+	"pam",
+	"bsd",
+	"ldap",
+	"cert",
+	"radius",
+	"peer"
+};
 
 static MemoryContext tokenize_file(const char *filename, FILE *file,
 			  List **lines, List **line_nums, List **raw_lines);
@@ -1176,6 +1200,8 @@ parse_hba_line(List *line, int line_num, char *raw_line)
 		}
 		parsedline->auth_method = uaMD5;
 	}
+	else if (strcmp(token->string, "scram") == 0)
+		parsedline->auth_method = uaSASL;
 	else if (strcmp(token->string, "pam") == 0)
 #ifdef USE_PAM
 		parsedline->auth_method = uaPAM;

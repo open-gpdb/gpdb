@@ -18656,6 +18656,9 @@ fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking which random number source to use" >&5
 $as_echo_n "checking which random number source to use... " >&6; }
+
+
+if test "$enable_strong_random" = yes ; then
 if test x"$USE_OPENSSL_RANDOM" = x"1" ; then
 
 $as_echo "#define USE_OPENSSL_RANDOM 1" >>confdefs.h
@@ -18679,7 +18682,8 @@ else
 no source of strong random numbers was found
 PostgreSQL can use OpenSSL or /dev/urandom as a source of random numbers." "$LINENO" 5
 fi
-
+$as_echo "#define HAVE_STRONG_RANDOM 1" >>confdefs.h
+fi
 # Select latch implementation type.
 if test "$PORTNAME" != "win32"; then
   LATCH_IMPLEMENTATION="src/backend/port/unix_latch.c"
