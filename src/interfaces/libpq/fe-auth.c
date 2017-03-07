@@ -499,7 +499,7 @@ pg_SASL_init(PGconn *conn, const char *auth_mechanism)
 	{
 		char	   *password = conn->pgpass;
 		conn->password_needed = true;
-		if (password == NULL || *password == '\0')
+		if (password == NULL || password[0] == '\0')
 		{
 			printfPQExpBuffer(&conn->errorMessage,
 							  PQnoPasswordSupplied);
