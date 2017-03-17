@@ -335,7 +335,6 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 				   const char *client_pass,
 				   char **logdetail)
 {
-	int			retval;
 	char		crypt_client_pass[MD5_PASSWD_LEN + 1];
 	char		crypt_client_pass2[SHA256_PASSWD_LEN + 1];
 
@@ -346,6 +345,21 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 	 */
 	switch (get_password_type(shadow_pass))
 	{
+		case PASSWORD_TYPE_SCRAM:
+			if (scram_verify_plain_password(role,
+											client_pass,
+											shadow_pass))
+			{
+				return STATUS_OK;
+			}
+			else
+			{
+				*logdetail = psprintf(_("Password does not match for user \"%s\"."),
+									  role);
+				return STATUS_ERROR;
+			}
+			break;
+
 		case PASSWORD_TYPE_MD5:
 			if (!pg_md5_encrypt(client_pass,
 								role,
@@ -360,9 +374,25 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 				 */
 				return STATUS_ERROR;
 			}
-			client_pass = crypt_client_pass;
+			if (strcmp(crypt_client_pass, shadow_pass) == 0)
+				return STATUS_OK;
+			else
+			{
+				*logdetail = psprintf(_("Password does not match for user \"%s\"."),
+									  role);
+				return STATUS_ERROR;
+			}
 			break;
+
 		case PASSWORD_TYPE_PLAINTEXT:
+			if (strcmp(client_pass, shadow_pass) == 0)
+				return STATUS_OK;
+			else
+			{
+				*logdetail = psprintf(_("Password does not match for user \"%s\"."),
+									  role);
+				return STATUS_ERROR;
+			}
 			break;
 		case PASSWORD_TYPE_SHA256:
 			/* Encrypt user-supplied password to match the stored SHA-256 */
@@ -373,7 +403,14 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 			{
 				return STATUS_ERROR;
 			}
-			client_pass = crypt_client_pass2;
+			if (strcmp(crypt_client_pass2, shadow_pass) == 0)
+				return STATUS_OK;
+			else
+			{
+				*logdetail = psprintf(_("Password does not match for user \"%s\"."),
+									  role);
+				return STATUS_ERROR;
+			}
 			break;
 		default:
 
@@ -385,14 +422,11 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 								  role);
 			return STATUS_ERROR;
 	}
-
-	if (strcmp(client_pass, shadow_pass) == 0)
-		retval = STATUS_OK;
-	else
-	{
-		*logdetail = psprintf(_("Password does not match for user \"%s\"."),
-							  role);
-		retval = STATUS_ERROR;
-	}
-	return retval;
+	/*
+	 * This shouldn't happen.  Plain "password" authentication is possible
+	 * with any kind of stored password hash.
+	 */
+	*logdetail = psprintf(_("Password of user \"%s\" is in unrecognized format."),
+						  role);
+	return STATUS_ERROR;
 }
