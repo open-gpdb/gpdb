@@ -1201,7 +1201,7 @@ parse_hba_line(List *line, int line_num, char *raw_line)
 		parsedline->auth_method = uaMD5;
 	}
 	else if (strcmp(token->string, "scram") == 0)
-		parsedline->auth_method = uaSASL;
+		parsedline->auth_method = uaSCRAM;
 	else if (strcmp(token->string, "pam") == 0)
 #ifdef USE_PAM
 		parsedline->auth_method = uaPAM;
