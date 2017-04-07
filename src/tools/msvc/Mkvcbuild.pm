@@ -79,7 +79,8 @@ sub mkvcbuild
 	push(@pgportfiles, 'rint.c') if ($vsVersion < '12.00');
 
 	our @pgcommonallfiles = qw(
-	  base64.c exec.c pgfnames.c psprintf.c relpath.c rmtree.c scram-common.c string.c username.c wait_error.c);
+	  base64.c exec.c pgfnames.c psprintf.c relpath.c rmtree.c
+	  saslprep.c scram-common.c string.c unicode_norm.c username.c wait_error.c);
 
     if ($solution->{options}->{openssl})
     {

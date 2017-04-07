@@ -52,7 +52,7 @@ endif
 # src/backend/utils/mb
 OBJS += encnames.o wchar.o
 # src/common
-OBJS += base64.o ip.o md5.o scram-common.o
+OBJS += base64.o ip.o md5.o scram-common.o saslprep.o unicode_norm.o
 
 ifeq ($(with_openssl),yes)
 OBJS += sha2_openssl.o
@@ -114,7 +114,7 @@ ip.c md5.c: % : $(backend_src)/libpq/%
 encnames.c wchar.c: % : $(backend_src)/utils/mb/%
 	rm -f $@ && $(LN_S) $< .
 
-base64.c scram-common.c sha2.c sha2_openssl.c: % : $(top_srcdir)/src/common/%
+base64.c scram-common.c sha2.c sha2_openssl.c saslprep.c unicode_norm.c: % : $(top_srcdir)/src/common/%
 	rm -f $@ && $(LN_S) $< .
 
 
