@@ -371,8 +371,6 @@ struct pg_conn
 	char	   *sslcrl;			/* certificate revocation list filename */
 	char	   *requirepeer;	/* required peer credentials for local sockets */
 	char	   *krbsrvname;		/* Kerberos service name */
-	char	   *gsslib;			/* What GSS library to use ("gssapi" or
-								 * "sspi") */
     char       *gpconntype; /* type of connection */
     char       *gpqeid;        /* MPP: session id & startup info for qExec */
 
@@ -434,8 +432,6 @@ struct pg_conn
 	int			be_key;			/* key of backend --- needed for cancels */
 
     int64      mop_high_watermark;   /* highwater mark for mop */
-
-	char		md5Salt[4];		/* password salt received from backend */
 	pgParameterStatus *pstatus; /* ParameterStatus data */
 	int			client_encoding;	/* encoding id */
 	bool		std_strings;	/* standard_conforming_strings */
@@ -471,12 +467,6 @@ struct pg_conn
 	PGresult   *next_result;	/* next result (used in single-row mode) */
 
 	char		wrote_xlog;
-
-	/* Assorted state for SSL, GSS, etc */
-	/* Buffer to hold incoming authentication request data */
-	char	   *auth_req_inbuf;
-	int			auth_req_inlen;
-
 	/* Assorted state for SASL, SSL, GSS, etc */
 	void	   *sasl_state;
 
@@ -497,13 +487,12 @@ struct pg_conn
 #ifdef ENABLE_GSS
 	gss_ctx_id_t gctx;			/* GSS context */
 	gss_name_t	gtarg_nam;		/* GSS target name */
-	gss_buffer_desc ginbuf;		/* GSS input token */
-	gss_buffer_desc goutbuf;	/* GSS output token */
 #endif
 
 #ifdef ENABLE_SSPI
-#ifndef ENABLE_GSS
-	gss_buffer_desc ginbuf;		/* GSS input token */
+#ifdef ENABLE_GSS
+	char	   *gsslib;			/* What GSS library to use ("gssapi" or
+								 * "sspi") */
 #endif
 	CredHandle *sspicred;		/* SSPI credentials handle */
 	CtxtHandle *sspictx;		/* SSPI context */
