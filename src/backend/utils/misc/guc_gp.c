@@ -583,7 +583,7 @@ static const struct config_enum_entry password_hash_algorithm_options[] = {
 	/* {"none", PASSWORD_HASH_NONE}, * this option is not exposed */
 	{"MD5", PASSWORD_TYPE_MD5},
 	{"SHA-256", PASSWORD_TYPE_SHA256},
-	{"SCRAM-SHA-256", PASSWORD_TYPE_SCRAM},
+	{"SCRAM-SHA-256", PASSWORD_TYPE_SCRAM_SHA_256},
 	{NULL, 0}
 };
 

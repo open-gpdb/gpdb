@@ -106,7 +106,7 @@ static const char *const UserAuthName[] =
 	"ident",
 	"password",
 	"md5",
-	"scram",
+	"scram-sha256",
 	"gss",
 	"sspi",
 	"pam",
@@ -1200,7 +1200,7 @@ parse_hba_line(List *line, int line_num, char *raw_line)
 		}
 		parsedline->auth_method = uaMD5;
 	}
-	else if (strcmp(token->string, "scram") == 0)
+	else if (strcmp(token->string, "scram-sha-256") == 0)
 		parsedline->auth_method = uaSCRAM;
 	else if (strcmp(token->string, "pam") == 0)
 #ifdef USE_PAM

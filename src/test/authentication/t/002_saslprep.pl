@@ -72,7 +72,7 @@ SKIP:
 ");
 
 	# Require password from now on.
-	reset_pg_hba($node, 'scram');
+	reset_pg_hba($node, 'scram-sha-256');
 
 	# Check that #1 and #5 are treated the same as just 'IX'
 	test_login($node, 'saslpreptest1_role', "I\xc2\xadX", 0);

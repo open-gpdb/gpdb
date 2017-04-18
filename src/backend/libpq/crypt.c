@@ -126,8 +126,8 @@ get_password_type(const char *shadow_pass)
 	if((strncmp(shadow_pass, SHA256_PREFIX, strlen(SHA256_PREFIX)) == 0)
 		&& strlen(shadow_pass) == SHA256_PASSWD_LEN)
 		return PASSWORD_TYPE_SHA256;
-	if (strncmp(shadow_pass, "scram-sha-256:", strlen("scram-sha-256:")) == 0)
-		return PASSWORD_TYPE_SCRAM;
+	if (strncmp(shadow_pass, "SCRAM-SHA-256$", strlen("SCRAM-SHA-256$")) == 0)
+		return PASSWORD_TYPE_SCRAM_SHA_256;
 	return PASSWORD_TYPE_PLAINTEXT;
 }
 
@@ -172,7 +172,7 @@ encrypt_password(PasswordType target_type, const char *role,
 					 * cannot convert a sha256 verifier to an MD5 hash, so fall
 					 * through to save the sha256 verifier instead
 					 */
-				case PASSWORD_TYPE_SCRAM:
+				case PASSWORD_TYPE_SCRAM_SHA_256:
 
 					/*
 					 * cannot convert a SCRAM verifier to an MD5 hash, so fall
@@ -186,7 +186,6 @@ encrypt_password(PasswordType target_type, const char *role,
 			{
 				case PASSWORD_TYPE_PLAINTEXT:
 					encrypted_password = palloc(SHA256_PASSWD_LEN + 1);
-
 					if (!pg_sha256_encrypt(password, (char *) role, strlen(role), encrypted_password))
 						elog(ERROR, "password encryption failed");
 					return encrypted_password;
@@ -196,7 +195,7 @@ encrypt_password(PasswordType target_type, const char *role,
 					 * cannot convert a MD5 verifier to an sha256 hash, so fall
 					 * through to save the MD5 verifier instead.
 					 */
-				case PASSWORD_TYPE_SCRAM:
+				case PASSWORD_TYPE_SCRAM_SHA_256:
 
 					/*
 					 * cannot convert a SCRAM verifier to an MD5 hash, so fall
@@ -205,7 +204,7 @@ encrypt_password(PasswordType target_type, const char *role,
 				case PASSWORD_TYPE_SHA256:
 					return pstrdup(password);
 			}
-		case PASSWORD_TYPE_SCRAM:
+		case PASSWORD_TYPE_SCRAM_SHA_256:
 			switch (guessed_type)
 			{
 				case PASSWORD_TYPE_PLAINTEXT:
@@ -223,7 +222,7 @@ encrypt_password(PasswordType target_type, const char *role,
 					 * cannot convert a sha256 verifier to a SCRAM verifier, so fall
 					 * through to save the sha256 verifier instead
 					 */
-				case PASSWORD_TYPE_SCRAM:
+				case PASSWORD_TYPE_SCRAM_SHA_256:
 					return pstrdup(password);
 			}
 	}
@@ -339,7 +338,7 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 	 */
 	switch (get_password_type(shadow_pass))
 	{
-		case PASSWORD_TYPE_SCRAM:
+		case PASSWORD_TYPE_SCRAM_SHA_256:
 			if (scram_verify_plain_password(role,
 											client_pass,
 											shadow_pass))
