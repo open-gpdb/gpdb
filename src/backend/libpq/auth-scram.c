@@ -198,7 +198,8 @@ pg_be_scram_init(const char *username, const char *shadow_pass)
 				 * The password looked like a SCRAM verifier, but could not be
 				 * parsed.
 				 */
-				elog(LOG, "invalid SCRAM verifier for user \"%s\"", username);
+				ereport(LOG,
+						(errmsg("invalid SCRAM verifier for user \"%s\"", username)));
 				got_verifier = false;
 			}
 		}
@@ -302,11 +303,13 @@ pg_be_scram_exchange(void *opaq, char *input, int inputlen,
 	if (inputlen == 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 (errmsg("malformed SCRAM message (empty message)"))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("The message is empty.")));
 	if (inputlen != strlen(input))
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 (errmsg("malformed SCRAM message (length mismatch)"))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Message length does not match input length.")));
 
 	switch (state->state)
 	{
@@ -338,7 +341,8 @@ pg_be_scram_exchange(void *opaq, char *input, int inputlen,
 			if (!verify_final_nonce(state))
 				ereport(ERROR,
 						(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					   (errmsg("invalid SCRAM response (nonce mismatch)"))));
+						 errmsg("invalid SCRAM response"),
+						 errdetail("Nonce does not match.")));
 
 			/*
 			 * Now check the final nonce and the client proof.
@@ -410,12 +414,9 @@ pg_be_scram_build_verifier(const char *password)
 
 	/* Generate random salt */
 	if (!pg_backend_random(saltbuf, SCRAM_DEFAULT_SALT_LEN))
-	{
-		ereport(LOG,
+		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("could not generate random salt")));
-		return NULL;
-	}
 
 	result = scram_build_verifier(saltbuf, SCRAM_DEFAULT_SALT_LEN,
 								  SCRAM_DEFAULT_ITERATIONS, password);
@@ -452,7 +453,8 @@ scram_verify_plain_password(const char *username, const char *password,
 		/*
 		 * The password looked like a SCRAM verifier, but could not be parsed.
 		 */
-		elog(LOG, "invalid SCRAM verifier for user \"%s\"", username);
+		ereport(LOG,
+				(errmsg("invalid SCRAM verifier for user \"%s\"", username)));
 		return false;
 	}
 
@@ -460,7 +462,8 @@ scram_verify_plain_password(const char *username, const char *password,
 	saltlen = pg_b64_decode(encoded_salt, strlen(encoded_salt), salt);
 	if (saltlen == -1)
 	{
-		elog(LOG, "invalid SCRAM verifier for user \"%s\"", username);
+		ereport(LOG,
+				(errmsg("invalid SCRAM verifier for user \"%s\"", username)));
 		return false;
 	}
 
@@ -599,14 +602,16 @@ read_attr_value(char **input, char attr)
 	if (*begin != attr)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-		(errmsg("malformed SCRAM message (attribute '%c' expected, %s found)",
-				attr, sanitize_char(*begin)))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Expected attribute '%c' but found %s.",
+						   attr, sanitize_char(*begin))));
 	begin++;
 
 	if (*begin != '=')
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-		 (errmsg("malformed SCRAM message (expected = in attr %c)", attr))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Expected character = for attribute %c.", attr)));
 	begin++;
 
 	end = begin;
@@ -686,8 +691,9 @@ read_any_attr(char **input, char *attr_p)
 		  (attr >= 'a' && attr <= 'z')))
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 (errmsg("malformed SCRAM message (attribute expected, invalid char %s found)",
-						 sanitize_char(attr)))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Attribute expected, but found invalid character %s.",
+						   sanitize_char(attr))));
 	if (attr_p)
 		*attr_p = attr;
 	begin++;
@@ -695,7 +701,8 @@ read_any_attr(char **input, char *attr_p)
 	if (*begin != '=')
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-		 (errmsg("malformed SCRAM message (expected = in attr %c)", attr))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Expected character = for attribute %c.", attr)));
 	begin++;
 
 	end = begin;
@@ -813,14 +820,16 @@ read_client_first_message(scram_state *state, char *input)
 		default:
 			ereport(ERROR,
 					(errcode(ERRCODE_PROTOCOL_VIOLATION),
-					 (errmsg("malformed SCRAM message (unexpected channel-binding flag %s)",
-							 sanitize_char(*input)))));
+					 errmsg("malformed SCRAM message"),
+					 errdetail("Unexpected channel-binding flag %s.",
+							   sanitize_char(*input))));
 	}
 	if (*input != ',')
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 errmsg("malformed SCRAM message (comma expected, got %s)",
-						sanitize_char(*input))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Comma expected, but found character %s.",
+						   sanitize_char(*input))));
 	input++;
 
 	/*
@@ -833,8 +842,9 @@ read_client_first_message(scram_state *state, char *input)
 	if (*input != ',')
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 errmsg("malformed SCRAM message (unexpected attribute %s in client-first-message)",
-						sanitize_char(*input))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Unexpected attribute %s in client-first-message.",
+						   sanitize_char(*input))));
 	input++;
 
 	state->client_first_message_bare = pstrdup(input);
@@ -849,7 +859,7 @@ read_client_first_message(scram_state *state, char *input)
 	if (*input == 'm')
 		ereport(ERROR,
 				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("client requires mandatory SCRAM extension")));
+				 errmsg("client requires an unsupported SCRAM extension")));
 
 	/*
 	 * Read username.  Note: this is ignored.  We use the username from the
@@ -978,7 +988,7 @@ build_server_first_message(scram_state *state)
 	int			encoded_len;
 
 	if (!pg_backend_random(raw_nonce, SCRAM_RAW_NONCE_LEN))
-		ereport(COMMERROR,
+		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("could not generate random nonce")));
 
@@ -1062,14 +1072,16 @@ read_client_final_message(scram_state *state, char *input)
 	if (pg_b64_decode(value, strlen(value), client_proof) != SCRAM_KEY_LEN)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 (errmsg("malformed SCRAM message (malformed proof in client-final-message"))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Malformed proof in client-final-message.")));
 	memcpy(state->ClientProof, client_proof, SCRAM_KEY_LEN);
 	pfree(client_proof);
 
 	if (*p != '\0')
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
-				 (errmsg("malformed SCRAM message (garbage at end of client-final-message)"))));
+				 errmsg("malformed SCRAM message"),
+				 errdetail("Garbage found at the end of client-final-message.")));
 
 	state->client_final_message_without_proof = palloc(proof - begin + 1);
 	memcpy(state->client_final_message_without_proof, input, proof - begin);
