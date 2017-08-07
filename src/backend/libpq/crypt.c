@@ -84,23 +84,6 @@ get_role_password(const char *role, char **logdetail)
 	ImmediateInterruptOK = true;
 	/* And don't forget to detect one that already arrived */
 	CHECK_FOR_INTERRUPTS();
-
-	/*
-	 * Don't allow an empty password. Libpq treats an empty password the same
-	 * as no password at all, and won't even try to authenticate. But other
-	 * clients might, so allowing it would be confusing.
-	 *
-	 * For a plaintext password, we can simply check that it's not an empty
-	 * string. For an encrypted password, check that it does not match the MD5
-	 * hash of an empty string.
-	 */
-	if (*shadow_pass == '\0')
-	{
-		*logdetail = psprintf(_("User \"%s\" has an empty password."),
-							  role);
-		pfree(shadow_pass);
-		return NULL;	/* empty password */
-	}
 	/*
 	 * Password OK, but check to be sure we are not past rolvaliduntil
 	 */

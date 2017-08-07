@@ -1002,10 +1002,14 @@ recv_password_packet(Port *port)
 	 * clients might, so allowing it would be confusing.
 	 *
 	 * Note that this only catches an empty password sent by the client in
-	 * plaintext. There's another check in md5_crypt_verify to prevent an
-	 * empty password from being used with MD5 authentication.
+	 * plaintext. There's also a check in CREATE/ALTER USER that prevents an
+	 * empty string from being stored as a user's password in the first place.
+	 * We rely on that for MD5 and SCRAM authentication, but we still need
+	 * this check here, to prevent an empty password from being used with
+	 * authentication methods that check the password against an external
+	 * system, like PAM, LDAP and RADIUS.
 	 */
-	if (buf.data[0] == '\0')
+	if (buf.len == 1)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PASSWORD),
 				 errmsg("empty password returned by client")));
@@ -2669,6 +2673,7 @@ CheckLDAPAuth(Port *port)
 	if (InitializeLDAPConnection(port, &ldap) == STATUS_ERROR)
 	{
 		/* Error message already sent */
+		pfree(passwd);
 		return STATUS_ERROR;
 	}
 
@@ -2702,6 +2707,7 @@ CheckLDAPAuth(Port *port)
 			{
 				ereport(LOG,
 						(errmsg("invalid character in user name for LDAP authentication")));
+				pfree(passwd);
 				return STATUS_ERROR;
 			}
 		}
@@ -2719,6 +2725,7 @@ CheckLDAPAuth(Port *port)
 					(errmsg("could not perform initial LDAP bind for ldapbinddn \"%s\" on server \"%s\": %s",
 							port->hba->ldapbinddn ? port->hba->ldapbinddn : "",
 							port->hba->ldapserver, ldap_err2string(r))));
+			pfree(passwd);
 			return STATUS_ERROR;
 		}
 
@@ -2743,6 +2750,7 @@ CheckLDAPAuth(Port *port)
 			ereport(LOG,
 					(errmsg("could not search LDAP for filter \"%s\" on server \"%s\": %s",
 						filter, port->hba->ldapserver, ldap_err2string(r))));
+			pfree(passwd);
 			pfree(filter);
 			return STATUS_ERROR;
 		}
@@ -2763,6 +2771,7 @@ CheckLDAPAuth(Port *port)
 									count,
 									filter, port->hba->ldapserver, count)));
 
+			pfree(passwd);
 			pfree(filter);
 			ldap_msgfree(search_message);
 			return STATUS_ERROR;
@@ -2778,6 +2787,7 @@ CheckLDAPAuth(Port *port)
 			ereport(LOG,
 					(errmsg("could not get dn for the first entry matching \"%s\" on server \"%s\": %s",
 					filter, port->hba->ldapserver, ldap_err2string(error))));
+			pfree(passwd);
 			pfree(filter);
 			ldap_msgfree(search_message);
 			return STATUS_ERROR;
@@ -2798,6 +2808,7 @@ CheckLDAPAuth(Port *port)
 			ereport(LOG,
 					(errmsg("could not unbind after searching for user \"%s\" on server \"%s\": %s",
 				  fulluser, port->hba->ldapserver, ldap_err2string(error))));
+			pfree(passwd);
 			pfree(fulluser);
 			return STATUS_ERROR;
 		}
@@ -2808,6 +2819,7 @@ CheckLDAPAuth(Port *port)
 		 */
 		if (InitializeLDAPConnection(port, &ldap) == STATUS_ERROR)
 		{
+			pfree(passwd);
 			pfree(fulluser);
 
 			/* Error message already sent */
@@ -2828,10 +2840,12 @@ CheckLDAPAuth(Port *port)
 		ereport(LOG,
 			(errmsg("LDAP login failed for user \"%s\" on server \"%s\": %s",
 					fulluser, port->hba->ldapserver, ldap_err2string(r))));
+		pfree(passwd);
 		pfree(fulluser);
 		return STATUS_ERROR;
 	}
 
+	pfree(passwd);
 	pfree(fulluser);
 
 	return STATUS_OK;
@@ -3026,6 +3040,7 @@ CheckRADIUSAuth(Port *port)
 	{
 		ereport(LOG,
 				(errmsg("RADIUS authentication does not support passwords longer than 16 characters")));
+		pfree(passwd);
 		return STATUS_ERROR;
 	}
 
@@ -3037,6 +3052,7 @@ CheckRADIUSAuth(Port *port)
 	{
 		ereport(LOG,
 				(errmsg("could not generate random encryption vector")));
+		pfree(passwd);
 		return STATUS_ERROR;
 	}
 #else
@@ -3060,6 +3076,7 @@ CheckRADIUSAuth(Port *port)
 	{
 		ereport(LOG,
 				(errmsg("could not perform MD5 encryption of password")));
+		pfree(passwd);
 		pfree(cryptvector);
 		return STATUS_ERROR;
 	}
@@ -3072,6 +3089,7 @@ CheckRADIUSAuth(Port *port)
 			encryptedpassword[i] = '\0' ^ encryptedpassword[i];
 	}
 	radius_add_attribute(packet, RADIUS_PASSWORD, encryptedpassword, RADIUS_VECTOR_LENGTH);
+	pfree(passwd);
 
 	/* Length need to be in network order on the wire */
 	packetlength = packet->length;
