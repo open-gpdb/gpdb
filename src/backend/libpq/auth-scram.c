@@ -591,7 +591,7 @@ mock_scram_verifier(const char *username, int *iterations, char **salt,
 }
 
 /*
- * Read the value in a given SASL exchange message for given attribute.
+ * Read the value in a given SCRAM exchange message for given attribute.
  */
 static char *
 read_attr_value(char **input, char attr)
@@ -603,7 +603,7 @@ read_attr_value(char **input, char attr)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("malformed SCRAM message"),
-				 errdetail("Expected attribute '%c' but found %s.",
+				 errdetail("Expected attribute \"%c\" but found \"%s\".",
 						   attr, sanitize_char(*begin))));
 	begin++;
 
@@ -611,7 +611,7 @@ read_attr_value(char **input, char attr)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("malformed SCRAM message"),
-				 errdetail("Expected character = for attribute %c.", attr)));
+				 errdetail("Expected character \"=\" for attribute \"%c\".", attr)));
 	begin++;
 
 	end = begin;
@@ -670,7 +670,7 @@ sanitize_char(char c)
 }
 
 /*
- * Read the next attribute and value in a SASL exchange message.
+ * Read the next attribute and value in a SCRAM exchange message.
  *
  * Returns NULL if there is attribute.
  */
@@ -692,7 +692,7 @@ read_any_attr(char **input, char *attr_p)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("malformed SCRAM message"),
-				 errdetail("Attribute expected, but found invalid character %s.",
+				 errdetail("Attribute expected, but found invalid character \"%s\".",
 						   sanitize_char(attr))));
 	if (attr_p)
 		*attr_p = attr;
@@ -702,7 +702,7 @@ read_any_attr(char **input, char *attr_p)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("malformed SCRAM message"),
-				 errdetail("Expected character = for attribute %c.", attr)));
+				 errdetail("Expected character \"=\" for attribute \"%c\".", attr)));
 	begin++;
 
 	end = begin;
@@ -721,7 +721,7 @@ read_any_attr(char **input, char *attr_p)
 }
 
 /*
- * Read and parse the first message from client in the context of a SASL
+ * Read and parse the first message from client in the context of a SCRAM
  * authentication exchange message.
  *
  * At this stage, any errors will be reported directly with ereport(ERROR).
@@ -821,14 +821,14 @@ read_client_first_message(scram_state *state, char *input)
 			ereport(ERROR,
 					(errcode(ERRCODE_PROTOCOL_VIOLATION),
 					 errmsg("malformed SCRAM message"),
-					 errdetail("Unexpected channel-binding flag %s.",
+					 errdetail("Unexpected channel-binding flag \"%s\".",
 							   sanitize_char(*input))));
 	}
 	if (*input != ',')
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("malformed SCRAM message"),
-				 errdetail("Comma expected, but found character %s.",
+				 errdetail("Comma expected, but found character \"%s\".",
 						   sanitize_char(*input))));
 	input++;
 
@@ -843,7 +843,7 @@ read_client_first_message(scram_state *state, char *input)
 		ereport(ERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("malformed SCRAM message"),
-				 errdetail("Unexpected attribute %s in client-first-message.",
+				 errdetail("Unexpected attribute \"%s\" in client-first-message.",
 						   sanitize_char(*input))));
 	input++;
 
@@ -948,7 +948,7 @@ verify_client_proof(scram_state *state)
 }
 
 /*
- * Build the first server-side message sent to the client in a SASL
+ * Build the first server-side message sent to the client in a SCRAM
  * communication exchange.
  */
 static char *
