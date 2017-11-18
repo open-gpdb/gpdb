@@ -1644,6 +1644,32 @@ PQgetssl(PGconn *conn)
 		return NULL;
 	return conn->ssl;
 }
+
+/*
+ *	Get the TLS finish message sent during last handshake
+ *
+ * This information is useful for callers doing channel binding during
+ * authentication.
+ */
+char *
+pgtls_get_finished(PGconn *conn, size_t *len)
+{
+	char		dummy[1];
+	char	   *result;
+
+	/*
+	 * OpenSSL does not offer an API to get directly the length of the TLS
+	 * Finished message sent, so first do a dummy call to grab this
+	 * information and then do an allocation with the correct size.
+	 */
+	*len = SSL_get_finished(conn->ssl, dummy, sizeof(dummy));
+	result = malloc(*len);
+	if (result == NULL)
+		return NULL;
+	(void) SSL_get_finished(conn->ssl, result, *len);
+
+	return result;
+}
 #else							/* !USE_SSL */
 
 void *
@@ -1651,6 +1677,8 @@ PQgetssl(PGconn *conn)
 {
 	return NULL;
 }
+
+
 #endif   /* USE_SSL */
 
 

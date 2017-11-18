@@ -26,7 +26,7 @@ use Test::More;
 
 use Exporter 'import';
 our @EXPORT = qw(
-  configure_test_server_for_ssl switch_server_cert test_connect_ok
+  configure_test_server_for_ssl switch_server_cert
 );
 
 # Define a couple of helper functions to test connecting to the server.
@@ -36,8 +36,6 @@ sub run_test_psql
 {
 	my $connstr   = $_[0];
 	my $logstring = $_[1];
-
-	local $ENV{PGOPTIONS} = '-c gp_session_role=utility';
 
 	my $cmd = [
 		'psql', '-X', '-A', '-t', '-c', "SELECT 'connected with $connstr'",
@@ -103,9 +101,9 @@ sub configure_test_server_for_ssl
 	if (defined($password))
 	{
 		$node->psql('postgres',
-"SET password_hash_algorithm='$password_enc'; ALTER USER ssltestuser PASSWORD '$password';");
+"SET password_encryption='$password_enc'; ALTER USER ssltestuser PASSWORD '$password';");
 		$node->psql('postgres',
-"SET password_hash_algorithm='$password_enc'; ALTER USER anotheruser PASSWORD '$password';");
+"SET password_encryption='$password_enc'; ALTER USER anotheruser PASSWORD '$password';");
 	}
 
 	# enable logging etc.
@@ -120,9 +118,6 @@ sub configure_test_server_for_ssl
 	print CONF "include 'sslconfig.conf'";
 
 	close CONF;
-	# ssl configuration will be placed here
-	open my $sslconf, '>', "$pgdata/sslconfig.conf";
-	close $sslconf;
 
 # Copy all server certificates and keys, and client root cert, to the data dir
 	copy_files("ssl/server-*.crt", $pgdata);
@@ -159,7 +154,7 @@ sub switch_server_cert
 	close SSLCONF;
 
 	# Stop and restart server to reload the new config.
-	$node->restart;
+	$node->reload;
 }
 
 sub configure_hba_for_ssl
@@ -183,4 +178,5 @@ sub configure_hba_for_ssl
 	print $hba
 "hostssl certdb          ssltestuser     ::1/128                 cert\n";
 	close $hba;
+>>>>>>> 9288d62bb4... Support channel binding 'tls-unique' in SCRAM
 }

@@ -194,6 +194,10 @@ typedef struct Port
 } Port;
 
 
+#ifdef USE_SSL
+extern char *be_tls_get_peer_finished(Port *port, size_t *len);
+#endif
+
 extern ProtocolVersion FrontendProtocol;
 
 /* TCP keepalives configuration. These are no-ops on an AF_UNIX socket. */

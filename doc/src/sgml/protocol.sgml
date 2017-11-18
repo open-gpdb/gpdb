@@ -1380,11 +1380,12 @@
 <title>SASL Authentication</title>
 
 <para>
-<firstterm>SASL</> is a framework for authentication in connection-oriented
-protocols. At the moment, <productname>PostgreSQL</> implements only one SASL
-authentication mechanism, SCRAM-SHA-256, but more might be added in the
-future. The below steps illustrate how SASL authentication is performed in
-general, while the next subsection gives more details on SCRAM-SHA-256.
+<firstterm>SASL</firstterm> is a framework for authentication in connection-oriented
+protocols. At the moment, <productname>PostgreSQL</productname> implements two SASL
+authentication mechanisms, SCRAM-SHA-256 and SCRAM-SHA-256-PLUS. More
+might be added in the future. The below steps illustrate how SASL
+authentication is performed in general, while the next subsection gives
+more details on SCRAM-SHA-256 and SCRAM-SHA-256-PLUS.
 </para>
 
 <procedure>
@@ -1438,9 +1439,10 @@ ErrorMessage.
   <title>SCRAM-SHA-256 authentication</title>
 
   <para>
-    <firstterm>SCRAM-SHA-256</> (called just <firstterm>SCRAM</> from now on) is
-    the only implemented SASL mechanism, at the moment. It is described in detail
-    in RFC 7677 and RFC 5802. 
+   The implemented SASL mechanisms at the moment
+   are <literal>SCRAM-SHA-256</literal> and its variant with channel
+   binding <literal>SCRAM-SHA-256-PLUS</literal>. They are described in
+   detail in RFC 7677 and RFC 5802.
   </para>
 
   <para>
@@ -1467,7 +1469,10 @@ the password is in.
   </para>
 
   <para>
-<firstterm>Channel binding</> has not been implemented yet.
+<firstterm>Channel binding</firstterm> is supported in PostgreSQL builds with
+SSL support. The SASL mechanism name for SCRAM with channel binding
+is <literal>SCRAM-SHA-256-PLUS</literal>.  The only channel binding type
+supported at the moment is <literal>tls-unique</literal>, defined in RFC 5929.
   </para>
 
 <procedure>
@@ -1476,14 +1481,20 @@ the password is in.
 <para>
   The server sends an AuthenticationSASL message. It includes a list of
   SASL authentication mechanisms that the server can accept.
+  This will be <literal>SCRAM-SHA-256-PLUS</literal>
+  and <literal>SCRAM-SHA-256</literal> if the server is built with SSL
+  support, or else just the latter.
 </para>
 </step>
 <step id="scram-client-first">
 <para>
   The client responds by sending a SASLInitialResponse message, which
-  indicates the chosen mechanism, <literal>SCRAM-SHA-256</>. In the Initial
-  Client response field, the message contains the SCRAM
-  <structname>client-first-message</>.
+  indicates the chosen mechanism, <literal>SCRAM-SHA-256</literal> or
+  <literal>SCRAM-SHA-256-PLUS</literal>. (A client is free to choose either
+  mechanism, but for better security it should choose the channel-binding
+  variant if it can support it.) In the Initial Client response field,
+  the message contains the SCRAM
+  <structname>client-first-message</structname>.
 </para>
 </step>
 <step id="scram-server-first">
