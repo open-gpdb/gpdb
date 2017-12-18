@@ -31,6 +31,7 @@
 #include "cdb/cdbvars.h"
 #include "cdb/cdbendpoint.h"
 #include "commands/user.h"
+#include "common/scram-common.h"
 #include "libpq/auth.h"
 #include "libpq/crypt.h"
 #include "libpq/ip.h"

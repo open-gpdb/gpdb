@@ -45,8 +45,9 @@
 #include <pwd.h>
 #endif
 
+
+#include "common/scram-common.h"
 #include "libpq-fe.h"
-#include "libpq/scram.h"
 #include "fe-auth.h"
 #include "libpq/md5.h"
 #include "libpq/pg_sha2.h"
