@@ -4,9 +4,16 @@ use strict;
 use warnings;
 use PostgresNode;
 use TestLib;
-use Test::More tests => 1;
+use Test::More tests => 5;
 use ServerSetup;
 use File::Copy;
+
+if ($ENV{with_openssl} ne 'yes')
+{
+	plan skip_all => 'SSL not supported by this build';
+}
+
+my $number_of_tests = 1;
 
 # This is the hostname used to connect to the server.
 my $SERVERHOSTADDR = '127.0.0.1';
@@ -34,5 +41,8 @@ $ENV{PGPASSWORD} = "pass";
 $common_connstr =
 "user=ssltestuser dbname=trustdb sslmode=require hostaddr=$SERVERHOSTADDR";
 
+# Default settings
 test_connect_ok($common_connstr, '',
-				"SCRAM authentication with default channel binding");
+	"Basic SCRAM authentication with SSL");
+
+done_testing($number_of_tests);

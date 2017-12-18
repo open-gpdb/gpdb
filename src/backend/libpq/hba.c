@@ -106,7 +106,7 @@ static const char *const UserAuthName[] =
 	"ident",
 	"password",
 	"md5",
-	"scram-sha256",
+	"scram-sha-256",
 	"gss",
 	"sspi",
 	"pam",

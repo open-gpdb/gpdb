@@ -85,6 +85,7 @@ static int ldapServiceLookup(const char *purl, PQconninfoOption *options,
 #endif
 
 #include "libpq/ip.h"
+#include "common/scram-common.h"
 #include "mb/pg_wchar.h"
 
 #if defined(_AIX)
@@ -284,7 +285,6 @@ static const internalPQconninfoOption PQconninfoOptions[] = {
 	{"keepalives_count", NULL, NULL, NULL,
 		"TCP-Keepalives-Count", "", 10, /* strlen(INT32_MAX) == 10 */
 	offsetof(struct pg_conn, keepalives_count)},
-
 	/*
 	 * ssl options are allowed even without client SSL support because the
 	 * client can still handle SSL modes "disable" and "allow". Other
@@ -335,11 +335,11 @@ static const internalPQconninfoOption PQconninfoOptions[] = {
 	{"krbsrvname", "PGKRBSRVNAME", PG_KRB_SRVNAM, NULL,
 		"Kerberos-service-name", "", 20,
 	offsetof(struct pg_conn, krbsrvname)},
-#if defined(ENABLE_GSS) && defined(ENABLE_SSPI)
+
 	{"gsslib", "PGGSSLIB", NULL, NULL,
 		"GSS-library", "", 7,	/* sizeof("gssapi") = 7 */
 	offsetof(struct pg_conn, gsslib)},
-#endif
+
 	{"replication", NULL, NULL, NULL,
 		"Replication", "D", 5,
 	offsetof(struct pg_conn, replication)},
@@ -489,9 +489,17 @@ pqDropConnection(PGconn *conn, bool flushInput)
 			gss_delete_sec_context(&min_s, &conn->gctx, GSS_C_NO_BUFFER);
 		if (conn->gtarg_nam)
 			gss_release_name(&min_s, &conn->gtarg_nam);
+		if (conn->ginbuf.length)
+			gss_release_buffer(&min_s, &conn->ginbuf);
+		if (conn->goutbuf.length)
+			gss_release_buffer(&min_s, &conn->goutbuf);
 	}
 #endif
 #ifdef ENABLE_SSPI
+	if (conn->ginbuf.length)
+		free(conn->ginbuf.value);
+	conn->ginbuf.length = 0;
+	conn->ginbuf.value = NULL;
 	if (conn->sspitarget)
 	{
 		free(conn->sspitarget);
@@ -2677,15 +2685,50 @@ keep_going:						/* We will come back to here until there is
 					/* We'll come back when there are more data */
 					return PGRES_POLLING_READING;
 				}
-				msgLength -= 4;
 
+#if defined(ENABLE_GSS) || defined(ENABLE_SSPI)
 				/*
-				 * Ensure the password salt is in the input buffer, if it's an
-				 * MD5 request.  All the other authentication methods that
-				 * contain extra data in the authentication request are only
-				 * supported in protocol version 3, in which case we already
-				 * read the whole message above.
-				 */
+			 	 * Continue GSSAPI/SSPI authentication
+			 	 */
+				if (areq == AUTH_REQ_GSS_CONT)
+				{
+					int			llen = msgLength - 4;
+					/*
+ 				 	 * We can be called repeatedly for the same buffer. Avoid
+ 				 	 * re-allocating the buffer in this case - just re-use the
+				 	 * old buffer.
+ 				 	 */
+					if (llen != conn->ginbuf.length)
+					{
+						if (conn->ginbuf.value)
+							free(conn->ginbuf.value);
+
+						conn->ginbuf.length = llen;
+						conn->ginbuf.value = malloc(llen);
+						if (!conn->ginbuf.value)
+						{
+							printfPQExpBuffer(&conn->errorMessage,
+										  libpq_gettext("out of memory allocating GSSAPI buffer (%d)"),
+										  llen);
+							goto error_return;
+						}
+					}
+					if (pqGetnchar(conn->ginbuf.value, llen, conn))
+					{
+						/* We'll come back when there is more data. */
+						return PGRES_POLLING_READING;
+					}
+				}
+#endif
+
+				msgLength -= 4;
+				/*
+			 	 * Ensure the password salt is in the input buffer, if it's an
+			 	 * MD5 request.  All the other authentication methods that
+			 	 * contain extra data in the authentication request are only
+			 	 * supported in protocol version 3, in which case we already
+			 	 * read the whole message above.
+			 	 */
 				if (areq == AUTH_REQ_MD5 && PG_PROTOCOL_MAJOR(conn->pversion) < 3)
 				{
 					msgLength += 4;
@@ -3131,10 +3174,8 @@ freePGconn(PGconn *conn)
 		free(conn->requirepeer);
 	if (conn->krbsrvname)
 		free(conn->krbsrvname);
-#if defined(ENABLE_GSS) && defined(ENABLE_SSPI)
 	if (conn->gsslib)
 		free(conn->gsslib);
-#endif
 	if (conn->gpqeid)			/* CDB */
 		free(conn->gpqeid);
 	/* Note that conn->Pfdebug is not ours to close or free */

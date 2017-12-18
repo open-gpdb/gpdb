@@ -145,40 +145,12 @@ pg_GSS_have_ccache(gss_cred_id_t *cred_out)
  * Continue GSS authentication with next token as needed.
  */
 static int
-pg_GSS_continue(PGconn *conn, int payloadlen)
+pg_GSS_continue(PGconn *conn)
 {
 	OM_uint32	maj_stat,
 				min_stat,
 				lmin_s;
 	gss_cred_id_t proxy;
-	gss_buffer_desc ginbuf;
-	gss_buffer_desc goutbuf;
-
-	/*
-	 * On first call, there's no input token. On subsequent calls, read the
-	 * input token into a GSS buffer.
-	 */
-	if (conn->gctx != GSS_C_NO_CONTEXT)
-	{
-		ginbuf.length = payloadlen;
-		ginbuf.value = malloc(payloadlen);
-		if (!ginbuf.value)
-		{
-			printfPQExpBuffer(&conn->errorMessage,
-			  libpq_gettext("out of memory allocating GSSAPI buffer (%d)\n"),
-							  payloadlen);
-			return STATUS_ERROR;
-		}
-		if (pqGetnchar(ginbuf.value, payloadlen, conn))
-		{
-			/*
-			 * Shouldn't happen, because the caller should've ensured that the
-			 * whole message is already in the input buffer.
-			 */
-			free(ginbuf.value);
-			return STATUS_ERROR;
-		}
-	}
 
 	/* Check if we can aquire a proxy credential. */
 	if (!pg_GSS_have_ccache(&proxy))
@@ -193,16 +165,20 @@ pg_GSS_continue(PGconn *conn, int payloadlen)
 									GSS_C_MUTUAL_FLAG | GSS_C_DELEG_FLAG,
 									0,
 									GSS_C_NO_CHANNEL_BINDINGS,
-				(conn->gctx == GSS_C_NO_CONTEXT) ? GSS_C_NO_BUFFER : &ginbuf,
+				(conn->gctx == GSS_C_NO_CONTEXT) ? GSS_C_NO_BUFFER : &conn->ginbuf,
 									NULL,
-									&goutbuf,
+									&conn->goutbuf,
 									NULL,
 									NULL);
 
 	if (conn->gctx != GSS_C_NO_CONTEXT)
-		free(ginbuf.value);
+	{
+		free(conn->ginbuf.value);
+		conn->ginbuf.value = NULL;
+		conn->ginbuf.length = 0;
+	}
 
-	if (goutbuf.length != 0)
+	if (conn->goutbuf.length != 0)
 	{
 		/*
 		 * GSS generated data to send to the server. We don't care if it's the
@@ -210,13 +186,14 @@ pg_GSS_continue(PGconn *conn, int payloadlen)
 		 * packet.
 		 */
 		if (pqPacketSend(conn, 'p',
-						 goutbuf.value, goutbuf.length) != STATUS_OK)
+						 conn->goutbuf.value, conn->goutbuf.length)
+			!= STATUS_OK)
 		{
-			gss_release_buffer(&lmin_s, &goutbuf);
+			gss_release_buffer(&lmin_s, &conn->goutbuf);
 			return STATUS_ERROR;
 		}
 	}
-	gss_release_buffer(&lmin_s, &goutbuf);
+	gss_release_buffer(&lmin_s, &conn->goutbuf);
 
 	if (maj_stat != GSS_S_COMPLETE && maj_stat != GSS_S_CONTINUE_NEEDED)
 	{
@@ -239,7 +216,7 @@ pg_GSS_continue(PGconn *conn, int payloadlen)
  * Send initial GSS authentication token
  */
 static int
-pg_GSS_startup(PGconn *conn, int payloadlen)
+pg_GSS_startup(PGconn *conn)
 {
 	OM_uint32	maj_stat,
 				min_stat;
@@ -294,7 +271,7 @@ pg_GSS_startup(PGconn *conn, int payloadlen)
 	 */
 	conn->gctx = GSS_C_NO_CONTEXT;
 
-	return pg_GSS_continue(conn, payloadlen);
+	return pg_GSS_continue(conn);
 }
 #endif   /* ENABLE_GSS */
 
@@ -324,7 +301,7 @@ pg_SSPI_error(PGconn *conn, const char *mprefix, SECURITY_STATUS r)
  * Continue SSPI authentication with next token as needed.
  */
 static int
-pg_SSPI_continue(PGconn *conn, int payloadlen)
+pg_SSPI_continue(PGconn *conn)
 {
 	SECURITY_STATUS r;
 	CtxtHandle	newContext;
@@ -333,7 +310,6 @@ pg_SSPI_continue(PGconn *conn, int payloadlen)
 	SecBufferDesc outbuf;
 	SecBuffer	OutBuffers[1];
 	SecBuffer	InBuffers[1];
-	char	   *inputbuf = NULL;
 
 	if (conn->sspictx != NULL)
 	{
@@ -341,29 +317,13 @@ pg_SSPI_continue(PGconn *conn, int payloadlen)
 		 * On runs other than the first we have some data to send. Put this
 		 * data in a SecBuffer type structure.
 		 */
-		inputbuf = malloc(payloadlen);
-		if (!inputbuf)
-		{
-			printfPQExpBuffer(&conn->errorMessage,
-				libpq_gettext("out of memory allocating SSPI buffer (%d)\n"),
-							  payloadlen);
-			return STATUS_ERROR;
-		}
-		if (pqGetnchar(inputbuf, payloadlen, conn))
-		{
-			/*
-			 * Shouldn't happen, because the caller should've ensured that the
-			 * whole message is already in the input buffer.
-			 */
-			free(inputbuf);
-			return STATUS_ERROR;
-		}
+
 
 		inbuf.ulVersion = SECBUFFER_VERSION;
 		inbuf.cBuffers = 1;
 		inbuf.pBuffers = InBuffers;
-		InBuffers[0].pvBuffer = inputbuf;
-		InBuffers[0].cbBuffer = payloadlen;
+		InBuffers[0].pvBuffer = conn->ginbuf.value;
+		InBuffers[0].cbBuffer = conn->ginbuf.length;
 		InBuffers[0].BufferType = SECBUFFER_TOKEN;
 	}
 
@@ -387,10 +347,6 @@ pg_SSPI_continue(PGconn *conn, int payloadlen)
 								  &contextAttr,
 								  NULL);
 
-	/* we don't need the input anymore */
-	if (inputbuf)
-		free(inputbuf);
-
 	if (r != SEC_E_OK && r != SEC_I_CONTINUE_NEEDED)
 	{
 		pg_SSPI_error(conn, libpq_gettext("SSPI continuation error"), r);
@@ -408,6 +364,16 @@ pg_SSPI_continue(PGconn *conn, int payloadlen)
 			return STATUS_ERROR;
 		}
 		memcpy(conn->sspictx, &newContext, sizeof(CtxtHandle));
+	}
+	else
+	{
+		/*
+		 * On subsequent runs when we had data to send, free buffers that
+		 * contained this data.
+		 */
+		free(conn->ginbuf.value);
+		conn->ginbuf.value = NULL;
+		conn->ginbuf.length = 0;
 	}
 
 	/*
@@ -455,7 +421,7 @@ pg_SSPI_continue(PGconn *conn, int payloadlen)
  * which supports both kerberos and NTLM, but is not compatible with Unix.
  */
 static int
-pg_SSPI_startup(PGconn *conn, int use_negotiate, int payloadlen)
+pg_SSPI_startup(PGconn *conn, int use_negotiate)
 {
 	SECURITY_STATUS r;
 	TimeStamp	expire;
@@ -519,7 +485,7 @@ pg_SSPI_startup(PGconn *conn, int use_negotiate, int payloadlen)
 	 */
 	conn->usesspi = 1;
 
-	return pg_SSPI_continue(conn, payloadlen);
+	return pg_SSPI_continue(conn);
 }
 #endif   /* ENABLE_SSPI */
 
@@ -535,8 +501,6 @@ pg_SASL_init(PGconn *conn, int payloadlen)
 	bool		success;
 	const char *selected_mechanism;
 	PQExpBufferData mechanism_buf;
-	char	   *tls_finished = NULL;
-	size_t		tls_finished_len = 0;
 	char	   *password;
 
 	initPQExpBuffer(&mechanism_buf);
@@ -572,26 +536,44 @@ pg_SASL_init(PGconn *conn, int payloadlen)
 
 		/*
 		 * Select the mechanism to use.  Pick SCRAM-SHA-256-PLUS over anything
-		 * else.  Pick SCRAM-SHA-256 if nothing else has already been picked.
-		 * If we add more mechanisms, a more refined priority mechanism might
+		 * else if a channel binding type is set and if the client supports
+		 * it. Pick SCRAM-SHA-256 if nothing else has already been picked.  If
+		 * we add more mechanisms, a more refined priority mechanism might
 		 * become necessary.
 		 */
-#ifdef USE_SSL
-		if (conn->ssl != NULL && strcmp(mechanism_buf.data, SCRAM_SHA256_PLUS_NAME) == 0)
+		if (strcmp(mechanism_buf.data, SCRAM_SHA_256_PLUS_NAME) == 0)
 		{
-			selected_mechanism = SCRAM_SHA256_PLUS_NAME;
-		}
-		else
-		{
-			if((strcmp(mechanism_buf.data, SCRAM_SHA256_NAME) == 0 &&
-			!selected_mechanism))
-			selected_mechanism = SCRAM_SHA256_NAME;
-		}
-#else
-		if (strcmp(mechanism_buf.data, SCRAM_SHA256_NAME) == 0 &&
-				 !selected_mechanism)
-			selected_mechanism = SCRAM_SHA256_NAME;
+#ifdef HAVE_PGTLS_GET_PEER_CERTIFICATE_HASH
+			if (conn->ssl != NULL)
+			{
+				/*
+				 * The server has offered SCRAM-SHA-256-PLUS, which is only
+				 * supported by the client if a hash of the peer certificate
+				 * can be created.
+				 */
+
+				selected_mechanism = SCRAM_SHA_256_PLUS_NAME;
+			}
+			else
 #endif
+			{
+				/*
+				 * The server offered SCRAM-SHA-256-PLUS, but the connection
+				 * is not SSL-encrypted. That's not sane. Perhaps SSL was
+				 * stripped by a proxy? There's no point in continuing,
+				 * because the server will reject the connection anyway if we
+				 * try authenticate without channel binding even though both
+				 * the client and server supported it. The SCRAM exchange
+				 * checks for that, to prevent downgrade attacks.
+				 */
+				printfPQExpBuffer(&conn->errorMessage,
+								  libpq_gettext("server offered SCRAM-SHA-256-PLUS authentication over a non-SSL connection\n"));
+				goto error;
+			}
+		}
+		else if (strcmp(mechanism_buf.data, SCRAM_SHA_256_NAME) == 0 &&
+				 !selected_mechanism)
+			selected_mechanism = SCRAM_SHA_256_NAME;
 	}
 
 	if (!selected_mechanism)
@@ -620,43 +602,15 @@ pg_SASL_init(PGconn *conn, int payloadlen)
 		goto error;
 	}
 
-#ifdef USE_SSL
-	/*
-	 * Get data for channel binding.
-	 */
-	if (strcmp(selected_mechanism, SCRAM_SHA256_PLUS_NAME) == 0)
-	{
-		tls_finished = pgtls_get_finished(conn, &tls_finished_len);
-		if (tls_finished == NULL)
-			goto oom_error;
-	}
 	/*
 	 * Initialize the SASL state information with all the information
 	 * gathered during the initial exchange.
 	 *
 	 * Note: Only tls-unique is supported for the moment.
 	 */
-	conn->sasl_state = pg_fe_scram_init(conn->pguser,
+	conn->sasl_state = pg_fe_scram_init(conn,
 										password,
-										conn->ssl != NULL,
-										selected_mechanism,
-										tls_finished,
-										tls_finished_len);
-#else
-
-	/*
-	 * Initialize the SASL state information with all the information
-	 * gathered during the initial exchange.
-	 *
-	 * Note: Only tls-unique is supported for the moment.
-	 */
-	conn->sasl_state = pg_fe_scram_init(conn->pguser,
-										password,
-										false,
-										selected_mechanism,
-										tls_finished,
-										tls_finished_len);
-#endif
+										selected_mechanism);
 	if (!conn->sasl_state)
 		goto oom_error;
 
@@ -664,7 +618,7 @@ pg_SASL_init(PGconn *conn, int payloadlen)
 	pg_fe_scram_exchange(conn->sasl_state,
 						 NULL, -1,
 						 &initialresponse, &initialresponselen,
-						 &done, &success, &conn->errorMessage);
+						 &done, &success);
 
 	if (done && !success)
 		goto error;
@@ -745,7 +699,7 @@ pg_SASL_continue(PGconn *conn, int payloadlen, bool final)
 	pg_fe_scram_exchange(conn->sasl_state,
 						 challenge, payloadlen,
 						 &output, &outputlen,
-						 &done, &success, &conn->errorMessage);
+						 &done, &success);
 	free(challenge);			/* don't need the input anymore */
 
 	if (final && !done)
@@ -951,13 +905,13 @@ pg_fe_sendauth(AuthRequest areq, int payloadlen, PGconn *conn)
 				 */
 #if defined(ENABLE_GSS) && defined(ENABLE_SSPI)
 				if (conn->gsslib && (pg_strcasecmp(conn->gsslib, "gssapi") == 0))
-					r = pg_GSS_startup(conn, payloadlen);
+					r = pg_GSS_startup(conn);
 				else
-					r = pg_SSPI_startup(conn, 0, payloadlen);
+					r = pg_SSPI_startup(conn, 0);
 #elif defined(ENABLE_GSS) && !defined(ENABLE_SSPI)
-				r = pg_GSS_startup(conn, payloadlen);
+				r = pg_GSS_startup(conn);
 #elif !defined(ENABLE_GSS) && defined(ENABLE_SSPI)
-				r = pg_SSPI_startup(conn, 0, payloadlen);
+				r = pg_SSPI_startup(conn, 0);
 #endif
 				if (r != STATUS_OK)
 				{
@@ -976,13 +930,13 @@ pg_fe_sendauth(AuthRequest areq, int payloadlen, PGconn *conn)
 				pglock_thread();
 #if defined(ENABLE_GSS) && defined(ENABLE_SSPI)
 				if (conn->usesspi)
-					r = pg_SSPI_continue(conn, payloadlen);
+					r = pg_SSPI_continue(conn);
 				else
-					r = pg_GSS_continue(conn, payloadlen);
+					r = pg_GSS_continue(conn);
 #elif defined(ENABLE_GSS) && !defined(ENABLE_SSPI)
-				r = pg_GSS_continue(conn, payloadlen);
+				r = pg_GSS_continue(conn);
 #elif !defined(ENABLE_GSS) && defined(ENABLE_SSPI)
-				r = pg_SSPI_continue(conn, payloadlen);
+				r = pg_SSPI_continue(conn);
 #endif
 				if (r != STATUS_OK)
 				{
@@ -1011,7 +965,7 @@ pg_fe_sendauth(AuthRequest areq, int payloadlen, PGconn *conn)
 			 * negotiation instead of Kerberos.
 			 */
 			pglock_thread();
-			if (pg_SSPI_startup(conn, 1, payloadlen) != STATUS_OK)
+			if (pg_SSPI_startup(conn, 1) != STATUS_OK)
 			{
 				/* Error message already filled in. */
 				pgunlock_thread();
