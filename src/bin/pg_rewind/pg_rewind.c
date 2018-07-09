@@ -58,6 +58,7 @@ char	   *connstr_source = NULL;
 bool		debug = false;
 bool		showprogress = false;
 bool		dry_run = false;
+bool		do_sync = true;
 
 static void
 usage(const char *progname)
@@ -71,6 +72,8 @@ usage(const char *progname)
 	printf(_("  -R, --write-recovery-conf      write recovery.conf after backup\n"));
 	printf(_("  -S, --slot=SLOTNAME            replication slot to use\n"));
 	printf(_("  -n, --dry-run                  stop before modifying anything\n"));
+	printf(_("  -N, --no-sync                  do not wait for changes to be written\n"));
+	printf(_("                                 safely to disk\n"));
 	printf(_("  -P, --progress                 write progress messages\n"));
 	printf(_("      --debug                    write a lot of debug messages\n"));
 	printf(_("  -V, --version                  output version information, then exit\n"));
@@ -91,6 +94,7 @@ main(int argc, char **argv)
 		{"source-server", required_argument, NULL, 2},
 		{"version", no_argument, NULL, 'V'},
 		{"dry-run", no_argument, NULL, 'n'},
+		{"no-sync", no_argument, NULL, 'N'},
 		{"progress", no_argument, NULL, 'P'},
 		{"debug", no_argument, NULL, 3},
 		{NULL, 0, NULL, 0}
@@ -127,7 +131,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((c = getopt_long(argc, argv, "D:nPRS:", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "D:nNPRS:", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -149,6 +153,10 @@ main(int argc, char **argv)
 
 			case 'S':
 				replication_slot = pg_strdup(optarg);
+				break;
+
+			case 'N':
+				do_sync = false;
 				break;
 
 			case 3:
@@ -758,7 +766,7 @@ fsync_parent_path(const char *fname)
 static void
 syncTargetDirectory()
 {
-	if (dry_run)
+	if (!do_sync || dry_run)
 		return;
 
 	file_entry_t *entry;
