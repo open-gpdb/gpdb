@@ -423,6 +423,7 @@
 		"optimizer_use_gpdb_allocators",
 		"password_encryption",
 		"password_hash_algorithm",
+		"plan_cache_mode",
 		"pljava_classpath_insecure",
 		"pljava_debug",
 		"port",

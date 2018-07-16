@@ -275,12 +275,11 @@ explain (costs off) execute test_mode_pp(2);
                         QUERY PLAN                        
 ----------------------------------------------------------
  Aggregate
-   ->  Gather Motion 1:1  (slice1; segments: 1)
-         ->  Aggregate
-               ->  Index Only Scan using test_mode_a_idx on test_mode
-                     Index Cond: (a = 2)
- Optimizer: Postgres query optimizer
-(6 rows)
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         ->  Index Scan using test_mode_a_idx on test_mode
+               Index Cond: (a = 2)
+ Optimizer: Pivotal Optimizer (GPORCA) version 3.93.0
+(5 rows)
 
 -- force generic plan
 set plan_cache_mode to force_generic_plan;
@@ -333,11 +332,10 @@ explain (costs off) execute test_mode_pp(2);
 -----------------------------
  Aggregate
    ->  Gather Motion 3:1  (slice1; segments: 3)
-         ->  Aggregate
-               ->  Seq Scan on test_mode
-                     Filter: (a = $1)
- Optimizer: Postgres query optimizer
-(6 rows)
+         ->  Index Scan using test_mode_a_idx on test_mode
+               Index Cond: (a = 2)
+ Optimizer: Pivotal Optimizer (GPORCA) version 3.93.0
+(5 rows)
 
 -- but we can force a custom plan
 set plan_cache_mode to force_custom_plan;
@@ -345,11 +343,10 @@ explain (costs off) execute test_mode_pp(2);
                         QUERY PLAN                        
 ----------------------------------------------------------
  Aggregate
-   ->  Gather Motion 1:1  (slice1; segments: 1)
-         ->  Aggregate
-               ->  Index Only Scan using test_mode_a_idx on test_mode
-                     Index Cond: (a = 2)
- Optimizer: Postgres query optimizer
-(6 rows)
+   ->  Gather Motion 3:1  (slice1; segments: 3)
+         ->  Index Scan using test_mode_a_idx on test_mode
+               Index Cond: (a = 2)
+ Optimizer: Pivotal Optimizer (GPORCA) version 3.93.0
+(5 rows)
 
 drop table test_mode;
