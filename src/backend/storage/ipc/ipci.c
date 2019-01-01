@@ -53,7 +53,7 @@
 #include "utils/faultinjector.h"
 #include "utils/sharedsnapshot.h"
 #include "utils/gpexpand.h"
-#include "utils/backend_random.h"
+#include "utils/snapmgr.h"
 
 #include "libpq-fe.h"
 #include "libpq-int.h"
@@ -171,7 +171,6 @@ CreateSharedMemoryAndSemaphores(int port)
 		size = add_size(size, BTreeShmemSize());
 		size = add_size(size, SyncScanShmemSize());
 		size = add_size(size, AsyncShmemSize());
-		size = add_size(size, BackendRandomShmemSize());
 #ifdef EXEC_BACKEND
 		size = add_size(size, ShmemBackendArraySize());
 #endif
@@ -354,7 +353,6 @@ CreateSharedMemoryAndSemaphores(int port)
 	GpExpandVersionShmemInit();
 
 	FtsProbeShmemInit();
-	BackendRandomShmemInit();
 
 #ifdef EXEC_BACKEND
 

@@ -110,7 +110,6 @@ static const char *const UserAuthName[] =
 	"gss",
 	"sspi",
 	"pam",
-	"bsd",
 	"ldap",
 	"cert",
 	"radius",

@@ -42,4 +42,3 @@ DynamicSharedMemoryControlLock		34
 AutoFileLock						35
 ReplicationSlotAllocationLock		36
 ReplicationSlotControlLock			37
-BackendRandomLock			        38

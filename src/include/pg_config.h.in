@@ -587,9 +587,6 @@
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
 
-/* Define to use have a strong random number source */
-#undef HAVE_STRONG_RANDOM
-
 /* Define to 1 if you have the `strtoll' function. */
 #undef HAVE_STRTOLL
 
