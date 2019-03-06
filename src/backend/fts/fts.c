@@ -355,7 +355,7 @@ static
 CdbComponentDatabases *readCdbComponentInfoAndUpdateStatus(MemoryContext probeContext)
 {
 	int i;
-	CdbComponentDatabases *cdbs = cdbcomponent_getCdbComponents(false);
+	CdbComponentDatabases *cdbs = cdbcomponent_getCdbComponents();
 
 	for (i=0; i < cdbs->total_segment_dbs; i++)
 	{
