@@ -851,19 +851,7 @@ def stop_segments(context, segment_type):
 @when('user can start transactions')
 @then('user can start transactions')
 def impl(context):
-    num_retries = 150
-    attempt = 0
-    while attempt < num_retries:
-        try:
-            with dbconn.connect(dbconn.DbURL()) as conn:
-                break
-        except Exception as e:
-            attempt += 1
-            pass
-        time.sleep(1)
-
-    if attempt == num_retries:
-        raise Exception('Unable to establish a connection to database !!!')
+    wait_for_unblocked_transactions(context)
 
 
 @given('the environment variable "{var}" is set to "{val}"')

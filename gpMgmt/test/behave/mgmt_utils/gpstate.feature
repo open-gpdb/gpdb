@@ -55,7 +55,7 @@ Feature: gpstate tests
     Scenario: gpstate -c logs cluster info for a cluster that is unsynchronized
         Given a standard local demo cluster is running
         When user stops all mirror processes
-        And an FTS probe is triggered
+        And user can start transactions
         And the user runs "gpstate -c"
         Then gpstate output looks like
             | Status                        | Data State  | Primary | Datadir                 | Port   | Mirror | Datadir                        | Port   |
@@ -350,7 +350,7 @@ Feature: gpstate tests
     Scenario: gpstate -i warns if any mirrors are marked down
         Given a standard local demo cluster is running
           And user stops all mirror processes
-          And an FTS probe is triggered
+          And user can start transactions
         When the user runs "gpstate -i"
         Then gpstate output looks like
 		  | Host | Datadir                        | Port   | Version                                                                           |
