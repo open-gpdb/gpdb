@@ -18,8 +18,6 @@
 ## Test Sections: ['ICW', 'Replication', 'ResourceGroups', 'Interconnect', 'CLI', 'UD', 'AA', 'Extensions', 'Gpperfmon']
 ## ======================================================================
 
-
-
 ## ======================================================================
 ##   __ _ _ __ ___  _   _ _ __  ___
 ##  / _` | '__/ _ \| | | | '_ \/ __|
@@ -1543,7 +1541,6 @@ jobs:
             <<: *ccp_gen_cluster_default_params
         - task: gpinitsystem
           file: ccp_src/ci/tasks/gpinitsystem.yml
-        
         - task: gpmovemirrors_concourse_cluster_tests
           file: gpdb_src/concourse/tasks/run_behave.yml
           image: ccp-image
@@ -1614,11 +1611,6 @@ jobs:
             <<: *ccp_gen_cluster_default_params
         - task: gpinitsystem
           file: ccp_src/ci/tasks/gpinitsystem.yml
-        
-        - task: setup_gppkg_second_install
-          file: gpdb_src/concourse/tasks/gppkg_behave.yml
-          params:
-            SECOND_BINARY_INSTALL_LOCATION: /tmp/gppkg_migrate
         - task: gppkg_concourse_cluster_tests
           file: gpdb_src/concourse/tasks/run_behave.yml
           image: ccp-image
@@ -1794,7 +1786,6 @@ jobs:
             <<: *ccp_gen_cluster_default_params
         - task: gpinitsystem
           file: ccp_src/ci/tasks/gpinitsystem.yml
-        
         - task: gpcheckcat_concourse_cluster_tests
           file: gpdb_src/concourse/tasks/run_behave.yml
           image: ccp-image
@@ -1844,7 +1835,6 @@ jobs:
             <<: *ccp_gen_cluster_default_params
         - task: gpinitsystem
           file: ccp_src/ci/tasks/gpinitsystem.yml
-        
         - task: gprecoverseg_concourse_cluster_tests
           file: gpdb_src/concourse/tasks/run_behave.yml
           image: ccp-image
@@ -1894,7 +1884,6 @@ jobs:
             <<: *ccp_gen_cluster_default_params
         - task: gpinitsystem
           file: ccp_src/ci/tasks/gpinitsystem.yml
-        
         - task: gpaddmirrors_concourse_cluster_tests
           file: gpdb_src/concourse/tasks/run_behave.yml
           image: ccp-image
