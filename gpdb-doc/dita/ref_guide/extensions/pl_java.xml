@@ -259,11 +259,15 @@
     <topic id="topic8" xml:lang="en">
       <title id="pv165472">Remove PL/Java Support for a Database</title>
       <body>
-        <p>For a database that no long requires the PL/Java language, remove support for PL/Java.
-          Run the <codeph>uninstall.sql</codeph> file as the gpadmin user. For example, this command
-          disables the PL/Java language in the specified database. </p>
-        <codeblock>$ psql -d mydatabase
-  -f $GPHOME/share/postgresql/pljava/uninstall.sql</codeblock>
+        <p>Use the <codeph>DROP EXTENSION</codeph> command to remove support for PL/Java from a
+          database. For example, this command disables the PL/Java language in the
+            <codeph>testdb</codeph> database: </p>
+        <codeblock>$ psql -d testdb -c 'DROP EXTENSION pljava;'</codeblock>
+        <p> The default command fails if any existing objects (such as functions) depend on the
+          language. Specify the <codeph>CASCADE</codeph> option to also drop all dependent objects,
+          including functions that you created with PL/Java. </p>
+        <note>The PL/Java <codeph>uninstall.sql</codeph> script, used in previous releases to remove
+          the language registration, is deprecated.</note>
       </body>
     </topic>
     <topic id="topic9" xml:lang="en">
