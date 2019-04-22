@@ -377,13 +377,20 @@ CConfigParamMapping::SConfigMappingElem CConfigParamMapping::m_elements[] =
 		&optimizer_force_agg_skew_avoidance,
 		false, // m_negate_param
 		GPOS_WSZ_LIT("Always pick a plan for aggregate distinct that minimizes skew.")
-        },
+		},
 
-        {
+		{
 		EopttraceEnableEagerAgg,
 		&optimizer_enable_eageragg,
 		false, // m_negate_param
 		GPOS_WSZ_LIT("Enable Eager Agg transform for pushing aggregate below an innerjoin.")
+		},
+
+		{
+		EopttraceExpandFullJoin,
+		&optimizer_expand_fulljoin,
+		false, // m_negate_param
+		GPOS_WSZ_LIT("Enable Expand Full Join transform for converting FULL JOIN into UNION ALL.")
 		}
 };
 
@@ -515,6 +522,11 @@ CConfigParamMapping::PackConfigParamInBitset
 		 traceflag_bitset->ExchangeSet(GPOPT_DISABLE_XFORM_TF(CXform::ExfGbAggDedup2StreamAggDedup));
 	}
 
+	if (!optimizer_enable_mergejoin)
+	{
+		traceflag_bitset->ExchangeSet(GPOPT_DISABLE_XFORM_TF(CXform::ExfImplementFullOuterMergeJoin));
+	}
+
 	CBitSet *join_heuristic_bitset = NULL;
 	switch (optimizer_join_order)
 	{
@@ -543,11 +555,6 @@ CConfigParamMapping::PackConfigParamInBitset
 	if (!optimizer_enable_associativity)
 	{
 		traceflag_bitset->ExchangeSet(GPOPT_DISABLE_XFORM_TF(CXform::ExfJoinAssociativity));
-	}
-
-	if (!optimizer_expand_fulljoin)
-	{
-		traceflag_bitset->ExchangeSet(GPOPT_DISABLE_XFORM_TF(CXform::ExfExpandFullOuterJoin));
 	}
 
 	// enable nested loop index plans using nest params
