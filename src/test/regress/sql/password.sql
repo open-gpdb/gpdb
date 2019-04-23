@@ -46,6 +46,7 @@ ALTER ROLE regress_passwd3_new RENAME TO regress_passwd3;
 -- ENCRYPTED and UNENCRYPTED passwords
 ALTER ROLE regress_passwd1 UNENCRYPTED PASSWORD 'foo'; -- unencrypted
 ALTER ROLE regress_passwd2 UNENCRYPTED PASSWORD 'md5dfa155cadd5f4ad57860162f3fab9cdb'; -- encrypted with MD5
+SET password_encryption = 'on';
 SET password_hash_algorithm = 'md5';
 ALTER ROLE regress_passwd3 ENCRYPTED PASSWORD 'foo'; -- encrypted with MD5
 
@@ -54,6 +55,16 @@ ALTER ROLE regress_passwd4 ENCRYPTED PASSWORD 'SCRAM-SHA-256$4096:VLK4RMaQLCvNtQ
 SET password_hash_algorithm = 'scram-sha-256';
 ALTER ROLE  regress_passwd5 ENCRYPTED PASSWORD 'foo'; -- create SCRAM verifier
 CREATE ROLE regress_passwd6 ENCRYPTED PASSWORD 'md53725413363ab045e20521bf36b8d8d7f'; -- encrypted with MD5, use as it is
+
+-- This looks like a valid SCRAM-SHA-256 verifier, but it is not
+-- so it should be hashed with SCRAM-SHA-256.
+CREATE ROLE regress_passwd6 PASSWORD 'SCRAM-SHA-256$1234';
+-- These may look like valid MD5 verifiers, but they are not, so they
+-- should be hashed with SCRAM-SHA-256.
+-- trailing garbage at the end
+CREATE ROLE regress_passwd7 PASSWORD 'md5012345678901234567890123456789zz';
+-- invalid length
+CREATE ROLE regress_passwd8 PASSWORD 'md501234567890123456789012345678901zz';
 
 SELECT rolname, regexp_replace(rolpassword, '(SCRAM-SHA-256)\$(\d+):([a-zA-Z0-9+/=]+)\$([a-zA-Z0-9+=/]+):([a-zA-Z0-9+/=]+)', '\1$\2:<salt>$<storedkey>:<serverkey>') as rolpassword_masked
     FROM pg_authid
@@ -87,6 +98,8 @@ DROP ROLE regress_passwd3;
 DROP ROLE regress_passwd4;
 DROP ROLE regress_passwd5;
 DROP ROLE regress_passwd6;
+DROP ROLE regress_passwd7;
+DROP ROLE regress_passwd8;
 DROP ROLE regress_passwd_empty;
 DROP ROLE regress_passwd_sha_len0;
 DROP ROLE regress_passwd_sha_len1;
