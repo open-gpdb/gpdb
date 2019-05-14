@@ -2912,6 +2912,18 @@ _readLockRows(void)
 	READ_DONE();
 }
 
+static LockingClause *
+_readLockingClause(void)
+{
+	READ_LOCALS(LockingClause);
+
+	READ_NODE_FIELD(lockedRels);
+	READ_ENUM_FIELD(strength, LockClauseStrength);
+	READ_BOOL_FIELD(noWait);
+
+	READ_DONE();
+}
+
 static Node *
 _readValue(NodeTag nt)
 {
@@ -3850,6 +3862,9 @@ readNodeBinary(void)
 				break;
 			case T_AlterTableMoveAllStmt:
 				return_value = _readAlterTableMoveAllStmt();
+				break;
+			case T_LockingClause:
+				return_value = _readLockingClause();
 				break;
 			default:
 				return_value = NULL; /* keep the compiler silent */
