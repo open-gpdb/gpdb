@@ -151,8 +151,8 @@ void FtsProbeMain(int argc, char *argv[]);
 #endif
 
 /*
- * This is set in backends that are handling a FTS message on mirror.  The
- * assumption is am_ftshandler must be set if this is set.
+ * This is set in backends that are handling a GPDB specific message (FTS or
+ * fault injector) on mirror.
  */
 bool am_mirror = false;
 /* GPDB specific flag to handle deadlocks during parallel segment start. */
@@ -2412,6 +2412,7 @@ retry1:
 			}
 			else if (strcmp(nameptr, GPCONN_TYPE) == 0)
 			{
+				am_mirror = IsRoleMirror();
 				if (strcmp(valptr, GPCONN_TYPE_FTS) == 0)
 				{
 					if (IS_QUERY_DISPATCHER())
@@ -2419,7 +2420,6 @@ retry1:
 								(errcode(ERRCODE_PROTOCOL_VIOLATION),
 								 errmsg("cannot handle FTS connection on master")));
 					am_ftshandler = true;
-					am_mirror = IsRoleMirror();
 
 #ifdef FAULT_INJECTOR
 					if (FaultInjector_InjectFaultIfSet(
@@ -2456,6 +2456,10 @@ retry1:
 					}
 #endif
 				}
+#ifdef FAULT_INJECTOR
+				else if (strcmp(valptr, GPCONN_TYPE_FAULT) == 0)
+					am_faulthandler = true;
+#endif
 				else
 					ereport(FATAL,
 							(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
@@ -2558,7 +2562,7 @@ retry1:
 	 * can make sense to first make a basebackup and then stream changes
 	 * starting from that.
 	 */
-	if ((am_walsender && !am_db_walsender) || am_ftshandler)
+	if ((am_walsender && !am_db_walsender) || am_ftshandler || IsFaultHandler)
 		port->database_name[0] = '\0';
 
 	/*
@@ -2580,7 +2584,7 @@ retry1:
 	switch (port->canAcceptConnections)
 	{
 		case CAC_STARTUP:
-			if (am_ftshandler && am_mirror)
+			if ((am_ftshandler || IsFaultHandler) && am_mirror)
 				break;
 			ereport(FATAL,
 					(errcode(ERRCODE_CANNOT_CONNECT_NOW),
@@ -2610,7 +2614,7 @@ retry1:
 			Assert(port->canAcceptConnections != CAC_WAITBACKUP);
 			break;
 		case CAC_MIRROR_READY:
-			if (am_ftshandler)
+			if (am_ftshandler || IsFaultHandler)
 			{
 				/* Even if the connection state is MIRROR_READY, the role
 				 * may change to primary during promoting. Hence, we need
@@ -2638,7 +2642,7 @@ retry1:
 	}
 
 #ifdef FAULT_INJECTOR
-	if (!am_ftshandler && !am_walsender &&
+	if (!am_ftshandler && !IsFaultHandler && !am_walsender &&
 		FaultInjector_InjectFaultIfSet(ProcessStartupPacketFault,
 									   DDLNotSpecified,
 									   port->database_name /* databaseName */,
@@ -4885,6 +4889,9 @@ BackendInitialize(Port *port)
 						update_process_title ? "authentication" : "");
 	else if (am_ftshandler)
 		init_ps_display("fts handler process", port->user_name, remote_ps_data,
+						update_process_title ? "authentication" : "");
+	else if (IsFaultHandler)
+		init_ps_display("fault handler process", port->user_name, remote_ps_data,
 						update_process_title ? "authentication" : "");
 	else
 		init_ps_display(port->user_name, port->database_name, remote_ps_data,
