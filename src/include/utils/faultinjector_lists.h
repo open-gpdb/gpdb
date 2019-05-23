@@ -259,6 +259,8 @@ FI_IDENT(XLogAoInsert, "xlog_ao_insert")
 FI_IDENT(InsideMoveDbTransaction, "inside_move_db_transaction")
 /* inject fault just after calculating redo record and before committing checkpoint record */
 FI_IDENT(CheckpointAfterRedoCalculated, "checkpoint_after_redo_calculated")
+/* inject fault to skip WAL flush on WAL receiver */
+FI_IDENT(WalRecvSkipFlush, "walrecv_skip_flush")
 #endif
 
 /*
