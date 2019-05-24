@@ -53,7 +53,7 @@
 #define RESGROUP_MIN_CPU_RATE_LIMIT	(1)
 #define RESGROUP_MAX_CPU_RATE_LIMIT	(100)
 
-#define RESGROUP_MIN_MEMORY_LIMIT	(1)
+#define RESGROUP_MIN_MEMORY_LIMIT	(0)
 #define RESGROUP_MAX_MEMORY_LIMIT	(100)
 
 #define RESGROUP_MIN_MEMORY_SHARED_QUOTA	(0)
@@ -76,7 +76,7 @@ static ResGroupLimitType getResgroupOptionType(const char* defname);
 static ResGroupCap getResgroupOptionValue(DefElem *defel, int type);
 static const char *getResgroupOptionName(ResGroupLimitType type);
 static void checkResgroupCapLimit(ResGroupLimitType type, ResGroupCap value);
-static void checkResgroupMemAuditor(ResGroupCaps *caps);
+static void checkResgroupCapConflicts(ResGroupCaps *caps);
 static void parseStmtOptions(CreateResourceGroupStmt *stmt, ResGroupCaps *caps);
 static void validateCapabilities(Relation rel, Oid groupid, ResGroupCaps *caps, bool newGroup);
 static void insertResgroupCapabilityEntry(Relation rel, Oid groupid, uint16 type, const char *value);
@@ -466,7 +466,7 @@ AlterResourceGroup(AlterResourceGroupStmt *stmt)
 			break;
 	}
 
-	checkResgroupMemAuditor(&caps);
+	checkResgroupCapConflicts(&caps);
 
 	validateCapabilities(pg_resgroupcapability_rel, groupid, &caps, false);
 
@@ -948,12 +948,25 @@ checkResgroupCapLimit(ResGroupLimitType type, int value)
 }
 
 /*
- * Check to see if concurrency is not zero for resource group
- * with cgroup memory auditor.
+ * Check conflict settings in caps.
  */
 static void
-checkResgroupMemAuditor(ResGroupCaps *caps)
+checkResgroupCapConflicts(ResGroupCaps *caps)
 {
+	/*
+	 * When memory_limit is unlimited the memory_spill_ratio must be set to
+	 * 'fallback' mode to use the statement_mem.
+	 */
+	if (caps->memLimit == RESGROUP_UNLIMITED_MEMORY_LIMIT &&
+		caps->memSpillRatio != RESGROUP_FALLBACK_MEMORY_SPILL_RATIO)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+				 errmsg("when memory_limit is unlimited memory_spill_ratio must be set to %d",
+						RESGROUP_FALLBACK_MEMORY_SPILL_RATIO)));
+
+	/*
+	 * When memory_auditor is cgroup the concurrency must be 0.
+	 */
 	if (caps->memAuditor == RESGROUP_MEMORY_AUDITOR_CGROUP &&
 		caps->concurrency != 0)
 		ereport(ERROR,
@@ -961,22 +974,13 @@ checkResgroupMemAuditor(ResGroupCaps *caps)
 				errmsg("resource group concurrency must be 0 when group memory_auditor is %s",
 					ResGroupMemAuditorName[RESGROUP_MEMORY_AUDITOR_CGROUP])));
 
+	/*
+	 * The cgroup memory_auditor should not be used without a properly
+	 * configured cgroup memory directory.
+	 */
 	if (caps->memAuditor == RESGROUP_MEMORY_AUDITOR_CGROUP &&
 		!gp_resource_group_enable_cgroup_memory)
 	{
-		/*
-		 * Suppose the user has reconfigured the cgroup dirs by following
-		 * the gpdb documents, could it take effect at runtime (e.g. create
-		 * the resgroup again) without restart the cluster?
-		 *
-		 * It's possible but might not be reliable, as the user might
-		 * introduced unwanted changes to other cgroup dirs during the
-		 * reconfiguration (e.g. changed the permissions, moved processes
-		 * in/out).
-		 *
-		 * So we do not recheck the permissions here.
-		 */
-
 		ereport(ERROR,
 				(errcode(ERRCODE_GP_FEATURE_NOT_CONFIGURED),
 				 errmsg("cgroup is not properly configured for the 'cgroup' memory auditor"),
@@ -1087,7 +1091,7 @@ parseStmtOptions(CreateResourceGroupStmt *stmt, ResGroupCaps *caps)
 	if (!(mask & (1 << RESGROUP_LIMIT_TYPE_MEMORY_AUDITOR)))
 		caps->memAuditor = RESGROUP_DEFAULT_MEM_AUDITOR;
 
-	checkResgroupMemAuditor(caps);
+	checkResgroupCapConflicts(caps);
 }
 
 /*
