@@ -53,10 +53,8 @@ CREATE RESOURCE GROUP none WITH (cpu_rate_limit=10, memory_limit=10);
 CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10, memory_limit=10);
 CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10, memory_limit=10);
 DROP RESOURCE GROUP rg_test_group;
--- must specify both memory_limit and (cpu_rate_limit or cpuset)
+-- must specify cpu_rate_limit or cpuset
 CREATE RESOURCE GROUP rg_test_group WITH (memory_limit=10);
-CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10);
-CREATE RESOURCE GROUP rg_test_group WITH (cpuset='0');
 -- can't specify the resource limit type multiple times
 CREATE RESOURCE GROUP rg_test_group WITH (concurrency=1, cpu_rate_limit=5, memory_limit=5, concurrency=1);
 CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=5, memory_limit=5, cpu_rate_limit=5);
@@ -102,10 +100,16 @@ DROP RESOURCE GROUP none;
 
 -- positive
 CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10, memory_limit=10);
-SELECT groupname,concurrency,proposed_concurrency,cpu_rate_limit,memory_limit,proposed_memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
 DROP RESOURCE GROUP rg_test_group;
 CREATE RESOURCE GROUP rg_test_group WITH (concurrency=1, cpuset='0', memory_limit=10, memory_shared_quota=70, memory_spill_ratio=30);
-SELECT groupname,concurrency,proposed_concurrency,cpu_rate_limit,memory_limit,proposed_memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+DROP RESOURCE GROUP rg_test_group;
+CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10);
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+DROP RESOURCE GROUP rg_test_group;
+CREATE RESOURCE GROUP rg_test_group WITH (cpuset='0');
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
 DROP RESOURCE GROUP rg_test_group;
 
 -- ----------------------------------------------------------------------

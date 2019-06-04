@@ -80,10 +80,10 @@ ERROR:  resource group "rg_test_group" does not exist
 --end_ignore
 
 SELECT * FROM gp_toolkit.gp_resgroup_config;
- groupid | groupname     | concurrency | proposed_concurrency | cpu_rate_limit | memory_limit | proposed_memory_limit | memory_shared_quota | proposed_memory_shared_quota | memory_spill_ratio | proposed_memory_spill_ratio | memory_auditor | cpuset 
----------+---------------+-------------+----------------------+----------------+--------------+-----------------------+---------------------+------------------------------+--------------------+-----------------------------+----------------+--------
- 6437    | default_group | 20          | 20                   | 30             | 30           | 30                    | 80                  | 80                           | 10                 | 10                          | vmtracker      | -1     
- 6438    | admin_group   | 2           | 2                    | 10             | 10           | 10                    | 80                  | 80                           | 10                 | 10                          | vmtracker      | -1     
+ groupid | groupname     | concurrency | cpu_rate_limit | memory_limit | memory_shared_quota | memory_spill_ratio | memory_auditor | cpuset 
+---------+---------------+-------------+----------------+--------------+---------------------+--------------------+----------------+--------
+ 6437    | default_group | 20          | 30             | 30           | 80                  | 10                 | vmtracker      | -1     
+ 6438    | admin_group   | 2           | 10             | 10           | 80                  | 10                 | vmtracker      | -1     
 (2 rows)
 
 -- negative
@@ -102,13 +102,9 @@ CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10, memory_limit=10);
 ERROR:  resource group "rg_test_group" already exists
 DROP RESOURCE GROUP rg_test_group;
 DROP
--- must specify both memory_limit and (cpu_rate_limit or cpuset)
+-- must specify cpu_rate_limit or cpuset
 CREATE RESOURCE GROUP rg_test_group WITH (memory_limit=10);
 ERROR:  must specify cpu_rate_limit or cpuset
-CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10);
-ERROR:  must specify memory_limit
-CREATE RESOURCE GROUP rg_test_group WITH (cpuset='0');
-ERROR:  must specify memory_limit
 -- can't specify the resource limit type multiple times
 CREATE RESOURCE GROUP rg_test_group WITH (concurrency=1, cpu_rate_limit=5, memory_limit=5, concurrency=1);
 ERROR:  found duplicate resource group resource type: concurrency
@@ -189,19 +185,37 @@ ERROR:  resource group "none" does not exist
 -- positive
 CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10, memory_limit=10);
 CREATE
-SELECT groupname,concurrency,proposed_concurrency,cpu_rate_limit,memory_limit,proposed_memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
- groupname     | concurrency | proposed_concurrency | cpu_rate_limit | memory_limit | proposed_memory_limit | memory_shared_quota | memory_spill_ratio 
----------------+-------------+----------------------+----------------+--------------+-----------------------+---------------------+--------------------
- rg_test_group | 20          | 20                   | 10             | 10           | 10                    | 20                  | 20                 
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+ groupname     | concurrency | cpu_rate_limit | memory_limit | memory_shared_quota | memory_spill_ratio 
+---------------+-------------+----------------+--------------+---------------------+--------------------
+ rg_test_group | 20          | 10             | 10           | 80                  | 0                  
 (1 row)
 DROP RESOURCE GROUP rg_test_group;
 DROP
 CREATE RESOURCE GROUP rg_test_group WITH (concurrency=1, cpuset='0', memory_limit=10, memory_shared_quota=70, memory_spill_ratio=30);
 CREATE
-SELECT groupname,concurrency,proposed_concurrency,cpu_rate_limit,memory_limit,proposed_memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
- groupname     | concurrency | proposed_concurrency | cpu_rate_limit | memory_limit | proposed_memory_limit | memory_shared_quota | memory_spill_ratio 
----------------+-------------+----------------------+----------------+--------------+-----------------------+---------------------+--------------------
- rg_test_group | 1           | 1                    | -1             | 10           | 10                    | 70                  | 30                 
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+ groupname     | concurrency | cpu_rate_limit | memory_limit | memory_shared_quota | memory_spill_ratio 
+---------------+-------------+----------------+--------------+---------------------+--------------------
+ rg_test_group | 1           | -1             | 10           | 70                  | 30                 
+(1 row)
+DROP RESOURCE GROUP rg_test_group;
+DROP
+CREATE RESOURCE GROUP rg_test_group WITH (cpu_rate_limit=10);
+CREATE
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+ groupname     | concurrency | cpu_rate_limit | memory_limit | memory_shared_quota | memory_spill_ratio 
+---------------+-------------+----------------+--------------+---------------------+--------------------
+ rg_test_group | 20          | 10             | 0            | 80                  | 0                  
+(1 row)
+DROP RESOURCE GROUP rg_test_group;
+DROP
+CREATE RESOURCE GROUP rg_test_group WITH (cpuset='0');
+CREATE
+SELECT groupname,concurrency,cpu_rate_limit,memory_limit,memory_shared_quota,memory_spill_ratio FROM gp_toolkit.gp_resgroup_config WHERE groupname='rg_test_group';
+ groupname     | concurrency | cpu_rate_limit | memory_limit | memory_shared_quota | memory_spill_ratio 
+---------------+-------------+----------------+--------------+---------------------+--------------------
+ rg_test_group | 20          | -1             | 0            | 80                  | 0                  
 (1 row)
 DROP RESOURCE GROUP rg_test_group;
 DROP
