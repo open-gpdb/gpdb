@@ -1238,7 +1238,7 @@ CdbTryOpenRelation(Oid relid, LOCKMODE reqmode, bool noWait, bool *lockUpgraded)
 	}
 
 	/* inject fault after holding the lock */
-	SIMPLE_FAULT_INJECTOR(UpgradeRowLock);
+	SIMPLE_FAULT_INJECTOR("upgrade_row_lock");
 
 	return rel;
 }                                       /* CdbOpenRelation */

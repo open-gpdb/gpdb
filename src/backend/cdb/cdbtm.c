@@ -511,7 +511,7 @@ doPrepareTransaction(void)
 	Assert(currentGxact->state == DTX_STATE_PREPARING);
 	setCurrentGxactState(DTX_STATE_PREPARED);
 
-	SIMPLE_FAULT_INJECTOR(DtmBroadcastPrepare);
+	SIMPLE_FAULT_INJECTOR("dtm_broadcast_prepare");
 
 	elog(DTM_DEBUG5, "doPrepareTransaction leaving in state = %s", DtxStateToString(currentGxact->state));
 }
@@ -596,7 +596,7 @@ doNotifyingCommitPrepared(void)
 		elog(PANIC, "Distribute transaction identifier too long (%d)",
 			 (int) strlen(currentGxact->gid));
 
-	SIMPLE_FAULT_INJECTOR(DtmBroadcastCommitPrepared);
+	SIMPLE_FAULT_INJECTOR("dtm_broadcast_commit_prepared");
 	savedInterruptHoldoffCount = InterruptHoldoffCount;
 
 	Assert(currentGxact->twophaseSegments != NIL);
@@ -871,7 +871,7 @@ doNotifyingAbort(void)
 		}
 	}
 
-	SIMPLE_FAULT_INJECTOR(DtmBroadcastAbortPrepared);
+	SIMPLE_FAULT_INJECTOR("dtm_broadcast_abort_prepared");
 
 	Assert(currentGxact->state == DTX_STATE_NOTIFYING_ABORT_NO_PREPARED ||
 		   currentGxact->state == DTX_STATE_NOTIFYING_ABORT_SOME_PREPARED ||
@@ -1277,8 +1277,6 @@ initTM(void)
 		 * back.
 		 */
 		olduser = ChangeToSuperuser();
-
-		SIMPLE_FAULT_INJECTOR(DtmInit);
 
 		oldcontext = CurrentMemoryContext;
 		succeeded = false;
