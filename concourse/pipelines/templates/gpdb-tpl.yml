@@ -649,7 +649,7 @@ resources:
   source:
     bucket: ((gcs-bucket))
     json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: clients/published/master/greenplum-clients-(.*)-x86_64.msi
+    regexp: clients/published/gpdb6/greenplum-clients-(.*)-x86_64.msi
 {% endif %}
 {% if "AA" in test_sections %}
 - name: madlib_src
