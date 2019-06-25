@@ -68,7 +68,7 @@ JOBS_THAT_ARE_GATES = [
 
 JOBS_THAT_SHOULD_NOT_BLOCK_RELEASE = (
     [
-        'compile_gpdb_binary_swap_centos6',
+        'prepare_binary_swap_gpdb_centos6',
         'compile_gpdb_clients_windows',
         'test_gpdb_clients_windows',
         'icw_gporca_centos6_gpos_memory',
