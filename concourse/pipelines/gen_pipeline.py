@@ -70,6 +70,7 @@ JOBS_THAT_SHOULD_NOT_BLOCK_RELEASE = (
     [
         'prepare_binary_swap_gpdb_centos6',
         'compile_gpdb_clients_windows',
+        'concourse_unit_tests',
         'test_gpdb_clients_windows',
         'icw_gporca_centos6_gpos_memory',
         'walrep_2',
