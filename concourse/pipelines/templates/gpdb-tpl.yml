@@ -360,7 +360,7 @@ resources:
     - gpdb-doc/*
     - README*
 
-- name: bats_src
+- name: bats_core_src
   type: git
   source:
     branch: master
@@ -858,7 +858,7 @@ jobs:
 - name: concourse_unit_tests
   plan:
     - aggregate:
-      - get: bats_src
+      - get: bats_core_src
       - get: gpdb_src
         trigger: true
       - get: gpdb6-centos7-build
@@ -866,7 +866,7 @@ jobs:
       image: gpdb6-centos7-build
       config:
         inputs:
-          - name: bats_src
+          - name: bats_core_src
           - name: gpdb_src
         platform: linux
         run:
@@ -874,7 +874,7 @@ jobs:
           args:
           - -exc
           - |
-            bats_src/install.sh /usr/local
+            bats_core_src/install.sh /usr/local
             cd gpdb_src/concourse
             bats -t scripts/*.bats
             python -m unittest discover --verbose -s scripts/ -p *_test.py
