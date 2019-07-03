@@ -3306,6 +3306,14 @@ AbortTransaction(void)
 	}
 
 	/*
+	 * Exported snapshots must be cleared before transaction ID is reset.  In
+	 * GPDB, transaction ID is reset below.  In PostgreSQL, because 2PC is not
+	 * needed, exported snapshots are cleared and transaction ID is reset
+	 * later in CleanupTransaction().  We must perform both the actions here.
+	 */
+	AtEOXact_Snapshot(false);	/* and release the transaction's snapshots */
+
+	/*
 	 * Do abort to all QE. NOTE: we don't process
 	 * signals to prevent recursion until we've notified the QEs.
 	 *
@@ -3365,7 +3373,6 @@ CleanupTransaction(void)
 	 * do abort cleanup processing
 	 */
 	AtCleanup_Portals();		/* now safe to release portal memory */
-	AtEOXact_Snapshot(false);	/* and release the transaction's snapshots */
 
 	CurrentResourceOwner = NULL;	/* and resource owner */
 	if (TopTransactionResourceOwner)
