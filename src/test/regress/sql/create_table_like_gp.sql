@@ -35,3 +35,29 @@ FROM
 		JOIN pg_catalog.pg_attribute_encoding a ON (a.attrelid = c.oid)
 WHERE
 	c.relname like 't_ao_enc%';
+
+-- Verify that an external table can be dropped and then recreated in consecutive attempts
+CREATE OR REPLACE FUNCTION drop_and_recreate_external_table()
+	RETURNS void
+	LANGUAGE plpgsql
+	VOLATILE
+AS $function$
+DECLARE
+BEGIN
+DROP EXTERNAL TABLE IF EXISTS t_ext_r;
+CREATE EXTERNAL TABLE t_ext_r (
+	name varchar
+)
+LOCATION ('GPFDIST://127.0.0.1/tmp/dummy') ON ALL
+FORMAT 'CSV' ( delimiter ' ' null '' escape '"' quote '"' )
+ENCODING 'UTF8';
+END;
+$function$;
+
+do $$
+begin
+  for i in 1..5 loop
+	PERFORM drop_and_recreate_external_table();
+  end loop;
+end;
+$$;
