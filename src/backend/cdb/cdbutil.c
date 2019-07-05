@@ -984,10 +984,23 @@ cdb_setup(void)
 		InitMotionLayerIPC();
 	}
 
-	if (Gp_role == GP_ROLE_DISPATCH)
+	/*
+	 * Backend process requires consistent state, it cannot proceed until
+	 * dtx recovery process finish up the recovery of distributed transactions.
+	 *
+	 * Ignore background worker because bgworker_should_start_mpp() already did
+	 * the check.
+	 */
+	if (!IsBackgroundWorker &&
+		Gp_role == GP_ROLE_DISPATCH &&
+		!*shmDtmStarted)
 	{
-		/* initialize TM */
-		initTM();
+		while (true)
+		{
+			pg_usleep(100 * 1000); /* 100ms */
+			if (*shmDtmStarted)
+				break;
+		}
 	}
 }
 
