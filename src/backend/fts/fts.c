@@ -131,6 +131,17 @@ FtsProbeMain(Datum main_arg)
 	pqsignal(SIGHUP, sigHupHandler);
 	pqsignal(SIGINT, sigIntHandler);
 
+	/*
+	 * CDB: Catch program error signals.
+	 *
+	 * Save our main thread-id for comparison during signals.
+	 */
+	main_tid = pthread_self();
+
+#ifdef SIGSEGV
+	pqsignal(SIGSEGV, CdbProgramErrorHandler);
+#endif
+
 	/* We're now ready to receive signals */
 	BackgroundWorkerUnblockSignals();
 
