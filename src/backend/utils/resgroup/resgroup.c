@@ -3667,7 +3667,10 @@ sessionSetSlot(ResGroupSlotData *slot)
 static ResGroupSlotData *
 sessionGetSlot(void)
 {
-	return (ResGroupSlotData *) MySessionState->resGroupSlot;
+	if (MySessionState == NULL)
+		return NULL;
+	else
+		return (ResGroupSlotData *) MySessionState->resGroupSlot;
 }
 
 /*
