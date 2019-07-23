@@ -255,7 +255,6 @@ define BUILD_STEPS
 	#@$(MAKE) greenplum_path INSTLOC=$(INSTLOC)
 	#@$(MAKE) mgmtcopy INSTLOC=$(INSTLOC)
 	@$(MAKE) mkpgbouncer INSTLOC=$(INSTLOC) BUILDDIR=$(BUILDDIR)
-	@$(MAKE) mkpgbench INSTLOC=$(INSTLOC) BUILDDIR=$(BUILDDIR)
 	@$(MAKE) copydocs INSTLOC=$(INSTLOC)
 	@$(MAKE) copylibs INSTLOC=$(INSTLOC)
 	@$(MAKE) clients INSTLOC=$(INSTLOC) CLIENTSINSTLOC=$(CLIENTSINSTLOC)
@@ -614,9 +613,6 @@ set_scripts_version :
 #---------------------------------------------------------------------
 # Internal functions
 #---------------------------------------------------------------------
-
-mkpgbench:
-	@cd $(BUILDDIR)/contrib/pgbench && $(MAKE) install
 
 mkpgbouncer:
 ifeq "$(shell uname -s)" "Darwin"

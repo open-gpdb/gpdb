@@ -1,2 +1,1 @@
-bin/pgbench
 bin/postgresql_conf_gp_additions
