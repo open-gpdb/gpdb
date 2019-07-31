@@ -1291,11 +1291,11 @@ RecordTransactionCommit(void)
 	bool		RelcacheInitFileInval = false;
 	bool		wrote_xlog;
 	bool		isDtxPrepared = 0;
-	bool		isOnePhaseQE = (Gp_role == GP_ROLE_EXECUTE && MyTmGxact->isOnePhaseCommit);
+	bool		isOnePhaseQE = (Gp_role == GP_ROLE_EXECUTE && MyTmGxactLocal->isOnePhaseCommit);
 	TMGXACT_LOG gxact_log;
+	DistributedTransactionTimeStamp distribTimestamp = getDistributedTransactionTimestamp();
+	DistributedTransactionId distributedXid = getDistributedTransactionId();
 	XLogRecPtr	recptr = InvalidXLogRecPtr;
-	DistributedTransactionTimeStamp distribTimeStamp = 0;
-	DistributedTransactionId distribXid = 0;
 	Oid pending_tablespace_for_deletion = InvalidOid;
 
 	/* Like in CommitTransaction(), treat a QE reader as if there was no XID */
@@ -1307,9 +1307,6 @@ RecordTransactionCommit(void)
 	else
 		xid = GetTopTransactionIdIfAny();
 	markXidCommitted = TransactionIdIsValid(xid);
-
-	if (isOnePhaseQE)
-		dtxCrackOpenGid(MyTmGxact->gid, &distribTimeStamp, &distribXid);
 
 	/* Get data needed for commit record */
 	nrels = smgrGetPendingDeletes(true, &rels);
@@ -1394,7 +1391,7 @@ RecordTransactionCommit(void)
 		 * checkpoint process fails to record this transaction in the
 		 * checkpoint.  Crash recovery will never see the commit record for
 		 * this transaction and the second phase of 2PC will never happen.  The
-		 * inCommit flag avoids this situation by blocking checkpointer until a
+		 * delayChkpt flag avoids this situation by blocking checkpointer until a
 		 * backend has finished updating the state.
 		 */
 		START_CRIT_SECTION();
@@ -1493,7 +1490,8 @@ RecordTransactionCommit(void)
 			if (isDtxPrepared)
 			{
 				/* add global transaction information */
-				getDtxLogInfo(&gxact_log);
+				gxact_log.gxid = distributedXid;
+				dtxFormGID(gxact_log.gid, distribTimestamp, distributedXid);
 
 				rdata[lastrdata].next = &(rdata[5]);
 				rdata[5].data = (char *) &gxact_log;
@@ -1515,8 +1513,8 @@ RecordTransactionCommit(void)
 			}
 			else
 			{
-				xlrec.distribTimeStamp = distribTimeStamp;
-				xlrec.distribXid = distribXid;
+				xlrec.distribTimeStamp = distribTimestamp;
+				xlrec.distribXid = distributedXid;
 				recptr = XLogInsert(RM_XACT_ID, XLOG_XACT_COMMIT, rdata);
 			}
 
@@ -1590,12 +1588,12 @@ RecordTransactionCommit(void)
 			/* UNDONE: What are the locking issues here? */
 			if (isDtxPrepared)
 				DistributedLog_SetCommittedTree(xid, nchildren, children,
-												getDtxStartTime(),
-												getDistributedTransactionId(),
+												distribTimestamp,
+												distributedXid,
 												/* isRedo */ false);
 			else if (isOnePhaseQE)
 				DistributedLog_SetCommittedTree(xid, nchildren, children,
-												distribTimeStamp, distribXid,
+												MyTmGxact->distribTimeStamp, MyTmGxact->gxid,
 												/* isRedo */ false);
 
 			TransactionIdCommitTree(xid, nchildren, children);
@@ -2369,6 +2367,8 @@ StartTransaction(void)
 		case DTX_CONTEXT_QD_DISTRIBUTED_CAPABLE:
 		{
 			/*
+			 * FIXME: get rid of currentDistribXid and use MyTmGxact->gxid
+			 *
 			 * Generate the distributed transaction ID and save it.
 			 * it's not really needed by a select-only implicit transaction, but
 			 * currently gpfdist and pxf is using it.

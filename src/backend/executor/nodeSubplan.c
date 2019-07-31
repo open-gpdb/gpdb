@@ -999,7 +999,7 @@ PG_TRY();
 {
 	if (shouldDispatch)
 	{			
-		needDtxTwoPhase = isCurrentDtxTwoPhase();
+		needDtxTwoPhase = isCurrentDtxTwoPhaseActivated();
 
 		/*
 		 * This call returns after launching the threads that send the
