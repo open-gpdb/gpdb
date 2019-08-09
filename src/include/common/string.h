@@ -11,5 +11,9 @@
 #define COMMON_STRING_H
 
 extern bool pg_str_endswith(const char *str, const char *end);
+extern int	strtoint(const char * str, char ** endptr,
+					 int base);
+extern void pg_clean_ascii(char *str);
+extern int	pg_strip_crlf(char *str);
 
 #endif   /* COMMON_STRING_H */
