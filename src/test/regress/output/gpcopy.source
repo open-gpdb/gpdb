@@ -1440,17 +1440,15 @@ COMMIT;
 -- number of rows in the lineitem table.
 CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
 SELECT gp_inject_fault('cdb_copy_start_after_dispatch', 'reset', 1);
-NOTICE:  Success:
  gp_inject_fault 
 -----------------
- t
+ Success:
 (1 row)
 
 SELECT gp_inject_fault('cdb_copy_start_after_dispatch', 'interrupt', 1);
-NOTICE:  Success:
  gp_inject_fault 
 -----------------
- t
+ Success:
 (1 row)
 
 COPY lineitem TO '/tmp/aborted.data';
@@ -1465,10 +1463,9 @@ SELECT count(*) < 57190 FROM lineitem_aborted;
 (1 row)
 
 SELECT gp_inject_fault('cdb_copy_start_after_dispatch', 'reset', 1);
-NOTICE:  Success:
  gp_inject_fault 
 -----------------
- t
+ Success:
 (1 row)
 
 -- Test external partition
