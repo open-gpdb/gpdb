@@ -3215,7 +3215,6 @@ SetupUDPIFCInterconnect_Internal(SliceTable *sliceTable)
 	interconnect_context->activated = true;
 
 	pthread_mutex_unlock(&ic_control_info.lock);
-
 	return interconnect_context;
 }
 
@@ -3273,10 +3272,6 @@ SetupUDPIFCInterconnect(EState *estate)
 	icContext->estate = estate;
 	estate->interconnect_context = icContext;
 	estate->es_interconnect_is_setup = true;
-
-	/* Check if any of the QEs has already finished with error */
-	if (Gp_role == GP_ROLE_DISPATCH)
-		checkForCancelFromQD(icContext);
 }
 
 
