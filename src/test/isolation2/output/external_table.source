@@ -58,14 +58,14 @@ RESET
 SELECT gp_inject_fault('interconnect_setup_palloc', 'suspend', dbid) FROM gp_segment_configuration WHERE content=-1 AND role='p';
  gp_inject_fault 
 -----------------
- t               
+ Success:        
 (1 row)
 
 -- Inject fault on QE to determine when it aborts.
 SELECT gp_inject_fault('transaction_abort_failure', 'skip', dbid) FROM gp_segment_configuration WHERE content=0 AND role='p';
  gp_inject_fault 
 -----------------
- t               
+ Success:        
 (1 row)
 
 -- Start a transaction with cursor that triggers error on QE
@@ -77,13 +77,13 @@ BEGIN
 SELECT gp_wait_until_triggered_fault('transaction_abort_failure', 1, dbid) FROM gp_segment_configuration WHERE content=0 AND role='p';
  gp_wait_until_triggered_fault 
 -------------------------------
- t                             
+ Success:                      
 (1 row)
 
 SELECT gp_wait_until_triggered_fault('interconnect_setup_palloc', 1, dbid) FROM gp_segment_configuration WHERE content=-1 AND role='p';
  gp_wait_until_triggered_fault 
 -------------------------------
- t                             
+ Success:                      
 (1 row)
 
 -- Resume QD.
@@ -91,7 +91,7 @@ SELECT gp_wait_until_triggered_fault('interconnect_setup_palloc', 1, dbid) FROM 
 SELECT gp_inject_fault('interconnect_setup_palloc', 'resume', dbid) FROM gp_segment_configuration WHERE content=-1 AND role='p';
  gp_inject_fault 
 -----------------
- t               
+ Success:        
 (1 row)
 
 -- Check the result
@@ -106,12 +106,12 @@ COMMIT
 SELECT gp_inject_fault('transaction_abort_failure', 'reset', dbid) FROM gp_segment_configuration WHERE content=0 AND role='p';
  gp_inject_fault 
 -----------------
- t               
+ Success:        
 (1 row)
 SELECT gp_inject_fault('interconnect_setup_palloc', 'reset', dbid) FROM gp_segment_configuration WHERE content=-1 AND role='p';
  gp_inject_fault 
 -----------------
- t               
+ Success:        
 (1 row)
 
 -- This should have errors populated already
