@@ -152,6 +152,8 @@ static PartitionNode *BuildPartitionNodeFromRoot(Oid relid);
 static void InitializeQueryPartsMetadata(PlannedStmt *plannedstmt, EState *estate);
 static void AdjustReplicatedTableCounts(EState *estate);
 
+static bool planIsParallel(PlannedStmt *plannedstmt, Plan *plan);
+
 /* end of local decls */
 
 /*
@@ -260,6 +262,43 @@ ExecutorStart(QueryDesc *queryDesc, int eflags)
 		(*ExecutorStart_hook) (queryDesc, eflags);
 	else
 		standard_ExecutorStart(queryDesc, eflags);
+}
+
+/*
+ * Check whether a plan is parallel by counting motions.
+ *
+ * A plan itself and its init plans can all contain motions, when itself
+ * contains at least one motion then it is a parallel plan.  In this function
+ * we count the motions of the plan itself to tell whether it is a parallel
+ * plan.
+ *
+ * NOTE: plan->dispatch is not checked by this function.
+ */
+static bool
+planIsParallel(PlannedStmt *plannedstmt, Plan *plan)
+{
+	ListCell   *cell;
+	int			nMotionNodes;
+
+	nMotionNodes = plan->nMotionNodes;
+	Assert(nMotionNodes >= 0);
+	if (nMotionNodes == 0)
+		return false;
+
+	foreach(cell, plan->initPlan)
+	{
+		int			subplan_id = lfirst_node(SubPlan, cell)->plan_id;
+		Plan	   *subplan = (Plan *) list_nth(plannedstmt->subplans,
+												subplan_id - 1);
+
+		nMotionNodes -= subplan->nMotionNodes;
+		Assert(nMotionNodes >= 0);
+		if (nMotionNodes == 0)
+			return false;
+	}
+
+	Assert(nMotionNodes > 0);
+	return true;
 }
 
 void
@@ -606,9 +645,6 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 			{
 				motionstate = getMotionState(queryDesc->planstate, LocallyExecutingSliceIndex(estate));
 				Assert(motionstate != NULL && IsA(motionstate, MotionState));
-
-				/* Patch Motion node so it looks like a top node. */
-				motionstate->ps.plan->nMotionNodes = estate->es_sliceTable->nMotions;
 			}
 
 			if (Debug_print_slice_table)
@@ -705,7 +741,9 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 			 *
 			 * Main plan is parallel, send plan to it.
 			 */
-			if (queryDesc->plannedstmt->planTree->dispatch == DISPATCH_PARALLEL)
+			if (queryDesc->plannedstmt->planTree->dispatch == DISPATCH_PARALLEL ||
+				planIsParallel(queryDesc->plannedstmt,
+							   queryDesc->plannedstmt->planTree))
 				CdbDispatchPlan(queryDesc, needDtxTwoPhase, true);
 		}
 
@@ -738,7 +776,9 @@ standard_ExecutorStart(QueryDesc *queryDesc, int eflags)
 		{
 			/* Run a root slice. */
 			if (queryDesc->planstate != NULL &&
-				queryDesc->planstate->plan->nMotionNodes > 0 && !estate->es_interconnect_is_setup)
+				planIsParallel(queryDesc->plannedstmt,
+							   queryDesc->planstate->plan) &&
+				!estate->es_interconnect_is_setup)
 			{
 				Assert(!estate->interconnect_context);
 				SetupInterconnect(estate);
