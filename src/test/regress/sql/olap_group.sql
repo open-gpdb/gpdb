@@ -673,3 +673,15 @@ select cn,vn,sum(qty) from repeat_node_sale group by grouping sets ((cn,vn), cn,
 reset gp_eager_one_phase_agg;
 
 drop table repeat_node_sale;
+
+-- GROUPING SETS meets subplan [issue 8342]
+create table foo_gset(a int);
+create table bar_gset(b int);
+
+insert into foo_gset select i from generate_series(1,10)i;
+insert into bar_gset select i from generate_series(1,10)i;
+
+select a, (select b from bar_gset where foo_gset.a = bar_gset.b) from foo_gset group by rollup(a) order by 1,2;
+
+drop table foo_gset;
+drop table bar_gset;
