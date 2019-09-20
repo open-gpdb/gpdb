@@ -2,7 +2,7 @@ resources:
   - name: gpdb
     type: git
     source:
-      uri: https://github.com/gpdb/gpdb.git
+      uri: https://github.com/greenplum-db/gpdb.git
       branch: 6X_STABLE
 
 jobs:
