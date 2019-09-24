@@ -671,30 +671,30 @@ resources:
 - name: cmake_tar
   type: gcs
   source:
-    bucket: ((pivotal-gp-internal-artifacts-gcs-bucket))
-    json_key: ((gcs-key))
-    versioned_file: madlib-snowflakes/cmake-3.5.2-Linux-x86_64.tar.gz
+    bucket: ((gcs-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: gp-internal-artifacts/madlib-snowflakes/cmake-(3.5.2)-Linux-x86_64.tar.gz
 
 - name: pyxb
   type: gcs
   source:
-    bucket: ((pivotal-gp-internal-artifacts-gcs-bucket))
-    json_key: ((gcs-key))
-    versioned_file: madlib-snowflakes/PyXB-1.2.6.tar.gz
+    bucket: ((gcs-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: gp-internal-artifacts/madlib-snowflakes/PyXB-(1.2.6).tar.gz
 
 - name: eigen
   type: gcs
   source:
-    bucket: ((pivotal-gp-internal-artifacts-gcs-bucket))
-    json_key: ((gcs-key))
-    versioned_file: madlib-snowflakes/3.2.tar.gz
+    bucket: ((gcs-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: gp-internal-artifacts/madlib-snowflakes/(3.2).tar.gz
 
 - name: boost
   type: gcs
   source:
-    bucket: ((pivotal-gp-internal-artifacts-gcs-bucket))
-    json_key: ((gcs-key))
-    versioned_file: madlib-snowflakes/boost_1_61_0.tar.gz
+    bucket: ((gcs-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: gp-internal-artifacts/madlib-snowflakes/boost_(1_61_0).tar.gz
 {% endif %}
 
 - name: reduced-frequency-trigger
