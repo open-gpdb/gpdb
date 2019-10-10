@@ -22,6 +22,8 @@ gpinitsystem -c <gpinitsystem_config>
             [--mirror-mode={group|spread}] [-a] [-q] [-l <logfile_directory>] [-D]
             [-I input_configuration_file]
             [-O output_configuration_file]
+            [--help]
+            [--ignore-warnings]
 
 gpinitsystem -v
 
@@ -259,6 +261,11 @@ OPTIONS
 --help
 
  Displays the online help.
+
+
+--ignore-warnings
+
+  Exit with status 0 for warnings and non-zero for fatal errors.
 
 
 *****************************************************
