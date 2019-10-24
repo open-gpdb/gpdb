@@ -1928,7 +1928,7 @@ while getopts ":vaqe:c:l:-:p:m:h:n:s:P:S:b:DB:I:O:" opt
 					# Check if we are missing the long option value.  All long options
 					# except ignore-warnings require a value, so do the check once.
 					if [ x"$NAME" == x"$VAL" ] && [ x"$NAME" != x"ignore-warnings" ]; then
-						LOG_MSG "[FATAL]:-Missing value for option --$NAME" 1;
+						LOG_MSG "[FATAL]:-Missing value for option --$NAME" 2;
 						USAGE;
 					fi
 					;;
