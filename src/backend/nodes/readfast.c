@@ -2665,7 +2665,7 @@ _readAlterExtensionStmt(void)
 	READ_LOCALS(AlterExtensionStmt);
 	READ_STRING_FIELD(extname);
 	READ_NODE_FIELD(options);
-
+	READ_ENUM_FIELD(update_ext_state, UpdateExtensionState);
 	READ_DONE();
 }
 
