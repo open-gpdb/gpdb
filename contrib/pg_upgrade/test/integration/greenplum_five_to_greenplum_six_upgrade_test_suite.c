@@ -14,6 +14,7 @@
 #include "scenarios/aocs_table.h"
 #include "scenarios/data_checksum_mismatch.h"
 #include "scenarios/pl_function.h"
+#include "scenarios/user_defined_types.h"
 
 #include "utilities/gpdb5-cluster.h"
 #include "utilities/gpdb6-cluster.h"
@@ -58,6 +59,7 @@ main(int argc, char *argv[])
 		unit_test_setup_teardown(test_a_partitioned_heap_table_with_a_dropped_column_can_be_upgraded, setup, teardown),
 		unit_test_setup_teardown(test_a_plpgsql_function_can_be_upgraded, setup, teardown),
 		unit_test_setup_teardown(test_a_plpython_function_can_be_upgraded, setup, teardown),
+		unit_test_setup_teardown(test_an_user_defined_type_extension_can_be_upgraded, setup, teardown),
 	};
 
 	return run_tests(tests);
