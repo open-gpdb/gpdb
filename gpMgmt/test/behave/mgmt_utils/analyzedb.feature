@@ -34,6 +34,8 @@ Feature: Incrementally analyze the database
     Scenario: Additional ignored arguments
         When the user runs "analyzedb -l -d incr_analyze xyz"
         Then analyzedb should print "\[WARNING]:-Please note that some of the arguments \(\['xyz']\) aren't valid and will be ignored" to stdout
+        When the user runs "analyzedb -l -d incr_analyze --skip_root_stats"
+        Then analyzedb should print "\[WARNING]:-The --skip_root_stats option is no longer supported and will be ignored." to stdout
 
     Scenario: Mutually exclusive arguments
         When the user runs "analyzedb -l -d incr_analyze -t public.t1_ao -i x -x y"
@@ -1494,40 +1496,8 @@ Feature: Incrementally analyze the database
         And "public.sales_1_prt_4" should appear in the latest state files
         And "public.sales_1_prt_3" should appear in the latest state files
 
-    # refresh root stats
-
-    @analyzedb_core @analyzedb_partition_tables @skip_root_stats
-    Scenario: Partition tables, (entries for all parts, dml on some parts, some parts), request root stats
-        Given no state files exist for database "incr_analyze"
-        And the user runs "analyzedb -a -d incr_analyze -t public.sales"
-        And the row "1,'2008-01-01'" is inserted into "public.sales" in "incr_analyze"
-        And the row "2,'2008-01-02'" is inserted into "public.sales" in "incr_analyze"
-        And the user runs command "printf 'public.sales_1_prt_2 \npublic.sales_1_prt_4' > config_file"
-        When the user runs "analyzedb -a -d incr_analyze -f config_file --skip_root_stats"
-        Then output should not contain "-public.sales_1_prt_default_dates"
-        And output should not contain "-public.sales_1_prt_3"
-        And output should not contain "-public.sales_1_prt_4"
-        And analyzedb should print "-public.sales_1_prt_2" to stdout
-        And output should not contain "analyze rootpartition public.sales"
-        And "public.sales_1_prt_2" should appear in the latest state files
-        And "public.sales_1_prt_4" should appear in the latest state files
-
-    @analyzedb_core @analyzedb_partition_tables @refresh_root_stats
-    Scenario: Partition tables, (no entry, dml on some parts, some parts), request root stats
-        Given no state files exist for database "incr_analyze"
-        And the row "1,'2008-01-01'" is inserted into "public.sales" in "incr_analyze"
-        And the row "2,'2008-01-02'" is inserted into "public.sales" in "incr_analyze"
-        And the user runs command "printf 'public.sales_1_prt_2 \npublic.sales_1_prt_4' > config_file"
-        When the user runs "analyzedb -a -d incr_analyze -f config_file --skip_root_stats"
-        Then output should not contain "-public.sales_1_prt_default_dates"
-        And output should not contain "-public.sales_1_prt_3"
-        And output should contain both "-public.sales_1_prt_2" and "-public.sales_1_prt_4"
-        And output should not contain "analyze rootpartition public.sales"
-        And "public.sales_1_prt_2" should appear in the latest state files
-        And "public.sales_1_prt_4" should appear in the latest state files
-
-    @analyzedb_core @analyzedb_partition_tables @refresh_root_stats
-    Scenario: Partition tables, (entries for some parts, dml on some parts, some parts), request root stats
+    @analyzedb_core @analyzedb_partition_tables
+    Scenario: Partition tables, (entries for some parts, dml on some parts, some parts), use unsupported --skip_root_stats
         Given no state files exist for database "incr_analyze"
         And the user runs command "printf 'public.sales_1_prt_2 \npublic.sales_1_prt_4' > config_file"
         And the user runs "analyzedb -a -d incr_analyze -f config_file"
@@ -1539,34 +1509,13 @@ Feature: Incrementally analyze the database
         And output should not contain "-public.sales_1_prt_2"
         And output should not contain "-public.sales_1_prt_4"
         And analyzedb should print "-public.sales_1_prt_3" to stdout
-        And output should not contain "analyze rootpartition public.sales"
+        And output should contain both "analyze rootpartition public.sales" and "is no longer supported"
         And "public.sales_1_prt_2" should appear in the latest state files
         And "public.sales_1_prt_4" should appear in the latest state files
         And "public.sales_1_prt_3" should appear in the latest state files
 
-    @analyzedb_core @analyzedb_partition_tables @refresh_root_stats
-    Scenario: Partition tables, (entries for all parts, no change, root), request root stats
-        Given no state files exist for database "incr_analyze"
-        And the user runs "analyzedb -a -d incr_analyze -t public.sales --skip_root_stats"
-        When the user runs "analyzedb -a -d incr_analyze -t public.sales"
-        Then analyzedb should print "There are no tables or partitions to be analyzed" to stdout
-        And "public.sales_1_prt_2" should appear in the latest state files
-        And "public.sales_1_prt_3" should appear in the latest state files
-        And "public.sales_1_prt_4" should appear in the latest state files
-        And "public.sales_1_prt_default_dates" should appear in the latest state files
-
-    @analyzedb_core @analyzedb_partition_tables @refresh_root_stats
-    Scenario: Partition tables, (entries for all parts, no change, some parts), request root stats
-        Given no state files exist for database "incr_analyze"
-        And the user runs "analyzedb -a -d incr_analyze -t public.sales  --skip_root_stats"
-        And the user runs command "printf 'public.sales_1_prt_2 \npublic.sales_1_prt_3' > config_file"
-        When the user runs "analyzedb -a -d incr_analyze -f config_file"
-        Then analyzedb should print "There are no tables or partitions to be analyzed" to stdout
-        And "public.sales_1_prt_2" should appear in the latest state files
-        And "public.sales_1_prt_3" should appear in the latest state files
-
-    @analyzedb_core @analyzedb_root_and_partition_tables @refresh_root_stats
-    Scenario: Partition tables, (entries for all parts, no change, some parts, root parts), request root stats
+    @analyzedb_core @analyzedb_root_and_partition_tables
+    Scenario: Partition tables, (entries for all parts, no change, some parts, root parts)
         Given no state files exist for database "incr_analyze"
         And the user runs "analyzedb -a -d incr_analyze -t public.sales"
         When the user runs "analyzedb -a -d incr_analyze -t public.sales"
@@ -1583,7 +1532,7 @@ Feature: Incrementally analyze the database
         Then analyzedb should print "There are no tables or partitions to be analyzed" to stdout
         And analyzedb should print "Skipping mid-level partition public.sales_region_1_prt_2" to stdout
 
-    Scenario: Partition tables, (entries for some parts, dml on some parts, some parts), request root stats
+    Scenario: Partition tables, (entries for some parts, dml on some parts, some parts)
         Given no state files exist for database "incr_analyze"
         And there is a hard coded multi-level ao partition table "sales_region" with 4 mid-level and 16 leaf-level partitions in schema "public"
         And the user runs command "printf 'public.sales_1_prt_2 \npublic.sales_1_prt_4' > config_file"
@@ -1596,7 +1545,7 @@ Feature: Incrementally analyze the database
         And output should not contain "-public.sales_1_prt_2"
         And output should not contain "-public.sales_1_prt_4"
         And analyzedb should print "-public.sales_1_prt_3" to stdout
-        And output should not contain "analyze rootpartition public.sales"
+        And output should contain both "analyze rootpartition public.sales" and "is no longer supported"
         And analyzedb should print "Skipping mid-level partition public.sales_region_1_prt_3" to stdout
         And "public.sales_1_prt_2" should appear in the latest state files
         And "public.sales_1_prt_4" should appear in the latest state files
