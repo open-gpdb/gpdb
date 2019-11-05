@@ -3,6 +3,8 @@
 
 #include "test-helpers.h"
 #include "query-helpers.h"
+#include "upgrade-helpers.h"
+#include "pqexpbuffer.h"
 
 void
 resetGpdbFiveDataDirectories(void)

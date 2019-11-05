@@ -5,4 +5,3 @@ void resetGpdbFiveDataDirectories(void);
 
 PGconn *connectToSix(void);
 void resetGpdbSixDataDirectories(void);
-
