@@ -10,7 +10,7 @@
 			<topicref href="GPReferenceSQLSummaryLOP.xml"/>
 			<topicref href="sql_commands/ABORT.xml"/>
 			<topicref href="sql_commands/ALTER_AGGREGATE.xml"/>
-			<topicref href="sql_commands/ALTER_COLLATION.xml"/>
+      <topicref href="sql_commands/ALTER_COLLATION.xml"/>
 			<topicref href="sql_commands/ALTER_CONVERSION.xml"/>
 			<topicref href="sql_commands/ALTER_DATABASE.xml"/>
 			<topicref href="sql_commands/ALTER_DEFAULT_PRIVILEGES.xml"/>
@@ -23,7 +23,6 @@
 			<topicref href="sql_commands/ALTER_GROUP.xml"/>
 			<topicref href="sql_commands/ALTER_INDEX.xml"/>
 			<topicref href="sql_commands/ALTER_LANGUAGE.xml"/>
-			<topicref href="sql_commands/ALTER_MATERIALIZED_VIEW.xml"/>
 			<topicref href="sql_commands/ALTER_OPERATOR.xml"/>
 			<topicref href="sql_commands/ALTER_OPERATOR_CLASS.xml"/>
 			<topicref href="sql_commands/ALTER_OPERATOR_FAMILY.xml"/>
@@ -55,7 +54,7 @@
 			<topicref href="sql_commands/COPY.xml"/>
 			<topicref href="sql_commands/CREATE_AGGREGATE.xml"/>
 			<topicref href="sql_commands/CREATE_CAST.xml"/>
-			<topicref href="sql_commands/CREATE_COLLATION.xml"/>
+      <topicref href="sql_commands/CREATE_COLLATION.xml"/>
 			<topicref href="sql_commands/CREATE_CONVERSION.xml"/>
 			<topicref href="sql_commands/CREATE_DATABASE.xml"/>
 			<topicref href="sql_commands/CREATE_DOMAIN.xml"/>
@@ -67,7 +66,6 @@
 			<topicref href="sql_commands/CREATE_GROUP.xml"/>
 			<topicref href="sql_commands/CREATE_INDEX.xml"/>
 			<topicref href="sql_commands/CREATE_LANGUAGE.xml"/>
-			<topicref href="sql_commands/CREATE_MATERIALIZED_VIEW.xml"/>
 			<topicref href="sql_commands/CREATE_OPERATOR.xml"/>
 			<topicref href="sql_commands/CREATE_OPERATOR_CLASS.xml"/>
 			<topicref href="sql_commands/CREATE_OPERATOR_FAMILY.xml"/>
@@ -98,7 +96,7 @@
 			<topicref href="sql_commands/DO.xml"/>
 			<topicref href="sql_commands/DROP_AGGREGATE.xml"/>
 			<topicref href="sql_commands/DROP_CAST.xml"/>
-			<topicref href="sql_commands/DROP_COLLATION.xml"/>
+      <topicref href="sql_commands/DROP_COLLATION.xml"/>
 			<topicref href="sql_commands/DROP_CONVERSION.xml"/>
 			<topicref href="sql_commands/DROP_DATABASE.xml"/>
 			<topicref href="sql_commands/DROP_DOMAIN.xml"/>
@@ -110,7 +108,6 @@
 			<topicref href="sql_commands/DROP_GROUP.xml"/>
 			<topicref href="sql_commands/DROP_INDEX.xml"/>
 			<topicref href="sql_commands/DROP_LANGUAGE.xml"/>
-			<topicref href="sql_commands/DROP_MATERIALIZED_VIEW.xml"/>
 			<topicref href="sql_commands/DROP_OPERATOR.xml"/>
 			<topicref href="sql_commands/DROP_OPERATOR_CLASS.xml"/>
 			<topicref href="sql_commands/DROP_OPERATOR_FAMILY.xml"/>
@@ -145,7 +142,6 @@
 			<topicref href="sql_commands/MOVE.xml"/>
 			<topicref href="sql_commands/PREPARE.xml"/>
 			<topicref href="sql_commands/REASSIGN_OWNED.xml"/>
-			<topicref href="sql_commands/REFRESH_MATERIALIZED_VIEW.xml"/>
 			<topicref href="sql_commands/REINDEX.xml"/>
 			<topicref href="sql_commands/RELEASE_SAVEPOINT.xml"/>
 			<topicref href="sql_commands/RESET.xml"/>
@@ -240,7 +236,6 @@
 				<topicref href="system_catalogs/pg_largeobject.xml"/>
 				<topicref href="system_catalogs/pg_listener.xml"/>
 				<topicref href="system_catalogs/pg_locks.xml"/>
-				<topicref href="system_catalogs/pg_matviews.xml"/>
 				<topicref href="system_catalogs/pg_max_external_files.xml"/>
 				<topicref href="system_catalogs/pg_namespace.xml"/>
 				<topicref href="system_catalogs/pg_opclass.xml"/>
@@ -262,7 +257,6 @@
 				<topicref href="system_catalogs/pg_resqueuecapability.xml"/>
 				<topicref href="system_catalogs/pg_rewrite.xml"/>
 				<topicref href="system_catalogs/pg_roles.xml"/>
-				<topicref href="system_catalogs/pg_rules.xml"/>
 				<topicref href="system_catalogs/pg_shdepend.xml"/>
 				<topicref href="system_catalogs/pg_shdescription.xml"/>
 				<topicref href="system_catalogs/pg_stat_activity.xml"/>
