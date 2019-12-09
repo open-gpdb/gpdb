@@ -14940,7 +14940,7 @@ int
 main ()
 {
 
-return strncmp("3.85.", GPORCA_VERSION_STRING, 5);
+return strncmp("3.86.", GPORCA_VERSION_STRING, 5);
 
   ;
   return 0;
