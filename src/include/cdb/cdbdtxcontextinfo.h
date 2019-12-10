@@ -15,18 +15,14 @@
 #define CDBDTXCONTEXTINFO_H
 #include "utils/tqual.h"
 
-#define DtxContextInfo_StaticInit {0,InvalidDistributedTransactionId,TmGid_Init,false,false,DistributedSnapshot_StaticInit,0,0,0}
+#define DtxContextInfo_StaticInit {0,InvalidDistributedTransactionId,TmGid_Init,false,false,DistributedSnapshot_StaticInit,0,0,0,0}
 
 typedef struct DtxContextInfo
 {
 	DistributedTransactionTimeStamp	distributedTimeStamp;
 	
 	DistributedTransactionId 		distributedXid;
-
 	char							distributedId[TMGIDSIZE];
-
-	CommandId				 		curcid;	/* in my xact, CID < curcid are visible */
-
 	bool							haveDistributedSnapshot;
 	bool							cursorContext;
 	
@@ -36,6 +32,9 @@ typedef struct DtxContextInfo
 
 	uint32							segmateSync;
 	uint32							nestingLevel;
+
+	/* currentCommandId of QD, for debugging only */
+	CommandId				 		curcid;	
 } DtxContextInfo;
 
 extern DtxContextInfo QEDtxContextInfo;	
