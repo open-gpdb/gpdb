@@ -1,6 +1,7 @@
 #include "cmockery_gp.h"
 
 #include "greenplum/old_tablespace_file_contents.h"
+#include "greenplum/old_tablespace_file_gp_internal.h"
 #include "greenplum/info_gp.h"
 #include "greenplum/info_gp_internal.h"
 
