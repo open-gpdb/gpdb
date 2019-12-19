@@ -4008,7 +4008,6 @@ CopyFrom(CopyState cstate)
 				HeapTuple	tuple;
 				if (resultRelInfo->nBufferedTuples == 0)
 					firstBufferedLineNo = cstate->cur_lineno;
-				tuple = ExecFetchSlotHeapTuple(slot);
 
 				resultRelInfoList = list_append_unique_ptr(resultRelInfoList, resultRelInfo);
 				if (resultRelInfo->bufferedTuples == NULL)
@@ -4020,7 +4019,8 @@ CopyFrom(CopyState cstate)
 
 				MemoryContextSwitchTo(GetPerTupleMemoryContext(estate));
 				/* Add this tuple to the tuple buffer */
-				resultRelInfo->bufferedTuples[resultRelInfo->nBufferedTuples++] = heap_copytuple(tuple);
+				tuple = ExecCopySlotHeapTuple(slot);
+				resultRelInfo->bufferedTuples[resultRelInfo->nBufferedTuples++] = tuple;
 				resultRelInfo->bufferedTuplesSize += tuple->t_len;
 				nTotalBufferedTuples++;
 				totalBufferedTuplesSize += tuple->t_len;
