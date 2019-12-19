@@ -61,6 +61,8 @@ xlog_ao_insert(RelFileNode relFileNode, int32 segmentFileNum,
 
 	SIMPLE_FAULT_INJECTOR("xlog_ao_insert");
 	XLogInsert(RM_APPEND_ONLY_ID, XLOG_APPENDONLY_INSERT, rdata);
+
+	wait_to_avoid_large_repl_lag();
 }
 
 static void
