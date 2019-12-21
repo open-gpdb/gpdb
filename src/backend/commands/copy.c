@@ -3844,8 +3844,12 @@ CopyFrom(CopyState cstate)
 				int relnatts;
 
 				if (!resultRelInfo->ri_resultSlot)
+				{
+					MemoryContextSwitchTo(estate->es_query_cxt);
 					resultRelInfo->ri_resultSlot =
 						MakeSingleTupleTableSlot(resultRelInfo->ri_RelationDesc->rd_att);
+					MemoryContextSwitchTo(GetPerTupleMemoryContext(estate));
+				}
 
 				relnatts = resultRelInfo->ri_RelationDesc->rd_att->natts;
 				slot = resultRelInfo->ri_resultSlot;
