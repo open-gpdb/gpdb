@@ -96,6 +96,21 @@ EXPLAIN (FORMAT JSON, COSTS OFF) SELECT * FROM generate_series(1, 10);
 EXPLAIN (FORMAT XML, COSTS OFF) SELECT * FROM generate_series(1, 10);
 -- explain_processing_on
 
+
+-- Test for github issue #9359
+--
+-- The plan contains an Agg and a Hash node on top of each other, neither of
+-- which have a plan->flow set. Explain should be able to dig the flow from
+-- the grandchild node then.
+CREATE TEMPORARY TABLE SUBSELECT_TBL (
+  f1 integer,
+  f2 integer,
+  f3 float
+);
+explain (format json) SELECT '' AS six, f1 AS "Uncorrelated Field" FROM SUBSELECT_TBL
+  WHERE f1 IN (SELECT f2 FROM SUBSELECT_TBL WHERE
+    f2 IN (SELECT f1 FROM SUBSELECT_TBL));
+
 -- Cleanup
 DROP TABLE boxes;
 DROP TABLE apples;

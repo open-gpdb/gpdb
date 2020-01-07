@@ -921,27 +921,24 @@ show_dispatch_info(Slice *slice, ExplainState *es, Plan *plan)
 				 * - for non-motion nodes the segments count can be fetched
 				 *   from either lefttree or plan itself, they should be the
 				 *   same;
-				 * - there is also nodes like Hash that might have NULL
+				 * - there are also nodes like Hash that might have NULL
 				 *   plan->flow but non-NULL lefttree->flow, so we can use
 				 *   whichever that's available.
 				 */
-				if (plan->lefttree && plan->lefttree->flow)
-				{
-					if (plan->lefttree->flow->flotype == FLOW_SINGLETON)
-						segments = 1;
-					else
-						segments = plan->lefttree->flow->numsegments;
-				}
-				else
-				{
-					Assert(!IsA(plan, Motion));
-					Assert(plan->flow);
+				Plan	   *fplan;
 
-					if (plan->flow->flotype == FLOW_SINGLETON)
-						segments = 1;
-					else
-						segments = plan->flow->numsegments;
-				}
+				fplan = plan;
+				while ((IsA(fplan, Motion) || !fplan->flow) &&
+					   fplan->lefttree)
+					fplan = fplan->lefttree;
+
+				Assert(!IsA(fplan, Motion));
+				Assert(fplan->flow);
+
+				if (fplan->flow->flotype == FLOW_SINGLETON)
+					segments = 1;
+				else
+					segments = fplan->flow->numsegments;
 			}
 			else
 			{
