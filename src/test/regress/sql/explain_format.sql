@@ -111,6 +111,16 @@ explain (format json) SELECT '' AS six, f1 AS "Uncorrelated Field" FROM SUBSELEC
   WHERE f1 IN (SELECT f2 FROM SUBSELECT_TBL WHERE
     f2 IN (SELECT f1 FROM SUBSELECT_TBL));
 
+-- Test for similar bug of missing flow with bitmap index scan.
+-- (github issue #9404).
+CREATE INDEX ss_f1 on SUBSELECT_TBL(f1);
+begin;
+set local enable_seqscan=off;
+set local enable_indexscan=off;
+set local enable_bitmapscan=on;
+explain (format json, costs off) select * from subselect_tbl where f1 < 10;
+commit;
+
 -- Cleanup
 DROP TABLE boxes;
 DROP TABLE apples;

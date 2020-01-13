@@ -627,6 +627,55 @@ QUERY PLAN
   }
 ]
 (1 row)
+-- Test for similar bug of missing flow with bitmap index scan.
+-- (github issue #9404).
+CREATE INDEX ss_f1 on SUBSELECT_TBL(f1);
+begin;
+set local enable_seqscan=off;
+set local enable_indexscan=off;
+set local enable_bitmapscan=on;
+explain (format json, costs off) select * from subselect_tbl where f1 < 10;
+QUERY PLAN
+[
+  {
+    "Plan": {
+      "Node Type": "Gather Motion",
+      "Senders": 3,
+      "Receivers": 1,
+      "Slice": 1,
+      "Segments": 3,
+      "Gang Type": "primary reader",
+      "Plans": [
+        {
+          "Node Type": "Bitmap Heap Scan",
+          "Parent Relationship": "Outer",
+          "Slice": 1,
+          "Segments": 3,
+          "Gang Type": "primary reader",
+          "Relation Name": "subselect_tbl",
+          "Alias": "subselect_tbl",
+          "Recheck Cond": "(f1 < 10)",
+          "Plans": [
+            {
+              "Node Type": "Bitmap Index Scan",
+              "Parent Relationship": "Outer",
+              "Slice": 1,
+              "Segments": 3,
+              "Gang Type": "primary reader",
+              "Index Name": "ss_f1",
+              "Index Cond": "(f1 < 10)"
+            }
+          ]
+        }
+      ]
+    },
+    "Settings": {
+      "Optimizer": "Postgres query optimizer"
+    }
+  }
+]
+(1 row)
+commit;
 -- Cleanup
 DROP TABLE boxes;
 DROP TABLE apples;

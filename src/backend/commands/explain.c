@@ -933,9 +933,22 @@ show_dispatch_info(Slice *slice, ExplainState *es, Plan *plan)
 					fplan = fplan->lefttree;
 
 				Assert(!IsA(fplan, Motion));
-				Assert(fplan->flow);
-
-				if (fplan->flow->flotype == FLOW_SINGLETON)
+				if (!fplan->flow)
+				{
+					/*
+					 * This shouldn't happen, but just in case the planner
+					 * failed to decorate a node with a flow, don't panic
+					 * in production. Not all nodes need to be marked with a
+					 * flow, as long as the Motions, and the nodes immediately
+					 * below a Motion are, so this just leads to incorrect
+					 * information in EXPLAIN output. We'd still like to fix
+					 * such cases, though so Assert so that we catch them
+					 * during development.
+					 */
+					Assert(fplan->flow);
+					segments = 1;
+				}
+				else if (fplan->flow->flotype == FLOW_SINGLETON)
 					segments = 1;
 				else
 					segments = fplan->flow->numsegments;
