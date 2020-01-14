@@ -2643,6 +2643,26 @@ gpdb::IsCompositeType
 	return false;
 }
 
+bool
+gpdb::IsTextRelatedType
+	(
+	Oid typid
+	)
+{
+	GP_WRAP_START;
+	{
+		/* catalog tables: pg_type */
+		char typcategory;
+		bool typispreferred;
+		get_type_category_preferred(typid, &typcategory, &typispreferred);
+
+		return typcategory == TYPCATEGORY_STRING;
+	}
+	GP_WRAP_END;
+	return false;
+}
+
+
 int
 gpdb::GetIntFromValue
 	(
@@ -3219,6 +3239,16 @@ gpdb::MakeGpPolicy
 }
 
 uint32
+gpdb::HashChar(Datum d)
+{
+	GP_WRAP_START;
+	{
+		return DatumGetUInt32(DirectFunctionCall1(hashchar, d));
+	}
+	GP_WRAP_END;
+}
+
+uint32
 gpdb::HashBpChar(Datum d)
 {
 	GP_WRAP_START;
@@ -3234,6 +3264,16 @@ gpdb::HashText(Datum d)
 	GP_WRAP_START;
 	{
 		return DatumGetUInt32(DirectFunctionCall1(hashtext, d));
+	}
+	GP_WRAP_END;
+}
+
+uint32
+gpdb::HashName(Datum d)
+{
+	GP_WRAP_START;
+	{
+		return DatumGetUInt32(DirectFunctionCall1(hashname, d));
 	}
 	GP_WRAP_END;
 }
