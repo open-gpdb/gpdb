@@ -2336,7 +2336,6 @@ _readCreateStmt(void)
 }
 #endif /* COMPILING_BINARY_FUNCS */
 
-#ifndef COMPILING_BINARY_FUNCS
 static Partition *
 _readPartition(void)
 {
@@ -2353,9 +2352,7 @@ _readPartition(void)
 
 	READ_DONE();
 }
-#endif /* COMPILING_BINARY_FUNCS */
 
-#ifndef COMPILING_BINARY_FUNCS
 static PartitionRule *
 _readPartitionRule(void)
 {
@@ -2365,6 +2362,7 @@ _readPartitionRule(void)
 	READ_OID_FIELD(paroid);
 	READ_OID_FIELD(parchildrelid);
 	READ_OID_FIELD(parparentoid);
+	READ_BOOL_FIELD(parisdefault);
 	READ_STRING_FIELD(parname);
 	READ_NODE_FIELD(parrangestart);
 	READ_BOOL_FIELD(parrangestartincl);
@@ -2379,20 +2377,18 @@ _readPartitionRule(void)
 
 	READ_DONE();
 }
-#endif /* COMPILING_BINARY_FUNCS */
 
-#ifndef COMPILING_BINARY_FUNCS
 static PartitionNode *
 _readPartitionNode(void)
 {
 	READ_LOCALS(PartitionNode);
 
 	READ_NODE_FIELD(part);
+	READ_NODE_FIELD(default_part);
 	READ_NODE_FIELD(rules);
 
 	READ_DONE();
 }
-#endif /* COMPILING_BINARY_FUNCS */
 
 static PgPartRule *
 _readPgPartRule(void)
