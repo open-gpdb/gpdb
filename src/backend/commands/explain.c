@@ -2253,6 +2253,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		IsA(plan, ModifyTable) ||
 		IsA(plan, Append) ||
 		IsA(plan, MergeAppend) ||
+		IsA(plan, Sequence) ||
 		IsA(plan, BitmapAnd) ||
 		IsA(plan, BitmapOr) ||
 		IsA(plan, SubqueryScan) ||
