@@ -179,11 +179,11 @@ inline static char extended_char(char* token, size_t length)
 /* Read an integer array (anything written as ":fldname %d %d ...") */
 #define READ_INT_ARRAY(fldname, count, Type) \
 	token = pg_strtok(&length);		/* skip :fldname */ \
-	if ( local_node->count > 0 ) \
+	if ( count > 0 ) \
 	{ \
 		int i; \
-		local_node->fldname = (Type *)palloc(local_node->count * sizeof(Type)); \
-		for(i=0; i<local_node->count; i++) \
+		local_node->fldname = (Type *)palloc(count * sizeof(Type)); \
+		for(i=0; i<count; i++) \
 		{ \
 			token = pg_strtok(&length);		/* get field value */ \
 			local_node->fldname[i] = (Type) atoi(token); \
@@ -258,11 +258,11 @@ inline static char extended_char(char* token, size_t length)
 /* Read an Oid array (written as ":fldname %u %u ...") */
 #define READ_OID_ARRAY(fldname, count) \
 	token = pg_strtok(&length);		/* skip :fldname */ \
-	if ( local_node->count > 0 ) \
+	if ( count > 0 ) \
 	{ \
 		int i; \
-		local_node->fldname = (Oid *)palloc(local_node->count * sizeof(Oid)); \
-		for(i=0; i<local_node->count; i++) \
+		local_node->fldname = (Oid *)palloc(count * sizeof(Oid)); \
+		for(i=0; i<count; i++) \
 		{ \
 			token = pg_strtok(&length);		/* get field value */ \
 			local_node->fldname[i] = atooid(token); \
@@ -2348,8 +2348,8 @@ _readPartition(void)
 	READ_INT_FIELD(parlevel);
 	READ_BOOL_FIELD(paristemplate);
 	READ_INT_FIELD(parnatts);
-	READ_INT_ARRAY(paratts, parnatts, int16);
-	READ_OID_ARRAY(parclass, parnatts);
+	READ_INT_ARRAY(paratts, local_node->parnatts, int16);
+	READ_OID_ARRAY(parclass, local_node->parnatts);
 
 	READ_DONE();
 }
