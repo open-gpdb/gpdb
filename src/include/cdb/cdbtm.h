@@ -40,7 +40,7 @@ typedef enum
 	 * For one-phase optimization commit, we haven't run the commit yet
 	 */
 	DTX_STATE_ONE_PHASE_COMMIT,
-	DTX_STATE_NOTIFYING_ONE_PHASE_COMMIT,
+	DTX_STATE_PERFORMING_ONE_PHASE_COMMIT,
 
 	/**
 	 * For two-phase commit, the first phase is about to run
@@ -53,6 +53,7 @@ typedef enum
 	DTX_STATE_PREPARED,
 	DTX_STATE_INSERTING_COMMITTED,
 	DTX_STATE_INSERTED_COMMITTED,
+	DTX_STATE_FORCED_COMMITTED,
 	DTX_STATE_NOTIFYING_COMMIT_PREPARED,
 	DTX_STATE_INSERTING_FORGET_COMMITTED,
 	DTX_STATE_INSERTED_FORGET_COMMITTED,
@@ -235,8 +236,8 @@ typedef struct TMGXACTLOCAL
 
 	bool						writerGangLost;
 
-	Bitmapset					*dtxSegmentsMap;
-	List						*dtxSegments;
+	Bitmapset					*twophaseSegmentsMap;
+	List						*twophaseSegments;
 }	TMGXACTLOCAL;
 
 typedef struct TMGXACTSTATUS
@@ -275,7 +276,7 @@ extern volatile int *shmNumCommittedGxacts;
 extern char *DtxStateToString(DtxState state);
 extern char *DtxProtocolCommandToString(DtxProtocolCommand command);
 extern char *DtxContextToString(DtxContext context);
-extern DistributedTransactionTimeStamp getDtmStartTime(void);
+extern DistributedTransactionTimeStamp getDtxStartTime(void);
 extern void dtxCrackOpenGid(const char	*gid,
 							DistributedTransactionTimeStamp	*distribTimeStamp,
 							DistributedTransactionId		*distribXid);
@@ -300,9 +301,10 @@ extern void redoDtxCheckPoint(TMGXACT_CHECKPOINT *gxact_checkpoint);
 extern void redoDistributedCommitRecord(TMGXACT_LOG *gxact_log);
 extern void redoDistributedForgetCommitRecord(TMGXACT_LOG *gxact_log);
 
-extern void setupDtxTransaction(void);
+extern void setupTwoPhaseTransaction(void);
+extern bool isCurrentDtxTwoPhase(void);
 extern DtxState getCurrentDtxState(void);
-extern bool isCurrentDtxActivated(void);
+extern bool isCurrentDtxTwoPhaseActivated(void);
 
 extern void sendDtxExplicitBegin(void);
 extern bool isDtxExplicitBegin(void);
@@ -314,10 +316,10 @@ extern int	tmShmemSize(void);
 
 extern void verify_shared_snapshot_ready(int cid);
 
-int			mppTxnOptions(bool needDtx);
+int			mppTxnOptions(bool needTwoPhase);
 int			mppTxOptions_IsoLevel(int txnOptions);
 bool		isMppTxOptions_ReadOnly(int txnOptions);
-bool		isMppTxOptions_NeedDtx(int txnOptions);
+bool		isMppTxOptions_NeedTwoPhase(int txnOptions);
 bool		isMppTxOptions_ExplicitBegin(int txnOptions);
 
 extern void getAllDistributedXactStatus(TMGALLXACTSTATUS **allDistributedXactStatus);
@@ -334,14 +336,14 @@ extern void UtilityModeCloseDtmRedoFile(void);
 extern bool currentDtxDispatchProtocolCommand(DtxProtocolCommand dtxProtocolCommand, bool raiseError);
 extern bool doDispatchSubtransactionInternalCmd(DtxProtocolCommand cmdType);
 extern bool doDispatchDtxProtocolCommand(DtxProtocolCommand dtxProtocolCommand, char *gid,
-							 bool *badGangs, bool raiseError, List *dtxSegments,
+							 bool *badGangs, bool raiseError, List *twophaseSegments,
 							 char *serializedDtxContextInfo, int serializedDtxContextInfoLen);
 
 extern void markCurrentGxactWriterGangLost(void);
 
 extern bool currentGxactWriterGangLost(void);
 
-extern void addToGxactDtxSegments(struct Gang* gp);
+extern void addToGxactTwophaseSegments(struct Gang* gp);
 
 extern void ClearTransactionState(TransactionId latestXid);
 

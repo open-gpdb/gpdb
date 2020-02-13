@@ -51,10 +51,12 @@ extern char* LocalDistribXact_DisplayString(int pgprocno);
 
 extern bool LocalDistribXactCache_CommittedFind(
 	TransactionId						localXid,
+	DistributedTransactionTimeStamp		distribTransactionTimeStamp,
 	DistributedTransactionId			*distribXid);
 
 extern void LocalDistribXactCache_AddCommitted(
 	TransactionId						localXid,
+	DistributedTransactionTimeStamp		distribTransactionTimeStamp,
 	DistributedTransactionId			distribXid);
 
 extern void LocalDistribXactCache_ShowStats(char *nameStr);
