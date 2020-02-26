@@ -1,3 +1,4 @@
+		"check_function_bodies",
 		"client_min_messages",
 		"commit_delay",
 		"commit_siblings",
