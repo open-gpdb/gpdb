@@ -47,10 +47,8 @@
 #include <io.h>
 #define SHUT_WR SD_SEND
 #define socklen_t int
-#ifndef ECONNRESET
+#undef ECONNRESET
 #define ECONNRESET   WSAECONNRESET
-#endif
-
 #endif
 
 #include <pg_config.h>
