@@ -5,6 +5,7 @@
 		"coredump_on_memerror",
 		"DateStyle",
 		"default_tablespace",
+		"dev_opt_unsafe_truncate_in_subtransaction",
 		"dml_ignore_target_partition_check",
 		"dtx_phase2_retry_count",
 		"execute_pruned_plan",
