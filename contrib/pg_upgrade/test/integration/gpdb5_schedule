@@ -9,3 +9,4 @@ test: unsupported_tsquery_col
 test: gphdfs
 test: mismatched_aopartition_indexes
 test: different_name_index_backed_constraint
+test: mismatched_partition_schemas
