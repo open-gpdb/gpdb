@@ -4824,6 +4824,40 @@ GetPidByGxid(DistributedTransactionId gxid)
 	return pid;
 }
 
+DistributedTransactionId
+LocalXidGetDistributedXid(TransactionId xid)
+{
+	int index;
+	DistributedTransactionTimeStamp tstamp;
+	DistributedTransactionId gxid = InvalidDistributedTransactionId;
+	ProcArrayStruct *arrayP = procArray;
+
+	SIMPLE_FAULT_INJECTOR("before_get_distributed_xid");
+	LWLockAcquire(ProcArrayLock, LW_SHARED);
+	for (index = 0; index < arrayP->numProcs; index++)
+	{
+		int		 pgprocno = arrayP->pgprocnos[index];
+		volatile PGXACT *pgxact = &allPgXact[pgprocno];
+		volatile TMGXACT *gxact = &allTmGxact[pgprocno];
+		if (xid == pgxact->xid)
+		{
+			gxid = gxact->gxid;
+			break;
+		}
+	}
+	LWLockRelease(ProcArrayLock);
+
+	/* The transaction has already committed on segment */
+	if (gxid == InvalidDistributedTransactionId)
+	{
+		DistributedLog_GetDistributedXid(xid, &tstamp, &gxid);
+		AssertImply(gxid != InvalidDistributedTransactionId,
+					tstamp == MyTmGxact->distribTimeStamp);
+	}
+
+	return gxid;
+}
+
 /*
  * KnownAssignedXidsReset
  *		Resets KnownAssignedXids to be empty
