@@ -23,7 +23,7 @@ include $(top_builddir)/src/Makefile.global
 override CPPFLAGS := -DFRONTEND $(CPPFLAGS)
 LIBS += $(PTHREAD_LIBS)
 
-OBJS_COMMON = base64.o scram-common.o exec.o pgfnames.o psprintf.o \
+OBJS_COMMON = archive.o base64.o scram-common.o exec.o pgfnames.o psprintf.o \
 	relpath.o rmtree.o saslprep.o string.o unicode_norm.o username.o \
 	wait_error.o
 
