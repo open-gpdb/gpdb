@@ -1211,6 +1211,15 @@ PG_TRY();
 		prm->isnull = false;
 	}
 
+	/* Clean up the interconnect. */
+	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
+	{
+		TeardownInterconnect(queryDesc->estate->interconnect_context,
+							 false, false); /* following success on QD */
+		queryDesc->estate->interconnect_context = NULL;
+		queryDesc->estate->es_interconnect_is_setup = false;
+	}
+
 	/*
 	 * If we dispatched to QEs, wait for completion.
 	 */
@@ -1221,15 +1230,7 @@ PG_TRY();
 	{
 		CdbDispatcherState *ds = queryDesc->estate->dispatcherState;
 
-		/*
-		 * We are in a subplan, the eflags always contains EXEC_FLAG_REWIND which
-		 * means we cannot squelch the motion node earlier and some QEs still keep
-		 * sending tuples.
-		 *
-		 * we get all the tuples we needed, DISPATCH_WAIT_FINISH tell QEs stopping
-		 * sending tuples and wait them to complete.
-		 */
-		cdbdisp_checkDispatchResult(ds, DISPATCH_WAIT_FINISH);
+		cdbdisp_checkDispatchResult(ds, DISPATCH_WAIT_NONE);
 
 		/* If EXPLAIN ANALYZE, collect execution stats from qExecs. */
 		if (planstate->instrument && planstate->instrument->need_cdb)
@@ -1244,15 +1245,6 @@ PG_TRY();
 		/* Main plan use same estate, must reset dispatcherState  */
 		queryDesc->estate->dispatcherState = NULL;
 		cdbdisp_destroyDispatcherState(ds);
-	}
-
-	/* Clean up the interconnect. */
-	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
-	{
-		TeardownInterconnect(queryDesc->estate->interconnect_context,
-							 false, false); /* following success on QD */
-		queryDesc->estate->interconnect_context = NULL;
-		queryDesc->estate->es_interconnect_is_setup = false;
 	}
 }
 PG_CATCH();
@@ -1280,6 +1272,18 @@ PG_CATCH();
 	MemoryContextSetPeakSpace(planstate->state->es_query_cxt, savepeakspace);
 
 	/*
+	 * Clean up the interconnect.
+	 * CDB TODO: Is this needed following failure on QD?
+	 */
+	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
+	{
+		TeardownInterconnect(queryDesc->estate->interconnect_context,
+							 true, false);
+		queryDesc->estate->interconnect_context = NULL;
+		queryDesc->estate->es_interconnect_is_setup = false;
+	}
+
+	/*
 	 * Request any commands still executing on qExecs to stop.
 	 * Wait for them to finish and clean up the dispatching structures.
 	 * Replace current error info with QE error info if more interesting.
@@ -1292,17 +1296,6 @@ PG_CATCH();
 		CdbDispatchHandleError(ds);
 	}
 
-	/*
-	 * Clean up the interconnect.
-	 * CDB TODO: Is this needed following failure on QD?
-	 */
-	if (queryDesc && queryDesc->estate && queryDesc->estate->es_interconnect_is_setup)
-	{
-		TeardownInterconnect(queryDesc->estate->interconnect_context,
-							 true, false);
-		queryDesc->estate->interconnect_context = NULL;
-		queryDesc->estate->es_interconnect_is_setup = false;
-	}
 	PG_RE_THROW();
 }
 PG_END_TRY();
