@@ -113,7 +113,7 @@
               </p>
               <p>
                 <xref href="guc-list.xml#unix_socket_directory" type="section"
-                  >unix_socket_directory</xref>
+                  >unix_socket_directories</xref>
               </p>
               <p>
                 <xref href="guc-list.xml#unix_socket_group" type="section">unix_socket_group</xref>
