@@ -1790,14 +1790,9 @@ SetupTCPInterconnect(EState *estate)
  * This context is destroyed at the end of the query and all memory that gets
  * allocated under it is free'd.  We don't have have to worry about pfree() but
  * we definitely have to worry about socket resources.
- *
- * If forceEOS is set, we force end-of-stream notifications out any send-nodes,
- * and we wrap that send in a PG_TRY/CATCH block because the goal is to reduce
- * confusion (and if we're being shutdown abnormally anyhow, let's not start
- * adding errors!).
  */
 void
-TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
+TeardownTCPInterconnect(ChunkTransportState *transportStates, bool hasErrors)
 {
 	ListCell   *cell;
 	ChunkTransportStateEntry *pEntry = NULL;
@@ -1815,7 +1810,7 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
 	 * if we're already trying to clean up after an error -- don't allow
 	 * signals to interrupt us
 	 */
-	if (forceEOS)
+	if (hasErrors)
 		HOLD_INTERRUPTS();
 
 	mySlice = (Slice *) list_nth(transportStates->sliceTable->slices, transportStates->sliceId);
@@ -1825,7 +1820,7 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
 	{
 		int			elevel = 0;
 
-		if (forceEOS || !transportStates->activated)
+		if (hasErrors || !transportStates->activated)
 		{
 			if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
 				elevel = LOG;
@@ -1839,7 +1834,7 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
 			ereport(elevel, (errmsg("Interconnect seg%d slice%d cleanup state: "
 									"%s; setup was %s",
 									GpIdentity.segindex, mySlice->sliceIndex,
-									forceEOS ? "force" : "normal",
+									hasErrors ? "error" : "normal",
 									transportStates->activated ? "completed" : "exited")));
 
 		/* if setup did not complete, log the slicetable */
@@ -1914,9 +1909,6 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
 				 GpIdentity.segindex, mySlice->sliceIndex, mySlice->parentIndex);
 
 		getChunkTransportState(transportStates, mySlice->sliceIndex, &pEntry);
-
-		if (forceEOS)
-			forceEosToPeers(transportStates, mySlice->sliceIndex);
 
 		for (i = 0; i < pEntry->numConns; i++)
 		{
@@ -2003,7 +1995,7 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
 		 * If some errors are happening, senders can skip this step to avoid hung
 		 * issues, QD will take care of the error handling.
 		 */
-		if (!forceEOS)
+		if (!hasErrors)
 			waitOnOutbound(pEntry);
 
 		for (i = 0; i < pEntry->numConns; i++)
@@ -2034,7 +2026,7 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool forceEOS)
 		pfree(transportStates->states);
 	pfree(transportStates);
 
-	if (forceEOS)
+	if (hasErrors)
 		RESUME_INTERRUPTS();
 
 #ifdef AMS_VERBOSE_LOGGING
