@@ -66,6 +66,10 @@ matrix:
           compiler: clang
           osx_image: xcode11
           env: T=macos
+          addons:
+            homebrew:
+              packages:
+                - ccache
 
 ## ----------------------------------------------------------------------
 ## Build tools
