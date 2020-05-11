@@ -4539,7 +4539,7 @@ HandleMoveResourceGroup(void)
 			PG_RE_THROW();
 		}
 		PG_END_TRY();
-		pgstat_report_resgroup(self->groupId);
+		pgstat_report_resgroup(0, self->groupId);
 	}
 	else if (Gp_role == GP_ROLE_EXECUTE)
 	{
@@ -4624,7 +4624,7 @@ moveQueryCheck(int sessionId, Oid groupId)
 	if (!hasEnoughMemory(sessionMem, availMem))
 		elog(ERROR, "group %d doesn't have enough memory on master, expect:%d, available:%d", groupId, sessionMem, availMem);
 
-	cmd = psprintf("SELECT session_mem, available_mem from pg_resgroup_check_move_query(%d, %d)", sessionId, groupId);
+	cmd = psprintf("SELECT session_mem, available_mem from gp_toolkit.pg_resgroup_check_move_query(%d, %d)", sessionId, groupId);
 
 	CdbDispatchCommand(cmd, DF_WITH_SNAPSHOT, &cdb_pgresults);
 
@@ -4693,7 +4693,7 @@ ResGroupMoveQuery(int sessionId, Oid groupId, const char *groupName)
 
 		ResGroupSignalMoveQuery(sessionId, slot, groupId);
 
-		cmd = psprintf("SELECT pg_resgroup_move_query(%d, %s)",
+		cmd = psprintf("SELECT gp_toolkit.pg_resgroup_move_query(%d, %s)",
 				sessionId,
 				quote_literal_cstr(groupName));
 		CdbDispatchCommand(cmd, 0, NULL);
