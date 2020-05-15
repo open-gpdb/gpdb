@@ -575,7 +575,7 @@ resources:
   source:
     bucket: ((gcs-bucket))
     json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos6/python-(2\.7\.12-.*).tar.gz
+    regexp: gp-internal-artifacts/centos6/python-(2\.7\.12\+.*).tar.gz
 
 {% endif %}
 {% if "centos7" in os_types %}
@@ -584,7 +584,7 @@ resources:
   source:
     bucket: ((gcs-bucket))
     json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos7/python-(2\.7\.12-.*).tar.gz
+    regexp: gp-internal-artifacts/centos7/python-(2\.7\.12\+.*).tar.gz
 
 {% endif %}
 {% if "ubuntu18.04" in os_types %}
@@ -593,7 +593,7 @@ resources:
   source:
     bucket: ((gcs-bucket))
     json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/ubuntu18.04/python-(2\.7\.12-.*).tar.gz
+    regexp: gp-internal-artifacts/ubuntu18.04/python-(2\.7\.12\+.*).tar.gz
 
 {% endif %}
 {% if "centos6" in os_types %}
