@@ -538,6 +538,7 @@ makeCdbProcess(SegmentDatabaseDescriptor *segdbDesc)
 
 	process->pid = segdbDesc->backendPid;
 	process->contentid = segdbDesc->segindex;
+	process->dbid = qeinfo->config->dbid;
 	return process;
 }
 
@@ -625,6 +626,7 @@ getCdbProcessesForQD(int isPrimary)
 
 	proc->pid = MyProcPid;
 	proc->contentid = -1;
+	proc->dbid = qdinfo->config->dbid;
 
 	list = lappend(list, proc);
 	return list;
