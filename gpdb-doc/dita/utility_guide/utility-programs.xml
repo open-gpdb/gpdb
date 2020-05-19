@@ -70,9 +70,7 @@
             <p><xref href="ref/gplogfilter.xml#topic1" type="topic" format="dita"/></p>
             <p><xref href="ref/gpmapreduce.xml#topic1" type="topic" format="dita"/></p>
             <p><xref href="ref/gpmapreduce-yaml.xml#topic1" type="topic" format="dita"/></p>
-            <!-- hidden until testing is complete -msk
-            <p><xref href="ref/gpmovemirrors.xml#topic1"/>
-              </p -->
+            <p><xref href="ref/gpmovemirrors.xml#topic1"/></p>
             <p><xref href="ref/gpperfmon_install.xml#topic1"/></p>
             <p><xref href="ref/gppkg.xml#topic1" type="topic" format="dita"/></p>
             <p><xref href="ref/gprecoverseg.xml#topic1" type="topic" format="dita"/></p>
@@ -88,7 +86,7 @@
             <p><xref href="ref/gpstart.xml#topic1" type="topic" format="dita"/></p>
             <p><xref href="ref/gpstate.xml#topic1" type="topic" format="dita"/></p>
             <p><xref href="ref/gpstop.xml#topic1" type="topic" format="dita"/></p>
-            <p><xref href="ref/gpsys.xml#topic1"/></p>
+            <p><xref href="ref/gpsys.xml#topic1">gpsys1 (deprecated)</xref></p>
             <p><xref href="ref/pg_config.xml#topic1"/></p>
             <p><xref href="ref/pg_dump.xml#topic1"/><sup otherprops="pivotal">3</sup></p>
             <p><xref href="ref/pg_dumpall.xml#topic1"/><sup otherprops="pivotal">3</sup></p>
