@@ -8,6 +8,7 @@
 #include "cdb/cdbaocsam.h"
 #include "cdb/cdbvars.h"
 #include "commands/vacuum.h"
+#include "nodes/makefuncs.h"
 #include "storage/bufmgr.h"
 #include "utils/acl.h"
 #include "utils/builtins.h"
@@ -24,29 +25,6 @@
 bool			gp_statistics_pullup_from_child_partition = FALSE;
 bool			gp_statistics_use_fkeys = FALSE;
 
-typedef struct
-{
-	/* Table being sampled */
-	Relation	onerel;
-
-	/* Sampled rows and estimated total number of rows in the table. */
-	HeapTuple  *sample_rows;
-	int			num_sample_rows;
-	double		totalrows;
-	double		totaldeadrows;
-
-	/*
-	 * Result tuple descriptor. Each returned row consists of three "fixed"
-	 * columns, plus all the columns of the sampled table (excluding dropped
-	 * columns).
-	 */
-	TupleDesc	outDesc;
-#define NUM_SAMPLE_FIXED_COLS 3
-
-	/* SRF state, to track which rows have already been returned. */
-	int			index;
-	bool		summary_sent;
-} gp_acquire_sample_rows_context;
 
 Datum
 gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bool inherited,int32 vacopts){
@@ -63,12 +41,10 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 
 	if (SRF_IS_FIRSTCALL())
 	{
-		double		totalrows;
-		double		totaldeadrows;
 		Relation	onerel;
 		int			attno;
-		int			num_sample_rows;
 		int			outattno;
+		RangeVar	   *this_rangevar;
 
 		funcctx = SRF_FIRSTCALL_INIT();
 
@@ -78,12 +54,39 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 		 */
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
+		/* Construct the context to keep across calls. */
+		ctx = (gp_acquire_sample_rows_context *) palloc(sizeof(gp_acquire_sample_rows_context));
+
 		if (!pg_class_ownercheck(relOid, GetUserId()))
 			aclcheck_error(ACLCHECK_NOT_OWNER, ACL_KIND_CLASS,
 						   get_rel_name(relOid));
 
 		onerel = relation_open(relOid, AccessShareLock);
 		relDesc = RelationGetDescr(onerel);
+
+		{
+			VacuumStmt	vacstmt;
+
+			/* Set up command parameters --- use local variables instead of palloc */
+			MemSet(&vacstmt, 0, sizeof(vacstmt));
+
+			this_rangevar = makeRangeVar(get_namespace_name(onerel->rd_rel->relnamespace),
+									 pstrdup(RelationGetRelationName(onerel)),
+									 -1);
+			vacstmt.type = T_VacuumStmt;
+			vacstmt.options |= VACOPT_ANALYZE;
+			vacstmt.freeze_min_age = -1;
+			vacstmt.freeze_table_age = -1;
+			vacstmt.multixact_freeze_min_age = -1;
+			vacstmt.multixact_freeze_table_age = -1;
+			vacstmt.relation = &this_rangevar;
+			vacstmt.va_cols = NIL;
+			vacstmt.auto_stats = false;
+			analyze_rel(relOid, &vacstmt,
+					true, GetAccessStrategy(BAS_VACUUM), ctx);
+
+		}
+											
 
 		/* Count the number of non-dropped cols */
 		live_natts = 0;
@@ -144,37 +147,9 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 		BlessTupleDesc(outDesc);
 		funcctx->tuple_desc = outDesc;
 
-		/*
-		 * Collect the actual sample. (We do this only after blessing the output
-		 * tuple, to avoid the very expensive work of scanning the table, if we're
-		 * going to error out because of incorrect column definition, anyway.
-		 * ANALYZE should always get this right, but makes testing manually a bit
-		 * more comfortable.)
-		 */
-		sample_rows = (HeapTuple *) palloc0(targrows * sizeof(HeapTuple));
-		if (inherited)
-		{
-			num_sample_rows =
-				acquire_inherited_sample_rows(onerel, DEBUG1,
-											  sample_rows, targrows,
-											  &totalrows, &totaldeadrows,vacopts);
-		}
-		else
-		{
-			num_sample_rows =
-				acquire_sample_rows(onerel, DEBUG1, sample_rows, targrows,
-									&totalrows, &totaldeadrows);
-		}
-
-		/* Construct the context to keep across calls. */
-		ctx = (gp_acquire_sample_rows_context *) palloc(sizeof(gp_acquire_sample_rows_context));
 		ctx->onerel = onerel;
 		funcctx->user_fctx = ctx;
 		ctx->outDesc = outDesc;
-		ctx->sample_rows = sample_rows;
-		ctx->num_sample_rows = num_sample_rows;
-		ctx->totalrows = totalrows;
-		ctx->totaldeadrows = totaldeadrows;
 
 		ctx->index = 0;
 		ctx->summary_sent = false;
@@ -194,7 +169,7 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 	HeapTuple	res;
 
 	/* First return all the sample rows */
-	if (ctx->index < ctx->num_sample_rows)
+	if (ctx->index < ctx->num_sample_rows && ctx->index < targrows)
 	{
 		HeapTuple	relTuple = ctx->sample_rows[ctx->index];
 		int			attno;

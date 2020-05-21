@@ -162,6 +162,47 @@ typedef struct VPgClassStats
 	BlockNumber relallvisible;
 } VPgClassStats;
 
+/*
+ * Parameters customizing behavior of VACUUM and ANALYZE.
+ */
+typedef struct VacuumParams
+{
+	int			freeze_min_age; /* min freeze age, -1 to use default */
+	int			freeze_table_age;		/* age at which to scan whole table */
+	int			multixact_freeze_min_age;		/* min multixact freeze age,
+												 * -1 to use default */
+	int			multixact_freeze_table_age;		/* multixact age at which to
+												 * scan whole table */
+	bool		is_wraparound;	/* force a for-wraparound vacuum */
+	int			log_min_duration;		/* minimum execution threshold in ms
+										 * at which  verbose logs are
+										 * activated, -1 to use default */
+} VacuumParams;
+
+typedef struct
+{
+	/* Table being sampled */
+	Relation	onerel;
+
+	/* Sampled rows and estimated total number of rows in the table. */
+	HeapTuple  *sample_rows;
+	int			num_sample_rows;
+	double		totalrows;
+	double		totaldeadrows;
+
+	/*
+	 * Result tuple descriptor. Each returned row consists of three "fixed"
+	 * columns, plus all the columns of the sampled table (excluding dropped
+	 * columns).
+	 */
+	TupleDesc	outDesc;
+#define NUM_SAMPLE_FIXED_COLS 3
+
+	/* SRF state, to track which rows have already been returned. */
+	int			index;
+	bool		summary_sent;
+} gp_acquire_sample_rows_context;
+
 /* GUC parameters */
 extern PGDLLIMPORT int default_statistics_target;		/* PGDLLIMPORT for
 														 * PostGIS */
@@ -219,8 +260,8 @@ extern int vacuum_appendonly_indexes(Relation aoRelation, VacuumStmt *vacstmt, B
 extern void vacuum_aocs_rel(Relation aorel, void *vacrelstats, bool isVacFull);
 
 /* in commands/analyze.c */
-extern void analyze_rel(Oid relid, VacuumStmt *vacstmt,
-			bool in_outer_xact, BufferAccessStrategy bstrategy);
+extern void analyze_rel(Oid relid,VacuumStmt *vacstmt, bool in_outer_xact,
+			BufferAccessStrategy bstrategy, gp_acquire_sample_rows_context *ctx);
 
 extern void analyzeStatement(VacuumStmt *vacstmt, List *relids, BufferAccessStrategy start, bool isTopLevel);
 extern bool std_typanalyze(VacAttrStats *stats);
