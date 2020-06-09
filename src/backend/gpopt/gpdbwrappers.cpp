@@ -494,6 +494,23 @@ gpdb::WalkExpressionTree
 	return false;
 }
 
+bool
+gpdb::WalkQueryTree
+	(
+	Query *node,
+	bool (*walker) (),
+	void *context,
+	int flags
+	)
+{
+	GP_WRAP_START;
+	{
+		return query_tree_walker(node, walker, context, flags);
+	}
+	GP_WRAP_END;
+	return false;
+}
+
 Oid
 gpdb::ExprType
 	(

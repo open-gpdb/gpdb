@@ -6547,6 +6547,8 @@ insert into orca_w2 select i, i from generate_series(2, 4) i;
 insert into orca_w3 select i, i from generate_series(3, 5) i;
 -- outer ref in subquery in target list and window func in target list
 select (select b from orca_w3 where a = orca_w1.a) as one, row_number() over(partition by orca_w1.a) as two from orca_w2, orca_w1;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  one | two 
 -----+-----
      |   1
@@ -6562,6 +6564,8 @@ select (select b from orca_w3 where a = orca_w1.a) as one, row_number() over(par
 
 -- aggref in subquery with window func in target list
 select orca_w1.a, (select sum(orca_w2.a) from orca_w2 where orca_w1.b = orca_w2.b), count(*), rank() over (order by orca_w1.b) from orca_w1 group by orca_w1.a, orca_w1.b order by orca_w1.a;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  a | sum | count | rank 
 ---+-----+-------+------
  1 |     |     1 |    1
@@ -6580,6 +6584,8 @@ select orca_w1.a, (select rank() over (order by orca_w1.b) from orca_w2 where or
 
 -- window function with empty partition clause inside subquery inside target list with outer ref
 select (select rank() over() from orca_w3 where a = orca_w1.a) as one, row_number() over(partition by orca_w1.a) as two from orca_w1, orca_w2;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  one | two 
 -----+-----
      |   1
@@ -6602,6 +6608,8 @@ select (select a from orca_w3 where a = orca_w1.a) as one from orca_w1 where orc
 
 -- window function in subquery inside target list with outer ref in partition clause
 select (select rank() over(partition by orca_w2.a) from orca_w3 where a = orca_w1.a) as one, row_number() over(partition by orca_w1.a) as two from orca_w1, orca_w2 order by orca_w1.a;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  one | two 
 -----+-----
      |   2
@@ -6617,6 +6625,8 @@ select (select rank() over(partition by orca_w2.a) from orca_w3 where a = orca_w
 
 -- window function in subquery inside target list with outer ref in order clause
 select (select rank() over(order by orca_w2.a) from orca_w3 where a = orca_w1.a) as one, row_number() over(partition by orca_w1.a) as two from orca_w1, orca_w2 order by orca_w1.a;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  one | two 
 -----+-----
      |   2
@@ -6632,6 +6642,8 @@ select (select rank() over(order by orca_w2.a) from orca_w3 where a = orca_w1.a)
 
 -- window function with outer ref in arguments
 select (select sum(orca_w1.a + a) over(order by b) + 1 from orca_w2 where orca_w1.a = orca_w2.a) from orca_w1 order by orca_w1.a;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  ?column? 
 ----------
          
@@ -6641,6 +6653,8 @@ select (select sum(orca_w1.a + a) over(order by b) + 1 from orca_w2 where orca_w
 
 -- window function with outer ref in window clause and arguments 
 select (select sum(orca_w1.a + a) over(order by b + orca_w1.a) + 1 from orca_w2 where orca_w1.a = orca_w2.a) from orca_w1 order by orca_w1.a;
+INFO:  GPORCA failed to produce a plan, falling back to planner
+DETAIL:  Feature not supported: Window functions and correlated subqueries appear together in select list
  ?column? 
 ----------
          
