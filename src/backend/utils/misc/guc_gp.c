@@ -535,9 +535,9 @@ static const struct config_enum_entry gp_interconnect_fc_methods[] = {
 static const struct config_enum_entry gp_interconnect_types[] = {
 	{"udpifc", INTERCONNECT_TYPE_UDPIFC},
 	{"tcp", INTERCONNECT_TYPE_TCP},
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 	{"proxy", INTERCONNECT_TYPE_PROXY},
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 	{NULL, 0}
 };
 
@@ -4598,7 +4598,7 @@ struct config_string ConfigureNamesString_gp[] =
 		NULL, NULL, NULL
 	},
 
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 	{
 		{"gp_interconnect_proxy_addresses", PGC_POSTMASTER, DEVELOPER_OPTIONS,
 			gettext_noop("Sets the ic-proxy addresses as \"content:ip:port ...\", must be ordered by content, the port is ignored at the moment."),
@@ -4609,7 +4609,7 @@ struct config_string ConfigureNamesString_gp[] =
 		"",
 		NULL, NULL, NULL
 	},
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 
 	/* End-of-list marker */
 	{
@@ -4777,9 +4777,9 @@ struct config_enum ConfigureNamesEnum_gp[] =
 		{"gp_interconnect_type", PGC_BACKEND, GP_ARRAY_TUNING,
 			gettext_noop("Sets the protocol used for inter-node communication."),
 			gettext_noop("Valid values are \"tcp\", \"udpifc\""
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 						 " and \"proxy\""
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 						 ".")
 		},
 		&Gp_interconnect_type,

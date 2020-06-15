@@ -413,14 +413,14 @@ static BackgroundWorker PMAuxProcList[MaxPMAuxProc] =
 	 PerfmonMain, {0}, {0}, 0, 0,
 	 PerfmonStartRule},
 
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 	{"ic proxy process",
 	 0,
 	 BgWorkerStart_RecoveryFinished,
 	 0, /* restart immediately if ic proxy process exits with non-zero code */
 	 ICProxyMain, {0}, {0}, 0, 0,
 	 ICProxyStartRule},
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 };
 
 static bool ReachedNormalRunning = false;		/* T if we've reached PM_RUN */

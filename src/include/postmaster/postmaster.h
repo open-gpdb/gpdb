@@ -75,11 +75,11 @@ extern void load_auxiliary_libraries(void);
 extern bool amAuxiliaryBgWorker(void);
 extern bool IsUnderMasterDispatchMode(void);
 
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 # define IC_PROXY_NUM_BGWORKER 1
-#else  /* HAVE_LIBUV */
+#else  /* ENABLE_IC_PROXY */
 # define IC_PROXY_NUM_BGWORKER 0
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 
 /*
  * Note: MAX_BACKENDS is limited to 2^23-1 because inval.c stores the

@@ -593,7 +593,7 @@ setupOutgoingConnection(ChunkTransportState *transportStates, ChunkTransportStat
 		conn->sockfd = -1;
 	}
 
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 	if (Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 	{
 		/* TODO: setup the connections in parallel */
@@ -613,7 +613,7 @@ setupOutgoingConnection(ChunkTransportState *transportStates, ChunkTransportStat
 		conn->remoteContentId = conn->cdbProc->contentid;
 		return;
 	}
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 
 	/* Initialize hint structure */
 	MemSet(&hint, 0, sizeof(hint));
@@ -1316,7 +1316,7 @@ SetupTCPInterconnect(EState *estate)
 			if (cdbProc)
 				expectedTotalIncoming++;
 
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 			if (Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 			{
 				conn = &pEntry->conns[i];
@@ -1350,7 +1350,7 @@ SetupTCPInterconnect(EState *estate)
 					conn->remapper = CreateTupleRemapper();
 				}
 			}
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 		}
 	}
 
@@ -1365,7 +1365,7 @@ SetupTCPInterconnect(EState *estate)
 	if (mySlice->parentIndex != -1)
 		sendingChunkTransportState = startOutgoingConnections(interconnect_context, mySlice, &expectedTotalOutgoing);
 
-#ifdef HAVE_LIBUV
+#ifdef ENABLE_IC_PROXY
 	if (Gp_interconnect_type == INTERCONNECT_TYPE_PROXY)
 	{
 		for (i = 0; i < expectedTotalOutgoing; i++)
@@ -1376,7 +1376,7 @@ SetupTCPInterconnect(EState *estate)
 		}
 		outgoing_count = expectedTotalOutgoing;
 	}
-#endif  /* HAVE_LIBUV */
+#endif  /* ENABLE_IC_PROXY */
 
 	if (expectedTotalIncoming > listenerBacklog)
 		ereport(WARNING, (errmsg("SetupTCPInterconnect: too many expected incoming connections(%d), Interconnect setup might possibly fail", expectedTotalIncoming),
