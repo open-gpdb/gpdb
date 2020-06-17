@@ -2704,7 +2704,7 @@ include_dir 'conf.d'
         directory at checkpoint time.
         If <varname>max_slot_wal_keep_size</varname> is -1 (the default),
         replication slots retain unlimited amount of WAL files.  If
-        restart_lsn of a replication slot gets behind more than that megabytes
+        restart_lsn of a replication slot gets behind more than that kilobytes
         from the current LSN, the standby using the slot may no longer be able
         to continue replication due to removal of required WAL files. You
         can see the WAL availability of replication slots

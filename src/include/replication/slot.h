@@ -15,6 +15,7 @@
 #include "storage/lwlock.h"
 #include "storage/shmem.h"
 #include "storage/spin.h"
+#include "replication/walsender_private.h"
 
 /*
  * Behaviour of replication slots, upon release or crash.
@@ -30,14 +31,6 @@ typedef enum ReplicationSlotPersistency
 	RS_PERSISTENT,
 	RS_EPHEMERAL
 } ReplicationSlotPersistency;
-
-/* For ReplicationSlotAcquire, q.v. */
-typedef enum SlotAcquireBehavior
-{
-	SAB_Error,
-	SAB_Block,
-	SAB_Inquire
-} SlotAcquireBehavior;
 
 /*
  * On-Disk data of a replication slot, preserved across restarts.
@@ -119,6 +112,9 @@ typedef struct ReplicationSlot
 	/* is somebody performing io on this slot? */
 	LWLock	   *io_in_progress_lock;
 
+	/* GPDB: the walsnd of this replication slot */
+	WalSnd	   *walsnd;
+
 	/* all the remaining data is only used for logical slots */
 
 	/* ----
@@ -165,7 +161,7 @@ extern void ReplicationSlotCreate(const char *name, bool db_specific,
 extern void ReplicationSlotPersist(void);
 extern void ReplicationSlotDrop(const char *name);
 
-extern int	ReplicationSlotAcquire(const char *name, SlotAcquireBehavior behavior);
+extern void ReplicationSlotAcquire(const char *name);
 extern void ReplicationSlotRelease(void);
 extern void ReplicationSlotSave(void);
 extern void ReplicationSlotMarkDirty(void);
@@ -177,7 +173,6 @@ extern void ReplicationSlotsComputeRequiredXmin(bool already_locked);
 extern void ReplicationSlotsComputeRequiredLSN(void);
 extern XLogRecPtr ReplicationSlotsComputeLogicalRestartLSN(void);
 extern bool ReplicationSlotsCountDBSlots(Oid dboid, int *nslots, int *nactive);
-extern void ReplicationSlotsDropDBSlots(Oid dboid);
 extern void InvalidateObsoleteReplicationSlots(XLogSegNo oldestSegno);
 
 extern void StartupReplicationSlots(void);

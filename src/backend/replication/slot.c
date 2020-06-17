@@ -47,6 +47,7 @@
 #include "storage/fd.h"
 #include "storage/proc.h"
 #include "storage/procarray.h"
+#include "replication/walsender.h"
 
 /*
  * Replication slot on-disk data structure.
@@ -319,15 +320,9 @@ ReplicationSlotCreate(const char *name, bool db_specific,
 
 /*
  * Find a previously created slot and mark it as used by this backend.
- *
- * The return value is only useful if behavior is SAB_Inquire, in which
- * it's zero if we successfully acquired the slot, or the PID of the
- * owning process otherwise.  If behavior is SAB_Error, then trying to
- * acquire an owned slot is an error.  If SAB_Block, we sleep until the
- * slot is released by the owning process.
  */
-int
-ReplicationSlotAcquire(const char *name, SlotAcquireBehavior behavior)
+void
+ReplicationSlotAcquire(const char *name)
 {
 	ReplicationSlot *slot = NULL;
 	int			i;
@@ -362,38 +357,13 @@ ReplicationSlotAcquire(const char *name, SlotAcquireBehavior behavior)
 		ereport(ERROR,
 				(errcode(ERRCODE_UNDEFINED_OBJECT),
 				 errmsg("replication slot \"%s\" does not exist", name)));
-
-	/*
-	 * If we found the slot but it's already active in another backend, we
-	 * either error out or retry after a short wait, as caller specified.
-	 */
-	if (active_pid != MyProcPid)
-	{
-		if (behavior == SAB_Error)
-			ereport(ERROR,
-					(errcode(ERRCODE_OBJECT_IN_USE),
-					 errmsg("replication slot \"%s\" is active for PID %d",
-							name, active_pid)));
-		else if (behavior == SAB_Inquire)
-			return active_pid;
-
-		/* Wait here until we get signaled, and then restart */
-		ConditionVariableSleep(&slot->active_cv,
-							   WAIT_EVENT_REPLICATION_SLOT_DROP);
-		ConditionVariableCancelSleep();
-		goto retry;
-	}
-	else
-		ConditionVariableCancelSleep(); /* no sleep needed after all */
-
-	/* Let everybody know we've modified this slot */
-	ConditionVariableBroadcast(&slot->active_cv);
+	if (active)
+		ereport(ERROR,
+				(errcode(ERRCODE_OBJECT_IN_USE),
+				 errmsg("replication slot \"%s\" is already active", name)));
 
 	/* We made this slot active, so it's ours now. */
 	MyReplicationSlot = slot;
-
-	/* success */
-	return 0;
 }
 
 /*
@@ -423,6 +393,7 @@ ReplicationSlotRelease(void)
 
 		SpinLockAcquire(&slot->mutex);
 		vslot->active = false;
+		vslot->walsnd = NULL;
 		SpinLockRelease(&slot->mutex);
 	}
 
@@ -458,7 +429,7 @@ ReplicationSlotDrop(const char *name)
 {
 	Assert(MyReplicationSlot == NULL);
 
-	(void) ReplicationSlotAcquire(name, nowait ? SAB_Error : SAB_Block);
+	ReplicationSlotAcquire(name);
 
 	ReplicationSlotDropAcquired();
 }
@@ -519,6 +490,7 @@ ReplicationSlotDropAcquired(void)
 
 		SpinLockAcquire(&slot->mutex);
 		vslot->active = false;
+		vslot->walsnd = NULL;
 		SpinLockRelease(&slot->mutex);
 
 		ereport(fail_softly ? WARNING : ERROR,
@@ -537,6 +509,7 @@ ReplicationSlotDropAcquired(void)
 	LWLockAcquire(ReplicationSlotControlLock, LW_EXCLUSIVE);
 	slot->active = false;
 	slot->in_use = false;
+	slot->walsnd = NULL;
 	LWLockRelease(ReplicationSlotControlLock);
 
 	/*
@@ -931,7 +904,7 @@ InvalidateObsoleteReplicationSlots(XLogSegNo oldestSegno)
 {
 	XLogRecPtr	oldestLSN;
 
-	XLogSegNoOffsetToRecPtr(oldestSegno, 0, wal_segment_size, oldestLSN);
+	XLogSegNoOffsetToRecPtr(oldestSegno, 0, oldestLSN);
 
 restart:
 	LWLockAcquire(ReplicationSlotControlLock, LW_SHARED);
@@ -942,6 +915,8 @@ restart:
 		char	   *slotname;
 
 		if (!s->in_use)
+			continue;
+		if (!s->walsnd)
 			continue;
 
 		SpinLockAcquire(&s->mutex);
@@ -958,34 +933,26 @@ restart:
 		SpinLockRelease(&s->mutex);
 		LWLockRelease(ReplicationSlotControlLock);
 
-		for (;;)
-		{
-			int			wspid = ReplicationSlotAcquire(slotname, SAB_Inquire);
-
-			/* no walsender? success! */
-			if (wspid == 0)
-				break;
-
-			ereport(LOG,
-					(errmsg("terminating walsender %d because replication slot \"%s\" is too far behind",
-							wspid, slotname)));
-			(void) kill(wspid, SIGTERM);
-
-			ConditionVariableTimedSleep(&s->active_cv, 10,
-										WAIT_EVENT_REPLICATION_SLOT_DROP);
-		}
-		ConditionVariableCancelSleep();
-
 		ereport(LOG,
-				(errmsg("invalidating slot \"%s\" because its restart_lsn %X/%X exceeds max_slot_wal_keep_size",
-						slotname,
-						(uint32) (restart_lsn >> 32),
-						(uint32) restart_lsn)));
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				errmsg("replication slot %s becomes obsolete, stop the WAL sender %d",
+						slotname, s->walsnd->pid)));
+		/*
+		 * Signal walsenders to move to stopping state.
+		 */
+		WalSndInitStoppingOneWalSender(s->walsnd);
+
+		/*
+		 * Wait for WAL senders to be in stopping state.  This prevents commands
+		 * from writing new WAL.
+		 */
+		WalSndWaitStoppingOneWalSender(s->walsnd);
+
+		WalSndCtl->error = WALSNDERROR_WALREAD;
 
 		SpinLockAcquire(&s->mutex);
 		s->data.restart_lsn = InvalidXLogRecPtr;
 		SpinLockRelease(&s->mutex);
-		ReplicationSlotRelease();
 
 		/* if we did anything, start from scratch */
 		CHECK_FOR_INTERRUPTS();
@@ -1474,6 +1441,7 @@ RestoreSlotFromDisk(const char *name)
 
 		slot->in_use = true;
 		slot->active = false;
+		slot->walsnd = NULL;
 
 		restored = true;
 		break;

@@ -569,11 +569,12 @@ StartReplication(StartReplicationCmd *cmd)
 
 	if (cmd->slotname)
 	{
-		(void) ReplicationSlotAcquire(cmd->slotname, SAB_Error);
+		ReplicationSlotAcquire(cmd->slotname);
 		if (MyReplicationSlot->data.database != InvalidOid)
 			ereport(ERROR,
 					(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
 					 (errmsg("cannot use a logical replication slot for physical replication"))));
+		MyReplicationSlot->walsnd = MyWalSnd;
 	}
 
 	/*
@@ -997,7 +998,7 @@ StartLogicalReplication(StartReplicationCmd *cmd)
 
 	Assert(!MyReplicationSlot);
 
-	(void) ReplicationSlotAcquire(cmd->slotname, SAB_Error);
+	ReplicationSlotAcquire(cmd->slotname);
 
 	/*
 	 * Force a disconnect, so that the decoding code doesn't need to care
@@ -2313,12 +2314,17 @@ XLogRead(char *buf, XLogRecPtr startptr, Size count)
 	 * already have been overwritten with new WAL records.
 	 */
 	XLByteToSeg(startptr, segno);
-	CheckXLogRemoved(segno, ThisTimeLineID);
 
-	// GPDB_93_MERGE_FIXME: This used to happen, when the "has already been removed"
-	// error was thrown. But that's not checked in CheckXLogRemoved(). Do we
-	// still need the 'error' field?
-	//WalSndCtl->error = WALSNDERROR_WALREAD;
+	PG_TRY();
+	{
+		CheckXLogRemoved(segno, ThisTimeLineID);
+	}
+	PG_CATCH();
+	{
+		WalSndCtl->error = WALSNDERROR_WALREAD;
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
 
 	WalSndCtl->error = WALSNDERROR_NONE;
 }
@@ -2347,6 +2353,12 @@ XLogSendPhysical(void)
 	/* If requested switch the WAL sender to the stopping state. */
 	if (got_STOPPING)
 		WalSndSetState(WALSNDSTATE_STOPPING);
+
+#ifdef FAULT_INJECTOR
+		/* the walsender skip send WAL to the mirror . */
+		if (SIMPLE_FAULT_INJECTOR("walsnd_skip_send") == FaultInjectorTypeSkip)
+			return;
+#endif
 
 	if (streamingDoneSending)
 	{
@@ -2902,6 +2914,60 @@ WalSndWakeup(void)
 
 	for (i = 0; i < max_wal_senders; i++)
 		SetLatch(&WalSndCtl->walsnds[i].latch);
+}
+
+/*
+ * Signal walsender to move to stopping state.
+ *
+ * Same as WalSndInitStopping except it stops one specific walsender
+ */
+void
+WalSndInitStoppingOneWalSender(WalSnd *walsnd)
+{
+	pid_t		pid;
+
+	Assert (walsnd != NULL);
+
+	SpinLockAcquire(&walsnd->mutex);
+	pid = walsnd->pid;
+	SpinLockRelease(&walsnd->mutex);
+
+	if (pid == 0)
+		return;
+
+	SendProcSignal(pid, PROCSIG_WALSND_INIT_STOPPING, InvalidBackendId);
+	return;
+}
+
+/*
+ * Wait the WAL senders have quit or reached the stopping state. 
+ *
+ * Same as WalSndWaitStopping except it waits for one specific walsender
+ */
+void
+WalSndWaitStoppingOneWalSender(WalSnd *walsnd)
+{
+	WalSndState state;
+
+	Assert(walsnd != NULL);
+
+	for (;;)
+	{
+		SpinLockAcquire(&walsnd->mutex);
+		if (walsnd->pid == 0)
+		{
+			SpinLockRelease(&walsnd->mutex);
+			return;
+		}
+		state = walsnd->state;
+		SpinLockRelease(&walsnd->mutex);
+
+		/* safe to leave if confirmation is done the WAL sender */
+		if (state == WALSNDSTATE_STOPPING)
+			return;
+
+		pg_usleep(10000L);		/* wait for 10 msec */
+	}
 }
 
 /*

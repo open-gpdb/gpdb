@@ -2225,9 +2225,9 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Replication slots will be marked as failed, and segments released "
 						 "for deletion or recycling, if this much space is occupied by WAL "
 						 "on disk."),
-			GUC_UNIT_MB
+			GUC_UNIT_KB
 		},
-		&max_slot_wal_keep_size_mb,
+		&max_slot_wal_keep_size_kb,
 		-1, -1, MAX_KILOBYTES,
 		NULL, NULL, NULL
 	},

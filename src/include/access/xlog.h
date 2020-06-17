@@ -190,7 +190,7 @@ extern bool reachedConsistency;
 /* these variables are GUC parameters related to XLOG */
 extern int	CheckPointSegments;
 extern int	wal_keep_segments;
-extern int	max_slot_wal_keep_size_mb;
+extern int	max_slot_wal_keep_size_kb;
 extern int	XLOGbuffers;
 extern int	XLogArchiveTimeout;
 extern bool XLogArchiveMode;
@@ -294,16 +294,6 @@ extern XLogRecPtr XLogInsert(RmgrId rmid, uint8 info, XLogRecData *rdata);
 extern XLogRecPtr XLogInsert_OverrideXid(RmgrId rmid, uint8 info, XLogRecData *rdata, TransactionId overrideXid);
 extern XLogRecPtr XLogLastInsertBeginLoc(void);
 extern bool XLogCheckBufferNeedsBackup(Buffer buffer);
-/*
- * GetWALAvailability return codes
- */
-typedef enum WALAvailability
-{
-	WALAVAIL_INVALID_LSN,		/* parameter error */
-	WALAVAIL_NORMAL,			/* WAL segment is within max_wal_size */
-	WALAVAIL_RESERVED,			/* WAL segment is reserved by a slot */
-	WALAVAIL_REMOVED			/* WAL segment has been removed */
-} WALAvailability;
 
 extern void XLogFlush(XLogRecPtr RecPtr);
 extern bool XLogBackgroundFlush(void);
@@ -355,8 +345,6 @@ extern void ShutdownXLOG(int code, Datum arg);
 extern void InitXLOGAccess(void);
 extern void CreateCheckPoint(int flags);
 extern bool CreateRestartPoint(int flags);
-extern WALAvailability GetWALAvailability(XLogRecPtr restart_lsn);
-extern XLogRecPtr CalculateMaxmumSafeLSN(void);
 extern void XLogPutNextOid(Oid nextOid);
 extern void XLogPutNextRelfilenode(Oid nextRelfilenode);
 extern XLogRecPtr XLogRestorePoint(const char *rpName);
