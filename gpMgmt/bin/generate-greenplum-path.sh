@@ -31,8 +31,8 @@ fi
 
 cat <<"EOF"
 
-if [ -e "$GPHOME/etc/openssl.cnf" ]; then
-	OPENSSL_CONF="$GPHOME/etc/openssl.cnf"
+if [ -e "${GPHOME}/etc/openssl.cnf" ]; then
+	OPENSSL_CONF="${GPHOME}/etc/openssl.cnf"
 fi
 
 export GPHOME
