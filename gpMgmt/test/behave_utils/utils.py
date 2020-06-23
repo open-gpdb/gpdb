@@ -14,8 +14,6 @@ except:
     import subprocess
 import difflib
 
-import yaml
-
 from datetime import datetime
 from gppylib.commands.base import Command, ExecutionError, REMOTE
 from gppylib.commands.gp import chk_local_db_running
