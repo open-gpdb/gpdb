@@ -491,9 +491,6 @@ namespace gpdb {
 	// expression tree walker
 	bool WalkExpressionTree(Node *node, bool(*walker)(), void *context);
 
-	// query tree walkers, descend into subqueries
-	bool WalkQueryTree(Query *node, bool (*walker) (), void *context, int flags);
-
 	// query or expression tree walker
 	bool WalkQueryOrExpressionTree(Node *node, bool(*walker)(), void *context, int flags);
 
