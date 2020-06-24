@@ -248,3 +248,5 @@ test: setup_too_many_exec_accounts
 test: oom_too_many_accounts
 test: restore_memory_accounting_default
 #Too many exec account tests end
+
+test: distributed_transactions
