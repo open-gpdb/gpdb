@@ -87,6 +87,7 @@ enum Edxltoken
 	EdxltokenPhysicalBitmapTableScan,
 	EdxltokenPhysicalDynamicBitmapTableScan,
 	EdxltokenPhysicalExternalScan,
+	EdxltokenPhysicalMultiExternalScan,
 	EdxltokenPhysicalIndexScan,
 	EdxltokenPhysicalIndexOnlyScan,
 	EdxltokenPhysicalHashJoin,
@@ -480,6 +481,9 @@ enum Edxltoken
 	EdxltokenRelDistrOpclasses,
 	EdxltokenRelDistrOpclass,
 
+	EdxltokenRelExternalPartitions,
+	EdxltokenRelExternalPartition,
+
 	EdxltokenExtRelRejLimit,
 	EdxltokenExtRelRejLimitInRows,
 	EdxltokenExtRelFmtErrRel,
@@ -523,6 +527,7 @@ enum Edxltoken
 	EdxltokenCheckConstraints,
 	EdxltokenCheckConstraint,
 	EdxltokenPartConstraint,
+	EdxltokenPartConstraintExprAbsent,
 	EdxltokenDefaultPartition,
 	EdxltokenPartConstraintUnbounded,
 
