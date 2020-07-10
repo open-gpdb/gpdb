@@ -111,3 +111,4 @@
 		"vmem_process_interrupt",
 		"work_mem",
 		"temp_tablespaces",
+		"gp_add_column_inherits_table_setting",

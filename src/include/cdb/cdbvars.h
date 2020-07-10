@@ -710,6 +710,9 @@ extern bool gp_enable_sort_distinct;
 extern bool gp_enable_mk_sort;
 extern bool gp_enable_motion_mk_sort;
 
+/* Alter table add column inherits storage setting from the table */
+extern bool gp_add_column_inherits_table_setting;
+
 #ifdef USE_ASSERT_CHECKING
 extern bool gp_mk_sort_check;
 #endif

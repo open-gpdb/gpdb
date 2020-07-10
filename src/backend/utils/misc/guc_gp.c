@@ -437,6 +437,8 @@ bool		gp_enable_segment_copy_checking = true;
  */
 char	   *gp_default_storage_options = NULL;
 
+bool		gp_add_column_inherits_table_setting = false;
+
 int			writable_external_table_bufsize = 64;
 
 bool		gp_external_enable_filter_pushdown = true;
@@ -3039,6 +3041,17 @@ struct config_bool ConfigureNamesBool_gp[] =
 			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
 		},
 		&optimizer_enable_range_predicate_dpe,
+		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_add_column_inherits_table_setting", PGC_USERSET, CUSTOM_OPTIONS,
+			gettext_noop("Alter table add column inherits storage setting from the table."),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&gp_add_column_inherits_table_setting,
 		false,
 		NULL, NULL, NULL
 	},
