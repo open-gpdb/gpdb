@@ -48,15 +48,34 @@ function prep_env() {
   esac
 }
 
+function install_libuv() {
+  local includedir=/usr/include
+  local libdir
+
+  case "${TARGET_OS}" in
+    centos | sles) libdir=/usr/lib64 ;;
+    ubuntu) libdir=/usr/lib/x86_64-linux-gnu ;;
+    *) return ;;
+  esac
+
+  tar xf libuv-installer/libuv-*.tar.gz -C /tmp
+
+  mkdir -p ${includedir} ${libdir}
+  cp -a /tmp/libuv-*/include/* ${includedir}/
+  cp -a /tmp/libuv-*/lib/* ${libdir}/
+}
+
 function install_deps_for_centos_or_sles() {
   rpm -i libquicklz-installer/libquicklz-*.rpm
   rpm -i libquicklz-devel-installer/libquicklz-*.rpm
   # install libsigar from tar.gz
   tar zxf libsigar-installer/sigar-*.targz -C gpdb_src/gpAux/ext
+  install_libuv
 }
 
 function install_deps_for_ubuntu() {
   dpkg --install libquicklz-installer/libquicklz-*.deb
+  install_libuv
 }
 
 function install_deps() {
@@ -162,6 +181,21 @@ function include_libstdcxx() {
     popd
   fi
 
+}
+
+function include_libuv() {
+  local includedir=/usr/include
+  local libdir
+  case "${TARGET_OS}" in
+    centos | sles) libdir=/usr/lib64 ;;
+    ubuntu) libdir=/usr/lib/x86_64-linux-gnu ;;
+    *) return ;;
+  esac
+  pushd ${GREENPLUM_INSTALL_DIR}
+    # need to include both uv.h and uv/*.h
+    cp -a ${includedir}/uv* include
+    cp -a ${libdir}/libuv.so* lib
+  popd
 }
 
 function export_gpdb() {
@@ -277,6 +311,7 @@ function _main() {
   include_zstd
   include_quicklz
   include_libstdcxx
+  include_libuv
   export_gpdb
   export_gpdb_extensions
   export_gpdb_win32_ccl
