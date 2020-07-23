@@ -2958,6 +2958,11 @@ ExecutePlan(EState *estate,
 	 */
 	ExecSliceDependencyNode(planstate);
 
+#ifdef FAULT_INJECTOR
+	/* Inject a fault before tuple processing started */
+	SIMPLE_FAULT_INJECTOR("executor_pre_tuple_processed");
+#endif /* FAULT_INJECTOR */
+
 	/*
 	 * Loop until we've processed the proper number of tuples from the plan.
 	 */
