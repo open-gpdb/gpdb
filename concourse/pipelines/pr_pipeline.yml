@@ -61,6 +61,13 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: gp-internal-artifacts/centos7/python-(2\.7\.12\+.*).tar.gz
 
+- name: libuv-centos7
+  type: gcs
+  source:
+    bucket: ((gcs-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: gp-internal-artifacts/centos7/libuv-(1\.38\.0.*).tar.gz
+
 
 jobs:
 - name: compile_and_test_gpdb
@@ -81,6 +88,8 @@ jobs:
       resource: libsigar-centos7
     - get: python-tarball
       resource: python-centos7
+    - get: libuv-installer
+      resource: libuv-centos7
 
   - put: gpdb_pr
     params:
