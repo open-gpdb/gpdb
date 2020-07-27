@@ -490,13 +490,6 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: gp-internal-artifacts/centos6/sigar-rhel6_x86_64-(1\.6\.5-.*).targz
 
-- name: libuv-centos6
-  type: gcs
-  source:
-    bucket: ((gcs-bucket))
-    json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos6/libuv-(1\.38\.0.*).tar.gz
-
 - name: libquicklz-centos7
   type: gcs
   source:
@@ -518,26 +511,12 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: gp-internal-artifacts/centos7/sigar-rhel7_x86_64-(1\.6\.5-.*).targz
 
-- name: libuv-centos7
-  type: gcs
-  source:
-    bucket: ((gcs-bucket))
-    json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos7/libuv-(1\.38\.0.*).tar.gz
-
 - name: libquicklz-ubuntu18.04
   type: gcs
   source:
     bucket: ((gcs-bucket))
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: gp-internal-artifacts/ubuntu18.04/libquicklz-dev_(1\.5\.0-.*)-1_amd64.deb
-
-- name: libuv-ubuntu18.04
-  type: gcs
-  source:
-    bucket: ((gcs-bucket))
-    json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/ubuntu18.04/libuv-(1\.38\.0.*).tar.gz
 
 - name: python-centos6
   type: gcs
@@ -891,8 +870,6 @@ jobs:
         resource: libsigar-centos6
       - get: python-tarball
         resource: python-centos6
-      - get: libuv-installer
-        resource: libuv-centos6
   - task: compile_gpdb
     file: gpdb_src/concourse/tasks/compile_gpdb.yml
     image: gpdb6-centos6-build
@@ -928,8 +905,6 @@ jobs:
         resource: libsigar-centos7
       - get: python-tarball
         resource: python-centos7
-      - get: libuv-installer
-        resource: libuv-centos7
   - task: compile_gpdb
     image: gpdb6-centos7-build
     file: gpdb_src/concourse/tasks/compile_gpdb.yml
@@ -979,8 +954,6 @@ jobs:
           resource: libquicklz-ubuntu18.04
         - get: python-tarball
           resource: python-ubuntu18.04
-        - get: libuv-installer
-          resource: libuv-ubuntu18.04
     - task: compile_gpdb
       image: gpdb6-ubuntu18.04-build
       file: gpdb_src/concourse/tasks/compile_gpdb.yml

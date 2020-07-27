@@ -9,7 +9,6 @@ inputs:
   - name: libsigar-installer
     optional: true
   - name: python-tarball
-  - name: libuv-installer
 outputs:
   - name: gpdb_artifacts
 run:
