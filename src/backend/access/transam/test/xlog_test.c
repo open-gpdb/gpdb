@@ -159,12 +159,12 @@ test_KeepLogSeg_max_slot_wal_keep_size(void **state)
 	 * Current Delete greater than what keep wants,
 	 * so, delete offset should get updated.
 	 * max_slot_wal_keep_size smaller than the segs
-	 * that keeps wants, cut to max_slot_wal_keep_size_kb
+	 * that keeps wants, cut to max_slot_wal_keep_size_mb
 	 ***********************************************/
 	/* Current Delete pointer */
 	_logSegNo = 4 * XLogSegmentsPerXLogId + 20;
 
-	max_slot_wal_keep_size_kb = 5 * 64 * 1024;
+	max_slot_wal_keep_size_mb = 5 * 64;
 
 	/*
 	 * Current xlog location (4, 10)
@@ -182,12 +182,12 @@ test_KeepLogSeg_max_slot_wal_keep_size(void **state)
 	 * Current Delete greater than what keep wants,
 	 * so, delete offset should get updated.
 	 * max_slot_wal_keep_size smaller than the segs
-	 * that keeps wants, ignore max_slot_wal_keep_size_kb
+	 * that keeps wants, ignore max_slot_wal_keep_size_mb
 	 ***********************************************/
 	/* Current Delete pointer */
 	_logSegNo = 4 * XLogSegmentsPerXLogId + 20;
 
-	max_slot_wal_keep_size_kb = 10 * 64 * 1024;
+	max_slot_wal_keep_size_mb = 10 * 64;
 
 	/*
 	 * Current xlog location (4, 1)
@@ -210,7 +210,7 @@ test_KeepLogSeg_max_slot_wal_keep_size(void **state)
 	 ***********************************************/
 	/* Current Delete pointer */
 	_logSegNo = 4 * XLogSegmentsPerXLogId + 20;
-	max_slot_wal_keep_size_kb = 5 * 64 * 1024;
+	max_slot_wal_keep_size_mb = 5 * 64;
 
 	/*
 	 * Current xlog location (4, 1)

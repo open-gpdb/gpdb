@@ -190,7 +190,7 @@ extern bool reachedConsistency;
 /* these variables are GUC parameters related to XLOG */
 extern int	CheckPointSegments;
 extern int	wal_keep_segments;
-extern int	max_slot_wal_keep_size_kb;
+extern int	max_slot_wal_keep_size_mb;
 extern int	XLOGbuffers;
 extern int	XLogArchiveTimeout;
 extern bool XLogArchiveMode;

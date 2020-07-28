@@ -207,23 +207,24 @@ typedef enum
 #define GUC_SUPERUSER_ONLY		0x0100	/* show only to superusers */
 #define GUC_IS_NAME				0x0200	/* limit string to NAMEDATALEN-1 */
 
-#define GUC_UNIT_KB				0x0400	/* value is in kilobytes */
-#define GUC_UNIT_BLOCKS			0x0800	/* value is in blocks */
-#define GUC_UNIT_XBLOCKS		0x0C00	/* value is in xlog blocks */
-#define GUC_UNIT_MEMORY			0x0C00	/* mask for KB, BLOCKS, XBLOCKS */
+#define GUC_UNIT_KB             0x1000  /* value is in kilobytes */
+#define GUC_UNIT_BLOCKS         0x2000  /* value is in blocks */
+#define GUC_UNIT_XBLOCKS        0x3000  /* value is in xlog blocks */
+#define GUC_UNIT_MB             0x4000  /* value is in megabytes */
+#define GUC_UNIT_MEMORY         0x7000  /* mask for size-related units */
 
-#define GUC_UNIT_MS				0x1000	/* value is in milliseconds */
-#define GUC_UNIT_S				0x2000	/* value is in seconds */
-#define GUC_UNIT_MIN			0x4000	/* value is in minutes */
-#define GUC_UNIT_TIME			0x7000	/* mask for MS, S, MIN */
+#define GUC_UNIT_MS				0x10000	/* value is in milliseconds */
+#define GUC_UNIT_S				0x20000	/* value is in seconds */
+#define GUC_UNIT_MIN			0x40000	/* value is in minutes */
+#define GUC_UNIT_TIME			0x70000	/* mask for MS, S, MIN */
 
-#define GUC_NOT_WHILE_SEC_REST	0x8000	/* can't set if security restricted */
-#define GUC_DISALLOW_IN_AUTO_FILE	0x00010000	/* can't set in PG_AUTOCONF_FILENAME */
+#define GUC_NOT_WHILE_SEC_REST	0x80000	/* can't set if security restricted */
+#define GUC_DISALLOW_IN_AUTO_FILE	0x00100000	/* can't set in PG_AUTOCONF_FILENAME */
 
 /* GPDB speific */
-#define GUC_GPDB_NEED_SYNC     0x00020000  /* guc value is synced between master and primary */
-#define GUC_GPDB_NO_SYNC       0x00040000  /* guc value is not synced between master and primary */
-#define GUC_DISALLOW_USER_SET  0x00080000 /* Do not allow this GUC to be set by the user */
+#define GUC_GPDB_NEED_SYNC     0x00200000  /* guc value is synced between master and primary */
+#define GUC_GPDB_NO_SYNC       0x00400000  /* guc value is not synced between master and primary */
+#define GUC_DISALLOW_USER_SET  0x00800000 /* Do not allow this GUC to be set by the user */
 
 /* GUC lists for gp_guc_list_show().  (List of struct config_generic) */
 extern List    *gp_guc_list_for_explain;

@@ -113,6 +113,9 @@
 #define KB_PER_MB (1024)
 #define KB_PER_GB (1024*1024)
 #define KB_PER_TB (1024*1024*1024)
+#define MB_PER_GB (1024)
+#define MB_PER_TB (1024*1024)
+
 
 #define MS_PER_S 1000
 #define S_PER_MIN 60
@@ -2225,9 +2228,9 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("Replication slots will be marked as failed, and segments released "
 						 "for deletion or recycling, if this much space is occupied by WAL "
 						 "on disk."),
-			GUC_UNIT_KB
+			GUC_UNIT_MB
 		},
-		&max_slot_wal_keep_size_kb,
+		&max_slot_wal_keep_size_mb,
 		-1, -1, MAX_KILOBYTES,
 		NULL, NULL, NULL
 	},
@@ -5343,6 +5346,9 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 					case GUC_UNIT_XBLOCKS:
 						val /= (XLOG_BLCKSZ / 1024);
 						break;
+					case GUC_UNIT_MB:
+						val /= KB_PER_MB;
+						break;
 				}
 			}
 			else if (strncmp(endptr, "MB", 2) == 0)
@@ -5375,6 +5381,9 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 					case GUC_UNIT_XBLOCKS:
 						val *= KB_PER_GB / (XLOG_BLCKSZ / 1024);
 						break;
+					case GUC_UNIT_MB:
+						val *= MB_PER_GB;
+						break;
 				}
 			}
 			else if (strncmp(endptr, "TB", 2) == 0)
@@ -5390,6 +5399,9 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 						break;
 					case GUC_UNIT_XBLOCKS:
 						val *= KB_PER_TB / (XLOG_BLCKSZ / 1024);
+						break;
+					case GUC_UNIT_MB:
+						val *= MB_PER_TB;
 						break;
 				}
 			}
@@ -8191,6 +8203,9 @@ GetConfigOptionByNum(int varnum, const char **values, bool *noshow)
 			case GUC_UNIT_KB:
 				values[2] = "kB";
 				break;
+			case GUC_UNIT_MB:
+				values[2] = "MB";
+				break;
 			case GUC_UNIT_BLOCKS:
 				snprintf(buf, sizeof(buf), "%dkB", BLCKSZ / 1024);
 				values[2] = buf;
@@ -8604,6 +8619,9 @@ _ShowOption(struct config_generic * record, bool use_units)
 							case GUC_UNIT_XBLOCKS:
 								result *= XLOG_BLCKSZ / 1024;
 								break;
+							case GUC_UNIT_MB:
+								result *= KB_PER_MB;
+								break;
 						}
 
 						if (result % KB_PER_TB == 0)
@@ -8697,6 +8715,9 @@ _ShowOption(struct config_generic * record, bool use_units)
 								break;
 							case GUC_UNIT_XBLOCKS:
 								result *= XLOG_BLCKSZ / 1024;
+								break;
+							case GUC_UNIT_MB:
+								result *= KB_PER_MB;
 								break;
 						}
 

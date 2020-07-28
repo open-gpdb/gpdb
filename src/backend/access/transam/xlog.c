@@ -103,7 +103,7 @@ int			sync_method = DEFAULT_SYNC_METHOD;
 int			wal_level = WAL_LEVEL_MINIMAL;
 int			CommitDelay = 0;	/* precommit delay in microseconds */
 int			CommitSiblings = 5; /* # concurrent xacts needed to sleep */
-int			max_slot_wal_keep_size_kb = -1;
+int			max_slot_wal_keep_size_mb = -1;
 
 #ifdef WAL_DEBUG
 bool		XLOG_DEBUG = false;
@@ -9584,11 +9584,11 @@ KeepLogSeg(XLogRecPtr recptr, XLogSegNo *logSegNo)
 		setvalue = true;
 
 		/* Cap by max_slot_wal_keep_size ... */
-		if (max_slot_wal_keep_size_kb >= 0)
+		if (max_slot_wal_keep_size_mb >= 0)
 		{
 			XLogRecPtr	slot_keep_segs;
 
-			slot_keep_segs = ConvertToXSegs(max_slot_wal_keep_size_kb / 1024);
+			slot_keep_segs = ConvertToXSegs(max_slot_wal_keep_size_mb);
 
 			if (slot_keep_segs > wal_keep_segments &&
 				currSegNo - segno > slot_keep_segs)

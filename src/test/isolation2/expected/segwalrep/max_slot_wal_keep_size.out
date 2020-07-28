@@ -13,9 +13,9 @@ CREATE OR REPLACE FUNCTION check_wal_file_count(content int) RETURNS text AS $$ 
 CREATE
 
 -- max_slot_wal_keep_size is 64MB * 4
-!\retcode gpconfig -c max_slot_wal_keep_size -v 262144;
+!\retcode gpconfig -c max_slot_wal_keep_size -v 256;
 -- start_ignore
-20200727:18:42:37:463255 gpconfig:09c5497cf854:gpadmin-[INFO]:-completed successfully with parameters '-c max_slot_wal_keep_size -v 262144'
+20200728:18:07:07:087460 gpconfig:09c5497cf854:gpadmin-[INFO]:-completed successfully with parameters '-c max_slot_wal_keep_size -v 256'
 
 -- end_ignore
 (exited with code 0)

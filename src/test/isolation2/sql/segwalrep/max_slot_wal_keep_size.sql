@@ -36,7 +36,7 @@ RETURNS text AS $$
 $$ LANGUAGE PLPYTHONU;
 
 -- max_slot_wal_keep_size is 64MB * 4
-!\retcode gpconfig -c max_slot_wal_keep_size -v 262144;
+!\retcode gpconfig -c max_slot_wal_keep_size -v 256;
 !\retcode gpconfig -c checkpoint_segments -v 1 --skipvalidation;
 !\retcode gpconfig -c wal_keep_segments -v 0 --skipvalidation;
 !\retcode gpconfig -c gp_fts_probe_retries -v 2 --masteronly;
