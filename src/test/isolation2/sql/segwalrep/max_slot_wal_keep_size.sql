@@ -73,7 +73,7 @@ select wait_until_segment_synchronized(0);
 
 -- the mirror is up and the replication is back
 1: SELECT role, preferred_role, status FROM gp_segment_configuration WHERE content = 0;
-1: SELECT state, sync_state, sync_error FROM gp_stat_replication WHERE gp_segment_id = 0;
+1: SELECT state, sync_error FROM gp_stat_replication WHERE gp_segment_id = 0;
 
 -- failover to the mirror and check the data on the primary is replicated to the mirror
 1: select pg_ctl((select datadir from gp_segment_configuration c where c.role='p' and c.content=0), 'stop');

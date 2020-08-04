@@ -174,10 +174,10 @@ select wait_until_segment_synchronized(0);
  p    | p              | u      
  m    | m              | u      
 (2 rows)
-1: SELECT state, sync_state, sync_error FROM gp_stat_replication WHERE gp_segment_id = 0;
- state     | sync_state | sync_error 
------------+------------+------------
- streaming | sync       | none       
+1: SELECT state, sync_error FROM gp_stat_replication WHERE gp_segment_id = 0;
+ state     | sync_error 
+-----------+------------
+ streaming | none       
 (1 row)
 
 -- failover to the mirror and check the data on the primary is replicated to the mirror
