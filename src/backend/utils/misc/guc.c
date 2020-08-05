@@ -5322,7 +5322,7 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 		 * Note: the multiple-switch coding technique here is a bit tedious,
 		 * but seems necessary to avoid intermediate-value overflows.
 		 */
-		if (flags & GUC_UNIT_MEMORY)
+		if (flags & GUC_UNIT_MEMORY_NEW)
 		{
 			/* Set hint for use if no match or trailing garbage */
 			if (hintmsg)
@@ -5338,7 +5338,7 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 			if (strncmp(endptr, "kB", 2) == 0)
 			{
 				endptr += 2;
-				switch (flags & GUC_UNIT_MEMORY)
+				switch (flags & GUC_UNIT_MEMORY_NEW)
 				{
 					case GUC_UNIT_BLOCKS:
 						val /= (BLCKSZ / 1024);
@@ -5354,7 +5354,7 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 			else if (strncmp(endptr, "MB", 2) == 0)
 			{
 				endptr += 2;
-				switch (flags & GUC_UNIT_MEMORY)
+				switch (flags & GUC_UNIT_MEMORY_NEW)
 				{
 					case GUC_UNIT_KB:
 						val *= KB_PER_MB;
@@ -5370,7 +5370,7 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 			else if (strncmp(endptr, "GB", 2) == 0)
 			{
 				endptr += 2;
-				switch (flags & GUC_UNIT_MEMORY)
+				switch (flags & GUC_UNIT_MEMORY_NEW)
 				{
 					case GUC_UNIT_KB:
 						val *= KB_PER_GB;
@@ -5389,7 +5389,7 @@ parse_int(const char *value, int *result, int flags, const char **hintmsg)
 			else if (strncmp(endptr, "TB", 2) == 0)
 			{
 				endptr += 2;
-				switch (flags & GUC_UNIT_MEMORY)
+				switch (flags & GUC_UNIT_MEMORY_NEW)
 				{
 					case GUC_UNIT_KB:
 						val *= KB_PER_TB;
@@ -8198,7 +8198,7 @@ GetConfigOptionByNum(int varnum, const char **values, bool *noshow)
 	{
 		static char buf[8];
 
-		switch (conf->flags & (GUC_UNIT_MEMORY | GUC_UNIT_TIME))
+		switch (conf->flags & (GUC_UNIT_MEMORY_NEW | GUC_UNIT_TIME))
 		{
 			case GUC_UNIT_KB:
 				values[2] = "kB";
@@ -8609,9 +8609,9 @@ _ShowOption(struct config_generic * record, bool use_units)
 					const char *unit;
 
 					if (use_units && result > 0 &&
-						(record->flags & GUC_UNIT_MEMORY))
+						(record->flags & GUC_UNIT_MEMORY_NEW))
 					{
-						switch (record->flags & GUC_UNIT_MEMORY)
+						switch (record->flags & GUC_UNIT_MEMORY_NEW)
 						{
 							case GUC_UNIT_BLOCKS:
 								result *= BLCKSZ / 1024;
@@ -8703,12 +8703,12 @@ _ShowOption(struct config_generic * record, bool use_units)
 					char		unit[4];
 					double		result = *conf->variable;
 
-					if (use_units && result > 0 && (record->flags & GUC_UNIT_MEMORY))
+					if (use_units && result > 0 && (record->flags & GUC_UNIT_MEMORY_NEW))
 					{
                         double result_gb;
                         double result_mb;
 
-                        switch (record->flags & GUC_UNIT_MEMORY)
+                        switch (record->flags & GUC_UNIT_MEMORY_NEW)
 						{
 							case GUC_UNIT_BLOCKS:
 								result *= BLCKSZ / 1024;
