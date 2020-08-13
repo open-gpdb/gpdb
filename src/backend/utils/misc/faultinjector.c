@@ -57,6 +57,14 @@ bool am_faulthandler = false;
 
 static	FaultInjectorShmem_s *faultInjectorShmem = NULL;
 
+/*
+ * faultInjectorSlots_ptr points to this until shmem is initialized. Just to
+ * keep any FaultInjector_InjectFaultIfSet calls from crashing.
+ */
+static int dummyslots = 0;
+
+int *faultInjectorSlots_ptr = &dummyslots;
+
 static void FiLockAcquire(void);
 static void FiLockRelease(void);
 
@@ -188,6 +196,8 @@ FaultInjector_ShmemInit(void)
 				(errcode(ERRCODE_OUT_OF_MEMORY),
 				 (errmsg("not enough shared memory for fault injector"))));
 	}	
+
+	faultInjectorSlots_ptr = &faultInjectorShmem->faultInjectorSlots;
 	
 	if (! foundPtr) 
 	{
@@ -219,7 +229,7 @@ FaultInjector_ShmemInit(void)
 }
 
 FaultInjectorType_e
-FaultInjector_InjectFaultIfSet(
+FaultInjector_InjectFaultIfSet_out_of_line(
 							   const char*				 faultName,
 							   DDLStatement_e			 ddlStatement,
 							   const char*				 databaseName,
