@@ -436,7 +436,7 @@
             <li>Progress DataDirect JDBC Drivers v5.1.4.000223 - The Progress DataDirect JDBC
               drivers are compliant with the Type 4 architecture, but provide advanced features that
               define them as Type 5 drivers.</li>
-            <li>Progress DataDirect ODBC Drivers v7.1.6 (07.16.0301) - The Progress DataDirect ODBC
+            <li>Progress DataDirect ODBC Drivers v7.1.6 (07.16.0389) - The Progress DataDirect ODBC
               drivers enable third party applications to connect via a common interface to the
               Pivotal Greenplum Database system.</li>
             <!--            <li>Gemfire-Greenplum Connector - The Pivotal Gemfire-Greenplum Connector supports the
