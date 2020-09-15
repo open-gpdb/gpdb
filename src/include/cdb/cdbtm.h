@@ -263,6 +263,7 @@ extern DtxContext DistributedTransactionContext;
 
 /* state variables for how much of the log file has been flushed */
 extern volatile bool *shmDtmStarted;
+extern volatile pid_t *shmDtxRecoveryPid;
 extern volatile DistributedTransactionTimeStamp *shmDistribTimeStamp;
 extern volatile DistributedTransactionId *shmGIDSeq;
 extern uint32 *shmNextSnapshotId;
@@ -344,6 +345,7 @@ extern void ClearTransactionState(TransactionId latestXid);
 
 extern int dtx_recovery_start(void);
 
+extern pid_t DtxRecoveryPID(void);
 extern void DtxRecoveryMain(Datum main_arg);
 extern bool DtxRecoveryStartRule(Datum main_arg);
 
