@@ -186,6 +186,7 @@ groups:
 - name: all
   jobs:
   - concourse_unit_tests
+  - check_format
 {% if "centos6" in os_types %}
   - compile_gpdb_centos6
   - prepare_binary_swap_gpdb_centos6
@@ -496,6 +497,11 @@ resources:
   source:
     repository: alpine
     tag: latest
+
+- name: clang_toolchain
+  type: registry-image
+  source:
+    repository: gcr.io/data-orca/clang-toolchain
 
 - name: ccp-image
   type: registry-image
@@ -984,6 +990,16 @@ jobs:
               bats -t scripts/*.bats
             fi
 
+- name: check_format
+  plan:
+    - in_parallel:
+      - get: gpdb_src
+        trigger: true
+      - get: clang_toolchain
+    - task: check_format
+      image: clang_toolchain
+      file: gpdb_src/concourse/tasks/check_format.yml
+
 ## ======================================================================
 ##   ____                      _ _
 ##  / ___|___  _ __ ___  _ __ (_) | ___
@@ -999,6 +1015,8 @@ jobs:
   - in_parallel:
       steps:
       - get: gpdb_src
+        passed:
+          - check_format
         trigger: ((gpdb_src-trigger-flag))
       - get: reduced-frequency-trigger
         trigger: ((reduced-frequency-trigger-flag))
@@ -1038,6 +1056,8 @@ jobs:
       - get: reduced-frequency-trigger
         trigger: ((reduced-frequency-trigger-flag))
       - get: gpdb_src
+        passed:
+          - check_format
         trigger: ((gpdb_src-trigger-flag))
       - get: gpdb6-centos7-build
       - get: libquicklz-installer
@@ -1095,6 +1115,8 @@ jobs:
         - get: reduced-frequency-trigger
           trigger: ((reduced-frequency-trigger-flag))
         - get: gpdb_src
+          passed:
+            - check_format
           trigger: ((gpdb_src-trigger-flag))
         - get: gpdb6-ubuntu18.04-build
         - get: libquicklz-installer
@@ -2436,6 +2458,7 @@ jobs:
       - get: gpdb_src
         trigger: true
         passed:
+        - check_format
         - compile_gpdb_centos6
         - compile_gpdb_centos7
         - compile_gpdb_ubuntu18.04
