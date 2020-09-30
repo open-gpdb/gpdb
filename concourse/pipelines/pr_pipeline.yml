@@ -61,6 +61,10 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: gp-internal-artifacts/centos7/python-(2\.7\.12\+.*).tar.gz
 
+- name: clang_toolchain
+  type: registry-image
+  source:
+    repository: gcr.io/data-orca/clang-toolchain
 
 jobs:
 - name: compile_and_test_gpdb
@@ -81,6 +85,7 @@ jobs:
       resource: libsigar-centos7
     - get: python-tarball
       resource: python-centos7
+    - get: clang_toolchain
 
   - put: gpdb_pr
     params:
@@ -114,6 +119,9 @@ jobs:
             git submodule update --init --recursive
         inputs: [{ name: gpdb_pr }]
         outputs: [{ name: gpdb_src }]
+    - task: check_format
+      image: clang_toolchain
+      file: gpdb_src/concourse/tasks/check_format.yml
     - task: compile_gpdb_centos7
       file: gpdb_pr/concourse/tasks/compile_gpdb.yml
       image: gpdb6-centos7-build
