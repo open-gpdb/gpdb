@@ -92,7 +92,7 @@
             <li>apr</li>
             <li>apr-util</li>
             <li>libyaml</li>
-            <li>libevent</li>
+            <li>libevent (or libevent2 on RHEL/CentOS 6)</li>
           </ul></p>
         <p>On Ubuntu systems, Greenplum Database 6 requires the following software packages, which
           are installed automatically as dependencies when you install Greenplum Database with the
