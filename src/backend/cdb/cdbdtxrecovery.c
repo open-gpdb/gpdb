@@ -122,7 +122,8 @@ GetRedoFileName(char *path)
 {
 	snprintf(path, MAXPGPATH,
 			 "%s/" UTILITYMODEDTMREDO_DIR "/" UTILITYMODEDTMREDO_FILE, DataDir);
-	elog(DTM_DEBUG3, "Returning save DTM redo file path = %s", path);
+	elogif(Debug_print_full_dtm, LOG,
+		   "Returning save DTM redo file path = %s", path);
 }
 
 /*
@@ -144,7 +145,8 @@ GetRedoFileName(char *path)
 static void
 recoverTM(void)
 {
-	elog(DTM_DEBUG3, "Starting to Recover DTM...");
+	elogif(Debug_print_full_dtm, LOG,
+		   "Starting to Recover DTM...");
 
 	/*
 	 * attempt to recover all in-doubt transactions.
@@ -176,7 +178,8 @@ recoverInDoubtTransactions(void)
 	int			i;
 	HTAB	   *htab;
 
-	elog(DTM_DEBUG3, "recover in-doubt distributed transactions");
+	elogif(Debug_print_full_dtm, LOG,
+		   "recover in-doubt distributed transactions");
 
 	ReplayRedoFromUtilityMode();
 
@@ -185,9 +188,9 @@ recoverInDoubtTransactions(void)
 	 * matched by a forget committed record, change its state indicating
 	 * committed notification needed.  Attempt a notification.
 	 */
-	elog(DTM_DEBUG5,
-		 "Going to retry commit notification for distributed transactions (count = %d)",
-		 *shmNumCommittedGxacts);
+	elogif(Debug_print_full_dtm, LOG,
+		   "Going to retry commit notification for distributed transactions (count = %d)",
+		   *shmNumCommittedGxacts);
 
 	for (i = 0; i < *shmNumCommittedGxacts; i++)
 	{
@@ -195,9 +198,9 @@ recoverInDoubtTransactions(void)
 
 		Assert(gxact_log->gxid != InvalidDistributedTransactionId);
 
-		elog(DTM_DEBUG5,
-			 "Recovering committed distributed transaction gid = %s",
-			 gxact_log->gid);
+		elogif(Debug_print_full_dtm, LOG,
+			   "Recovering committed distributed transaction gid = %s",
+			   gxact_log->gid);
 
 		doNotifyCommittedInDoubt(gxact_log->gid);
 
@@ -361,7 +364,8 @@ abortRMInDoubtTransactions(HTAB *htab)
 
 	while ((entry = (InDoubtDtx *) hash_seq_search(&status)) != NULL)
 	{
-		elog(DTM_DEBUG3, "Aborting in-doubt transaction with gid = %s", entry->gid);
+		elogif(Debug_print_full_dtm, LOG,
+			   "Aborting in-doubt transaction with gid = %s", entry->gid);
 
 		doAbortInDoubt(entry->gid);
 	}
@@ -387,7 +391,8 @@ abortOrphanedTransactions(HTAB *htab)
 
 	while ((entry = (InDoubtDtx *) hash_seq_search(&status)) != NULL)
 	{
-		elog(DTM_DEBUG3, "Finding orphaned transactions with gid = %s", entry->gid);
+		elogif(Debug_print_full_dtm, LOG,
+			   "Finding orphaned transactions with gid = %s", entry->gid);
 
 		dtxCrackOpenGid(entry->gid, &distribTimeStamp, &gxid);
 
@@ -408,10 +413,11 @@ UtilityModeSaveRedo(bool committed, TMGXACT_LOG *gxact_log)
 	utilityModeRedo.committed = committed;
 	memcpy(&utilityModeRedo.gxact_log, gxact_log, sizeof(TMGXACT_LOG));
 
-	elog(DTM_DEBUG5, "Writing {committed = %s, gid = %s, gxid = %u} to DTM redo file",
-		 (utilityModeRedo.committed ? "true" : "false"),
-		 utilityModeRedo.gxact_log.gid,
-		 utilityModeRedo.gxact_log.gxid);
+	elogif(Debug_print_full_dtm, LOG,
+		   "Writing {committed = %s, gid = %s, gxid = %u} to DTM redo file",
+		   (utilityModeRedo.committed ? "true" : "false"),
+		   utilityModeRedo.gxact_log.gid,
+		   utilityModeRedo.gxact_log.gxid);
 
 	write_len = write(redoFileFD, &utilityModeRedo, sizeof(TMGXACT_UTILITY_MODE_REDO));
 	if (write_len != sizeof(TMGXACT_UTILITY_MODE_REDO))
@@ -439,13 +445,13 @@ ReplayRedoFromUtilityMode(void)
 	if (fd < 0)
 	{
 		/* UNDONE: Distinquish "not found" from other errors. */
-		elog(DTM_DEBUG3, "Could not open DTM redo file %s for reading",
-			 path);
+		elogif(Debug_print_full_dtm, LOG,
+			   "Could not open DTM redo file %s for reading", path);
 		return;
 	}
 
-	elog(DTM_DEBUG3, "Succesfully opened DTM redo file %s for reading",
-		 path);
+	elogif(Debug_print_full_dtm, LOG,
+		   "Succesfully opened DTM redo file %s for reading", path);
 
 	while (true)
 	{
@@ -465,10 +471,11 @@ ReplayRedoFromUtilityMode(void)
 					 errmsg("error reading DTM redo file: %m")));
 		}
 
-		elog(DTM_DEBUG5, "Read {committed = %s, gid = %s, gxid = %u} from DTM redo file",
-			 (utilityModeRedo.committed ? "true" : "false"),
-			 utilityModeRedo.gxact_log.gid,
-			 utilityModeRedo.gxact_log.gxid);
+		elogif(Debug_print_full_dtm, LOG,
+			   "Read {committed = %s, gid = %s, gxid = %u} from DTM redo file",
+			   (utilityModeRedo.committed ? "true" : "false"),
+			   utilityModeRedo.gxact_log.gid,
+			   utilityModeRedo.gxact_log.gxid);
 		if (utilityModeRedo.committed)
 			redoDistributedCommitRecord(&utilityModeRedo.gxact_log);
 		else
@@ -477,8 +484,8 @@ ReplayRedoFromUtilityMode(void)
 		entries++;
 	}
 
-	elog(DTM_DEBUG5, "Processed %d entries from DTM redo file",
-		 entries);
+	elogif(Debug_print_full_dtm, LOG,
+		   "Processed %d entries from DTM redo file", entries);
 	close(fd);
 }
 
@@ -490,8 +497,8 @@ RemoveRedoUtilityModeFile(void)
 
 	GetRedoFileName(path);
 	removed = (unlink(path) == 0);
-	elog(DTM_DEBUG5, "Removed DTM redo file %s (%s)",
-		 path, (removed ? "true" : "false"));
+	elogif(Debug_print_full_dtm, LOG,
+		   "Removed DTM redo file %s (%s)", path, (removed ? "true" : "false"));
 }
 
 void
@@ -499,11 +506,12 @@ UtilityModeCloseDtmRedoFile(void)
 {
 	if (Gp_role != GP_ROLE_UTILITY)
 	{
-		elog(DTM_DEBUG3, "Not in Utility Mode (role = %s)-- skipping closing DTM redo file",
-			 role_to_string(Gp_role));
+		elogif(Debug_print_full_dtm, LOG,
+			   "Not in Utility Mode (role = %s)-- skipping closing DTM redo file",
+			   role_to_string(Gp_role));
 		return;
 	}
-	elog(DTM_DEBUG3, "Closing DTM redo file");
+	elogif(Debug_print_full_dtm, LOG, "Closing DTM redo file");
 	close(redoFileFD);
 }
 
@@ -514,8 +522,9 @@ UtilityModeFindOrCreateDtmRedoFile(void)
 
 	if (Gp_role != GP_ROLE_UTILITY)
 	{
-		elog(DTM_DEBUG3, "Not in Utility Mode (role = %s) -- skipping finding or creating DTM redo file",
-			 role_to_string(Gp_role));
+		elogif(Debug_print_full_dtm, LOG,
+			   "Not in Utility Mode (role = %s) -- skipping finding or creating DTM redo file",
+			   role_to_string(Gp_role));
 		return;
 	}
 	GetRedoFileName(path);
@@ -527,8 +536,9 @@ UtilityModeFindOrCreateDtmRedoFile(void)
 				 errmsg("could not create save DTM redo file \"%s\"", path)));
 
 	redoFileOffset = lseek(redoFileFD, 0, SEEK_END);
-	elog(DTM_DEBUG3, "Succesfully opened DTM redo file %s (end offset %d)",
-		 path, redoFileOffset);
+	elogif(Debug_print_full_dtm, LOG,
+		   "Succesfully opened DTM redo file %s (end offset %d)",
+		   path, redoFileOffset);
 }
 
 /*
@@ -546,7 +556,8 @@ redoDtxCheckPoint(TMGXACT_CHECKPOINT *gxact_checkpoint)
 	 * in-memory if Dispatch.
 	 */
 	committedCount = gxact_checkpoint->committedCount;
-	elog(DTM_DEBUG5, "redoDtxCheckPoint has committedCount = %d", committedCount);
+	elogif(Debug_print_full_dtm, LOG,
+		   "redoDtxCheckPoint has committedCount = %d", committedCount);
 
 	for (i = 0; i < committedCount; i++)
 		redoDistributedCommitRecord(&gxact_checkpoint->committedGxactArray[i]);
@@ -570,7 +581,8 @@ redoDistributedCommitRecord(TMGXACT_LOG *gxact_log)
 
 	if (Gp_role == GP_ROLE_UTILITY)
 	{
-		elog(DTM_DEBUG3, "DB in Utility mode.  Save DTM distributed commit until later.");
+		elogif(Debug_print_full_dtm, LOG,
+			   "DB in Utility mode.  Save DTM distributed commit until later.");
 		UtilityModeSaveRedo(true, gxact_log);
 		return;
 	}
@@ -596,8 +608,8 @@ redoDistributedCommitRecord(TMGXACT_LOG *gxact_log)
 							   "around this issue and then report a bug")));
 
 		shmCommittedGxactArray[(*shmNumCommittedGxacts)++] = *gxact_log;
-		elog((Debug_print_full_dtm ? LOG : DEBUG5),
-			 "Crash recovery redo added committed distributed transaction gid = %s", gxact_log->gid);
+		elogif(Debug_print_full_dtm, LOG,
+			   "Crash recovery redo added committed distributed transaction gid = %s", gxact_log->gid);
 	}
 }
 
@@ -611,7 +623,8 @@ redoDistributedForgetCommitRecord(TMGXACT_LOG *gxact_log)
 
 	if (Gp_role == GP_ROLE_UTILITY)
 	{
-		elog(DTM_DEBUG3, "DB in Utility mode.  Save DTM disributed forget until later.");
+		elogif(Debug_print_full_dtm, LOG,
+			   "DB in Utility mode.  Save DTM disributed forget until later.");
 		UtilityModeSaveRedo(false, gxact_log);
 		return;
 	}
@@ -621,9 +634,9 @@ redoDistributedForgetCommitRecord(TMGXACT_LOG *gxact_log)
 		if (strcmp(gxact_log->gid, shmCommittedGxactArray[i].gid) == 0)
 		{
 			/* found an active global transaction */
-			elog((Debug_print_full_dtm ? INFO : DEBUG5),
-				 "Crash recovery redo removed committed distributed transaction gid = %s for forget",
-				 gxact_log->gid);
+			elogif(Debug_print_full_dtm, INFO,
+				   "Crash recovery redo removed committed distributed transaction gid = %s for forget",
+				   gxact_log->gid);
 
 			/*
 			 * there's no concurrent access to shmCommittedGxactArray during
@@ -637,9 +650,9 @@ redoDistributedForgetCommitRecord(TMGXACT_LOG *gxact_log)
 		}
 	}
 
-	elog((Debug_print_full_dtm ? WARNING : DEBUG5),
-		 "Crash recovery redo did not find committed distributed transaction gid = %s for forget",
-		 gxact_log->gid);
+	elogif(Debug_print_full_dtm, WARNING,
+		   "Crash recovery redo did not find committed distributed transaction gid = %s for forget",
+		   gxact_log->gid);
 }
 
 bool
