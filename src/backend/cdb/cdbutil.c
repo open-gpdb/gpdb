@@ -1204,6 +1204,7 @@ getDnsCachedAddress(char *name, int port, int elevel, bool use_cache)
 		if (use_cache)
 			oldContext = MemoryContextSwitchTo(TopMemoryContext);
 
+		hostinfo[0] = '\0';
 		for (addr = addrs; addr; addr = addr->ai_next)
 		{
 #ifdef HAVE_UNIX_SOCKETS
@@ -1241,7 +1242,7 @@ getDnsCachedAddress(char *name, int port, int elevel, bool use_cache)
 		 * we'd only want to use the IPv6 address if there isn't an IPv4
 		 * address.  All we really need to do is test this.
 		 */
-		if (((!use_cache && !hostinfo) || (use_cache && e == NULL))
+		if (((!use_cache && !hostinfo[0]) || (use_cache && e == NULL))
 			&& addrs->ai_family == AF_INET6)
 		{
 			char		hostinfo[NI_MAXHOST];
