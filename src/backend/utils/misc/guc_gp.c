@@ -202,8 +202,6 @@ int			gp_connection_send_timeout;
 
 bool create_restartpoint_on_ckpt_record_replay = false;
 
-char	   *data_directory;
-
 /*
  * This variable is a dummy that doesn't do anything, except in some
  * cases provide the value for SHOW to display.  The real state is elsewhere
