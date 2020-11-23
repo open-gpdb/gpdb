@@ -284,8 +284,9 @@ CParseHandlerMetadataIdList::FSupportedListType(const XMLCh *const xml_str)
 		0 == XMLString::compareString(
 				 CDXLTokens::XmlstrToken(EdxltokenRelDistrOpfamilies),
 				 xml_str) ||
-		0 == XMLString::compareString(
-				 CDXLTokens::XmlstrToken(EdxltokenRelDistrOpclasses), xml_str) ||
+		0 ==
+			XMLString::compareString(
+				CDXLTokens::XmlstrToken(EdxltokenRelDistrOpclasses), xml_str) ||
 		0 == XMLString::compareString(
 				 CDXLTokens::XmlstrToken(EdxltokenRelExternalPartitions),
 				 xml_str));

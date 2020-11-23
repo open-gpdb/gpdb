@@ -3293,7 +3293,8 @@ CTranslatorRelcacheToDXL::RetrievePartConstraintForRel(
 	List *default_levels_rel = NIL;
 	Node *node;
 
-	if (!GPOS_FTRACE(EopttraceEnableExternalPartitionedTables) || gpdb::RelPartIsRoot(rel_oid))
+	if (!GPOS_FTRACE(EopttraceEnableExternalPartitionedTables) ||
+		gpdb::RelPartIsRoot(rel_oid))
 	{
 		node = gpdb::GetRelationPartContraints(rel_oid, &default_levels_rel);
 	}
