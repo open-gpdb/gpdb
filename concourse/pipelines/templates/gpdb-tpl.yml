@@ -892,7 +892,7 @@ resources:
 - name: madlib_ci
   type: git
   source:
-    branch: ((madlib-ci-git-branch))
+    tag_filter: ((madlib-ci-tag-filter))
     uri: ((madlib-ci-git-remote))
     private_key: ((madlib-ci-git-key))
 
