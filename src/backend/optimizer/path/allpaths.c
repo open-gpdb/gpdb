@@ -642,8 +642,7 @@ set_plain_rel_pathlist(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte)
 
 	/* TODO: this might have been too ambitious of a re-ordering */
 	/* If an indexscan is not allowed, don't bother making paths */
-	if(!(root->is_correlated_subplan &&
-		 (GpPolicyIsPartitioned(rel->cdbpolicy) || GpPolicyIsReplicated(rel->cdbpolicy))))
+	if(!(root->is_correlated_subplan && GpPolicyIsPartitioned(rel->cdbpolicy)))
 	{
 		/* Consider index and bitmap scans */
 		create_index_paths(root, rel);
