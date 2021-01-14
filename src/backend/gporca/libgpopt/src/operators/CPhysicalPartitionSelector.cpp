@@ -725,6 +725,18 @@ CRewindabilitySpec *
 CPhysicalPartitionSelector::PrsDerive(CMemoryPool *mp,
 									  CExpressionHandle &exprhdl) const
 {
+	CPartInfo *ppartinfo = exprhdl.DerivePartitionInfo(0);
+	BOOL staticPartitionSelector = ppartinfo->FContainsScanId(this->ScanId());
+	if (!staticPartitionSelector)
+	{
+		// Currently the executor function ExecRescanPartitionSelector() expects
+		// that a dynamic partition selector is not rescannable. So, prevent
+		// Orca from picking such a plan.
+		CRewindabilitySpec *prs = exprhdl.Pdpplan(0 /*child_index*/)->Prs();
+		return GPOS_NEW(mp)
+			CRewindabilitySpec(CRewindabilitySpec::ErtNone, prs->Emht());
+	}
+
 	return PrsDerivePassThruOuter(mp, exprhdl);
 }
 
