@@ -320,7 +320,9 @@
             </dxl:Properties>
             <dxl:ProjList/>
             <dxl:PartEqFilters>
-              <dxl:ConstValue TypeMdid="0.1082.1.0" Value="PxEAAA==" DoubleValue="381456000000000.000000"/>
+              <dxl:PartEqFilterElems>
+                <dxl:ConstValue TypeMdid="0.1082.1.0" Value="PxEAAA==" DoubleValue="381456000000000.000000"/>
+              </dxl:PartEqFilterElems>
             </dxl:PartEqFilters>
             <dxl:PartFilters>
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

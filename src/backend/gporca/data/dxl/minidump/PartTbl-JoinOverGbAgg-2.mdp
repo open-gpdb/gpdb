@@ -1326,7 +1326,9 @@
               </dxl:ProjElem>
             </dxl:ProjList>
             <dxl:PartEqFilters>
-              <dxl:Ident ColId="10" ColName="a" TypeMdid="0.23.1.0"/>
+              <dxl:PartEqFilterElems>
+                <dxl:Ident ColId="10" ColName="a" TypeMdid="0.23.1.0"/>
+              </dxl:PartEqFilterElems>
             </dxl:PartEqFilters>
             <dxl:PartFilters>
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
@@ -1425,7 +1427,9 @@
                         </dxl:Properties>
                         <dxl:ProjList/>
                         <dxl:PartEqFilters>
-                          <dxl:ConstValue TypeMdid="0.23.1.0" Value="5"/>
+                          <dxl:PartEqFilterElems>
+                            <dxl:ConstValue TypeMdid="0.23.1.0" Value="5"/>
+                          </dxl:PartEqFilterElems>
                         </dxl:PartEqFilters>
                         <dxl:PartFilters>
                           <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

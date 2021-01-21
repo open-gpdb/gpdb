@@ -248,26 +248,23 @@ CPredicateUtils::FValidRefsOnly(CExpression *pexprScalar,
 			   pexprScalar->DeriveScalarFunctionProperties()->Efs();
 }
 
-
-
-// is the given expression a conjunction of equality comparisons
+// is the given expression a disjunction of ident equality comparisons
+// for example: returns true for "b = 2 or (b::int = 3 or b = 4)" if b
+// is of type int, and false if b is of type float
 BOOL
-CPredicateUtils::FConjunctionOfEqComparisons(CMemoryPool *mp,
-											 CExpression *pexpr)
+CPredicateUtils::FDisjunctionOfIdentEqComparisons(CMemoryPool *mp,
+												  CExpression *pexpr,
+												  CColRef *colref)
 {
 	GPOS_ASSERT(NULL != pexpr);
 
-	if (IsEqualityOp(pexpr))
-	{
-		return true;
-	}
+	CExpressionArray *pdrgpexpr = PdrgpexprDisjuncts(mp, pexpr);
+	const ULONG ulDisjuncts = pdrgpexpr->Size();
 
-	CExpressionArray *pdrgpexpr = PdrgpexprConjuncts(mp, pexpr);
-	const ULONG ulConjuncts = pdrgpexpr->Size();
-
-	for (ULONG ul = 0; ul < ulConjuncts; ul++)
+	for (ULONG ul = 0; ul < ulDisjuncts; ul++)
 	{
-		if (!IsEqualityOp((*pexpr)[ul]))
+		if (!CPredicateUtils::FIdentCompare((*pdrgpexpr)[ul], IMDType::EcmptEq,
+											colref))
 		{
 			pdrgpexpr->Release();
 			return false;

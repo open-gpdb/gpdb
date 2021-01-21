@@ -252,6 +252,7 @@ CDXLTokens::Init(CMemoryPool *mp)
 		{EdxltokenScalarSubPlanTypeAll, GPOS_WSZ_LIT("AllSubPlan")},
 
 		{EdxltokenPartLevelEqFilterList, GPOS_WSZ_LIT("PartEqFilters")},
+		{EdxltokenPartLevelEqFilterElemList, GPOS_WSZ_LIT("PartEqFilterElems")},
 		{EdxltokenPartLevelFilterList, GPOS_WSZ_LIT("PartFilters")},
 		{EdxltokenPartLevel, GPOS_WSZ_LIT("Level")},
 		{EdxltokenScalarPartOid, GPOS_WSZ_LIT("PartOid")},

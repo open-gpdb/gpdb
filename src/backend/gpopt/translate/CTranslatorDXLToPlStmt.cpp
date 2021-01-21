@@ -3203,14 +3203,17 @@ CTranslatorDXLToPlStmt::TranslateDXLPartSelector(
 
 	// translate filter lists
 	GPOS_ASSERT(eq_filters_dxlnode->Arity() == num_of_levels);
-	partition_selector->levelEqExpressions =
-		TranslateDXLFilterList(eq_filters_dxlnode, NULL /*base_table_context*/,
-							   child_contexts, output_context);
+	partition_selector->levelEqExpressions = TranslateDXLFilterList(
+		eq_filters_dxlnode, NULL /* base_table_context */, child_contexts,
+		output_context, true /* is_eq_filters */,
+		false /* is_eq_filter_elems */);
+
 
 	GPOS_ASSERT(filters_dxlnode->Arity() == num_of_levels);
-	partition_selector->levelExpressions =
-		TranslateDXLFilterList(filters_dxlnode, NULL /*base_table_context*/,
-							   child_contexts, output_context);
+	partition_selector->levelExpressions = TranslateDXLFilterList(
+		filters_dxlnode, NULL /*base_table_context*/, child_contexts,
+		output_context, false /* is_eq_filters */,
+		false /* is_eq_filter_elems */);
 
 	//translate residual filter
 	CMappingColIdVarPlStmt colid_var_mapping = CMappingColIdVarPlStmt(
@@ -3270,7 +3273,7 @@ CTranslatorDXLToPlStmt::TranslateDXLPartSelector(
 //		CTranslatorDXLToPlStmt::TranslateDXLFilterList
 //
 //	@doc:
-//		Translate DXL filter list into GPDB filter list
+//		Translate DXL filter or filter elem list into GPDB filter list
 //
 //---------------------------------------------------------------------------
 List *
@@ -3278,7 +3281,8 @@ CTranslatorDXLToPlStmt::TranslateDXLFilterList(
 	const CDXLNode *filter_list_dxlnode,
 	const CDXLTranslateContextBaseTable *base_table_context,
 	CDXLTranslationContextArray *child_contexts,
-	CDXLTranslateContext *output_context)
+	CDXLTranslateContext *output_context, bool is_eq_filters,
+	bool is_eq_filter_elems)
 {
 	GPOS_ASSERT(EdxlopScalarOpList ==
 				filter_list_dxlnode->GetOperator()->GetDXLOperator());
@@ -3288,21 +3292,34 @@ CTranslatorDXLToPlStmt::TranslateDXLFilterList(
 	CMappingColIdVarPlStmt colid_var_mapping =
 		CMappingColIdVarPlStmt(m_mp, base_table_context, child_contexts,
 							   output_context, m_dxl_to_plstmt_context);
+
 	const ULONG arity = filter_list_dxlnode->Arity();
 	for (ULONG ul = 0; ul < arity; ul++)
 	{
 		CDXLNode *child_filter_dxlnode = (*filter_list_dxlnode)[ul];
 
-		if (m_translator_dxl_to_scalar->HasConstTrue(child_filter_dxlnode,
-													 m_md_accessor))
+		if (!is_eq_filter_elems && m_translator_dxl_to_scalar->HasConstTrue(
+									   child_filter_dxlnode, m_md_accessor))
 		{
 			filters_list = gpdb::LAppend(filters_list, NULL /*datum*/);
 			continue;
 		}
 
-		Expr *filter_expr = m_translator_dxl_to_scalar->TranslateDXLToScalar(
-			child_filter_dxlnode, &colid_var_mapping);
-		filters_list = gpdb::LAppend(filters_list, filter_expr);
+		if (is_eq_filters)
+		{
+			List *eq_filter_elems = TranslateDXLFilterList(
+				child_filter_dxlnode, base_table_context, child_contexts,
+				output_context, false /* is_eq_filters */,
+				true /* is_eq_filter_elems */);
+			filters_list = gpdb::LAppend(filters_list, eq_filter_elems);
+		}
+		else
+		{
+			Expr *filter_expr =
+				m_translator_dxl_to_scalar->TranslateDXLToScalar(
+					child_filter_dxlnode, &colid_var_mapping);
+			filters_list = gpdb::LAppend(filters_list, filter_expr);
+		}
 	}
 
 	return filters_list;

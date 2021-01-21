@@ -4147,7 +4147,9 @@
                         </dxl:ProjElem>
                       </dxl:ProjList>
                       <dxl:PartEqFilters>
-                        <dxl:Ident ColId="26" ColName="ymd" TypeMdid="0.1082.1.0"/>
+                        <dxl:PartEqFilterElems>
+                          <dxl:Ident ColId="26" ColName="ymd" TypeMdid="0.1082.1.0"/>
+                        </dxl:PartEqFilterElems>
                       </dxl:PartEqFilters>
                       <dxl:PartFilters>
                         <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

@@ -1024,7 +1024,9 @@
                           </dxl:Properties>
                           <dxl:ProjList/>
                           <dxl:PartEqFilters>
-                            <dxl:ConstValue TypeMdid="0.1082.1.0" Value="ZxQAAA==" DoubleValue="451267200000000.000000"/>
+                            <dxl:PartEqFilterElems>
+                              <dxl:ConstValue TypeMdid="0.1082.1.0" Value="ZxQAAA==" DoubleValue="451267200000000.000000"/>
+                            </dxl:PartEqFilterElems>
                           </dxl:PartEqFilters>
                           <dxl:PartFilters>
                             <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
@@ -1267,7 +1269,9 @@
                           </dxl:Properties>
                           <dxl:ProjList/>
                           <dxl:PartEqFilters>
-                            <dxl:ConstValue TypeMdid="0.1082.1.0" Value="ZxQAAA==" DoubleValue="451267200000000.000000"/>
+                            <dxl:PartEqFilterElems>
+                              <dxl:ConstValue TypeMdid="0.1082.1.0" Value="ZxQAAA==" DoubleValue="451267200000000.000000"/>
+                            </dxl:PartEqFilterElems>
                           </dxl:PartEqFilters>
                           <dxl:PartFilters>
                             <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
@@ -1510,7 +1514,9 @@
                           </dxl:Properties>
                           <dxl:ProjList/>
                           <dxl:PartEqFilters>
-                            <dxl:ConstValue TypeMdid="0.1082.1.0" Value="ZxQAAA==" DoubleValue="451267200000000.000000"/>
+                            <dxl:PartEqFilterElems>
+                              <dxl:ConstValue TypeMdid="0.1082.1.0" Value="ZxQAAA==" DoubleValue="451267200000000.000000"/>
+                            </dxl:PartEqFilterElems>
                           </dxl:PartEqFilters>
                           <dxl:PartFilters>
                             <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

@@ -442,12 +442,13 @@ private:
 		CDXLTranslateContext *output_context,
 		CDXLTranslationContextArray *ctxt_translation_prev_siblings);
 
-	// translate DXL filter list into GPDB filter list
+	// translate DXL filter or filter elem list into GPDB filter list
 	List *TranslateDXLFilterList(
 		const CDXLNode *filter_list_dxlnode,
 		const CDXLTranslateContextBaseTable *base_table_context,
 		CDXLTranslationContextArray *child_contexts,
-		CDXLTranslateContext *output_context);
+		CDXLTranslateContext *output_context, bool is_eq_filters,
+		bool is_eq_filter_elems);
 
 	// create range table entry from a CDXLPhysicalTVF node
 	RangeTblEntry *TranslateDXLTvfToRangeTblEntry(

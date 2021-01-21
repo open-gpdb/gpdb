@@ -113,9 +113,10 @@ public:
 	// is the given expression a scalar comparison
 	static BOOL FComparison(CExpression *pexpr);
 
-	// is the given expression a conjunction of equality comparisons
-	static BOOL FConjunctionOfEqComparisons(CMemoryPool *mp,
-											CExpression *pexpr);
+	// is the given expression a disjunction of equality comparisons
+	static BOOL FDisjunctionOfIdentEqComparisons(CMemoryPool *mp,
+												 CExpression *pexpr,
+												 CColRef *colref);
 
 	// is the given expression a comparison of the given type
 	static BOOL FComparison(CExpression *pexpr, IMDType::ECmpType cmp_type);

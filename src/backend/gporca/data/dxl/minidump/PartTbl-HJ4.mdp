@@ -338,7 +338,9 @@
               </dxl:ProjElem>
             </dxl:ProjList>
             <dxl:PartEqFilters>
-              <dxl:Ident ColId="8" ColName="a" TypeMdid="0.23.1.0"/>
+              <dxl:PartEqFilterElems>
+                <dxl:Ident ColId="8" ColName="a" TypeMdid="0.23.1.0"/>
+              </dxl:PartEqFilterElems>
             </dxl:PartEqFilters>
             <dxl:PartFilters>
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

@@ -211,6 +211,7 @@ enum Edxltoken
 	EdxltokenScalarOpList,
 
 	EdxltokenPartLevelEqFilterList,
+	EdxltokenPartLevelEqFilterElemList,
 	EdxltokenPartLevelFilterList,
 	EdxltokenPartLevel,
 	EdxltokenScalarPartOid,

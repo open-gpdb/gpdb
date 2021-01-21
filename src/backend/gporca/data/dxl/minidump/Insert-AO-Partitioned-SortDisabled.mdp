@@ -446,7 +446,9 @@
               </dxl:ProjElem>
             </dxl:ProjList>
             <dxl:PartEqFilters>
-              <dxl:Ident ColId="1" ColName="year" TypeMdid="0.23.1.0"/>
+              <dxl:PartEqFilterElems>
+                <dxl:Ident ColId="1" ColName="year" TypeMdid="0.23.1.0"/>
+              </dxl:PartEqFilterElems>
             </dxl:PartEqFilters>
             <dxl:PartFilters>
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
@@ -455,7 +457,7 @@
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>
             </dxl:ResidualFilter>
             <dxl:PropagationExpression>
-              <dxl:ConstValue TypeMdid="0.23.1.0" IsNull="true" IsByValue="true"/>
+              <dxl:ConstValue TypeMdid="0.23.1.0" IsNull="true"/>
             </dxl:PropagationExpression>
             <dxl:PrintableFilter>
               <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

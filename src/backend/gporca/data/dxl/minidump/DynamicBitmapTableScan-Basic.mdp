@@ -305,7 +305,9 @@
               </dxl:Properties>
               <dxl:ProjList/>
               <dxl:PartEqFilters>
-                <dxl:ConstValue TypeMdid="0.23.1.0" Value="10"/>
+                <dxl:PartEqFilterElems>
+                  <dxl:ConstValue TypeMdid="0.23.1.0" Value="10"/>
+                </dxl:PartEqFilterElems>
               </dxl:PartEqFilters>
               <dxl:PartFilters>
                 <dxl:ConstValue TypeMdid="0.16.1.0" Value="true"/>

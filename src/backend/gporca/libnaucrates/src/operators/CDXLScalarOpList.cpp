@@ -65,6 +65,10 @@ CDXLScalarOpList::GetOpNameStr() const
 			dxl_token = EdxltokenPartLevelEqFilterList;
 			break;
 
+		case EdxloplistEqFilterElemList:
+			dxl_token = EdxltokenPartLevelEqFilterElemList;
+			break;
+
 		case EdxloplistFilterList:
 			dxl_token = EdxltokenPartLevelFilterList;
 			break;
