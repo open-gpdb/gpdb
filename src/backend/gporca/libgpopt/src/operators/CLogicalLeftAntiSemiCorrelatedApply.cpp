@@ -9,9 +9,9 @@
 //		Implementation of left anti semi correlated apply for NOT EXISTS subqueries
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CLogicalLeftAntiSemiCorrelatedApply.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/operators/CLogicalLeftAntiSemiCorrelatedApply.h"
 
 using namespace gpopt;
 

@@ -13,11 +13,11 @@
 #ifndef GPDXL_CDXLMemoryManager_H
 #define GPDXL_CDXLMemoryManager_H
 
-#include <iostream>
-#include <xercesc/framework/MemoryManager.hpp>
-#include <xercesc/util/XercesDefs.hpp>
-
 #include "gpos/base.h"
+
+#include <xercesc/util/XercesDefs.hpp>
+#include <xercesc/framework/MemoryManager.hpp>
+#include <iostream>
 
 namespace gpdxl
 {

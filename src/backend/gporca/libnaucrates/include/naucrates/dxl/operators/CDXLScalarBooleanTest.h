@@ -13,7 +13,6 @@
 #define GPDXL_CDXLScalarBooleanTest_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLScalar.h"
 
 

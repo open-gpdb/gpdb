@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerHint_H
 
 #include "gpos/base.h"
-
-#include "gpopt/engine/CHint.h"
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
+#include "gpopt/engine/CHint.h"
 
 namespace gpdxl
 {

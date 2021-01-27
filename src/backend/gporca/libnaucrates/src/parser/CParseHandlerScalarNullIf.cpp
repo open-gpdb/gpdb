@@ -9,11 +9,12 @@
 //		Implementation of the SAX parse handler class for scalar NullIf
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/parser/CParseHandlerScalarNullIf.h"
+#include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+#include "naucrates/dxl/parser/CParseHandlerFactory.h"
 
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+
+#include "naucrates/dxl/parser/CParseHandlerScalarNullIf.h"
 
 using namespace gpdxl;
 

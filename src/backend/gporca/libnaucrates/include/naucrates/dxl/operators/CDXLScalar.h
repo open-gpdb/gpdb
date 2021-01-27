@@ -13,9 +13,8 @@
 #define GPDXL_CDXLScalar_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/gpdb_types.h"
 #include "naucrates/dxl/operators/CDXLOperator.h"
+#include "naucrates/dxl/gpdb_types.h"
 
 // fwd declarations
 namespace gpopt

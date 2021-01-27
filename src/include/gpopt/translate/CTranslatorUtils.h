@@ -17,24 +17,22 @@
 #define GPDXL_CTranslatorUtils_H
 #define GPDXL_SYSTEM_COLUMNS 8
 
-extern "C" {
-#include "postgres.h"
-
-#include "access/sdir.h"
-#include "access/skey.h"
-#include "nodes/parsenodes.h"
-}
+#include "gpopt/translate/CMappingVarColId.h"
 
 #include "gpos/base.h"
 #include "gpos/common/CBitSet.h"
 
-#include "gpopt/translate/CMappingVarColId.h"
-#include "naucrates/dxl/CIdGenerator.h"
 #include "naucrates/dxl/operators/dxlops.h"
+#include "naucrates/dxl/CIdGenerator.h"
+
 #include "naucrates/md/CMDRelationGPDB.h"
 #include "naucrates/md/IMDType.h"
+
 #include "naucrates/statistics/IStatistics.h"
 
+#include "nodes/parsenodes.h"
+#include "access/sdir.h"
+#include "access/skey.h"
 
 // fwd declarations
 namespace gpopt

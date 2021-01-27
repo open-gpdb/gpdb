@@ -10,10 +10,11 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarAggref.h"
-
-#include "gpopt/mdcache/CMDAccessor.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+
+#include "gpopt/mdcache/CMDAccessor.h"
+
 #include "naucrates/md/IMDAggregate.h"
 
 using namespace gpopt;

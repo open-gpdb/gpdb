@@ -9,9 +9,8 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformInnerApply2InnerJoin.h"
-
 #include "gpos/base.h"
+#include "gpopt/xforms/CXformInnerApply2InnerJoin.h"
 
 
 using namespace gpopt;

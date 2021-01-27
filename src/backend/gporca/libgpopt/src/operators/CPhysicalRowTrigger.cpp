@@ -9,14 +9,13 @@
 //		Implementation of Physical row-level trigger operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CPhysicalRowTrigger.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CDistributionSpecAny.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalRowTrigger.h"
+#include "gpopt/base/CDistributionSpecAny.h"
 
 using namespace gpopt;
 

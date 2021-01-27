@@ -9,11 +9,10 @@
 //		Implementation of apply operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CLogicalApply.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CLogicalApply.h"
 
 
 using namespace gpopt;

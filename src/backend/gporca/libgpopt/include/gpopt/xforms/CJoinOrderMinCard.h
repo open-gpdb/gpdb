@@ -12,10 +12,9 @@
 #define GPOPT_CJoinOrderMinCard_H
 
 #include "gpos/base.h"
-#include "gpos/common/CBitSet.h"
 #include "gpos/common/CRefCount.h"
+#include "gpos/common/CBitSet.h"
 #include "gpos/io/IOstream.h"
-
 #include "gpopt/xforms/CJoinOrder.h"
 
 namespace gpopt

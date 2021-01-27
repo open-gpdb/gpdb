@@ -9,7 +9,6 @@
 #define GPDXL_CParseHandlerScalarPartListNullTest_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
 
 namespace gpdxl

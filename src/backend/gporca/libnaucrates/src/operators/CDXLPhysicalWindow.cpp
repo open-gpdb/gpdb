@@ -9,9 +9,8 @@
 //		Implementation of DXL physical window operators
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/operators/CDXLPhysicalWindow.h"
-
 #include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/dxl/operators/CDXLPhysicalWindow.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 

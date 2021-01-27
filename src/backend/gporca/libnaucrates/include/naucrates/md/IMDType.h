@@ -15,9 +15,8 @@
 #define GPMD_IMDCacheType_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLDatum.h"
 #include "naucrates/dxl/operators/CDXLScalarConstValue.h"
+#include "naucrates/dxl/operators/CDXLDatum.h"
 #include "naucrates/md/IMDCacheObject.h"
 
 // fwd decl

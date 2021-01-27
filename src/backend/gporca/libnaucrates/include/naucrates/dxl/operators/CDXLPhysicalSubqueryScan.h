@@ -15,7 +15,6 @@
 #define GPDXL_CDXLPhysicalSubqueryScan_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLPhysical.h"
 #include "naucrates/md/CMDName.h"
 

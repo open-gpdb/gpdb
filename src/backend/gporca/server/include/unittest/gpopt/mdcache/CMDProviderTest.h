@@ -14,7 +14,6 @@
 #define GPOPT_CMDProviderTest_H
 
 #include "gpos/base.h"
-
 #include "naucrates/md/IMDProvider.h"
 
 namespace gpdxl

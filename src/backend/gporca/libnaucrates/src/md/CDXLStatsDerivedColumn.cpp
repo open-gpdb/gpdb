@@ -9,12 +9,10 @@
 //		Implementation of the class for representing dxl derived column statistics
 //---------------------------------------------------------------------------
 
-#include "naucrates/md/CDXLStatsDerivedColumn.h"
-
 #include "gpos/string/CWStringDynamic.h"
-
-#include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/md/CDXLStatsDerivedColumn.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/statistics/CStatistics.h"
 
 using namespace gpdxl;

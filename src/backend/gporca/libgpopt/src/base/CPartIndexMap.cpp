@@ -9,16 +9,13 @@
 //		Implementation of partition index map
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CPartIndexMap.h"
-
 #include "gpos/base.h"
-
+#include "gpopt/base/CPartIndexMap.h"
 #include "gpopt/base/CPartitionPropagationSpec.h"
 
 #ifdef GPOS_DEBUG
-#include "gpos/error/CAutoTrace.h"
-
 #include "gpopt/base/COptCtxt.h"
+#include "gpos/error/CAutoTrace.h"
 #endif	// GPOS_DEBUG
 
 using namespace gpopt;

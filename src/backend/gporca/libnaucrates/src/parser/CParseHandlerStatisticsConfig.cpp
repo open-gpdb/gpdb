@@ -10,13 +10,15 @@
 //		configuration
 //---------------------------------------------------------------------------
 
+#include "naucrates/dxl/parser/CParseHandlerManager.h"
+#include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerStatisticsConfig.h"
 
-#include "gpopt/engine/CStatisticsConfig.h"
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerManager.h"
+
 #include "naucrates/dxl/xml/dxltokens.h"
+
+#include "gpopt/engine/CStatisticsConfig.h"
 
 using namespace gpdxl;
 using namespace gpopt;

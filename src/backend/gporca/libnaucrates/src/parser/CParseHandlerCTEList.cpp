@@ -9,11 +9,10 @@
 //		Implementation of the SAX parse handler class for parsing CTE lists
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/parser/CParseHandlerCTEList.h"
-
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerLogicalCTEProducer.h"
 #include "naucrates/dxl/parser/CParseHandlerManager.h"
+#include "naucrates/dxl/parser/CParseHandlerCTEList.h"
+#include "naucrates/dxl/parser/CParseHandlerLogicalCTEProducer.h"
 
 using namespace gpdxl;
 

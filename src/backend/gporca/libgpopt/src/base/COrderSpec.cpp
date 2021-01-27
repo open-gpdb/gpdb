@@ -9,9 +9,8 @@
 //		Specification of order property
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/COrderSpec.h"
-
 #include "gpopt/base/CColRefSet.h"
+#include "gpopt/base/COrderSpec.h"
 #include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CPhysicalSort.h"
 

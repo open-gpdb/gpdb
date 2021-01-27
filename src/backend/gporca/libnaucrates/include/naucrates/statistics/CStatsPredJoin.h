@@ -12,11 +12,10 @@
 #define GPNAUCRATES_CStatsPredJoin_H
 
 #include "gpos/base.h"
-#include "gpos/common/CDynamicPtrArray.h"
 #include "gpos/common/CRefCount.h"
-
-#include "naucrates/md/IMDType.h"
+#include "gpos/common/CDynamicPtrArray.h"
 #include "naucrates/statistics/CStatsPred.h"
+#include "naucrates/md/IMDType.h"
 
 namespace gpnaucrates
 {

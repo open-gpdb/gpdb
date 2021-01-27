@@ -12,7 +12,6 @@
 #define GPOPT_CLogicalUpdate_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogical.h"
 
 namespace gpopt

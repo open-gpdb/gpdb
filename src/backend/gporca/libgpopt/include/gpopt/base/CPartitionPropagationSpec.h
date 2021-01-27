@@ -12,12 +12,12 @@
 #define GPOPT_CPartitionPropagationSpec_H
 
 #include "gpos/base.h"
-#include "gpos/common/CHashMap.h"
-#include "gpos/common/CRefCount.h"
 
+#include "gpopt/base/CPropSpec.h"
 #include "gpopt/base/CPartFilterMap.h"
 #include "gpopt/base/CPartIndexMap.h"
-#include "gpopt/base/CPropSpec.h"
+#include "gpos/common/CHashMap.h"
+#include "gpos/common/CRefCount.h"
 
 
 namespace gpopt

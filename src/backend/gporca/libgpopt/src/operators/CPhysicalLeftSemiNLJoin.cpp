@@ -9,9 +9,9 @@
 //		Implementation of left semi nested-loops join operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CPhysicalLeftSemiNLJoin.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/operators/CPhysicalLeftSemiNLJoin.h"
 
 
 using namespace gpopt;

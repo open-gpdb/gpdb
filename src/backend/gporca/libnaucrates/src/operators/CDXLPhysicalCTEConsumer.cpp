@@ -9,14 +9,13 @@
 //		Implementation of DXL physical CTE Consumer operator
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/operators/CDXLPhysicalCTEConsumer.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/dxl/operators/CDXLPhysicalCTEConsumer.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
-#include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/dxl/xml/dxltokens.h"
+#include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;
 using namespace gpdxl;

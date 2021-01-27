@@ -12,7 +12,6 @@
 #define GPOPT_CPhysicalInnerIndexNLJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalInnerNLJoin.h"
 
 namespace gpopt

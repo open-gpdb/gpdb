@@ -12,7 +12,6 @@
 #define GPOPT_CXformLeftAntiSemiJoin2HashJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformImplementation.h"
 
 namespace gpopt

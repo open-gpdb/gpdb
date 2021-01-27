@@ -12,7 +12,6 @@
 #define GPOPT_CXformUpdate2DML_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformExploration.h"
 
 namespace gpopt

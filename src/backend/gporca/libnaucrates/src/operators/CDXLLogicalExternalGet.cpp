@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLLogicalExternalGet.h"
-
 #include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpos;

@@ -14,7 +14,6 @@
 
 #include "gpos/base.h"
 #include "gpos/common/CDouble.h"
-
 #include "naucrates/md/CDXLStatsDerivedColumn.h"
 
 namespace gpdxl

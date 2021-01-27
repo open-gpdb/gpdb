@@ -12,6 +12,7 @@
 #define GPNAUCRATES_CProjectStatsProcessor_H
 
 #include "gpopt/optimizer/COptimizerConfig.h"
+
 #include "naucrates/statistics/CStatistics.h"
 
 namespace gpnaucrates

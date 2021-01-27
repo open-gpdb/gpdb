@@ -9,14 +9,13 @@
 //		Specification of non-singleton distribution
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CDistributionSpecNonSingleton.h"
-
+#include "naucrates/traceflags/traceflags.h"
+#include "gpopt/base/CUtils.h"
 #include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CColRefSetIter.h"
-#include "gpopt/base/CDistributionSpecStrictRandom.h"
-#include "gpopt/base/CUtils.h"
+#include "gpopt/base/CDistributionSpecNonSingleton.h"
 #include "gpopt/operators/CPhysicalMotionRandom.h"
-#include "naucrates/traceflags/traceflags.h"
+#include "gpopt/base/CDistributionSpecStrictRandom.h"
 
 using namespace gpopt;
 

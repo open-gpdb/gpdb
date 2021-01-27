@@ -12,9 +12,10 @@
 
 #include "naucrates/md/CMDCheckConstraintGPDB.h"
 
-#include "gpopt/translate/CTranslatorDXLToExpr.h"
-#include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "naucrates/dxl/CDXLUtils.h"
+
+#include "gpopt/translate/CTranslatorDXLToExpr.h"
 
 using namespace gpdxl;
 using namespace gpmd;

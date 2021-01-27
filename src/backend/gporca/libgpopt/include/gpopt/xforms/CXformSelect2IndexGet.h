@@ -12,7 +12,6 @@
 #define GPOPT_CXformSelect2IndexGet_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/xforms/CXformExploration.h"
 

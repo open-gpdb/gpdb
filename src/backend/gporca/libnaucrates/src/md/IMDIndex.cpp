@@ -9,10 +9,9 @@
 //		Implementation of MD index
 //---------------------------------------------------------------------------
 
-#include "naucrates/md/IMDIndex.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
+#include "naucrates/md/IMDIndex.h"
 #include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpdxl;

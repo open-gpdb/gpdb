@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/base/IDatum.h"
-
 #include "naucrates/md/CMDTypeGenericGPDB.h"
 #include "naucrates/statistics/CStatistics.h"
 

@@ -11,7 +11,9 @@
 #ifndef GPOS_CCACHETEST_H_
 #define GPOS_CCACHETEST_H_
 
+#include "gpos/memory/CCache.h"
 #include "gpos/common/CList.h"
+
 #include "gpos/memory/CCache.h"
 #include "gpos/memory/CCacheAccessor.h"
 

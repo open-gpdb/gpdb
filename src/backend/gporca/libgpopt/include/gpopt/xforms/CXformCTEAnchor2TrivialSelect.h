@@ -12,7 +12,6 @@
 #define GPOPT_CXformCTEAnchor2TrivialSelect_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformExploration.h"
 
 namespace gpopt

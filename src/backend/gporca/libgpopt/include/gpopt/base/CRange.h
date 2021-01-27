@@ -12,11 +12,12 @@
 #define GPOPT_CRange_H
 
 #include "gpos/base.h"
-#include "gpos/common/CRefCount.h"
 #include "gpos/types.h"
+#include "gpos/common/CRefCount.h"
 
 #include "gpopt/base/CColRef.h"
 #include "gpopt/operators/CExpression.h"
+
 #include "naucrates/md/IMDType.h"
 
 namespace gpnaucrates

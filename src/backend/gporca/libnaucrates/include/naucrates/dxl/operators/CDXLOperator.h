@@ -15,7 +15,6 @@
 
 #include "gpos/base.h"
 #include "gpos/common/CRefCount.h"
-
 #include "naucrates/md/CDXLStatsDerivedRelation.h"
 
 namespace gpdxl

@@ -13,7 +13,6 @@
 
 #include "gpos/base.h"
 #include "gpos/io/IOstream.h"
-
 #include "gpopt/xforms/CJoinOrder.h"
 
 namespace gpopt

@@ -18,9 +18,8 @@
 #define VA_ARG(vaList, type) va_arg(vaList, type)
 
 #include <unistd.h>
-
-#include "gpos/common/clibtypes.h"
 #include "gpos/types.h"
+#include "gpos/common/clibtypes.h"
 
 namespace gpos
 {

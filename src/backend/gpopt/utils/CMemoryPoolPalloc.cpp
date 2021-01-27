@@ -13,13 +13,12 @@
 
 extern "C" {
 #include "postgres.h"
-
 #include "utils/memutils.h"
 }
 
 #include "gpos/memory/CMemoryPool.h"
-
 #include "gpopt/gpdbwrappers.h"
+
 #include "gpopt/utils/CMemoryPoolPalloc.h"
 
 using namespace gpos;

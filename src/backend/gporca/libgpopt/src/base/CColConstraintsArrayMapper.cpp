@@ -2,7 +2,6 @@
 //	Copyright (C) 2016 Pivotal Software, Inc.
 
 #include "gpopt/base/CColConstraintsArrayMapper.h"
-
 #include "gpopt/base/CConstraint.h"
 
 using namespace gpopt;

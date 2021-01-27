@@ -9,11 +9,10 @@
 //		Implementation of functional dependency
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CFunctionalDependency.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/base/CUtils.h"
+#include "gpopt/base/CFunctionalDependency.h"
 
 
 using namespace gpopt;

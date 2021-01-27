@@ -13,7 +13,6 @@
 #define GPDXL_CDXLScalarHashExprList_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLScalar.h"
 
 

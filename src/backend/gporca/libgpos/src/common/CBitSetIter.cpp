@@ -9,9 +9,8 @@
 //		Implementation of bitset iterator
 //---------------------------------------------------------------------------
 
-#include "gpos/common/CBitSetIter.h"
-
 #include "gpos/base.h"
+#include "gpos/common/CBitSetIter.h"
 #include "gpos/common/CAutoRef.h"
 
 using namespace gpos;

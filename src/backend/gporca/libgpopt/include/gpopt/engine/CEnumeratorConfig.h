@@ -16,6 +16,7 @@
 #include "gpos/common/CRefCount.h"
 
 #include "gpopt/cost/CCost.h"
+
 #include "naucrates/traceflags/traceflags.h"
 
 #define GPOPT_UNBOUNDED_COST_THRESHOLD 0.0

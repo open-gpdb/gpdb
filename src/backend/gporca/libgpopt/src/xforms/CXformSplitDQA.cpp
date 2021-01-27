@@ -10,16 +10,15 @@
 //		local, intermediate and global, aggregate
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformSplitDQA.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColumnFactory.h"
 #include "gpopt/base/CUtils.h"
+#include "gpopt/base/CColumnFactory.h"
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/COperator.h"
-#include "gpopt/translate/CTranslatorDXLToExpr.h"
+#include "gpopt/xforms/CXformSplitDQA.h"
 #include "gpopt/xforms/CXformUtils.h"
+#include "gpopt/translate/CTranslatorDXLToExpr.h"
 #include "naucrates/md/IMDAggregate.h"
 
 using namespace gpmd;

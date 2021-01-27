@@ -9,13 +9,12 @@
 //		Implementation of inner hash join operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CPhysicalInnerHashJoin.h"
-
 #include "gpos/base.h"
-
-#include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/base/CUtils.h"
+#include "gpopt/base/CDistributionSpecHashed.h"
 #include "gpopt/operators/CExpressionHandle.h"
+
+#include "gpopt/operators/CPhysicalInnerHashJoin.h"
 
 using namespace gpopt;
 

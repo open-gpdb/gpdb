@@ -12,8 +12,9 @@
 #define GPNAUCRATES_IDatumGeneric_H
 
 #include "gpos/base.h"
-#include "gpos/common/CDouble.h"
 
+#include "naucrates/base/IDatum.h"
+#include "gpos/common/CDouble.h"
 #include "naucrates/base/IDatum.h"
 
 namespace gpnaucrates

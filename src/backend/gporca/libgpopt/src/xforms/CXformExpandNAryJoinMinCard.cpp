@@ -10,8 +10,6 @@
 //		of intermediate results
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformExpandNAryJoinMinCard.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/base/CUtils.h"
@@ -20,6 +18,7 @@
 #include "gpopt/operators/CPatternMultiTree.h"
 #include "gpopt/operators/CPatternTree.h"
 #include "gpopt/operators/CPredicateUtils.h"
+#include "gpopt/xforms/CXformExpandNAryJoinMinCard.h"
 #include "gpopt/xforms/CJoinOrderMinCard.h"
 #include "gpopt/xforms/CXformUtils.h"
 

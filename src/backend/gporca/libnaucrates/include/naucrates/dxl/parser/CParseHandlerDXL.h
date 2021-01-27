@@ -17,7 +17,9 @@
 
 #include "gpopt/cost/ICostModelParams.h"
 #include "gpopt/search/CSearchStage.h"
+
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
+
 #include "naucrates/md/CDXLStatsDerivedRelation.h"
 
 namespace gpdxl

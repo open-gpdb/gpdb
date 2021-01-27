@@ -16,14 +16,15 @@
 
 #include "postgres.h"
 
+#include "executor/executor.h"
+
 #include "gpopt/utils/CConstExprEvaluatorProxy.h"
 
 #include "gpopt/gpdbwrappers.h"
 #include "gpopt/translate/CTranslatorScalarToDXL.h"
-#include "naucrates/dxl/operators/CDXLNode.h"
-#include "naucrates/exception.h"
 
-#include "executor/executor.h"
+#include "naucrates/exception.h"
+#include "naucrates/dxl/operators/CDXLNode.h"
 
 using namespace gpdxl;
 using namespace gpmd;

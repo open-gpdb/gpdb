@@ -9,9 +9,9 @@
 //		Implementation of function properties
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CFunctionProp.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/base/CFunctionProp.h"
 
 using namespace gpopt;
 

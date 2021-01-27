@@ -12,8 +12,6 @@
 #ifndef GPDXL_CDXLUtils_H
 #define GPDXL_CDXLUtils_H
 
-#include <xercesc/util/XMLString.hpp>
-
 #include "gpos/base.h"
 #include "gpos/common/CAutoP.h"
 #include "gpos/io/IOstream.h"
@@ -21,9 +19,13 @@
 
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/xml/dxltokens.h"
+
 #include "naucrates/md/CMDIdGPDB.h"
 #include "naucrates/md/IMDCacheObject.h"
+
 #include "naucrates/statistics/CStatistics.h"
+
+#include <xercesc/util/XMLString.hpp>
 
 namespace gpmd
 {

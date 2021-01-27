@@ -18,7 +18,6 @@
 #define GPOPT_CScalarCoerceBase_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CScalar.h"
 
 namespace gpopt

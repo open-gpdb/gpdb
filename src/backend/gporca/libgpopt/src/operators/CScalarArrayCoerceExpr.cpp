@@ -15,9 +15,8 @@
 //
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarArrayCoerceExpr.h"
-
 #include "gpos/base.h"
+#include "gpopt/operators/CScalarArrayCoerceExpr.h"
 
 using namespace gpopt;
 using namespace gpmd;

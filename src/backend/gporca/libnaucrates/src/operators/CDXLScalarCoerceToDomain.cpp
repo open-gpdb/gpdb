@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarCoerceToDomain.h"
-
 #include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpopt;

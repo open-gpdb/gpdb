@@ -15,14 +15,12 @@
 //---------------------------------------------------------------------------
 
 #include "postgres.h"
-
 #include "gpopt/translate/CCTEListEntry.h"
 
-#include "gpos/base.h"
-
-#include "gpopt/gpdbwrappers.h"
-
 #include "nodes/parsenodes.h"
+
+#include "gpos/base.h"
+#include "gpopt/gpdbwrappers.h"
 using namespace gpdxl;
 
 //---------------------------------------------------------------------------

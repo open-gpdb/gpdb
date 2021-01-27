@@ -9,15 +9,13 @@
 //		Implementation of required properties
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CReqdProp.h"
-
 #include "gpos/base.h"
 
+#include "gpopt/base/CReqdProp.h"
 #include "gpopt/operators/COperator.h"
 
 #ifdef GPOS_DEBUG
 #include "gpos/error/CAutoTrace.h"
-
 #include "gpopt/base/COptCtxt.h"
 #endif	// GPOS_DEBUG
 

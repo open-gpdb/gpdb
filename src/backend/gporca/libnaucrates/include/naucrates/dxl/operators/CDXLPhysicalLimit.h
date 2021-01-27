@@ -13,7 +13,6 @@
 #define GPDXL_CDXLPhysicalLimit_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLPhysical.h"
 
 namespace gpdxl

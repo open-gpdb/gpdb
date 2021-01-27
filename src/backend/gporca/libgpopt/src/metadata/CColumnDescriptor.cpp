@@ -9,10 +9,8 @@
 //		Column abstraction for tables, functions, external tables etc.
 //---------------------------------------------------------------------------
 
-#include "gpopt/metadata/CColumnDescriptor.h"
-
 #include "gpos/base.h"
-
+#include "gpopt/metadata/CColumnDescriptor.h"
 #include "naucrates/md/CMDIdGPDB.h"
 
 using namespace gpopt;

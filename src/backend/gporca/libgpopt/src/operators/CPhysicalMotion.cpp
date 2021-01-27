@@ -9,15 +9,14 @@
 //		Implementation of motion operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CPhysicalMotion.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CDistributionSpecAny.h"
-#include "gpopt/base/CDistributionSpecRandom.h"
 #include "gpopt/base/COptCtxt.h"
+#include "gpopt/base/CDistributionSpecAny.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalMotion.h"
 #include "gpopt/search/CMemo.h"
+#include "gpopt/base/CDistributionSpecRandom.h"
 
 using namespace gpopt;
 

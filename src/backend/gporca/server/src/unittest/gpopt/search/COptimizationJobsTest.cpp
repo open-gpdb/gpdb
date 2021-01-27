@@ -8,8 +8,6 @@
 //	@doc:
 //		Test for optimization jobs
 //---------------------------------------------------------------------------
-#include "unittest/gpopt/search/COptimizationJobsTest.h"
-
 #include "gpos/error/CAutoTrace.h"
 
 #include "gpopt/engine/CEngine.h"
@@ -17,12 +15,12 @@
 #include "gpopt/operators/CLogicalInnerJoin.h"
 #include "gpopt/search/CGroupProxy.h"
 #include "gpopt/search/CJobFactory.h"
+#include "gpopt/search/CJobGroupOptimization.h"
+#include "gpopt/search/CJobGroupExpressionOptimization.h"
 #include "gpopt/search/CJobGroupExploration.h"
 #include "gpopt/search/CJobGroupExpressionExploration.h"
-#include "gpopt/search/CJobGroupExpressionImplementation.h"
-#include "gpopt/search/CJobGroupExpressionOptimization.h"
 #include "gpopt/search/CJobGroupImplementation.h"
-#include "gpopt/search/CJobGroupOptimization.h"
+#include "gpopt/search/CJobGroupExpressionImplementation.h"
 #include "gpopt/search/CJobTransformation.h"
 #include "gpopt/search/CScheduler.h"
 #include "gpopt/search/CSchedulerContext.h"
@@ -30,6 +28,7 @@
 
 #include "unittest/base.h"
 #include "unittest/gpopt/CTestUtils.h"
+#include "unittest/gpopt/search/COptimizationJobsTest.h"
 
 
 //---------------------------------------------------------------------------

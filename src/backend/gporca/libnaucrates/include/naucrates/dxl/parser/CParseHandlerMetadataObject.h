@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerMetadataObject_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
 #include "naucrates/md/IMDCacheObject.h"
 

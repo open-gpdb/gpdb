@@ -9,14 +9,16 @@
 //		Implementation of scalar if operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarIf.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CDrvdPropScalar.h"
-#include "gpopt/mdcache/CMDAccessorUtils.h"
+#include "gpopt/base/CColRefSet.h"
+
+#include "gpopt/operators/CScalarIf.h"
 #include "gpopt/operators/CExpressionHandle.h"
+
+#include "gpopt/mdcache/CMDAccessorUtils.h"
+
 #include "naucrates/md/IMDTypeBool.h"
 
 using namespace gpopt;

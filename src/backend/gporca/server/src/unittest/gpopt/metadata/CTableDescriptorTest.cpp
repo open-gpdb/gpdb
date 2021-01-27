@@ -8,24 +8,26 @@
 //	@doc:
 //		Test for CTableDescriptor
 //---------------------------------------------------------------------------
-#include "unittest/gpopt/metadata/CTableDescriptorTest.h"
-
 #include "gpos/io/COstreamString.h"
 #include "gpos/string/CWStringDynamic.h"
 
-#include "gpopt/base/CColumnFactory.h"
-#include "gpopt/base/CQueryContext.h"
 #include "gpopt/base/CUtils.h"
-#include "gpopt/eval/CConstExprEvaluatorDefault.h"
+#include "gpopt/base/CColumnFactory.h"
 #include "gpopt/metadata/CTableDescriptor.h"
-#include "naucrates/md/CMDIdGPDB.h"
-#include "naucrates/md/CMDProviderMemory.h"
-#include "naucrates/md/IMDTypeInt4.h"
+#include "gpopt/base/CQueryContext.h"
 
 #include "unittest/base.h"
 #include "unittest/gpopt/CTestUtils.h"
+#include "unittest/gpopt/metadata/CTableDescriptorTest.h"
 #include "unittest/gpopt/metadata/CColumnDescriptorTest.h"
 #include "unittest/gpopt/translate/CTranslatorExprToDXLTest.h"
+#include "unittest/gpopt/CTestUtils.h"
+
+#include "naucrates/md/IMDTypeInt4.h"
+#include "naucrates/md/CMDIdGPDB.h"
+#include "naucrates/md/CMDProviderMemory.h"
+
+#include "gpopt/eval/CConstExprEvaluatorDefault.h"
 
 //---------------------------------------------------------------------------
 //	@function:

@@ -14,6 +14,7 @@
 #define GPOS_CSyncHashtableAccessorBase_H_
 
 #include "gpos/base.h"
+
 #include "gpos/common/CSyncHashtable.h"
 #include "gpos/common/CSyncHashtableIter.h"
 

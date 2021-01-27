@@ -11,7 +11,6 @@
  *---------------------------------------------------------------------------*/
 
 #include "gpos/common/CDebugCounter.h"
-
 #include "gpos/error/CAutoTrace.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 

@@ -9,10 +9,9 @@
 //		Implements standard error handler
 //---------------------------------------------------------------------------
 
-#include "gpos/error/CErrorHandlerStandard.h"
-
 #include "gpos/base.h"
 #include "gpos/error/CErrorContext.h"
+#include "gpos/error/CErrorHandlerStandard.h"
 #include "gpos/error/CLogger.h"
 #include "gpos/io/ioutils.h"
 #include "gpos/string/CWStringStatic.h"

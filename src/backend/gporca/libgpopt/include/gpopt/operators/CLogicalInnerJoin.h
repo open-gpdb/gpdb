@@ -12,7 +12,6 @@
 #define GPOS_CLogicalInnerJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalJoin.h"
 
 namespace gpopt

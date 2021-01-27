@@ -13,7 +13,6 @@
 #define GPOPT_CSubqueryTestUtils_H
 
 #include "gpos/base.h"
-
 #include "unittest/gpopt/CTestUtils.h"
 
 namespace gpopt

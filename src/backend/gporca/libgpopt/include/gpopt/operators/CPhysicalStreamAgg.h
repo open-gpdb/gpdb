@@ -12,7 +12,6 @@
 #define GPOS_CPhysicalStreamAgg_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalAgg.h"
 
 namespace gpopt

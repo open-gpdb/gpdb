@@ -15,11 +15,10 @@
 //---------------------------------------------------------------------------
 
 #include "postgres.h"
-
-#include "gpopt/translate/CMappingElementColIdTE.h"
-
 #include "nodes/makefuncs.h"
 #include "nodes/primnodes.h"
+
+#include "gpopt/translate/CMappingElementColIdTE.h"
 
 using namespace gpdxl;
 using namespace gpos;

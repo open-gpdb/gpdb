@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/md/CMDIdGPDBCtas.h"
-
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;

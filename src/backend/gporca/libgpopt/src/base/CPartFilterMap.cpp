@@ -9,16 +9,14 @@
 //		Implementation of partitioned table filter map
 //---------------------------------------------------------------------------
 
+#include "naucrates/statistics/IStatistics.h"
 #include "gpopt/base/CPartFilterMap.h"
-
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CPredicateUtils.h"
-#include "naucrates/statistics/IStatistics.h"
 
 #ifdef GPOS_DEBUG
-#include "gpos/error/CAutoTrace.h"
-
 #include "gpopt/base/COptCtxt.h"
+#include "gpos/error/CAutoTrace.h"
 #endif	// GPOS_DEBUG
 
 using namespace gpos;

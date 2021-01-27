@@ -12,10 +12,9 @@
 #define GPOPT_CLogicalDynamicIndexGet_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/COrderSpec.h"
-#include "gpopt/metadata/CIndexDescriptor.h"
 #include "gpopt/operators/CLogicalDynamicGetBase.h"
+#include "gpopt/metadata/CIndexDescriptor.h"
 
 
 namespace gpopt

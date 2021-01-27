@@ -9,15 +9,14 @@
 //		Implementation of statistics context
 //---------------------------------------------------------------------------
 
-#include "gpopt/engine/CStatisticsConfig.h"
-
 #include "gpos/base.h"
 #include "gpos/common/CAutoP.h"
 #include "gpos/common/CHashMap.h"
 #include "gpos/common/CHashMapIter.h"
 
-#include "gpopt/base/CColRefSet.h"
 #include "naucrates/traceflags/traceflags.h"
+#include "gpopt/base/CColRefSet.h"
+#include "gpopt/engine/CStatisticsConfig.h"
 
 using namespace gpopt;
 

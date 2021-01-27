@@ -12,7 +12,6 @@
 #define GPOS_CPhysicalStreamAggDeduplicate_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalStreamAgg.h"
 
 namespace gpopt

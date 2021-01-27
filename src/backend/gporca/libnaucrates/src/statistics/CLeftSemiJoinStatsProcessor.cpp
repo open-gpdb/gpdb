@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/statistics/CLeftSemiJoinStatsProcessor.h"
-
 #include "naucrates/statistics/CGroupByStatsProcessor.h"
 
 using namespace gpopt;

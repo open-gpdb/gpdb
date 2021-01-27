@@ -12,7 +12,6 @@
 #define GPOS_CLogicalNAryJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalJoin.h"
 
 namespace gpopt

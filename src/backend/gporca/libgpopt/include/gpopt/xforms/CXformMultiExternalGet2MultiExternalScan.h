@@ -12,7 +12,6 @@
 #define GPOPT_CXformMultiExternalGet2MultiExternalScan_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformImplementation.h"
 
 namespace gpopt

@@ -13,7 +13,6 @@
 #define GPOPT_CXformCollapseGbAgg_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformExploration.h"
 
 namespace gpopt

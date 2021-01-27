@@ -9,15 +9,17 @@
 //		Implementation of general scalar operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarOp.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefSet.h"
-#include "gpopt/base/CDrvdPropScalar.h"
-#include "gpopt/mdcache/CMDAccessorUtils.h"
-#include "gpopt/operators/CExpressionHandle.h"
 #include "naucrates/md/IMDScalarOp.h"
+
+#include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSet.h"
+
+#include "gpopt/mdcache/CMDAccessorUtils.h"
+
+#include "gpopt/operators/CScalarOp.h"
+#include "gpopt/operators/CExpressionHandle.h"
 
 
 using namespace gpopt;

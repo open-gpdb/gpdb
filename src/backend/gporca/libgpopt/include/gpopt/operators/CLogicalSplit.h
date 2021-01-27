@@ -12,9 +12,8 @@
 #define GPOPT_CLogicalSplit_H
 
 #include "gpos/base.h"
-
-#include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CLogical.h"
+#include "gpopt/operators/CExpressionHandle.h"
 
 namespace gpopt
 {

@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/statistics/CUnionAllStatsProcessor.h"
-
 #include "naucrates/statistics/CStatisticsUtils.h"
 
 using namespace gpopt;

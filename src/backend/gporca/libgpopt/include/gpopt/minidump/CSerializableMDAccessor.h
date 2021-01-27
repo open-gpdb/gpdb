@@ -13,7 +13,6 @@
 
 #include "gpos/base.h"
 #include "gpos/error/CSerializable.h"
-
 #include "gpopt/operators/CExpression.h"
 
 using namespace gpos;

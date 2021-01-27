@@ -10,24 +10,20 @@
 //		logical expression to be optimized
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CExpressionPreprocessor.h"
-
 #include "gpos/base.h"
-#include "gpos/common/CAutoRef.h"
-#include "gpos/common/CAutoTimer.h"
-
+#include "gpopt/base/CUtils.h"
 #include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CColRefTable.h"
 #include "gpopt/base/CConstraintInterval.h"
-#include "gpopt/base/CUtils.h"
+#include "gpos/common/CAutoTimer.h"
+#include "gpos/common/CAutoRef.h"
 #include "gpopt/exception.h"
-#include "gpopt/mdcache/CMDAccessor.h"
-#include "gpopt/operators/CExpressionFactorizer.h"
-#include "gpopt/operators/CExpressionUtils.h"
+
+#include "gpopt/operators/CWindowPreprocessor.h"
+#include "gpopt/operators/CLogicalConstTableGet.h"
 #include "gpopt/operators/CLogicalCTEAnchor.h"
 #include "gpopt/operators/CLogicalCTEConsumer.h"
 #include "gpopt/operators/CLogicalCTEProducer.h"
-#include "gpopt/operators/CLogicalConstTableGet.h"
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CLogicalInnerJoin.h"
 #include "gpopt/operators/CLogicalLimit.h"
@@ -37,8 +33,11 @@
 #include "gpopt/operators/CLogicalSetOp.h"
 #include "gpopt/operators/CLogicalUnion.h"
 #include "gpopt/operators/CLogicalUnionAll.h"
-#include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/CPredicateUtils.h"
+#include "gpopt/operators/CNormalizer.h"
+#include "gpopt/operators/CExpressionUtils.h"
+#include "gpopt/operators/CExpressionFactorizer.h"
+#include "gpopt/operators/CExpressionPreprocessor.h"
 #include "gpopt/operators/CScalarCmp.h"
 #include "gpopt/operators/CScalarIdent.h"
 #include "gpopt/operators/CScalarNAryJoinPredList.h"
@@ -48,12 +47,14 @@
 #include "gpopt/operators/CScalarSubqueryAny.h"
 #include "gpopt/operators/CScalarSubqueryExists.h"
 #include "gpopt/operators/CScalarSubqueryQuantified.h"
-#include "gpopt/operators/CWindowPreprocessor.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
+
+#include "gpopt/mdcache/CMDAccessor.h"
 #include "gpopt/xforms/CXform.h"
 #include "naucrates/md/IMDScalarOp.h"
 #include "naucrates/md/IMDType.h"
 #include "naucrates/statistics/CStatistics.h"
+
 #include "naucrates/traceflags/traceflags.h"
 
 using namespace gpopt;

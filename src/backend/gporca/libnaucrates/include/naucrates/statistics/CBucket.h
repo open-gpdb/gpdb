@@ -13,9 +13,8 @@
 #define GPNAUCRATES_CBucket_H
 
 #include "gpos/base.h"
-#include "gpos/error/CAutoTrace.h"
 #include "gpos/task/CTask.h"
-
+#include "gpos/error/CAutoTrace.h"
 #include "naucrates/statistics/CPoint.h"
 #include "naucrates/statistics/IBucket.h"
 

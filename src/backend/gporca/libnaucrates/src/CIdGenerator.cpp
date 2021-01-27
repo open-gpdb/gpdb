@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/CIdGenerator.h"
-
 #include "gpos/base.h"
 
 using namespace gpdxl;

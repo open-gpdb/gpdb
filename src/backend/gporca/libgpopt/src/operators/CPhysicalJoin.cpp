@@ -10,19 +10,21 @@
 //---------------------------------------------------------------------------
 
 #include "gpos/base.h"
+#include "gpopt/exception.h"
 
+#include "gpopt/base/CUtils.h"
 #include "gpopt/base/CCastUtils.h"
 #include "gpopt/base/CDistributionSpecAny.h"
 #include "gpopt/base/CDistributionSpecReplicated.h"
-#include "gpopt/base/CUtils.h"
-#include "gpopt/exception.h"
+
+#include "naucrates/md/IMDScalarOp.h"
+
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CPhysicalInnerIndexNLJoin.h"
 #include "gpopt/operators/CPhysicalLeftOuterIndexNLJoin.h"
 #include "gpopt/operators/CPredicateUtils.h"
 #include "gpopt/operators/CScalarCmp.h"
 #include "gpopt/operators/CScalarIsDistinctFrom.h"
-#include "naucrates/md/IMDScalarOp.h"
 
 using namespace gpopt;
 

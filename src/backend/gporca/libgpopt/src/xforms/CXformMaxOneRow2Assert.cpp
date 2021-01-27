@@ -9,12 +9,10 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformMaxOneRow2Assert.h"
-
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalMaxOneRow.h"
 #include "gpopt/operators/CPatternLeaf.h"
+#include "gpopt/xforms/CXformMaxOneRow2Assert.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 

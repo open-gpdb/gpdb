@@ -9,10 +9,8 @@
 //		Implementation of scalar subquery ALL operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarSubqueryAll.h"
-
 #include "gpos/base.h"
-
+#include "gpopt/operators/CScalarSubqueryAll.h"
 #include "gpopt/base/CUtils.h"
 
 using namespace gpopt;

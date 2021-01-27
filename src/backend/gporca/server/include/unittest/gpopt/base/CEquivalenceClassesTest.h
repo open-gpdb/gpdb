@@ -7,7 +7,6 @@
 #define GPOPT_CEquivalenceClassesTest_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CColRefSet.h"
 
 namespace gpopt

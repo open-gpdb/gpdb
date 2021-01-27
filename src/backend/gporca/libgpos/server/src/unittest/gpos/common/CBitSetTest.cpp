@@ -9,14 +9,15 @@
 //      Test for CBitSet
 //---------------------------------------------------------------------------
 
-#include "unittest/gpos/common/CBitSetTest.h"
-
 #include "gpos/base.h"
-#include "gpos/common/CBitSet.h"
 #include "gpos/io/COstreamString.h"
-#include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/string/CWStringDynamic.h"
+
+#include "gpos/common/CBitSet.h"
+#include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
+
+#include "unittest/gpos/common/CBitSetTest.h"
 
 using namespace gpos;
 

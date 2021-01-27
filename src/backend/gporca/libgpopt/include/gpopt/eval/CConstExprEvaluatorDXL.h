@@ -20,11 +20,13 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRef.h"
 #include "gpopt/eval/IConstExprEvaluator.h"
+#include "gpopt/base/CColRef.h"
 #include "gpopt/translate/CTranslatorDXLToExpr.h"
 #include "gpopt/translate/CTranslatorExprToDXL.h"
+
 #include "naucrates/dxl/operators/CDXLNode.h"
+
 #include "naucrates/md/CMDName.h"
 
 // forward declaration

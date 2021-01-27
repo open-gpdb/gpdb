@@ -12,9 +12,8 @@
 #define GPOPT_CScalarProjectList_H
 
 #include "gpos/base.h"
-
-#include "gpopt/base/CDrvdProp.h"
 #include "gpopt/operators/CScalar.h"
+#include "gpopt/base/CDrvdProp.h"
 
 namespace gpopt
 {

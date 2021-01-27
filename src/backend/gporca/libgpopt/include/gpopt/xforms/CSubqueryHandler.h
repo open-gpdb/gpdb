@@ -13,7 +13,6 @@
 #define GPOPT_CSubqueryHandler_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CExpression.h"
 
 namespace gpopt

@@ -12,7 +12,6 @@
 #define GPDXL_CDXLProperties_H
 
 #include "gpos/base.h"
-
 #include "naucrates/md/CDXLStatsDerivedRelation.h"
 
 namespace gpdxl

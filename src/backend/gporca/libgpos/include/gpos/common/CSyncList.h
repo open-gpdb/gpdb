@@ -18,8 +18,9 @@
 #ifndef GPOS_CSyncList_H
 #define GPOS_CSyncList_H
 
-#include "gpos/common/CList.h"
 #include "gpos/types.h"
+
+#include "gpos/common/CList.h"
 
 namespace gpos
 {

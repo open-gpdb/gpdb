@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/parser/CParseHandlerPhysicalDynamicBitmapTableScan.h"
-
 #include "naucrates/dxl/xml/dxltokens.h"
 
 using namespace gpdxl;

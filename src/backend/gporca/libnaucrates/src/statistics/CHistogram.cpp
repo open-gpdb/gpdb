@@ -10,19 +10,20 @@
 //---------------------------------------------------------------------------
 
 
+#include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/statistics/CHistogram.h"
-
-#include "gpos/common/syslibwrapper.h"
+#include "naucrates/dxl/operators/CDXLScalarConstValue.h"
+#include "naucrates/dxl/CDXLUtils.h"
 #include "gpos/io/COstreamString.h"
 #include "gpos/string/CWStringDynamic.h"
+#include "gpos/common/syslibwrapper.h"
 
-#include "gpopt/base/CColRef.h"
-#include "naucrates/dxl/CDXLUtils.h"
-#include "naucrates/dxl/operators/CDXLScalarConstValue.h"
-#include "naucrates/statistics/CLeftAntiSemiJoinStatsProcessor.h"
-#include "naucrates/statistics/CScaleFactorUtils.h"
 #include "naucrates/statistics/CStatistics.h"
 #include "naucrates/statistics/CStatisticsUtils.h"
+#include "naucrates/statistics/CLeftAntiSemiJoinStatsProcessor.h"
+#include "naucrates/statistics/CScaleFactorUtils.h"
+
+#include "gpopt/base/CColRef.h"
 
 using namespace gpnaucrates;
 using namespace gpopt;

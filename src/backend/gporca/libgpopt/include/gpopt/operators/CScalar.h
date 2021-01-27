@@ -12,11 +12,13 @@
 #define GPOPT_CScalar_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CDrvdProp.h"
 #include "gpopt/base/CPartInfo.h"
+
 #include "gpopt/mdcache/CMDAccessor.h"
 #include "gpopt/operators/COperator.h"
+
+
 #include "naucrates/md/IMDId.h"
 
 namespace gpopt

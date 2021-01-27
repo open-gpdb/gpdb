@@ -12,10 +12,9 @@
 #define GPNAUCRATES_CStatsPredArrayCmp_H
 
 #include "gpos/base.h"
-
 #include "naucrates/md/IMDType.h"
-#include "naucrates/statistics/CPoint.h"
 #include "naucrates/statistics/CStatsPred.h"
+#include "naucrates/statistics/CPoint.h"
 
 // fwd declarations
 namespace gpopt

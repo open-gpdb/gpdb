@@ -9,14 +9,13 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformInsert2DML.h"
-
 #include "gpos/base.h"
+#include "gpopt/xforms/CXformInsert2DML.h"
+#include "gpopt/xforms/CXformUtils.h"
 
-#include "gpopt/metadata/CTableDescriptor.h"
 #include "gpopt/operators/CLogicalInsert.h"
 #include "gpopt/operators/CPatternLeaf.h"
-#include "gpopt/xforms/CXformUtils.h"
+#include "gpopt/metadata/CTableDescriptor.h"
 
 using namespace gpopt;
 

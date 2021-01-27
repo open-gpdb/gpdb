@@ -9,15 +9,17 @@
 //		Implementation of scalar MinMax operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarMinMax.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/COptCtxt.h"
+
 #include "gpopt/mdcache/CMDAccessorUtils.h"
+
+#include "gpopt/operators/CScalarMinMax.h"
 #include "gpopt/operators/CExpressionHandle.h"
+
 #include "naucrates/md/IMDTypeBool.h"
 
 using namespace gpopt;

@@ -20,10 +20,11 @@
 #ifndef GPOS_CSyncPool_H
 #define GPOS_CSyncPool_H
 
-#include "gpos/common/CAutoP.h"
-#include "gpos/task/ITask.h"
 #include "gpos/types.h"
 #include "gpos/utils.h"
+
+#include "gpos/common/CAutoP.h"
+#include "gpos/task/ITask.h"
 
 #define BYTES_PER_ULONG (GPOS_SIZEOF(ULONG))
 #define BITS_PER_ULONG (BYTES_PER_ULONG * 8)

@@ -12,7 +12,6 @@
 #define GPOPT_CXformImplementTVFNoArgs_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformImplementTVF.h"
 
 namespace gpopt

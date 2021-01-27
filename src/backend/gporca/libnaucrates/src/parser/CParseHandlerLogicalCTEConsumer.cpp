@@ -10,11 +10,10 @@
 //		operators
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/parser/CParseHandlerLogicalCTEConsumer.h"
-
-#include "naucrates/dxl/operators/CDXLLogicalCTEConsumer.h"
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
+#include "naucrates/dxl/operators/CDXLLogicalCTEConsumer.h"
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerLogicalCTEConsumer.h"
 
 using namespace gpdxl;
 

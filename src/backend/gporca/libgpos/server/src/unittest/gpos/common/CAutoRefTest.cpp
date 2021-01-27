@@ -9,12 +9,13 @@
 //		Tests for CAutoRef
 //---------------------------------------------------------------------------
 
-#include "unittest/gpos/common/CAutoRefTest.h"
-
 #include "gpos/base.h"
+
 #include "gpos/common/CAutoRef.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
+
+#include "unittest/gpos/common/CAutoRefTest.h"
 
 using namespace gpos;
 

@@ -10,13 +10,15 @@
 //---------------------------------------------------------------------------
 
 
-#include "naucrates/md/CDXLColStats.h"
-
-#include "gpos/common/CAutoRef.h"
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/md/CDXLColStats.h"
+
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "naucrates/dxl/CDXLUtils.h"
+
+#include "gpos/common/CAutoRef.h"
+
 #include "naucrates/statistics/CStatistics.h"
 
 using namespace gpdxl;

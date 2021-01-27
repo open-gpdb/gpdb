@@ -17,7 +17,6 @@
 #define GPDXL_CGPDBAttOptCol_H
 
 #include "gpos/common/CRefCount.h"
-
 #include "gpopt/translate/CGPDBAttInfo.h"
 #include "gpopt/translate/COptColInfo.h"
 

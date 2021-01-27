@@ -9,9 +9,9 @@
 //		Implementation of the DXL memory manager to be plugged in Xerces.
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/xml/CDXLMemoryManager.h"
-
 #include "gpos/base.h"
+
+#include "naucrates/dxl/xml/CDXLMemoryManager.h"
 
 using namespace gpdxl;
 

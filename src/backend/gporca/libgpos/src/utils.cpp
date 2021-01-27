@@ -8,9 +8,8 @@
 //	@doc:
 //		Various utilities which are not necessarily gpos specific
 //---------------------------------------------------------------------------
-#include "gpos/utils.h"
-
 #include "gpos/types.h"
+#include "gpos/utils.h"
 
 // using 16 addresses a line fits exactly into 80 characters
 #define GPOS_MEM_BPL 16

@@ -10,11 +10,10 @@
 //		Implementation of the SAX parse handler class for a case test
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/parser/CParseHandlerScalarCaseTest.h"
-
+#include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerScalarCaseTest.h"
 
 using namespace gpdxl;
 

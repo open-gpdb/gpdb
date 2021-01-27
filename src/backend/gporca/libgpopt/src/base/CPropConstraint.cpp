@@ -9,14 +9,13 @@
 //		Implementation of constraint property
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CPropConstraint.h"
-
 #include "gpos/base.h"
-#include "gpos/error/CAutoTrace.h"
 
-#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CConstraintConjunction.h"
+#include "gpopt/base/CPropConstraint.h"
+#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/COptCtxt.h"
+#include "gpos/error/CAutoTrace.h"
 
 using namespace gpopt;
 

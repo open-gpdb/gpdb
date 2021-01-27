@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerScalarSwitchCase_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLScalarSwitchCase.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+#include "naucrates/dxl/operators/CDXLScalarSwitchCase.h"
 
 
 namespace gpdxl

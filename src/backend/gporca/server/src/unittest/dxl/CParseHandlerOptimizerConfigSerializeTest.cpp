@@ -1,15 +1,12 @@
 //	Greenplum Database
 //	Copyright (C) 2018 Pivotal, Inc.
 
-#include "unittest/dxl/CParseHandlerOptimizerConfigSerializeTest.h"
-
 #include "gpos/io/COstreamString.h"
-
+#include "unittest/dxl/CParseHandlerOptimizerConfigSerializeTest.h"
+#include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "unittest/gpopt/CTestUtils.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
 #include "naucrates/dxl/CDXLUtils.h"
-#include "naucrates/dxl/xml/CXMLSerializer.h"
-
-#include "unittest/gpopt/CTestUtils.h"
 
 namespace
 {

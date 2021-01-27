@@ -14,8 +14,9 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRef.h"
 #include "naucrates/md/IMDCacheObject.h"
+
+#include "gpopt/base/CColRef.h"
 
 // fwd decl
 namespace gpdxl

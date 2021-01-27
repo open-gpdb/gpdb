@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerTraceFlags_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
 
 // fwd decl

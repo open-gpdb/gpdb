@@ -9,41 +9,45 @@
 //		Implementation of the utility methods for parsing and searializing DXL.
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/CDXLUtils.h"
-
-#include <xercesc/framework/MemBufInputSource.hpp>
-#include <xercesc/sax2/SAX2XMLReader.hpp>
-#include <xercesc/sax2/XMLReaderFactory.hpp>
-#include <xercesc/util/Base64.hpp>
-#include <xercesc/util/XMLString.hpp>
-
 #include "gpos/base.h"
+#include "gpos/common/CAutoTimer.h"
 #include "gpos/common/CAutoRef.h"
 #include "gpos/common/CAutoRg.h"
-#include "gpos/common/CAutoTimer.h"
+
+#include "gpos/io/ioutils.h"
 #include "gpos/io/CFileReader.h"
 #include "gpos/io/COstreamString.h"
-#include "gpos/io/ioutils.h"
 #include "gpos/task/CAutoTraceFlag.h"
-#include "gpos/task/CTraceFlagIter.h"
 #include "gpos/task/CWorker.h"
+#include "gpos/task/CTraceFlagIter.h"
 
-#include "gpopt/base/COptCtxt.h"
 #include "gpopt/engine/CEnumeratorConfig.h"
 #include "gpopt/engine/CStatisticsConfig.h"
-#include "gpopt/mdcache/CMDAccessor.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
+
 #include "naucrates/base/CQueryToDXLResult.h"
+#include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/dxl/parser/CParseHandlerDXL.h"
-#include "naucrates/dxl/parser/CParseHandlerDummy.h"
+#include "naucrates/dxl/parser/CParseHandlerPlan.h"
+
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerManager.h"
-#include "naucrates/dxl/parser/CParseHandlerPlan.h"
+#include "naucrates/dxl/parser/CParseHandlerDummy.h"
 #include "naucrates/dxl/xml/CDXLMemoryManager.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
-#include "naucrates/md/CDXLStatsDerivedRelation.h"
+#include "gpopt/mdcache/CMDAccessor.h"
+#include "gpopt/base/COptCtxt.h"
+
 #include "naucrates/md/CMDRequest.h"
+#include "naucrates/md/CDXLStatsDerivedRelation.h"
+
 #include "naucrates/traceflags/traceflags.h"
+
+#include <xercesc/sax2/SAX2XMLReader.hpp>
+#include <xercesc/sax2/XMLReaderFactory.hpp>
+#include <xercesc/framework/MemBufInputSource.hpp>
+#include <xercesc/util/XMLString.hpp>
+#include <xercesc/util/Base64.hpp>
 
 using namespace gpdxl;
 using namespace gpmd;

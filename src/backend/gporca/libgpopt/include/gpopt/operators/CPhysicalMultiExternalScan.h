@@ -13,7 +13,6 @@
 #define GPOPT_CPhysicalMultiExternalScan_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalDynamicScan.h"
 
 namespace gpopt

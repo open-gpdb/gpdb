@@ -14,7 +14,6 @@
 #define GPDXL_CDXLPhysical_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLOperator.h"
 #include "naucrates/dxl/operators/CDXLPhysicalProperties.h"
 

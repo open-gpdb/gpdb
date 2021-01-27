@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerIndexScan_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLPhysicalIndexScan.h"
 #include "naucrates/dxl/parser/CParseHandlerPhysicalOp.h"
+#include "naucrates/dxl/operators/CDXLPhysicalIndexScan.h"
 #include "naucrates/dxl/xml/dxltokens.h"
 
 namespace gpdxl

@@ -9,14 +9,15 @@
 //		Implementation of scalar arrays
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarArray.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefSet.h"
-#include "gpopt/base/CDrvdPropScalar.h"
-#include "gpopt/operators/CExpressionHandle.h"
 #include "naucrates/md/IMDAggregate.h"
+
+#include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSet.h"
+
+#include "gpopt/operators/CScalarArray.h"
+#include "gpopt/operators/CExpressionHandle.h"
 
 
 using namespace gpopt;

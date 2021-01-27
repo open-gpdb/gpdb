@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
-
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 
 

@@ -10,9 +10,8 @@
 //		There used to be an assertion for that here, but it was too fragile.
 //---------------------------------------------------------------------------
 
-#include "gpos/common/CHeapObject.h"
-
 #include "gpos/utils.h"
+#include "gpos/common/CHeapObject.h"
 
 using namespace gpos;
 

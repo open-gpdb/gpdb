@@ -10,10 +10,11 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarIfStmt.h"
-
-#include "gpopt/mdcache/CMDAccessor.h"
+#include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+
+#include "gpopt/mdcache/CMDAccessor.h"
 
 using namespace gpopt;
 using namespace gpos;

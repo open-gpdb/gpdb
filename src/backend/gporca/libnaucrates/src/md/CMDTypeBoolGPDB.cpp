@@ -10,14 +10,16 @@
 //		MD cache
 //---------------------------------------------------------------------------
 
-#include "naucrates/md/CMDTypeBoolGPDB.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/base/CDatumBoolGPDB.h"
-#include "naucrates/dxl/CDXLUtils.h"
-#include "naucrates/dxl/operators/CDXLDatumBool.h"
+#include "naucrates/md/CMDTypeBoolGPDB.h"
+
 #include "naucrates/dxl/operators/CDXLScalarConstValue.h"
+#include "naucrates/dxl/operators/CDXLDatumBool.h"
+#include "naucrates/dxl/CDXLUtils.h"
+
+#include "naucrates/base/CDatumBoolGPDB.h"
+
 #include "naucrates/md/CMDIdGPDB.h"
 
 using namespace gpdxl;

@@ -9,11 +9,9 @@
 //		Tests for CMemoryPoolBasicTest
 //---------------------------------------------------------------------------
 
-#include "unittest/gpos/memory/CMemoryPoolBasicTest.h"
-
 #include "gpos/assert.h"
-#include "gpos/common/CAutoTimer.h"
 #include "gpos/common/clibwrapper.h"
+#include "gpos/common/CAutoTimer.h"
 #include "gpos/error/CErrorHandlerStandard.h"
 #include "gpos/error/CException.h"
 #include "gpos/io/COstreamString.h"
@@ -24,6 +22,8 @@
 #include "gpos/task/CAutoTraceFlag.h"
 #include "gpos/task/CWorkerPoolManager.h"
 #include "gpos/test/CUnittest.h"
+
+#include "unittest/gpos/memory/CMemoryPoolBasicTest.h"
 
 #define GPOS_MEM_TEST_ALLOC_SMALL (8)
 #define GPOS_MEM_TEST_ALLOC_LARGE (256)

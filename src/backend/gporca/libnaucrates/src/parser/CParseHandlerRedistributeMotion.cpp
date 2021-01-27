@@ -10,8 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/parser/CParseHandlerRedistributeMotion.h"
-
-#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerFilter.h"
 #include "naucrates/dxl/parser/CParseHandlerHashExprList.h"
@@ -20,6 +18,8 @@
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
 #include "naucrates/dxl/parser/CParseHandlerSortColList.h"
 #include "naucrates/dxl/parser/CParseHandlerUtils.h"
+
+#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
 
 
 using namespace gpdxl;

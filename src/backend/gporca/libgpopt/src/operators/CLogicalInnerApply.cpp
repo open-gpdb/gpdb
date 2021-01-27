@@ -9,9 +9,9 @@
 //		Implementation of inner apply operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CLogicalInnerApply.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/operators/CLogicalInnerApply.h"
 
 using namespace gpopt;
 

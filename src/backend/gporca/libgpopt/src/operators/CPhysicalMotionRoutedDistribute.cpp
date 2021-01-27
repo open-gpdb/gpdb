@@ -9,11 +9,10 @@
 //		Implementation of routed distribute motion operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CPhysicalMotionRoutedDistribute.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalMotionRoutedDistribute.h"
 
 using namespace gpopt;
 

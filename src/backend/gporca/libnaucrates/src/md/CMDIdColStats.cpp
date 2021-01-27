@@ -11,7 +11,6 @@
 
 
 #include "naucrates/md/CMDIdColStats.h"
-
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;

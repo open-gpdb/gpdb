@@ -5,9 +5,8 @@
 #define GPDXL_CCostModelConfigSerializer_H
 
 #include <gpopt/cost/ICostModel.h>
-
-#include "gpos/common/CAutoP.h"
 #include "gpos/memory/CMemoryPool.h"
+#include "gpos/common/CAutoP.h"
 
 
 namespace gpdxl

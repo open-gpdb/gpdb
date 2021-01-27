@@ -14,9 +14,8 @@
 #define GPOPT_CScalarNAryJoinPredList_H
 
 #include "gpos/base.h"
-
-#include "gpopt/base/CDrvdProp.h"
 #include "gpopt/operators/CScalar.h"
+#include "gpopt/base/CDrvdProp.h"
 
 // child number of CScalarNAryJoinPredList expression that contains inner join predicates, must be zero
 #define GPOPT_ZERO_INNER_JOIN_PRED_INDEX 0

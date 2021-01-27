@@ -9,19 +9,18 @@
 //		Test for installcheck-good bugs
 //---------------------------------------------------------------------------
 
-#include "unittest/gpopt/minidump/CICGTest.h"
-
 #include "gpos/error/CAutoTrace.h"
 #include "gpos/task/CAutoTraceFlag.h"
 
 #include "gpopt/base/CAutoOptCtxt.h"
-#include "gpopt/engine/CCTEConfig.h"
-#include "gpopt/engine/CEnumeratorConfig.h"
-#include "gpopt/engine/CStatisticsConfig.h"
 #include "gpopt/exception.h"
+#include "gpopt/engine/CEnumeratorConfig.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
+#include "gpopt/engine/CStatisticsConfig.h"
+#include "gpopt/engine/CCTEConfig.h"
 #include "gpopt/mdcache/CMDCache.h"
 #include "gpopt/minidump/CMinidumperUtils.h"
-#include "gpopt/optimizer/COptimizerConfig.h"
+
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/operators/CDXLPhysicalNLJoin.h"
 #include "naucrates/exception.h"
@@ -29,6 +28,7 @@
 #include "unittest/base.h"
 #include "unittest/gpopt/CConstExprEvaluatorForDates.h"
 #include "unittest/gpopt/CTestUtils.h"
+#include "unittest/gpopt/minidump/CICGTest.h"
 
 using namespace gpdxl;
 

@@ -17,7 +17,6 @@
 #include "gpos/base.h"
 #include "gpos/common/CDynamicPtrArray.h"
 #include "gpos/common/CRefCount.h"
-
 #include "naucrates/md/CMDName.h"
 
 using namespace gpmd;

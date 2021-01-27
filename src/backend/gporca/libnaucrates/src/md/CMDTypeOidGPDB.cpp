@@ -10,15 +10,16 @@
 //		the MD cache
 //---------------------------------------------------------------------------
 
-#include "naucrates/md/CMDTypeOidGPDB.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/base/CDatumOidGPDB.h"
-#include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/md/CMDTypeOidGPDB.h"
+
+#include "naucrates/dxl/operators/CDXLScalarConstValue.h"
 #include "naucrates/dxl/operators/CDXLDatum.h"
 #include "naucrates/dxl/operators/CDXLDatumOid.h"
-#include "naucrates/dxl/operators/CDXLScalarConstValue.h"
+#include "naucrates/dxl/CDXLUtils.h"
+
+#include "naucrates/base/CDatumOidGPDB.h"
 
 using namespace gpdxl;
 using namespace gpmd;

@@ -9,9 +9,8 @@
 //		Implementation of basic wide character output stream
 //---------------------------------------------------------------------------
 
-#include "gpos/io/COstream.h"
-
 #include "gpos/common/clibwrapper.h"
+#include "gpos/io/COstream.h"
 
 using namespace gpos;
 

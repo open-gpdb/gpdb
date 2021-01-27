@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerPhysicalWindow_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLWindowKey.h"
 #include "naucrates/dxl/parser/CParseHandlerPhysicalOp.h"
+#include "naucrates/dxl/operators/CDXLWindowKey.h"
 
 
 namespace gpdxl

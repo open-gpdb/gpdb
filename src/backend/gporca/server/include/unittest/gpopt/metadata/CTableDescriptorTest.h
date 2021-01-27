@@ -14,8 +14,9 @@
 #include "gpos/base.h"
 #include "gpos/common/CDynamicPtrArray.h"
 
-#include "gpopt/base/CColRef.h"
 #include "gpopt/metadata/CColumnDescriptor.h"
+#include "gpopt/base/CColRef.h"
+
 #include "gpopt/metadata/CTableDescriptor.h"
 
 namespace gpopt

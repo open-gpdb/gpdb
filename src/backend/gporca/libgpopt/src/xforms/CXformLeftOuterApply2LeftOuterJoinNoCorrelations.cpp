@@ -9,11 +9,9 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformLeftOuterApply2LeftOuterJoinNoCorrelations.h"
-
 #include "gpos/base.h"
-
 #include "gpopt/base/CUtils.h"
+#include "gpopt/xforms/CXformLeftOuterApply2LeftOuterJoinNoCorrelations.h"
 
 
 using namespace gpopt;

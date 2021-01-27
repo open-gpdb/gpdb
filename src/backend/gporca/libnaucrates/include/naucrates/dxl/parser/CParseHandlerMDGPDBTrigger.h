@@ -13,8 +13,9 @@
 #define GPDXL_CParseHandlerMDGPDBTrigger_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerMetadataObject.h"
+
+
 #include "naucrates/md/CMDTriggerGPDB.h"
 
 

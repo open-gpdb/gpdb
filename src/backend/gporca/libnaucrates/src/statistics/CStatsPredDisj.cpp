@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/statistics/CStatsPredDisj.h"
-
 #include "naucrates/statistics/CStatisticsUtils.h"
 
 using namespace gpnaucrates;

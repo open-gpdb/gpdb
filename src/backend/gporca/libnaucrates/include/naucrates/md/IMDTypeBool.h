@@ -17,6 +17,7 @@
 #include "gpos/base.h"
 
 #include "naucrates/dxl/gpdb_types.h"
+
 #include "naucrates/md/IMDType.h"
 
 // fwd decl

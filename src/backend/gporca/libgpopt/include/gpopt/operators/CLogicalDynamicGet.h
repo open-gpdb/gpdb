@@ -12,7 +12,6 @@
 #define GPOPT_CLogicalDynamicGet_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalDynamicGetBase.h"
 
 namespace gpopt

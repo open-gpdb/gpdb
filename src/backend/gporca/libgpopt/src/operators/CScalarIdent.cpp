@@ -9,12 +9,11 @@
 //		Implementation of scalar identity operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarIdent.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CColRefTable.h"
+#include "gpopt/operators/CScalarIdent.h"
 #include "gpopt/operators/CScalarFunc.h"
 
 

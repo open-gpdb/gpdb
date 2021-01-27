@@ -15,10 +15,9 @@
 //
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformSelect2BitmapBoolOp.h"
-
 #include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/operators/CLogicalSelect.h"
+#include "gpopt/xforms/CXformSelect2BitmapBoolOp.h"
 #include "gpopt/xforms/CXformUtils.h"
 
 using namespace gpmd;

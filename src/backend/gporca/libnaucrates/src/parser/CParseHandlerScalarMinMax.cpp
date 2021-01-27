@@ -11,11 +11,10 @@
 //---------------------------------------------------------------------------
 
 
-#include "naucrates/dxl/parser/CParseHandlerScalarMinMax.h"
-
+#include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-#include "naucrates/dxl/parser/CParseHandlerFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerScalarMinMax.h"
 
 
 using namespace gpdxl;

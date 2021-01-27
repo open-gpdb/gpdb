@@ -9,12 +9,13 @@
 //		Tests for CAutoRg
 //---------------------------------------------------------------------------
 
-#include "unittest/gpos/common/CAutoRgTest.h"
-
 #include "gpos/base.h"
+
 #include "gpos/common/CAutoRg.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
+
+#include "unittest/gpos/common/CAutoRgTest.h"
 
 using namespace gpos;
 

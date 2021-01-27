@@ -12,7 +12,6 @@
 #define GPOS_CPhysicalAgg_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CPhysical.h"

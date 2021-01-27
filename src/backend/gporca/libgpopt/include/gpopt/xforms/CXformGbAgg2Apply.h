@@ -12,7 +12,6 @@
 #define GPOPT_CXformGbAgg2Apply_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformSubqueryUnnest.h"
 
 namespace gpopt

@@ -8,16 +8,15 @@
 //	@doc:
 //		Implementation of histogram bucket
 //---------------------------------------------------------------------------
-#include "naucrates/statistics/CBucket.h"
-
 #include <stdlib.h>
-
 #include "gpos/base.h"
 
-#include "gpopt/base/COptCtxt.h"
 #include "naucrates/base/IDatum.h"
-#include "naucrates/statistics/CStatistics.h"
+#include "naucrates/statistics/CBucket.h"
 #include "naucrates/statistics/CStatisticsUtils.h"
+#include "naucrates/statistics/CStatistics.h"
+
+#include "gpopt/base/COptCtxt.h"
 
 using namespace gpnaucrates;
 

@@ -13,7 +13,6 @@
 #define GPDXL_CDXLPhysicalWindow_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/operators/CDXLPhysical.h"
 #include "naucrates/dxl/operators/CDXLWindowKey.h"

@@ -13,7 +13,6 @@
 #define GPOPT_CNormalizer_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CExpression.h"
 
 namespace gpopt

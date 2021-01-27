@@ -8,7 +8,6 @@
 #define GPOPT_CPhysicalLeftOuterIndexNLJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalLeftOuterNLJoin.h"
 
 namespace gpopt

@@ -12,10 +12,9 @@
 #define GPOPT_CEnumeratorTest_H
 
 #include "gpos/base.h"
-
-#include "gpopt/engine/CEnumeratorConfig.h"
-#include "gpopt/operators/CExpression.h"
 #include "naucrates/traceflags/traceflags.h"
+#include "gpopt/operators/CExpression.h"
+#include "gpopt/engine/CEnumeratorConfig.h"
 
 using namespace gpos;
 

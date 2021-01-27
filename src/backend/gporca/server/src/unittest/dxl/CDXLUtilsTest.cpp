@@ -9,15 +9,11 @@
 //		Tests DXL utility functions
 //---------------------------------------------------------------------------
 
-#include "unittest/dxl/CDXLUtilsTest.h"
-
-#include <xercesc/util/Base64.hpp>
-
 #include "gpos/base.h"
-#include "gpos/common/CAutoP.h"
-#include "gpos/common/CRandom.h"
-#include "gpos/error/CAutoTrace.h"
 #include "gpos/io/COstreamString.h"
+#include "gpos/error/CAutoTrace.h"
+#include "gpos/common/CRandom.h"
+#include "gpos/common/CAutoP.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/test/CUnittest.h"
 
@@ -25,6 +21,10 @@
 #include "naucrates/dxl/CDXLUtils.h"
 #include "naucrates/dxl/xml/CDXLMemoryManager.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+
+#include "unittest/dxl/CDXLUtilsTest.h"
+
+#include <xercesc/util/Base64.hpp>
 
 XERCES_CPP_NAMESPACE_USE
 

@@ -12,7 +12,6 @@
 #define GPOPT_CXformPushGbDedupBelowJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformPushGbBelowJoin.h"
 
 namespace gpopt

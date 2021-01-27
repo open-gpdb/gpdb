@@ -9,8 +9,6 @@
 //		Implementation of n-ary join expansion
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformExpandNAryJoin.h"
-
 #include "gpos/base.h"
 #include "gpos/memory/CAutoMemoryPool.h"
 
@@ -20,6 +18,7 @@
 #include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/CPatternMultiLeaf.h"
 #include "gpopt/operators/CPredicateUtils.h"
+#include "gpopt/xforms/CXformExpandNAryJoin.h"
 #include "gpopt/xforms/CJoinOrder.h"
 #include "gpopt/xforms/CXformUtils.h"
 

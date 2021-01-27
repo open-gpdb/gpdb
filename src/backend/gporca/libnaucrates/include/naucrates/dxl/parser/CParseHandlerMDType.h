@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerMDGPDBType_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerMetadataObject.h"
 #include "naucrates/dxl/xml/dxltokens.h"
 

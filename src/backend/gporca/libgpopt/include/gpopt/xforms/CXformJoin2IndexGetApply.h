@@ -10,7 +10,6 @@
 #define GPOPT_CXformJoin2IndexGetApply_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalJoin.h"
 #include "gpopt/operators/CPatternLeaf.h"
 #include "gpopt/operators/CPatternNode.h"

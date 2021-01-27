@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerScalarScalarOpList_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLScalarOpList.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+#include "naucrates/dxl/operators/CDXLScalarOpList.h"
 
 namespace gpdxl
 {

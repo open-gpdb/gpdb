@@ -13,10 +13,9 @@
 #define GPDXL_CDXLPhysicalTVF_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLColDescr.h"
-#include "naucrates/dxl/operators/CDXLPhysical.h"
 #include "naucrates/md/IMDId.h"
+#include "naucrates/dxl/operators/CDXLPhysical.h"
+#include "naucrates/dxl/operators/CDXLColDescr.h"
 
 namespace gpdxl
 {

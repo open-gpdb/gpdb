@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerScalarMinMax_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLScalarMinMax.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+#include "naucrates/dxl/operators/CDXLScalarMinMax.h"
 
 
 namespace gpdxl

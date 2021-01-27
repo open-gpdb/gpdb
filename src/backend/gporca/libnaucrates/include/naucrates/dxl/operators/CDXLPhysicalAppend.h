@@ -15,7 +15,6 @@
 #define GPDXL_CDXLPhysicalAppend_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLPhysical.h"
 
 namespace gpdxl

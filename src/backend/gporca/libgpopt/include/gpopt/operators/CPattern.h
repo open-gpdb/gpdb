@@ -12,7 +12,6 @@
 #define GPOPT_CPattern_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/COperator.h"
 
 namespace gpopt

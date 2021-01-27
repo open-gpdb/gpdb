@@ -14,11 +14,12 @@
 #ifndef GPDXL_CContextQueryToDXL_H
 #define GPDXL_CContextQueryToDXL_H
 
+#include "gpopt/translate/CTranslatorUtils.h"
+
 #include "gpos/base.h"
 
-#include "gpopt/translate/CTranslatorUtils.h"
-#include "naucrates/dxl/CIdGenerator.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
+#include "naucrates/dxl/CIdGenerator.h"
 
 #define GPDXL_CTE_ID_START 1
 #define GPDXL_COL_ID_START 1

@@ -15,7 +15,6 @@
 #define GPMD_CMDIndexGPDB_H
 
 #include "gpos/base.h"
-
 #include "naucrates/md/IMDIndex.h"
 
 namespace gpmd

@@ -9,17 +9,19 @@
 //		Implementation of scalar comparison operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarCmp.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/COptCtxt.h"
+
 #include "gpopt/mdcache/CMDAccessorUtils.h"
+
+#include "gpopt/operators/CScalarCmp.h"
 #include "gpopt/operators/CExpressionHandle.h"
-#include "naucrates/md/IMDScalarOp.h"
+
 #include "naucrates/md/IMDTypeBool.h"
+#include "naucrates/md/IMDScalarOp.h"
 
 using namespace gpopt;
 using namespace gpmd;

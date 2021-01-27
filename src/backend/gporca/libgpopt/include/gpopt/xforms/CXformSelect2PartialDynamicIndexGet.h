@@ -15,7 +15,6 @@
 #include "gpos/base.h"
 #include "gpos/common/CDynamicPtrArray.h"
 
-#include "gpopt/operators/CLogicalGet.h"
 #include "gpopt/xforms/CXformExploration.h"
 #include "gpopt/xforms/CXformUtils.h"
 
@@ -36,7 +35,7 @@ class CXformSelect2PartialDynamicIndexGet : public CXformExploration
 {
 private:
 	// return the column reference set of included / key columns
-	CColRefSet *GetColRefSet(CMemoryPool *mp, gpopt::CLogicalGet *popGet,
+	CColRefSet *GetColRefSet(CMemoryPool *mp, CLogicalGet *popGet,
 							 const IMDIndex *pmdindex,
 							 BOOL fIncludedColumns) const;
 

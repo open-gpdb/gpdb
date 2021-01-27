@@ -12,7 +12,6 @@
 #define GPOPT_CXformImplementCorrelatedApply_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPatternLeaf.h"
 #include "gpopt/xforms/CXformImplementation.h"
 #include "gpopt/xforms/CXformUtils.h"

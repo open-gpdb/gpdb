@@ -9,21 +9,23 @@
 //		Implementation of decorrelation logic
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CDecorrelator.h"
-
 #include "gpos/base.h"
+
 #include "gpos/io/COstreamString.h"
 #include "gpos/string/CWStringDynamic.h"
 
-#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CLogicalGbAgg.h"
 #include "gpopt/operators/CLogicalNAryJoin.h"
 #include "gpopt/operators/CLogicalSelect.h"
 #include "gpopt/operators/CLogicalSequenceProject.h"
-#include "gpopt/operators/CPredicateUtils.h"
 #include "gpopt/operators/CScalarIdent.h"
+#include "gpopt/operators/CPredicateUtils.h"
+
+#include "gpopt/xforms/CDecorrelator.h"
+
 #include "naucrates/md/IMDScalarOp.h"
 
 

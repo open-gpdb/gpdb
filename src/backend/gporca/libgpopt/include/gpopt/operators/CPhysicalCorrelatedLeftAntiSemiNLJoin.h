@@ -13,7 +13,6 @@
 #define GPOPT_CPhysicalCorrelatedLeftAntiSemiNLJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalLeftAntiSemiNLJoin.h"
 
 namespace gpopt

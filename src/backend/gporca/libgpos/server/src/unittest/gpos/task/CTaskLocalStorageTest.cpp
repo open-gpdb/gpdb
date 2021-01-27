@@ -9,8 +9,6 @@
 //		Tests for CTaskLocalStorage
 //---------------------------------------------------------------------------
 
-#include "unittest/gpos/task/CTaskLocalStorageTest.h"
-
 #include "gpos/common/CSyncHashtableAccessByKey.h"
 #include "gpos/task/CAutoTraceFlag.h"
 #include "gpos/task/CTask.h"
@@ -18,6 +16,8 @@
 #include "gpos/task/CTaskLocalStorageObject.h"
 #include "gpos/task/CTraceFlagIter.h"
 #include "gpos/test/CUnittest.h"
+
+#include "unittest/gpos/task/CTaskLocalStorageTest.h"
 
 using namespace gpos;
 

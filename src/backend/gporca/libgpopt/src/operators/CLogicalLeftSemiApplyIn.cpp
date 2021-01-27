@@ -9,9 +9,9 @@
 //		Implementation of left-semi-apply operator with In semantics
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CLogicalLeftSemiApplyIn.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/operators/CLogicalLeftSemiApplyIn.h"
 
 using namespace gpopt;
 

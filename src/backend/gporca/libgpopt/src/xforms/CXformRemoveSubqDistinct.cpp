@@ -9,8 +9,6 @@
 //		Implementation of the transform that removes distinct clause from subquery
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformRemoveSubqDistinct.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/operators/CLogicalSelect.h"
@@ -18,6 +16,7 @@
 #include "gpopt/operators/CPatternLeaf.h"
 #include "gpopt/search/CGroupProxy.h"
 #include "gpopt/xforms/CXformUtils.h"
+#include "gpopt/xforms/CXformRemoveSubqDistinct.h"
 
 using namespace gpopt;
 

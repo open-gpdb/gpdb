@@ -12,7 +12,6 @@
 #define GPNAUCRATES_CStatsPredPoint_H
 
 #include "gpos/base.h"
-
 #include "naucrates/md/IMDType.h"
 #include "naucrates/statistics/CPoint.h"
 #include "naucrates/statistics/CStatsPred.h"

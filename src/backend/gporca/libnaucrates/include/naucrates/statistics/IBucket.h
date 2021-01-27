@@ -13,7 +13,6 @@
 #define GPNAUCRATES_IBucket_H
 
 #include "gpos/base.h"
-
 #include "naucrates/statistics/CPoint.h"
 
 namespace gpnaucrates

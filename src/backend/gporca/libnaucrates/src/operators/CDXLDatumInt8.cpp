@@ -15,10 +15,9 @@
 //
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/operators/CDXLDatumInt8.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
+#include "naucrates/dxl/operators/CDXLDatumInt8.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpos;

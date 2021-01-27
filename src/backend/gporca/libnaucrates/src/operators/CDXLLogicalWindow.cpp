@@ -15,11 +15,10 @@
 //
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/operators/CDXLLogicalWindow.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
 #include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/dxl/operators/CDXLLogicalWindow.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 

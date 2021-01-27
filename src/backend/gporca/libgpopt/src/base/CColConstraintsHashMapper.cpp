@@ -1,9 +1,8 @@
 //	Greenplum Database
 //	Copyright (C) 2016 Pivotal Software, Inc.
 
-#include "gpopt/base/CColConstraintsHashMapper.h"
-
 #include "gpos/common/CAutoRef.h"
+#include "gpopt/base/CColConstraintsHashMapper.h"
 
 using namespace gpopt;
 

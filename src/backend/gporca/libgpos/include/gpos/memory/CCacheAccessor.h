@@ -17,6 +17,7 @@
 #define GPOS_CCACHEACCESSOR_H_
 
 #include "gpos/base.h"
+
 #include "gpos/memory/CCache.h"
 
 using namespace gpos;

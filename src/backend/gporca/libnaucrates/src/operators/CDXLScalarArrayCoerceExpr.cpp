@@ -15,10 +15,9 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLScalarArrayCoerceExpr.h"
-
 #include "naucrates/dxl/operators/CDXLNode.h"
-#include "naucrates/dxl/xml/CXMLSerializer.h"
 #include "naucrates/dxl/xml/dxltokens.h"
+#include "naucrates/dxl/xml/CXMLSerializer.h"
 
 using namespace gpopt;
 using namespace gpos;

@@ -12,7 +12,6 @@
 #define GPOPT_CPatternTree_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPattern.h"
 
 namespace gpopt

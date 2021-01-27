@@ -16,8 +16,8 @@
 
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRef.h"
 #include "naucrates/md/IMDInterface.h"
+#include "gpopt/base/CColRef.h"
 
 // fwd decl
 namespace gpopt

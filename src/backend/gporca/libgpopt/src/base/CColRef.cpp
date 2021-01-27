@@ -9,14 +9,12 @@
 //		Implementation of column reference class
 //---------------------------------------------------------------------------
 
+#include "gpos/base.h"
 #include "gpopt/base/CColRef.h"
 
-#include "gpos/base.h"
-
 #ifdef GPOS_DEBUG
-#include "gpos/error/CAutoTrace.h"
-
 #include "gpopt/base/COptCtxt.h"
+#include "gpos/error/CAutoTrace.h"
 #endif	// GPOS_DEBUG
 
 using namespace gpopt;

@@ -9,7 +9,6 @@
 //		Testing guc for disabling dynamic join order algorithm
 //---------------------------------------------------------------------------
 #include "unittest/gpopt/minidump/CJoinOrderDPTest.h"
-
 #include "unittest/gpopt/CTestUtils.h"
 
 

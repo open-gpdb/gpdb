@@ -9,9 +9,8 @@
 //		Implementation of transform
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformLeftAntiSemiApply2LeftAntiSemiJoin.h"
-
 #include "gpos/base.h"
+#include "gpopt/xforms/CXformLeftAntiSemiApply2LeftAntiSemiJoin.h"
 
 
 using namespace gpopt;

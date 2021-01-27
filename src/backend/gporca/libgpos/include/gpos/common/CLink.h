@@ -8,7 +8,6 @@
 #define GPOS_CLink_H
 
 
-#include <cstddef>
 namespace gpos
 {
 // Generic link to be embedded in all classes before they can use

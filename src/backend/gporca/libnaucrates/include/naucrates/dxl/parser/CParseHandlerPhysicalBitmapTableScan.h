@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerPhysicalBitmapTableScan_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerPhysicalAbstractBitmapScan.h"
 
 namespace gpdxl

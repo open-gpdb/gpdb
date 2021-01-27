@@ -9,9 +9,9 @@
 //		Implementation of scalar SwitchCase operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarSwitchCase.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/operators/CScalarSwitchCase.h"
 
 using namespace gpopt;
 using namespace gpmd;

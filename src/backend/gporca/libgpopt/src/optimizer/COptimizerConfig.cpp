@@ -9,15 +9,14 @@
 //		Implementation of configuration used by the optimizer
 //---------------------------------------------------------------------------
 
-#include "gpopt/optimizer/COptimizerConfig.h"
-
 #include "gpos/base.h"
-#include "gpos/common/CBitSetIter.h"
 #include "gpos/string/CWStringDynamic.h"
 
 #include "gpopt/cost/ICostModel.h"
+#include "gpopt/optimizer/COptimizerConfig.h"
 #include "naucrates/dxl/CCostModelConfigSerializer.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "gpos/common/CBitSetIter.h"
 
 using namespace gpopt;
 

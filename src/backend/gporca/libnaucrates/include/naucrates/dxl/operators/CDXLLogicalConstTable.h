@@ -14,10 +14,9 @@
 #define GPDXL_CDXLLogicalConstTable_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLDatum.h"
 #include "naucrates/dxl/operators/CDXLLogical.h"
 #include "naucrates/dxl/operators/CDXLTableDescr.h"
+#include "naucrates/dxl/operators/CDXLDatum.h"
 
 namespace gpdxl
 {

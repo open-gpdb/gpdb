@@ -10,12 +10,11 @@
 //---------------------------------------------------------------------------
 
 
-#include "naucrates/md/CDXLBucket.h"
-
 #include "gpos/string/CWStringDynamic.h"
 
-#include "naucrates/dxl/CDXLUtils.h"
+#include "naucrates/md/CDXLBucket.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
+#include "naucrates/dxl/CDXLUtils.h"
 
 using namespace gpdxl;
 using namespace gpmd;

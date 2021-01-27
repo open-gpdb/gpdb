@@ -12,9 +12,8 @@
 #define GPDXL_CDXLPhysicalProperties_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLOperatorCost.h"
 #include "naucrates/dxl/operators/CDXLProperties.h"
+#include "naucrates/dxl/operators/CDXLOperatorCost.h"
 
 namespace gpdxl
 {

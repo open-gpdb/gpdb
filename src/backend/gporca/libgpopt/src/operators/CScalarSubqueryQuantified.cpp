@@ -9,16 +9,18 @@
 //		Implementation of quantified subquery operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarSubqueryQuantified.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefSet.h"
+#include "naucrates/md/IMDScalarOp.h"
+
 #include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSet.h"
 #include "gpopt/base/COptCtxt.h"
+
+#include "gpopt/operators/CScalarSubqueryQuantified.h"
 #include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/xforms/CSubqueryHandler.h"
-#include "naucrates/md/IMDScalarOp.h"
+
 #include "naucrates/md/IMDTypeBool.h"
 
 using namespace gpopt;

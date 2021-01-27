@@ -9,9 +9,8 @@
 //		Join predicate list for NAry joins with some non-inner joins
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarNAryJoinPredList.h"
-
 #include "gpos/base.h"
+#include "gpopt/operators/CScalarNAryJoinPredList.h"
 
 
 using namespace gpopt;

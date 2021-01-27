@@ -13,10 +13,9 @@
 #define GPDXL_CDXLLogicalTVF_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLColDescr.h"
-#include "naucrates/dxl/operators/CDXLLogical.h"
 #include "naucrates/md/IMDId.h"
+#include "naucrates/dxl/operators/CDXLLogical.h"
+#include "naucrates/dxl/operators/CDXLColDescr.h"
 
 namespace gpdxl
 {

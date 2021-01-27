@@ -10,22 +10,23 @@
 //		accessor
 //---------------------------------------------------------------------------
 
-#include "gpopt/mdcache/CMDAccessorUtils.h"
-
 #include "gpos/base.h"
-#include "gpos/error/CErrorHandlerStandard.h"
 #include "gpos/error/CException.h"
+#include "gpos/error/CErrorHandlerStandard.h"
 #include "gpos/task/CAutoTraceFlag.h"
 
 #include "gpopt/base/COptCtxt.h"
+#include "gpopt/mdcache/CMDAccessorUtils.h"
 #include "gpopt/base/CUtils.h"
-#include "naucrates/dxl/gpdb_types.h"
+
 #include "naucrates/exception.h"
-#include "naucrates/md/CMDIdGPDB.h"
+#include "naucrates/dxl/gpdb_types.h"
+
 #include "naucrates/md/IMDAggregate.h"
-#include "naucrates/md/IMDFunction.h"
 #include "naucrates/md/IMDScCmp.h"
+#include "naucrates/md/IMDFunction.h"
 #include "naucrates/md/IMDScalarOp.h"
+#include "naucrates/md/CMDIdGPDB.h"
 
 using namespace gpmd;
 using namespace gpos;

@@ -9,9 +9,8 @@
 //		Implementation of the SAX parse handler class for parsing xform
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/parser/CParseHandlerCostParam.h"
-
 #include "naucrates/dxl/operators/CDXLOperatorFactory.h"
+#include "naucrates/dxl/parser/CParseHandlerCostParam.h"
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerManager.h"
 

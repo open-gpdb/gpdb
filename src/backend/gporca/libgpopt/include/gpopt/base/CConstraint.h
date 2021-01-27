@@ -12,11 +12,10 @@
 #define GPOPT_CConstraint_H
 
 #include "gpos/base.h"
+#include "gpos/types.h"
 #include "gpos/common/CDynamicPtrArray.h"
 #include "gpos/common/CHashMap.h"
 #include "gpos/common/CRefCount.h"
-#include "gpos/types.h"
-
 #include "gpopt/base/CColRef.h"
 #include "gpopt/base/CColRefSet.h"
 

@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerLogicalInsert_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerLogicalOp.h"
 
 

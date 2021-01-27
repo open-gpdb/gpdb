@@ -9,14 +9,13 @@
 //		Implementation of DXL-based minidump object
 //---------------------------------------------------------------------------
 
-#include "gpopt/minidump/CDXLMinidump.h"
-
 #include "gpos/common/CBitSet.h"
+#include "naucrates/dxl/operators/CDXLNode.h"
 
+#include "gpopt/minidump/CDXLMinidump.h"
 #include "gpopt/engine/CEnumeratorConfig.h"
 #include "gpopt/engine/CStatisticsConfig.h"
 #include "gpopt/optimizer/COptimizerConfig.h"
-#include "naucrates/dxl/operators/CDXLNode.h"
 
 using namespace gpos;
 using namespace gpdxl;

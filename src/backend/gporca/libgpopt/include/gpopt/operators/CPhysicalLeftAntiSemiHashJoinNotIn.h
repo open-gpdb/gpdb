@@ -12,7 +12,6 @@
 #define GPOPT_CPhysicalLeftAntiSemiHashJoinNotIn_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalLeftAntiSemiHashJoin.h"
 
 namespace gpopt

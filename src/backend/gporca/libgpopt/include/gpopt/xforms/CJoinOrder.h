@@ -12,9 +12,8 @@
 #define GPOPT_CJoinOrder_H
 
 #include "gpos/base.h"
-#include "gpos/io/IOstream.h"
-
 #include "gpopt/operators/CExpression.h"
+#include "gpos/io/IOstream.h"
 
 // id for component created for relational nodes which are not
 // the child of LOJ

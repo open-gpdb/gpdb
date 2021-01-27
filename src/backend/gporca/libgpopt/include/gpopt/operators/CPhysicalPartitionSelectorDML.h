@@ -12,7 +12,6 @@
 #define GPOPT_CPhysicalPartitionSelectorDML_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CUtils.h"
 #include "gpopt/operators/CPhysicalPartitionSelector.h"
 

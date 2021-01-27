@@ -9,9 +9,8 @@
 //		Driver for unittests
 //---------------------------------------------------------------------------
 
-#include "gpos/test/CUnittest.h"
-
 #include <stddef.h>
+
 
 #include "gpos/base.h"
 #include "gpos/common/CAutoTimer.h"
@@ -20,6 +19,7 @@
 #include "gpos/memory/CAutoMemoryPool.h"
 #include "gpos/task/CTask.h"
 #include "gpos/task/CWorker.h"
+#include "gpos/test/CUnittest.h"
 
 using namespace gpos;
 

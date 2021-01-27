@@ -12,7 +12,6 @@
 #define GPOPT_CXformSelect2Filter_H
 
 #include "gpos/base.h"
-
 #include "gpopt/xforms/CXformImplementation.h"
 
 namespace gpopt

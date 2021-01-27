@@ -19,7 +19,6 @@
 #define GPDXL_CDXLDatumInt4_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLDatum.h"
 
 namespace gpdxl

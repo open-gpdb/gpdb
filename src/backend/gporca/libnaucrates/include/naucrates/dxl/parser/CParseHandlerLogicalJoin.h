@@ -13,9 +13,8 @@
 #define GPDXL_CParseHandlerLogicalJoin_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLLogicalJoin.h"
 #include "naucrates/dxl/parser/CParseHandlerLogicalOp.h"
+#include "naucrates/dxl/operators/CDXLLogicalJoin.h"
 
 
 namespace gpdxl

@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerScalarPartitionSelector_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerPhysicalOp.h"
 
 namespace gpdxl

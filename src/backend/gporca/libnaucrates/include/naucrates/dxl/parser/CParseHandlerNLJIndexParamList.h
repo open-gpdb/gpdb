@@ -14,8 +14,6 @@
 #define GPDXL_CParseHandlerNLJIndexParamList_H
 
 #include "gpos/base.h"
-
-#include "naucrates/dxl/operators/CDXLColRef.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
 
 namespace gpdxl

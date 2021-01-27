@@ -2,7 +2,6 @@
 //	Copyright (C) 2016 Pivotal Software, Inc.
 
 #include "unittest/gpopt/minidump/CPullUpProjectElementTest.h"
-
 #include "unittest/gpopt/CTestUtils.h"
 
 namespace gpopt

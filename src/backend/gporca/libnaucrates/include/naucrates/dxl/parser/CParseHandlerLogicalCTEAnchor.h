@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerLogicalCTEAnchor_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/parser/CParseHandlerLogicalOp.h"
 
 namespace gpdxl

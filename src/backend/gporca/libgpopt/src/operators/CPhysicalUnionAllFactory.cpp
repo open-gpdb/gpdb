@@ -3,13 +3,11 @@
 
 
 #include "gpopt/operators/CPhysicalUnionAllFactory.h"
-
-#include "gpos/base.h"
-
-#include "gpopt/exception.h"
-#include "gpopt/operators/CPhysicalParallelUnionAll.h"
 #include "gpopt/operators/CPhysicalSerialUnionAll.h"
+#include "gpopt/operators/CPhysicalParallelUnionAll.h"
 #include "gpopt/xforms/CXformUtils.h"
+#include "gpopt/exception.h"
+#include "gpos/base.h"
 
 namespace gpopt
 {

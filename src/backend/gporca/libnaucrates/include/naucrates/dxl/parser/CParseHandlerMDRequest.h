@@ -15,6 +15,7 @@
 #include "gpos/base.h"
 
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
+
 #include "naucrates/md/CMDRequest.h"
 
 namespace gpdxl

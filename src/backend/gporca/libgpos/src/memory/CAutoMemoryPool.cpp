@@ -16,16 +16,15 @@
 //
 //---------------------------------------------------------------------------
 
-#include "gpos/memory/CAutoMemoryPool.h"
-
 #include "gpos/assert.h"
-#include "gpos/error/CErrorContext.h"
-#include "gpos/error/CErrorHandler.h"
-#include "gpos/memory/CMemoryPoolManager.h"
-#include "gpos/task/CAutoSuspendAbort.h"
-#include "gpos/task/ITask.h"
 #include "gpos/types.h"
 #include "gpos/utils.h"
+#include "gpos/memory/CAutoMemoryPool.h"
+#include "gpos/memory/CMemoryPoolManager.h"
+#include "gpos/error/CErrorContext.h"
+#include "gpos/error/CErrorHandler.h"
+#include "gpos/task/ITask.h"
+#include "gpos/task/CAutoSuspendAbort.h"
 
 using namespace gpos;
 

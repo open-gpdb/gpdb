@@ -9,18 +9,17 @@
 //		Implement the transformation of Intersect into a Join
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CXformIntersect2Join.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/CColRefComputed.h"
-#include "gpopt/base/CUtils.h"
 #include "gpopt/exception.h"
+#include "gpopt/base/CUtils.h"
+#include "gpopt/base/CColRefComputed.h"
 #include "gpopt/operators/CLogicalIntersect.h"
 #include "gpopt/operators/COperator.h"
 #include "gpopt/operators/CPatternLeaf.h"
-#include "gpopt/translate/CTranslatorDXLToExpr.h"
+#include "gpopt/xforms/CXformIntersect2Join.h"
 #include "gpopt/xforms/CXformUtils.h"
+#include "gpopt/translate/CTranslatorDXLToExpr.h"
 
 using namespace gpmd;
 using namespace gpopt;

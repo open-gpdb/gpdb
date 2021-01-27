@@ -12,11 +12,10 @@
 #define GPOPT_CPhysicalScan_H
 
 #include "gpos/base.h"
-
+#include "gpopt/operators/CPhysical.h"
+#include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/base/CCTEMap.h"
 #include "gpopt/base/CDistributionSpecHashed.h"
-#include "gpopt/operators/CExpressionHandle.h"
-#include "gpopt/operators/CPhysical.h"
 
 namespace gpopt
 {

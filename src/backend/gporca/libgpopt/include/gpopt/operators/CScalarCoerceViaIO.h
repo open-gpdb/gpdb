@@ -21,7 +21,6 @@
 #define GPOPT_CScalarCoerceViaIO_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CScalarCoerceBase.h"
 
 namespace gpopt

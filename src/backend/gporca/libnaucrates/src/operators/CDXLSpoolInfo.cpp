@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/dxl/operators/CDXLSpoolInfo.h"
-
 #include "naucrates/dxl/xml/CXMLSerializer.h"
 
 

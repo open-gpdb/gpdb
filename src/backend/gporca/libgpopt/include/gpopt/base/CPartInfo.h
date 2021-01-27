@@ -12,7 +12,6 @@
 #define GPOPT_CPartInfo_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CColRef.h"
 #include "gpopt/base/CPartKeys.h"
 

@@ -21,7 +21,9 @@
 #include "gpos/base.h"
 
 #include "gpopt/base/IComparator.h"
+
 #include "naucrates/md/IMDType.h"
+
 #include "naucrates/traceflags/traceflags.h"
 
 namespace gpmd

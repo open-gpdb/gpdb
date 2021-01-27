@@ -9,14 +9,13 @@
 //		Implementation of logical row-level trigger operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CLogicalRowTrigger.h"
-
 #include "gpos/base.h"
 
-#include "gpopt/base/COptCtxt.h"
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CLogicalRowTrigger.h"
 #include "naucrates/md/CMDTriggerGPDB.h"
+#include "gpopt/base/COptCtxt.h"
 
 using namespace gpopt;
 

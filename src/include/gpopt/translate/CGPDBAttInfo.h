@@ -19,7 +19,6 @@
 #include "gpos/base.h"
 #include "gpos/common/CRefCount.h"
 #include "gpos/utils.h"
-
 #include "naucrates/dxl/gpdb_types.h"
 
 namespace gpdxl

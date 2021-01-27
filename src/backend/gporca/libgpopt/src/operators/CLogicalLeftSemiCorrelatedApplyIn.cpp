@@ -9,9 +9,9 @@
 //		Implementation of left semi correlated apply with IN semantics
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CLogicalLeftSemiCorrelatedApplyIn.h"
-
 #include "gpos/base.h"
+
+#include "gpopt/operators/CLogicalLeftSemiCorrelatedApplyIn.h"
 
 using namespace gpopt;
 

@@ -12,7 +12,6 @@
 #define GPOPT_CExpressionPreprocessorTest_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CExpression.h"
 #include "gpopt/operators/CScalarBoolOp.h"
 

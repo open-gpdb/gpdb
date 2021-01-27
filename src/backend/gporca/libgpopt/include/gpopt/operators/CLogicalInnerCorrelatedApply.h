@@ -14,7 +14,6 @@
 #define GPOPT_CLogicalInnerCorrelatedApply_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalInnerApply.h"
 
 namespace gpopt

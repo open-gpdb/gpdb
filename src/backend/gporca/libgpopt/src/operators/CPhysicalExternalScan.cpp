@@ -9,14 +9,13 @@
 //		Implementation of external scan operator
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CPhysicalExternalScan.h"
-
 #include "gpos/base.h"
-
 #include "gpopt/base/CDistributionSpecExternal.h"
-#include "gpopt/metadata/CName.h"
-#include "gpopt/metadata/CTableDescriptor.h"
+
 #include "gpopt/operators/CExpressionHandle.h"
+#include "gpopt/operators/CPhysicalExternalScan.h"
+#include "gpopt/metadata/CTableDescriptor.h"
+#include "gpopt/metadata/CName.h"
 
 using namespace gpopt;
 

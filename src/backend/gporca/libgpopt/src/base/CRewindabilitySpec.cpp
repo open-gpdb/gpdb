@@ -10,9 +10,8 @@
 //---------------------------------------------------------------------------
 
 #include "gpopt/base/CRewindabilitySpec.h"
-
-#include "gpopt/operators/CExpressionHandle.h"
 #include "gpopt/operators/CPhysicalSpool.h"
+#include "gpopt/operators/CExpressionHandle.h"
 
 using namespace gpopt;
 

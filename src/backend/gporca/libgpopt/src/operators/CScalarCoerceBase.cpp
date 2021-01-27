@@ -15,9 +15,8 @@
 //
 //---------------------------------------------------------------------------
 
-#include "gpopt/operators/CScalarCoerceBase.h"
-
 #include "gpos/base.h"
+#include "gpopt/operators/CScalarCoerceBase.h"
 
 using namespace gpopt;
 using namespace gpmd;

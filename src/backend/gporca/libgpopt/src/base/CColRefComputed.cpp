@@ -9,9 +9,8 @@
 //		Implementation of column reference class for computed columns
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CColRefComputed.h"
-
 #include "gpos/base.h"
+#include "gpopt/base/CColRefComputed.h"
 
 using namespace gpopt;
 

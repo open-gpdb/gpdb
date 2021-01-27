@@ -11,10 +11,11 @@
 
 #include "naucrates/dxl/parser/CParseHandlerScalarPartOid.h"
 
-#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
-#include "naucrates/dxl/operators/CDXLScalarPartOid.h"
 #include "naucrates/dxl/parser/CParseHandlerFactory.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+
+#include "naucrates/dxl/operators/CDXLOperatorFactory.h"
+#include "naucrates/dxl/operators/CDXLScalarPartOid.h"
 
 using namespace gpdxl;
 

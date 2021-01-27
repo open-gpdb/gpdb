@@ -9,11 +9,10 @@
 //		Implementation of negation constraints
 //---------------------------------------------------------------------------
 
-#include "gpopt/base/CConstraintNegation.h"
-
 #include "gpos/base.h"
 
 #include "gpopt/base/CConstraintInterval.h"
+#include "gpopt/base/CConstraintNegation.h"
 #include "gpopt/operators/CPredicateUtils.h"
 
 using namespace gpopt;

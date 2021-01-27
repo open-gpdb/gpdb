@@ -12,7 +12,6 @@
 #define GPOPT_CPartConstraintTest_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CConstraint.h"
 
 namespace gpopt

@@ -10,7 +10,6 @@
 //---------------------------------------------------------------------------
 
 #include "naucrates/statistics/CStatsPredLike.h"
-
 #include "gpopt/operators/CExpression.h"
 
 using namespace gpnaucrates;

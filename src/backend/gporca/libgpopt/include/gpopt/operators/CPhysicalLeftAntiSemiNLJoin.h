@@ -12,7 +12,6 @@
 #define GPOPT_CPhysicalLeftAntiSemiNLJoin_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CPhysicalNLJoin.h"
 
 namespace gpopt

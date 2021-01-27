@@ -9,9 +9,8 @@
 //		Implementation of output file stream class;
 //---------------------------------------------------------------------------
 
-#include "gpos/io/COstreamFile.h"
-
 #include "gpos/base.h"
+#include "gpos/io/COstreamFile.h"
 
 using namespace gpos;
 

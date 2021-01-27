@@ -14,7 +14,6 @@
 #define GPOPT_CLogicalLeftSemiCorrelatedApply_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalLeftSemiApply.h"
 
 namespace gpopt

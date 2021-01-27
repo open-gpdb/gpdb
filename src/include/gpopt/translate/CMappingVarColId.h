@@ -20,13 +20,14 @@
 #define GPDXL_CMappingVarColId_H
 
 
+#include "gpopt/translate/CGPDBAttInfo.h"
+#include "gpopt/translate/CGPDBAttOptCol.h"
+
 #include "gpos/common/CHashMap.h"
 #include "gpos/common/CHashMapIter.h"
 
-#include "gpopt/translate/CGPDBAttInfo.h"
-#include "gpopt/translate/CGPDBAttOptCol.h"
-#include "naucrates/dxl/CIdGenerator.h"
 #include "naucrates/dxl/operators/dxlops.h"
+#include "naucrates/dxl/CIdGenerator.h"
 
 //fwd decl
 struct Var;

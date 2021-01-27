@@ -9,12 +9,13 @@
 //		Implementation of DXL Scalar OpExpr
 //---------------------------------------------------------------------------
 
-#include "naucrates/dxl/operators/CDXLScalarOpExpr.h"
+#include "naucrates/md/IMDScalarOp.h"
 
-#include "gpopt/mdcache/CMDAccessor.h"
+#include "naucrates/dxl/operators/CDXLScalarOpExpr.h"
 #include "naucrates/dxl/operators/CDXLNode.h"
 #include "naucrates/dxl/xml/CXMLSerializer.h"
-#include "naucrates/md/IMDScalarOp.h"
+
+#include "gpopt/mdcache/CMDAccessor.h"
 
 using namespace gpos;
 using namespace gpopt;

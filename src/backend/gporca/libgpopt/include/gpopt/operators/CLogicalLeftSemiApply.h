@@ -12,7 +12,6 @@
 #define GPOPT_CLogicalLeftSemiApply_H
 
 #include "gpos/base.h"
-
 #include "gpopt/operators/CLogicalApply.h"
 
 namespace gpopt

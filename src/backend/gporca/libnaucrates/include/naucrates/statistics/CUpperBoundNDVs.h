@@ -13,7 +13,6 @@
 #define GPNAUCRATES_CUpperBoundNDVs_H
 
 #include "gpos/base.h"
-
 #include "gpopt/base/CColRefSet.h"
 
 namespace gpnaucrates

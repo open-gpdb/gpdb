@@ -13,7 +13,6 @@
 #define GPDXL_CParseHandlerCost_H
 
 #include "gpos/base.h"
-
 #include "naucrates/dxl/operators/CDXLOperatorCost.h"
 #include "naucrates/dxl/parser/CParseHandlerBase.h"
 

@@ -9,19 +9,20 @@
 //		Implementation of cardinality-based join order generation
 //---------------------------------------------------------------------------
 
-#include "gpopt/xforms/CJoinOrderMinCard.h"
-
 #include "gpos/base.h"
-#include "gpos/common/CBitSet.h"
-#include "gpos/common/clibwrapper.h"
+
 #include "gpos/io/COstreamString.h"
 #include "gpos/string/CWStringDynamic.h"
 
-#include "gpopt/base/CColRefSetIter.h"
+#include "gpos/common/clibwrapper.h"
+#include "gpos/common/CBitSet.h"
+
 #include "gpopt/base/CDrvdPropScalar.h"
+#include "gpopt/base/CColRefSetIter.h"
 #include "gpopt/base/CUtils.h"
-#include "gpopt/operators/CNormalizer.h"
 #include "gpopt/operators/CPredicateUtils.h"
+#include "gpopt/operators/CNormalizer.h"
+#include "gpopt/xforms/CJoinOrderMinCard.h"
 
 using namespace gpopt;
 
