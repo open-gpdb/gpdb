@@ -14,7 +14,10 @@
 #define GPDXL_CParseHandlerScalarSubPlanParamList_H
 
 #include "gpos/base.h"
+
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
+
+#include "/home/pivotal/src/pvtl/6X_STABLE/src/backend/gporca/libgpopt/../libnaucrates/include/naucrates/dxl/operators/CDXLColRef.h"
 
 namespace gpdxl
 {

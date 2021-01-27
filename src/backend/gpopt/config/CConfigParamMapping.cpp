@@ -15,10 +15,11 @@
 
 #include "postgres.h"
 
-#include "utils/guc.h"
-
 #include "gpopt/config/CConfigParamMapping.h"
+
 #include "gpopt/xforms/CXform.h"
+
+#include "utils/guc.h"
 
 using namespace gpos;
 using namespace gpdxl;
