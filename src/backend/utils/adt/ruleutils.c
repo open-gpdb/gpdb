@@ -1893,6 +1893,52 @@ pg_get_expr_ext(PG_FUNCTION_ARGS)
 	PG_RETURN_TEXT_P(pg_get_expr_worker(expr, relid, relname, prettyFlags));
 }
 
+/*
+ * Find Var nodes in an expression tree.
+ */
+static bool
+find_var(Node *node, bool *var_exist)
+{
+	Assert(var_exist);
+
+	if (node == NULL)
+		return false;
+
+	if (nodeTag(node) == T_Var)
+	{
+		*var_exist = true;
+		return true;
+	}
+
+	return expression_tree_walker(node, find_var, var_exist);
+}
+
+/*
+ * If there are no Var nodes exists in the expression tree, we treat
+ * it as a simple expression since deparse_expression_pretty doesn't
+ * need to interpret Vars in the node tree. So skip calling
+ * deparse_context_for, this avoids unnecessary lock on relation.
+ * Currently this optimization only apply to pg_partitions view to
+ * avoid acquire lock on the relation. Otherwise the view takes locks
+ * on every partition table defined in the database and that conflicts
+ * heavily with concurrent DDL transactions, if any.
+ */
+static bool
+expr_has_vars(Node *expr)
+{
+	bool	containVar = false;
+
+	if (expr == NULL)
+		return false;
+
+	if (nodeTag(expr) == T_Var)
+		return true;
+
+	expression_tree_walker(expr, find_var, &containVar);
+
+	return containVar;
+}
+
 static text *
 pg_get_expr_worker(text *expr, Oid relid, const char *relname, int prettyFlags)
 {
@@ -1910,7 +1956,7 @@ pg_get_expr_worker(text *expr, Oid relid, const char *relname, int prettyFlags)
 	pfree(exprstr);
 
 	/* Prepare deparse context if needed */
-	if (OidIsValid(relid))
+	if (OidIsValid(relid) && expr_has_vars(node))
 		context = deparse_context_for(relname, relid);
 	else
 		context = NIL;
