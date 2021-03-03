@@ -1302,7 +1302,7 @@ check_views_with_fabricated_anyarray_casts()
 								"view_has_anyarray_casts(c.oid) = TRUE;");
 
 		PQclear(executeQueryOrDie(conn, "DROP FUNCTION view_has_anyarray_casts(OID);"));
-		PQclear(executeQueryOrDie(conn, "SET search_path to '';"));
+		PQclear(executeQueryOrDie(conn, "SET search_path to 'pg_catalog';"));
 
 		ntups = PQntuples(res);
 		i_viewname = PQfnumber(res, "badviewname");
