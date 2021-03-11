@@ -1252,6 +1252,8 @@
             </p>
           </stentry>
           <stentry>
+            <p><xref href="guc-list.xml#gpfdist_retry_timeout" type="section"
+                >gpfdist_retry_timeout</xref></p>
             <p>
               <xref href="guc-list.xml#readable_external_table_timeout" type="section"
                 >readable_external_table_timeout</xref>

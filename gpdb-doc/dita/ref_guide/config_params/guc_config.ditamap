@@ -169,6 +169,7 @@
             <topicref href="guc-list.xml#gp_workfile_limit_files_per_query"/>
             <topicref href="guc-list.xml#gp_workfile_limit_per_query"/>
             <topicref href="guc-list.xml#gp_workfile_limit_per_segment"/>
+            <topicref href="guc-list.xml#gpfdist_retry_timeout"/>
             <topicref href="guc-list.xml#gpperfmon_port"/>
             <topicref href="guc-list.xml#ignore_checksum_failure"/>
             <topicref href="guc-list.xml#integer_datetimes"/>
