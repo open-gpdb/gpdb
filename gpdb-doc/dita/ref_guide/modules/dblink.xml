@@ -146,6 +146,8 @@ CREATE EXTENSION</codeblock></li>
               <codeph>dblink_connect_u()</codeph> functions in the user database. This example
             grants the privilege to the non-superuser <codeph>test_user</codeph> on the functions
             with the signatures for creating an implicit or a named <codeph>dblink</codeph>
+            connection. The server and database will be identified through a standard
+              <codeph>libpq</codeph> connection string and optionally, a name can be assigned to the
             connection.<codeblock>testdb=# GRANT EXECUTE ON FUNCTION dblink_connect_u(text) TO test_user;
 testdb=# GRANT EXECUTE ON FUNCTION dblink_connect_u(text, text) TO test_user;</codeblock></li>
           <li>Now <codeph>test_user</codeph> can create a connection to another local database
