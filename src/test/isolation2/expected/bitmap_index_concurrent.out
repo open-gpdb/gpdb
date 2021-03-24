@@ -345,3 +345,5 @@ SELECT count(*) FROM bmupdate WHERE id >= 97 and id <= 99 and gp_segment_id = 0;
  6401  
 (1 row)
 
+DROP TABLE bmupdate;
+DROP

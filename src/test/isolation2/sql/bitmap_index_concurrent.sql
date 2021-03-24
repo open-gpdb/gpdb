@@ -184,3 +184,4 @@ SELECT gp_inject_fault('after_read_one_bitmap_idx_page', 'reset', dbid) FROM gp_
 -- Let's check the total tuple count after the test.
 SELECT count(*) FROM bmupdate WHERE id >= 97 and id <= 99 and gp_segment_id = 0;
 
+DROP TABLE bmupdate;
