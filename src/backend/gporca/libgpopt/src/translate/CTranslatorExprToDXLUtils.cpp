@@ -736,8 +736,8 @@ CTranslatorExprToDXLUtils::PdxlnListFilterPartKey(CMemoryPool *mp,
 	else if (CScalarIdent::FCastedScId(pexprPartKey) ||
 			 CScalarIdent::FAllowedFuncScId(pexprPartKey))
 	{
-		IMDId *pmdidDestElem;
-		IMDId *pmdidArrayCastFunc;
+		IMDId *pmdidDestElem = NULL;
+		IMDId *pmdidArrayCastFunc = NULL;
 		ExtractCastFuncMdids(pexprPartKey->Pop(), &pmdidDestElem,
 							 &pmdidArrayCastFunc);
 		IMDId *pmdidDestArray =
@@ -879,8 +879,9 @@ CTranslatorExprToDXLUtils::PdxlnRangeFilterScCmp(
 		mp, md_accessor, ulPartLevel, fLowerBound, pdxlnScalar, cmp_type,
 		pmdidTypePartKey, pmdidTypeOther, pmdidTypeCastExpr, mdid_cast_func);
 
-	if (NULL != mdid_cast_func && md_accessor->RetrieveFunc(mdid_cast_func)
-									  ->IsAllowedForPS())  // is a lossy cast
+	if (NULL != mdid_cast_func && mdid_cast_func->IsValid() &&
+		md_accessor->RetrieveFunc(mdid_cast_func)
+			->IsAllowedForPS())	 // is a lossy cast
 	{
 		// In case of lossy casts, we don't want to eliminate partitions with
 		// exclusive ends when the predicate is on that end
@@ -971,8 +972,9 @@ CTranslatorExprToDXLUtils::PdxlnRangeFilterPartBound(
 		mp, md_accessor, ulPartLevel, fLowerBound, pdxlnScalar, ecmptInc,
 		pmdidTypePartKey, pmdidTypeOther, pmdidTypeCastExpr, mdid_cast_func);
 
-	if (NULL != mdid_cast_func && md_accessor->RetrieveFunc(mdid_cast_func)
-									  ->IsAllowedForPS())  // is a lossy cast
+	if (NULL != mdid_cast_func && mdid_cast_func->IsValid() &&
+		md_accessor->RetrieveFunc(mdid_cast_func)
+			->IsAllowedForPS())	 // is a lossy cast
 	{
 		// In case of lossy casts, we don't want to eliminate partitions with
 		// exclusive ends when the predicate is on that end
