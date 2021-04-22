@@ -954,12 +954,19 @@ resources:
     uri: ((madlib-ci-git-remote))
     private_key: ((madlib-ci-git-key))
 
-- name: madlib_gppkg
+- name: madlib_gppkg_centos6
   type: gcs
   source:
     bucket: ((gcs-bucket-intermediates))
     json_key: ((concourse-gcs-resources-service-account-key))
     versioned_file: ((pipeline-name))/madlib_gppkg/madlib-master-gp6-rhel6-x86_64.gppkg
+
+- name: madlib_gppkg_centos7
+  type: gcs
+  source:
+    bucket: ((gcs-bucket-intermediates))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    versioned_file: ((pipeline-name))/madlib_gppkg/madlib-master-gp6-rhel7-x86_64.gppkg
 
 - name: cmake_tar
   type: gcs
@@ -2496,23 +2503,44 @@ jobs:
       - get: boost
       - get: gpdb_src
         passed: [gate_advanced_analytics_start]
-      - get: bin_gpdb
-        resource: bin_gpdb_centos6
+      - get: bin_gpdb_centos6
         trigger: [[ test_trigger ]]
         passed: [gate_advanced_analytics_start]
       - get: bin_gpdb_centos7
+        trigger: [[ test_trigger ]]
         passed: [gate_advanced_analytics_start]
       - get: gpdb6-centos6-build
-  - task: build_madlib_gppkg_from_source
-    file: madlib_ci/concourse/tasks/madlib_build_gppkg_from_source.yml
-    image: gpdb6-centos6-build
-    params:
-      TEST_OS: centos6
-      DB_TYPE: gpdb6
-      CMAKE_BUILD_TYPE: Release
-  - put: madlib_gppkg
-    params:
-      file: madlib_master_artifacts/madlib-*.gppkg
+      - get: gpdb6-centos7-test
+  - in_parallel:
+    - task: build_madlib_gppkg_from_source_centos6
+      file: madlib_ci/concourse/tasks/madlib_build_gppkg_from_source.yml
+      image: gpdb6-centos6-build
+      input_mapping:
+        bin_gpdb: bin_gpdb_centos6
+      output_mapping:
+        madlib_master_artifacts: madlib_master_artifacts_centos6
+      params:
+        TEST_OS: centos6
+        DB_TYPE: gpdb6
+        CMAKE_BUILD_TYPE: Release
+    - task: build_madlib_gppkg_from_source_centos7
+      file: madlib_ci/concourse/tasks/madlib_build_gppkg_from_source.yml
+      image: gpdb6-centos7-test
+      input_mapping:
+        bin_gpdb: bin_gpdb_centos7
+      output_mapping:
+        madlib_master_artifacts: madlib_master_artifacts_centos7
+      params:
+        TEST_OS: centos7
+        DB_TYPE: gpdb6
+        CMAKE_BUILD_TYPE: Release
+  - in_parallel:
+    - put: madlib_gppkg_centos6
+      params:
+        file: madlib_master_artifacts_centos6/madlib-*.gppkg
+    - put: madlib_gppkg_centos7
+      params:
+        file: madlib_master_artifacts_centos7/madlib-*.gppkg
 {% endif %}
 
 {% if "centos6" in os_types %}
@@ -2528,6 +2556,7 @@ jobs:
         passed: [madlib_build_gppkg]
       - get: gpdb6-centos6-test
       - get: madlib_gppkg
+        resource: madlib_gppkg_centos6
         passed: [madlib_build_gppkg]
         trigger: true
   - task: MADlib_Test_gppkg
@@ -2550,6 +2579,7 @@ jobs:
         passed: [madlib_build_gppkg]
       - get: gpdb6-centos6-test
       - get: madlib_gppkg
+        resource: madlib_gppkg_centos6
         passed: [madlib_build_gppkg]
         trigger: true
   - task: MADlib_Test_gppkg
@@ -2574,6 +2604,7 @@ jobs:
         passed: [madlib_build_gppkg]
       - get: gpdb6-centos7-test
       - get: madlib_gppkg
+        resource: madlib_gppkg_centos7
         passed: [madlib_build_gppkg]
         trigger: true
   - task: MADlib_Test_gppkg
@@ -2596,6 +2627,7 @@ jobs:
         passed: [madlib_build_gppkg]
       - get: gpdb6-centos7-test
       - get: madlib_gppkg
+        resource: madlib_gppkg_centos7
         passed: [madlib_build_gppkg]
         trigger: true
   - task: MADlib_Test_gppkg
