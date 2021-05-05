@@ -130,7 +130,7 @@ sdw4-2</codeblock></li>
             <li id="jm138730">Open the file you just copied in a text editor. <p>Set all of the
                 required parameters according to your environment. See <codeph><xref
                     href="../utility_guide/ref/gpinitsystem.xml" type="topic" scope="peer"
-                  >gpinitsystem</xref></codeph> for more information. A Greenplum Database system
+                    >gpinitsystem</xref></codeph> for more information. A Greenplum Database system
                 must contain a master instance and at <i>least two</i> segment instances (even if
                 setting up a single node system). </p><p>The <codeph>DATA_DIRECTORY</codeph>
                 parameter is what determines how many segments per host will be created. If your
@@ -302,7 +302,7 @@ export MASTER_DATA_DIRECTORY=/data/master/gpseg-1</codeblock></li>
               <codeph>PGDATABASE</codeph> for convenience. For
             example:<codeblock>export PGPORT=5432
 export PGUSER=gpadmin
-export PGDATABASE=<varname>default_login_database_name</varname></codeblock></li>
+export PGDATABASE=gpadmin</codeblock></li>
           <li>(Optional) If you use RHEL 7 or CentOS 7, add the following line to the end of the
               <codeph>.bashrc</codeph> file to enable using the <codeph>ps</codeph> command in the
               <codeph>greenplum_path.sh</codeph>
