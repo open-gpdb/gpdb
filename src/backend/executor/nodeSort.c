@@ -489,6 +489,7 @@ ExecReScanSort(SortState *node)
 		if (NULL != node->tuplesortstate->sortstore)
 		{
 			tuplesort_end(node->tuplesortstate->sortstore);
+			node->tuplesortstate->sortstore = NULL;
 		}
 
 		/*
