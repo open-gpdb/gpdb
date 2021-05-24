@@ -427,7 +427,7 @@ class SegmentRewind(Command):
         # Build the pg_rewind command. Do not run pg_rewind if recovery.conf
         # file exists in target data directory because the target instance can
         # be started up normally as a mirror for WAL replication catch up.
-        rewind_cmd = '[ -f %s/recovery.conf ] || PGOPTIONS="-c gp_session_role=utility" $GPHOME/bin/pg_rewind --write-recovery-conf --slot="internal_wal_replication_slot" --source-server="%s" --target-pgdata=%s' % (target_datadir, source_server, target_datadir)
+        rewind_cmd = 'if [ ! -f %s/recovery.conf ]; then PGOPTIONS="-c gp_session_role=utility" $GPHOME/bin/pg_rewind --write-recovery-conf --slot="internal_wal_replication_slot" --source-server="%s" --target-pgdata=%s' % (target_datadir, source_server, target_datadir)
 
         if verbose:
             rewind_cmd = rewind_cmd + ' --progress'
@@ -436,6 +436,11 @@ class SegmentRewind(Command):
         # errors relating to relevant failures(like it will not rewind due to
         # a corrupted pg_control file) to stderr.
         rewind_cmd = rewind_cmd + " > {} 2>&1".format(pipes.quote(progress_file))
+
+        # touch a marker file to indicate pg_rewind success. If pg_rewind fails,
+        # we keep the progress file (pg_rewind log) for debugging, else we
+        # delete log file.
+        rewind_cmd = rewind_cmd + ' && touch %s.success; fi' % (pipes.quote(progress_file))
 
         self.cmdStr = rewind_cmd
 
