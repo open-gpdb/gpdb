@@ -33,6 +33,6 @@ extern Datum pg_is_in_backup(PG_FUNCTION_ARGS);
 extern Datum pg_backup_start_time(PG_FUNCTION_ARGS);
 
 /* GPDB-specific functions */
-extern Datum gp_create_restore_point(PG_FUNCTION_ARGS);
+extern Datum gp_create_restore_point_internal(PG_FUNCTION_ARGS);
 
 #endif   /* XLOG_FN_H */
