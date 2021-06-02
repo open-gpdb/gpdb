@@ -571,6 +571,9 @@ ExecEagerFreeSort(SortState *node)
 void
 ExecSquelchSort(SortState *node)
 {
-	ExecEagerFreeSort(node);
-	ExecSquelchNode(outerPlanState(node));
+	if (!node->delayEagerFree)
+	{
+		ExecEagerFreeSort(node);
+		ExecSquelchNode(outerPlanState(node));
+	}
 }
