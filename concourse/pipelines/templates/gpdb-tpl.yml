@@ -779,6 +779,13 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: clients/published/gpdb6/clients-rc-(.*)-photon3_x86_64((rc-build-type-gcs)).tar.gz
 
+- name: server_src_rc
+  type: gcs
+  source:
+    bucket: ((gcs-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: server-src/published/gpdb6/server-src-rc-*.tar.gz
+
 - name: greenplum-database-release
   type: git
   icon: git
@@ -2908,6 +2915,10 @@ jobs:
           RC_BUILD_TYPE_GCS: ((rc-build-type-gcs))
       - task: verify_gpdb_versions
         file: gpdb_src/concourse/tasks/verify_gpdb_versions.yml
+      - task: tar_git_repo
+        file: gpdb_src/concourse/tasks/tar_git_repo.yml
+        params:
+          RC_BUILD_TYPE_GCS: ((rc-build-type-gcs))
   - in_parallel:
       steps:
       - put: bin_gpdb_centos6_rc
@@ -2943,6 +2954,9 @@ jobs:
       - put: bin_gpdb_clients_sles12_rc
         params:
           file: "release_candidates/clients-rc-*sles12*.tar.gz"
+      - put: server_src_rc
+        params:
+          file: "server_tar/server-src-rc-*.tar.gz"
 
 - name: Build_Release_Candidate_RPMs
   plan:
