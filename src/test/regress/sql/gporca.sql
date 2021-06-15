@@ -2947,6 +2947,25 @@ from material_test2
 where first_id in (select first_id from mat_w)
 and first_id in (select first_id from mat_w);
 
+create table tt_varchar(
+	data character varying
+) distributed by (data);
+insert into tt_varchar values('test');
+create table tt_int(
+	id integer
+) distributed by (id);
+insert into tt_int values(1);
+
+set optimizer_enforce_subplans = 1;
+-- test collation in subplan testexpr
+select data from tt_varchar where data > any(select id::text from tt_int);
+-- test implicit coerce via io
+CREATE CAST (integer AS text) WITH INOUT AS IMPLICIT;
+select data from tt_varchar where data > any(select id from tt_int);
+
+DROP CAST (integer AS text);
+reset optimizer_enforce_subplans;
+
 -- start_ignore
 DROP SCHEMA orca CASCADE;
 -- end_ignore
