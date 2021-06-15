@@ -73,7 +73,10 @@ SELECT gp_inject_fault('fts_probe', 'reset', dbid) FROM gp_segment_configuration
 -----------------
  Success:        
 (1 row)
-!\retcode gpconfig -c fsync -v off --skipvalidation;
+!\retcode gpconfig -r fsync --skipvalidation;
+-- start_ignore
+
+-- end_ignore
 (exited with code 0)
 !\retcode gpstop -u;
 -- start_ignore

@@ -37,5 +37,5 @@ SELECT gp_wait_until_triggered_fault('fts_probe', 1, dbid)
 -- cleanup
 SELECT gp_inject_fault('fts_probe', 'reset', dbid)
 FROM gp_segment_configuration WHERE role='p' AND content=-1;
-!\retcode gpconfig -c fsync -v off --skipvalidation;
+!\retcode gpconfig -r fsync --skipvalidation;
 !\retcode gpstop -u;
