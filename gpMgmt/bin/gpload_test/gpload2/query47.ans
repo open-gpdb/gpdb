@@ -1,18 +1,18 @@
-2021-06-15 14:46:48|INFO|gpload session started 2021-06-15 14:46:48
-2021-06-15 14:46:48|INFO|setting schema 'public' for table 'testheaderreuse'
-2021-06-15 14:46:48|INFO|started gpfdist -p 8081 -P 8082 -f "/home/zhaorui/workspace/6_greenplum/gpdb/gpMgmt/bin/gpload_test/gpload2/data_file.txt" -t 30
-2021-06-15 14:46:48|INFO|did not find an external table to reuse. creating ext_gpload_reusable_752a62e8_cda5_11eb_9402_000c29b81d26
-2021-06-15 14:46:48|INFO|running time: 0.08 seconds
-2021-06-15 14:46:48|INFO|rows Inserted          = 1
-2021-06-15 14:46:48|INFO|rows Updated           = 0
-2021-06-15 14:46:48|INFO|data formatting errors = 0
-2021-06-15 14:46:48|INFO|gpload succeeded
-2021-06-15 14:46:48|INFO|gpload session started 2021-06-15 14:46:48
-2021-06-15 14:46:48|INFO|setting schema 'public' for table 'testheaderreuse'
-2021-06-15 14:46:48|INFO|started gpfdist -p 8081 -P 8082 -f "/home/zhaorui/workspace/6_greenplum/gpdb/gpMgmt/bin/gpload_test/gpload2/data_file.txt" -t 30
-2021-06-15 14:46:48|INFO|did not find an external table to reuse. creating ext_gpload_reusable_7545772c_cda5_11eb_81e2_000c29b81d26
-2021-06-15 14:46:48|INFO|running time: 0.05 seconds
-2021-06-15 14:46:48|INFO|rows Inserted          = 2
-2021-06-15 14:46:48|INFO|rows Updated           = 0
-2021-06-15 14:46:48|INFO|data formatting errors = 0
-2021-06-15 14:46:48|INFO|gpload succeeded
+2020-12-01 16:27:09|INFO|gpload session started 2020-12-01 16:27:09
+2020-12-01 16:29:16|ERROR|could not connect to database: could not connect to server: Connection timed out
+	Is the server running on host "1.2.3.4" and accepting
+	TCP/IP connections on port 7000?
+. Is the Greenplum Database running on port 7000?
+2020-12-01 16:29:16|INFO|rows Inserted          = 0
+2020-12-01 16:29:16|INFO|rows Updated           = 0
+2020-12-01 16:29:16|INFO|data formatting errors = 0
+2020-12-01 16:29:16|INFO|gpload failed
+2020-12-01 16:29:17|INFO|gpload session started 2020-12-01 16:29:17
+2020-12-01 16:31:24|ERROR|could not connect to database: could not connect to server: Connection timed out
+	Is the server running on host "1.2.3.4" and accepting
+	TCP/IP connections on port 7000?
+. Is the Greenplum Database running on port 7000?
+2020-12-01 16:31:24|INFO|rows Inserted          = 0
+2020-12-01 16:31:24|INFO|rows Updated           = 0
+2020-12-01 16:31:24|INFO|data formatting errors = 0
+2020-12-01 16:31:24|INFO|gpload failed
