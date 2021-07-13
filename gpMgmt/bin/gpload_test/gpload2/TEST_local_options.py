@@ -11,6 +11,22 @@ def test_301_gpload_yaml_with_header():
     copy_data('external_file_301.txt','data_file.txt')
     write_config_file(config='config/config_file',format='text',file='data_file.txt',table='texttable', header='true')
 
+@pytest.mark.order(302)
+@prepare_before_test(num=302)
+def test_302_gpload_header():
+    "302 gpload header reuse table MPP:31557"
+    '''
+    file = mkpath('setup.sql')
+    runfile(file)
+    '''
+    copy_data('external_file_47.txt','data_file.txt')
+    write_config_file(mode='insert',reuse_tables=True,fast_match=False, file='data_file.txt',config='config/config_file1', table='testheaderreuse', delimiter="','", format='csv', quote="'\x22'", encoding='LATIN1', log_errors=True, error_limit='1000', header=True, truncate=True, match_columns=False)
+    write_config_file(mode='insert',reuse_tables=True,fast_match=False, file='data_file.txt',config='config/config_file2', table='testheaderreuse', delimiter="','", format='csv', quote="'\x22'", encoding='LATIN1', log_errors=True, error_limit='1000', truncate=True, match_columns=False)
+    f = open(mkpath('query302.sql'),'w')
+    f.write("\! gpload -f "+mkpath('config/config_file1')+ " -d reuse_gptest\n")
+    f.write("\! gpload -f "+mkpath('config/config_file2')+ " -d reuse_gptest\n")
+    f.close()
+
 @pytest.mark.order(310)
 @prepare_before_test(num=310, times=1)
 def test_310_gpload_yaml_with_error_limit_0():

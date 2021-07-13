@@ -372,8 +372,6 @@ def test_38_gpload_without_preload():
     copy_data('external_file_04.txt','data_file.txt')
     write_config_file(mode='insert',reuse_tables=True,fast_match=False,file='data_file.txt',error_table="err_table",error_limit=1000,preload=False)
 
-# gpload5 does not support fill_missing_fields
-'''
 @pytest.mark.order(39)
 @prepare_before_test(num=39)
 def test_39_gpload_fill_missing_fields():
@@ -382,7 +380,7 @@ def test_39_gpload_fill_missing_fields():
     runfile(file)
     copy_data('external_file_04.txt','data_file.txt')
     write_config_file(mode='insert',reuse_tables=False,fast_match=False,file='data_file.txt',table='texttable1', error_limit=1000, fill_missing_fields=True)
-'''
+
 @pytest.mark.order(40)
 @prepare_before_test(num=40)
 def test_40_gpload_merge_mode_with_multi_pk():
