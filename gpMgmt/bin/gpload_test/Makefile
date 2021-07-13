@@ -22,7 +22,7 @@ GPTest.pm:
 ifeq "$(findstring ubuntu, $(TEST_OS))" "ubuntu"
 installcheck: gpdiff.pl gpstringsubs.pl
 	@echo "skip gpload test for ubuntu"
-else ifeq "$(findstring CentOS release 6., $(OS))" "centos6"
+else ifeq "$(findstring CentOS release 6., $(OS))" "CentOS release 6."
 installcheck: gpdiff.pl gpstringsubs.pl
 	@echo "skip gpload test for centos6"
 else
