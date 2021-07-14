@@ -1562,6 +1562,13 @@ vac_update_relstats_from_list(List *updated_stats)
 	 */
 	Assert(Gp_role == GP_ROLE_DISPATCH);
 
+	/*
+	 * To read latest version of pg_class tuple below, as it was most likely
+	 * updated earlier within same command by earlier call to
+	 * vac_update_relstats().
+	 */
+	CommandCounterIncrement();
+
 	foreach (lc, updated_stats)
 	{
 		VPgClassStats *stats = (VPgClassStats *) lfirst(lc);
