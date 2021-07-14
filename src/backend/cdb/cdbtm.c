@@ -1562,6 +1562,7 @@ insertingDistributedCommitted(void)
 void
 insertedDistributedCommitted(void)
 {
+	SIMPLE_FAULT_INJECTOR("start_insertedDistributedCommitted");
 	ereportif(Debug_print_full_dtm, LOG,
 			  (errmsg("entering insertedDistributedCommitted"),
 				  TM_ERRDETAIL));
