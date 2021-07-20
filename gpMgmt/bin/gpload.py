@@ -2545,7 +2545,19 @@ class gpload:
         try:
             self.db.query(sql.encode('utf-8'))
         except Exception, e:
-            self.log(self.ERROR, 'could not run SQL "%s": %s' % (sql, unicode(e)))
+            get_standard_conforming_strings = 'show standard_conforming_strings;'
+            try:
+                scs = self.db.query(get_standard_conforming_strings.encode('utf-8')).getresult()
+                if scs[0][0] == 'off':
+                    self.log(self.ERROR, 'could not run SQL "%s": %s ' % (sql, unicode(e)) +
+                    "standard_conforming_strings is set to 'off', please set it to 'on' and try again \n")
+                else:
+                    self.log(self.ERROR, 'could not run SQL "%s": %s' % (sql, unicode(e)))
+            except Exception, ee:
+                self.log(self.ERROR, 'could not run SQL "%s": %s ' % (sql, unicode(e)) +
+                "could not get standard_conforming_strings, %s " % unicode(ee) +
+                "if standard_conforming_strings is set to 'off', please set it to 'on' and try again \n"
+                )
 
         # set up to drop the external table at the end of operation, unless user
         # specified the 'reuse_tables' option, in which case we don't drop
