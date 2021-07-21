@@ -5040,7 +5040,7 @@ getFuncs(Archive *fout, int *numFuncs)
  * major versions. So include the clause if we are running against GPDB 5.
  */
 #if 0
-		if (binary_upgrade && fout->remoteVersion >= 90200)
+		if (binary_upgrade && fout->remoteVersion >= 90100)
 #endif
 		if (binary_upgrade && fout->remoteVersion >= 80300)
 			appendPQExpBufferStr(query,
