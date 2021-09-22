@@ -967,7 +967,7 @@ ExecSetParamPlan(SubPlanState *node, ExprContext *econtext, QueryDesc *queryDesc
 	SubLinkType subLinkType = subplan->subLinkType;
 	EState	   *estate = planstate->state;
 	ScanDirection dir = estate->es_direction;
-	MemoryContext oldcontext;
+	MemoryContext oldcontext = NULL;;
 	TupleTableSlot *slot;
 	ListCell   *l;
 	bool		found = false;
@@ -1252,6 +1252,12 @@ PG_CATCH();
 {
 	/* Restore memory high-water mark for root slice of main query. */
 	MemoryContextSetPeakSpace(planstate->state->es_query_cxt, savepeakspace);
+
+	if (oldcontext)
+		MemoryContextSwitchTo(oldcontext);
+
+	/* restore scan direction */
+	estate->es_direction = dir;
 
 	/*
 	 * Clean up the interconnect.
