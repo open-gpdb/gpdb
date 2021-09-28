@@ -52,8 +52,8 @@ extern PGPROC *shm_mq_get_sender(shm_mq *);
 extern shm_mq_handle *shm_mq_attach(shm_mq *mq, dsm_segment *seg,
 			  BackgroundWorkerHandle *handle);
 
-/* Break connection. */
-extern void shm_mq_detach(shm_mq *);
+/* Break connection, release handle resources. */
+extern void shm_mq_detach(shm_mq_handle *mqh);
 
 /* Get the shm_mq from handle. */
 extern shm_mq *shm_mq_get_queue(shm_mq_handle *mqh);
