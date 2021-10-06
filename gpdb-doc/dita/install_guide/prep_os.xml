@@ -234,10 +234,10 @@ $ echo $(expr $(getconf _PHYS_PAGES) / 2 \* $(getconf PAGE_SIZE))</codeblock>
             <codeph>kernel.shmmax</codeph> values:</p>
         <codeblock>kernel.shmall = 197951838
 kernel.shmmax = 810810728448</codeblock>
-        <p>If the Greeplum Database master the has a different shared memory configuration than the
-          segment hosts, the _PHYS_PAGES and PAGE_SIZE values might differ, and the
-            <codeph>kernel.shmall</codeph> and <codeph>kernel.shmmax</codeph> values on the master
-          host will differ from those on the segment hosts.</p>
+        <p>If the Greeplum Database master the has a different shared memory configuration than
+          the segment hosts, the _PHYS_PAGES and PAGE_SIZE values might differ, and the
+            <codeph>kernel.shmall</codeph> and <codeph>kernel.shmmax</codeph> values on the
+          master host will differ from those on the segment hosts.</p>
         <p id="segment_host_memory"><b>Segment Host Memory</b></p>
         <p>The <codeph>vm.overcommit_memory</codeph> Linux kernel parameter is used by the OS to
           determine how much memory can be allocated to processes. For Greenplum Database, this
