@@ -201,7 +201,7 @@ static char *_mdfd_segpath(SMgrRelation reln, ForkNumber forknum,
 static MdfdVec *_mdfd_openseg(SMgrRelation reln, ForkNumber forkno,
 			  BlockNumber segno, int oflags);
 static MdfdVec *_mdfd_getseg(SMgrRelation reln, ForkNumber forkno,
-			 BlockNumber blkno, bool skipFsync, ExtensionBehavior behavior);
+			 BlockNumber blkno, bool skipFsync, ExtensionBehavior behavior, bool *is_seg0);
 static BlockNumber _mdnblocks(SMgrRelation reln, ForkNumber forknum,
 		   MdfdVec *seg);
 
@@ -573,7 +573,7 @@ mdextend(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum,
 						relpath(reln->smgr_rnode, forknum),
 						InvalidBlockNumber)));
 
-	v = _mdfd_getseg(reln, forknum, blocknum, skipFsync, EXTENSION_CREATE);
+	v = _mdfd_getseg(reln, forknum, blocknum, skipFsync, EXTENSION_CREATE, NULL);
 
 	seekpos = (off_t) BLCKSZ *(blocknum % ((BlockNumber) RELSEG_SIZE));
 
@@ -715,7 +715,7 @@ mdprefetch(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum)
 	off_t		seekpos;
 	MdfdVec    *v;
 
-	v = _mdfd_getseg(reln, forknum, blocknum, false, EXTENSION_FAIL);
+	v = _mdfd_getseg(reln, forknum, blocknum, false, EXTENSION_FAIL, NULL);
 
 	seekpos = (off_t) BLCKSZ *(blocknum % ((BlockNumber) RELSEG_SIZE));
 
@@ -742,7 +742,7 @@ mdread(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum,
 										reln->smgr_rnode.node.relNode,
 										reln->smgr_rnode.backend);
 
-	v = _mdfd_getseg(reln, forknum, blocknum, false, EXTENSION_FAIL);
+	v = _mdfd_getseg(reln, forknum, blocknum, false, EXTENSION_FAIL, NULL);
 
 	seekpos = (off_t) BLCKSZ *(blocknum % ((BlockNumber) RELSEG_SIZE));
 
@@ -817,7 +817,7 @@ mdwrite(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum,
 										 reln->smgr_rnode.node.relNode,
 										 reln->smgr_rnode.backend);
 
-	v = _mdfd_getseg(reln, forknum, blocknum, skipFsync, EXTENSION_FAIL);
+	v = _mdfd_getseg(reln, forknum, blocknum, skipFsync, EXTENSION_FAIL, NULL);
 
 	seekpos = (off_t) BLCKSZ *(blocknum % ((BlockNumber) RELSEG_SIZE));
 
@@ -1069,6 +1069,7 @@ mdsync(void)
 	uint64		elapsed;
 	uint64		longest = 0;
 	uint64		total_elapsed = 0;
+	bool		is_seg0 = false;
 
 	/*
 	 * This is only called during checkpoints, and checkpoints should only
@@ -1267,7 +1268,7 @@ mdsync(void)
 					{
 						seg = _mdfd_getseg(reln, forknum,
 								(BlockNumber) segno * (BlockNumber) RELSEG_SIZE,
-										false, EXTENSION_RETURN_NULL);
+										false, EXTENSION_RETURN_NULL, &is_seg0);
 					}
 
 					INSTR_TIME_SET_CURRENT(sync_start);
@@ -1296,6 +1297,7 @@ mdsync(void)
 
 					/* Compute file name for use in message */
 					save_errno = errno;
+					segno = (is_seg0 ? 0 : segno);
 					path = _mdfd_segpath(reln, forknum, (BlockNumber) segno);
 					errno = save_errno;
 
@@ -1926,14 +1928,19 @@ _mdfd_openseg(SMgrRelation reln, ForkNumber forknum, BlockNumber segno,
  */
 static MdfdVec *
 _mdfd_getseg(SMgrRelation reln, ForkNumber forknum, BlockNumber blkno,
-			 bool skipFsync, ExtensionBehavior behavior)
+			 bool skipFsync, ExtensionBehavior behavior, bool *is_seg0)
 {
 	MdfdVec    *v = mdopen(reln, forknum, behavior);
 	BlockNumber targetseg;
 	BlockNumber nextsegno;
 
 	if (!v)
+	{
+		if (is_seg0 != NULL)
+			*is_seg0 = true;
+
 		return NULL;			/* only possible if EXTENSION_RETURN_NULL */
+	}
 
 	targetseg = blkno / ((BlockNumber) RELSEG_SIZE);
 
