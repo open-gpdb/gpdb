@@ -2996,7 +2996,7 @@ jobs:
         passed: [gate_release_candidate_start]
       - get: bin_gpdb_rhel8
         trigger: true
-        passed: [compile_gpdb_rhel8]
+        passed: [gate_release_candidate_start]
       - get: bin_gpdb_ubuntu18.04
         trigger: true
         passed: [gate_release_candidate_start]
@@ -3112,7 +3112,7 @@ jobs:
       - get: bin_gpdb_rhel8
         trigger: true
 {% if not build_test_rc_rpm %}
-        passed: [compile_gpdb_rhel8]
+        passed: [gate_release_candidate_start]
 {% endif %}
       - get: bin_gpdb_photon3
         trigger: true
