@@ -536,7 +536,7 @@ server smdw</codeblock></li>
             example:<codeblock>server mdw prefer
 server 10.6.220.20</codeblock></li>
           <li id="ji162612">On the master host, use the NTP daemon synchronize the system clocks on
-            all Greenplum hosts. For example, using <codeph><xref
+            all Greenplum hosts. For example, using <xref
                 href="../utility_guide/ref/gpssh.xml" format="dita" scope="peer"
                 type="topic"
             >gpssh</xref>:<codeblock># gpssh -f hostfile_gpssh_allhosts -v -e 'ntpd'</codeblock></li>
