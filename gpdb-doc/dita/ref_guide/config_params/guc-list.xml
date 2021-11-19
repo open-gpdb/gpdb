@@ -3691,7 +3691,7 @@
             <row>
               <entry colname="col1">Any valid time expression (number and unit)</entry>
               <entry colname="col2">1sec</entry>
-              <entry colname="col3">master<p>system</p><p>restart</p><p>superuser</p></entry>
+              <entry colname="col3">master<p>session</p><p>reload</p><p>superuser</p></entry>
             </row>
           </tbody>
         </tgroup>
@@ -3752,7 +3752,7 @@
             <row>
               <entry colname="col1">none <p>warning</p><p>error</p><p>fatal</p><p>panic</p></entry>
               <entry colname="col2">none</entry>
-              <entry colname="col3">local<p>system</p><p>restart</p></entry>
+              <entry colname="col3">local<p>session</p><p>reload</p></entry>
             </row>
           </tbody>
         </tgroup>
@@ -4752,7 +4752,7 @@
             <row>
               <entry colname="col1">none, auto, eager_free</entry>
               <entry colname="col2">eager_free</entry>
-              <entry colname="col3">local<p>system</p><p>restart/reload</p></entry>
+              <entry colname="col3">local<p>session</p><p>reload</p></entry>
             </row>
           </tbody>
         </tgroup>
