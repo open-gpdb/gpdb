@@ -109,6 +109,7 @@ valid_tokens = {
     "delimiter": {'parse_children': True, 'parent': "input"},
     "escape": {'parse_children': True, 'parent': "input"},
     "null_as": {'parse_children': True, 'parent': "input"},
+    "newline": {'parse_children': True, 'parent': "input"},
     "quote": {'parse_children': True, 'parent': "input"},
     "encoding": {'parse_children': True, 'parent': "input"},
     "force_not_null": {'parse_children': False, 'parent': "input"},
@@ -368,6 +369,7 @@ keywords = {
 	"natural": True,
 	"nchar": True,
 	"new": True,
+	"newline": True,
 	"next": True,
 	"no": True,
 	"nocreatedb": True,
@@ -2440,6 +2442,16 @@ class gpload:
                     self.control_file_error("gpload:input:force_not_null must be a YAML sequence of strings")
             self.formatOpts += "force not null %s " % ','.join(force_not_null_columns) #only for csv
             self.reuse_tbl_Opts += "force not null %s " % ','.join(force_not_null_columns)
+
+        newline = self.getconfig('gpload:input:newline', unicode, False)
+        self.log(self.DEBUG, "newline " + unicode(newline))
+        if newline != False: # could be empty string
+            if self.use_customfmt:
+                self.formatOpts += ', newline=%s' % quote_no_slash(newline)
+                self.reuse_tbl_Opts += "newline %s " % quote_no_slash(newline)
+            else:
+                self.formatOpts += "newline %s " % quote_no_slash(newline)
+                self.reuse_tbl_Opts += "newline %s " % quote_no_slash(newline)
 
         encodingCode = None
         encodingStr = self.getconfig('gpload:input:encoding', unicode, None)
