@@ -1017,25 +1017,6 @@ standard_ExecutorRun(QueryDesc *queryDesc,
     }
 	PG_CATCH();
 	{
-        /* If EXPLAIN ANALYZE, let qExec try to return stats to qDisp. */
-        if (estate->es_sliceTable &&
-            estate->es_sliceTable->instrument_options &&
-            (estate->es_sliceTable->instrument_options & INSTRUMENT_CDB) &&
-            Gp_role == GP_ROLE_EXECUTE)
-        {
-            PG_TRY();
-            {
-                cdbexplain_sendExecStats(queryDesc);
-            }
-            PG_CATCH();
-            {
-                /* Close down interconnect etc. */
-				mppExecutorCleanup(queryDesc);
-		        PG_RE_THROW();
-            }
-            PG_END_TRY();
-        }
-
         /* Close down interconnect etc. */
 		mppExecutorCleanup(queryDesc);
 		PG_RE_THROW();
