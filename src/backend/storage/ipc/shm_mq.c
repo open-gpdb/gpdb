@@ -777,6 +777,12 @@ shm_mq_send_bytes(shm_mq_handle *mqh, Size nbytes, void *data, bool nowait,
 		{
 			shm_mq_result res;
 
+			if (QueryFinishPending)
+			{
+				*bytes_written = sent;
+				return SHM_MQ_QUERY_FINISH;
+			}
+
 			/* Let the receiver know that we need them to read some data. */
 			res = shm_mq_notify_receiver(mq);
 			if (res != SHM_MQ_SUCCESS)
@@ -975,6 +981,9 @@ shm_mq_wait_internal(volatile shm_mq *mq, PGPROC *volatile * ptr,
 			pid_t		pid;
 			bool		detached;
 
+			if (QueryFinishPending)
+				break;
+
 			/* Acquire the lock just long enough to check the pointer. */
 			SpinLockAcquire(&mq->mq_mutex);
 			detached = mq->mq_detached;
@@ -1002,7 +1011,8 @@ shm_mq_wait_internal(volatile shm_mq *mq, PGPROC *volatile * ptr,
 			}
 
 			/* Wait to be signalled. */
-			WaitLatch(&MyProc->procLatch, WL_LATCH_SET, 0);
+			/* Add WL_TIMEOUT to wakeEvents to check QueryFinishPending. */
+			WaitLatch(&MyProc->procLatch, WL_LATCH_SET|WL_TIMEOUT, 100);
 
 			/* Reset the latch so we don't spin. */
 			ResetLatch(&MyProc->procLatch);

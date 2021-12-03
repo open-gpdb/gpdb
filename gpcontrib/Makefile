@@ -14,6 +14,7 @@ recurse_targets = ""
 ifeq "$(enable_debug_extensions)" "yes"
 	recurse_targets = gp_sparse_vector \
                gp_distribution_policy \
+               gp_parallel_retrieve_cursor \
                gp_internal_tools \
                gp_pitr \
                gp_debug_numsegments \
@@ -25,6 +26,7 @@ ifeq "$(enable_debug_extensions)" "yes"
 else
 	recurse_targets = gp_sparse_vector \
                gp_distribution_policy \
+               gp_parallel_retrieve_cursor \
                gp_internal_tools \
                gp_pitr \
                gp_legacy_string_agg \

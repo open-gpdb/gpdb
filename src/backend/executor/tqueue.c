@@ -224,6 +224,7 @@ tqueueReceiveSlot(TupleTableSlot *slot, DestReceiver *self)
 	TQueueDestReceiver *tqueue = (TQueueDestReceiver *) self;
 	TupleDesc	tupledesc = slot->tts_tupleDescriptor;
 	HeapTuple	tuple;
+	shm_mq_result	result;
 
 	/*
 	 * If first time through, compute remapping info for the top-level fields.
@@ -303,12 +304,12 @@ tqueueReceiveSlot(TupleTableSlot *slot, DestReceiver *self)
 
 	/* Send the tuple itself. */
 	tuple = ExecMaterializeSlot(slot);
-	shm_mq_send(tqueue->queue, tuple->t_len, tuple->t_data, false);
+	result = shm_mq_send(tqueue->queue, tuple->t_len, tuple->t_data, false);
 
 	/* Check for failure. */
 	if (result == SHM_MQ_DETACHED)
 		return;
-	else if (result != SHM_MQ_SUCCESS)
+	else if (result != SHM_MQ_SUCCESS && result != SHM_MQ_QUERY_FINISH)
 		ereport(ERROR,
 				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
 				 errmsg("could not send tuple to shared-memory queue")));

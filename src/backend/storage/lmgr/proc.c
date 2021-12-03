@@ -320,7 +320,7 @@ InitProcess(void)
 	 * such as mppSessionId being valid and mppIsWriter set to true.
 	 */
 	if (IsAutoVacuumWorkerProcess() || am_walsender || am_ftshandler ||
-		IsFaultHandler)
+		am_faulthandler)
 		Gp_role = GP_ROLE_UTILITY;
 
 	/*
