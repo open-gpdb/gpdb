@@ -2190,6 +2190,10 @@
               >gp_default_storage_options</xref></codeph>.</li>
           <li> The default data compression setting.</li>
         </ol></p>
+      <p>You must specify <codeph>--skipvalidation</codeph> when modifying this parameter as it is a
+        restricted configuration parameter. Use extreme caution when setting configuration
+        parameters with this option. For
+        example:<codeblock>gpconfig --skipvalidation -c gp_add_column_inherits_table_setting -v on</codeblock></p>
       <p>For information about the data storage compression parameters, see <codeph><xref
             href="../sql_commands/CREATE_TABLE.xml">CREATE TABLE</xref></codeph>.</p>
       <table id="table_nyn_wjd_lmb">
