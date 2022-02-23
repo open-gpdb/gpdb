@@ -20,7 +20,6 @@ ifeq "$(enable_debug_extensions)" "yes"
                gp_inject_fault \
                gp_replica_check \
                gp_legacy_string_agg \
-               gp_array_agg \
                gp_error_handling
 else
 	recurse_targets = gp_sparse_vector \
@@ -28,7 +27,6 @@ else
                gp_internal_tools \
                gp_pitr \
                gp_legacy_string_agg \
-               gp_array_agg \
                gp_error_handling
 endif
 
@@ -83,7 +81,6 @@ distclean:
 
 installcheck:
 	$(MAKE) -C gp_internal_tools installcheck
-	$(MAKE) -C gp_array_agg installcheck
 	if [ "$(enable_mapreduce)" = "yes" ]; then \
 		$(MAKE) -C gpmapreduce installcheck; \
 	fi
