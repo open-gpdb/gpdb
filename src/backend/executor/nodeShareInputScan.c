@@ -26,6 +26,13 @@
 
 #include "postgres.h"
 
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+#ifdef HAVE_SYS_POLL_H
+#include <sys/poll.h>
+#endif
+
 #include "access/xact.h"
 #include "cdb/cdbvars.h"
 #include "commands/tablespace.h"
@@ -547,6 +554,39 @@ write_retry:
 	return 0;
 }
 
+#ifdef FAULT_INJECTOR
+/**
+ * create and open many tmp files, so the next fd number is bigger.
+ **/
+static void fi_create_many_fds(int *fds, char *file_prefix, int num)
+{
+	for (int i = 0; i < num; i++)
+	{
+		char filepath[1024];
+		snprintf(filepath, sizeof(filepath), "%s/si_%d", file_prefix, i);
+		fds[i] = open(filepath, O_RDWR | O_CREAT, 0666);
+	}
+	if (fds[num-1] > 0)
+		Assert(fds[num-1] > num);
+}
+
+/**
+ * close opened fds and delete the tmp files
+ **/
+static void fi_close_created_fds(int *fds, char *file_prefix, int num)
+{
+	for (int i = 0; i < num; i++)
+	{
+		char filepath[1024];
+		snprintf(filepath, sizeof(filepath), "%s/si_%d", file_prefix, i);
+		if (fds[i] > 0) {
+			close(fds[i]);
+			unlink(filepath);
+		}
+	}
+}
+#endif
+
 /* 
  * Readiness (a) synchronization.
  *
@@ -586,36 +626,60 @@ write_retry:
 void
 shareinput_reader_waitready(void *ctxt, int share_id, PlanGenerator planGen)
 {
-	mpp_fd_set rset;
-	struct timeval tval;
-	int n;
+	struct pollfd fds[1];
+	int nfds = 0;
 	char a;
 	ShareInput_Lk_Context *pctxt = (ShareInput_Lk_Context *) ctxt;
 	RegisterXactCallbackOnce(XCallBack_ShareInput_FIFO, pctxt);
+
+#ifdef FAULT_INJECTOR
+	/**
+	 * In preivous code, use MPP_FD_SET(call select() internally) to operate FIFO,
+	 * so the FIFO's fd number cannot exceed 65536.
+	 *
+	 * After using poll() instead of select(), it can overcome this limit.
+	 * Using FAULT_INJECTOR here to test whether it works normally in this
+	 * scenario (already opened many fds).
+	 **/
+	// we should use 70000(>65536) to test here, but the test env (docker)'s open files
+	// is not very big, so only using a smaller value instead.
+	// const int num = 70000;
+	const int num = 40000;
+	int tmp_fds[num];
+	memset(tmp_fds, 0, sizeof(tmp_fds));
+	char tmpfile_prefix[] = "/tmp/_gpdb_fault_inject_tmp_dir/"; // need create the dir first
+	if (SIMPLE_FAULT_INJECTOR("inject_many_fds_for_shareinputscan") == FaultInjectorTypeSkip)
+		fi_create_many_fds(tmp_fds, tmpfile_prefix, num);
+#endif
 
 	create_tmp_fifo(pctxt->lkname_ready);
 	pctxt->readyfd = open(pctxt->lkname_ready, O_RDWR, 0600); 
 	if(pctxt->readyfd < 0)
 		elog(ERROR, "could not open fifo \"%s\": %m", pctxt->lkname_ready);
-	
+
 	create_tmp_fifo(pctxt->lkname_done);
 	pctxt->donefd = open(pctxt->lkname_done, O_RDWR, 0600);
 	if(pctxt->donefd < 0)
 		elog(ERROR, "could not open fifo \"%s\": %m", pctxt->lkname_done);
 
+#ifdef FAULT_INJECTOR
+	/* close opened fds */
+	fi_close_created_fds(tmp_fds, tmpfile_prefix, num);
+#endif
+
+	fds[0].fd = pctxt->readyfd;
+	fds[0].events = POLLIN;
+	nfds++;
 	while(1)
 	{
 		CHECK_FOR_INTERRUPTS();
 
-		MPP_FD_ZERO(&rset);
-		MPP_FD_SET(pctxt->readyfd, &rset);
+		int nready = 0;
+		int poll_timeout = 1000; // unit: ms
 
-		tval.tv_sec = 1;
-		tval.tv_usec = 0;
+		nready = poll(fds, nfds, poll_timeout);
 
-		n = select(pctxt->readyfd+1, (fd_set *) &rset, NULL, NULL, &tval);
-
-		if(n==1)
+		if (nready == 1)
 		{
 #if USE_ASSERT_CHECKING
 			int rwsize =
@@ -641,7 +705,7 @@ shareinput_reader_waitready(void *ctxt, int share_id, PlanGenerator planGen)
 
 			break;
 		}
-		else if(n==0)
+		else if (nready == 0)
 		{
 			elog(DEBUG1, "SISC READER (shareid=%d, slice=%d): Wait ready time out once",
 					share_id, currentSliceId);
@@ -717,22 +781,23 @@ static void
 writer_wait_for_acks(ShareInput_Lk_Context *pctxt, int share_id, int xslice)
 {
 	int ack_needed = xslice;
-	mpp_fd_set rset;
-	struct timeval tval;
+	struct pollfd fds[1];
+	int nfds = 0;
 	char b;
 
+	fds[0].fd = pctxt->donefd;
+	fds[0].events = POLLIN;
+	nfds++;
 	while(ack_needed > 0)
 	{
 		CHECK_FOR_INTERRUPTS();
 
-		MPP_FD_ZERO(&rset);
-		MPP_FD_SET(pctxt->donefd, &rset);
+		int nready = 0;
+		int poll_timeout = 1000; // unit: ms
 
-		tval.tv_sec = 1;
-		tval.tv_usec = 0;
-		int numReady = select(pctxt->donefd+1, (fd_set *) &rset, NULL, NULL, &tval);
+		nready = poll(fds, nfds, poll_timeout);
 
-		if(numReady==1)
+		if (nready == 1)
 		{
 #if USE_ASSERT_CHECKING
 			int rwsize =
@@ -752,7 +817,7 @@ writer_wait_for_acks(ShareInput_Lk_Context *pctxt, int share_id, int xslice)
 						share_id, currentSliceId, ack_needed);
 			}
 		}
-		else if(numReady==0)
+		else if (nready == 0)
 		{
 			elog(DEBUG1, "SISC WRITER (shareid=%d, slice=%d): Notify ready time out once ... ",
 					share_id, currentSliceId);
@@ -804,31 +869,31 @@ void
 shareinput_writer_waitdone(void *ctxt, int share_id, int nsharer_xslice)
 {
 	ShareInput_Lk_Context *pctxt = (ShareInput_Lk_Context *) ctxt;
+	struct pollfd fds[1];
+	int nfds = 0;
 
 	if (pctxt->donefd < 0)
 		return;
 
-	mpp_fd_set rset;
-	struct timeval tval;
-	int numReady;
 	char z;
 	int ack_needed = nsharer_xslice - pctxt->zcnt;
 
 	elog(DEBUG1, "SISC WRITER (shareid=%d, slice=%d): waiting for DONE message from %d readers",
 							share_id, currentSliceId, ack_needed);
 
+	fds[0].fd = pctxt->donefd;
+	fds[0].events = POLLIN;
+	nfds++;
 	while(ack_needed > 0)
 	{
 		CHECK_FOR_INTERRUPTS();
-	
-		MPP_FD_ZERO(&rset);
-		MPP_FD_SET(pctxt->donefd, &rset);
 
-		tval.tv_sec = 1;
-		tval.tv_usec = 0;
-		numReady = select(pctxt->donefd+1, (fd_set *) &rset, NULL, NULL, &tval);
-	
-		if(numReady==1)
+		int nready = 0;
+		int poll_timeout = 1000; // unit: ms
+
+		nready = poll(fds, nfds, poll_timeout);
+
+		if (nready == 1)
 		{
 #if USE_ASSERT_CHECKING
 			int rwsize =
@@ -840,7 +905,7 @@ shareinput_writer_waitdone(void *ctxt, int share_id, int nsharer_xslice)
 					share_id, currentSliceId);
 			--ack_needed;
 		}
-		else if(numReady==0)
+		else if (nready == 0)
 		{
 			elog(DEBUG1, "SISC WRITER (shareid=%d, slice=%d): wait done timeout once",
 					share_id, currentSliceId);
