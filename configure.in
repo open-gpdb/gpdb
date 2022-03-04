@@ -943,6 +943,7 @@ PGAC_ARG_BOOL(with, gssapi, no, [build with GSSAPI support],
   krb_srvtab="FILE:\$(sysconfdir)/krb5.keytab"
 ])
 AC_MSG_RESULT([$with_gssapi])
+AC_SUBST(with_gssapi)
 
 
 AC_SUBST(krb_srvtab)
@@ -1700,9 +1701,14 @@ if test "$with_quicklz" = yes; then
   AC_CHECK_HEADER(quicklz.h, [], [AC_MSG_ERROR([header file <quicklz.h> is required for QuickLZ support])])
 fi
 
+# Check for GSSAPI
 if test "$with_gssapi" = yes ; then
   AC_CHECK_HEADERS(gssapi/gssapi.h, [],
 	[AC_CHECK_HEADERS(gssapi.h, [], [AC_MSG_ERROR([gssapi.h header file is required for GSSAPI])])])
+  AC_CHECK_DECLS(gs_store_cred_into,
+      [AC_DEFINE(HAVE_GSSAPI_PROXY, 1, [Define to 1 if you have GSSAPI extension support. ])],
+      [AC_MSG_ERROR([gssapi_ext.h header file is required for GSSAPI proxy])],
+  [#include <gssapi/gssapi_ext.h>])
 fi
 
 if test "$with_openssl" = yes ; then
