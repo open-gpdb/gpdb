@@ -4825,16 +4825,6 @@ GetSystemIdentifier(void)
 }
 
 /*
- * Returns the random nonce from control file.
- */
-char *
-GetMockAuthenticationNonce(void)
-{
-	Assert(ControlFile != NULL);
-	return ControlFile->mock_authentication_nonce;
-}
-
-/*
  * Are checksums enabled for data pages?
  */
 bool
@@ -5080,7 +5070,6 @@ BootStrapXLOG(void)
 	XLogRecord *record;
 	bool		use_existent;
 	uint64		sysidentifier;
-	char		mock_auth_nonce[MOCK_AUTH_NONCE_LEN];
 	struct timeval tv;
 	pg_crc32	crc;
 
@@ -5100,17 +5089,6 @@ BootStrapXLOG(void)
 	sysidentifier = ((uint64) tv.tv_sec) << 32;
 	sysidentifier |= ((uint64) tv.tv_usec) << 12;
 	sysidentifier |= getpid() & 0xFFF;
-
-	/*
-	 * Generate a random nonce. This is used for authentication requests
-	 * that will fail because the user does not exist. The nonce is used to
-	 * create a genuine-looking password challenge for the non-existent user,
-	 * in lieu of an actual stored password.
-	 */
-	if (!pg_backend_random(mock_auth_nonce, MOCK_AUTH_NONCE_LEN))
-		ereport(PANIC,
-			(errcode(ERRCODE_INTERNAL_ERROR),
-			 errmsg("could not generation secret authorization token")));
 
 	/* First timeline ID is always 1 */
 	ThisTimeLineID = 1;
@@ -5212,7 +5190,6 @@ BootStrapXLOG(void)
 	memset(ControlFile, 0, sizeof(ControlFileData));
 	/* Initialize pg_control status fields */
 	ControlFile->system_identifier = sysidentifier;
-	memcpy(ControlFile->mock_authentication_nonce, mock_auth_nonce, MOCK_AUTH_NONCE_LEN);
 	ControlFile->state = DB_SHUTDOWNED;
 	ControlFile->time = checkPoint.time;
 	ControlFile->checkPoint = checkPoint.redo;

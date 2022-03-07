@@ -27,7 +27,6 @@
  * four digits indicates the GPDB version.
  */
 #define PG_CONTROL_VERSION	9420600
-#define MOCK_AUTH_NONCE_LEN		32
 
 /*
  * Body of CheckPoint XLOG records.  This is declared here because we keep
@@ -227,13 +226,6 @@ typedef struct ControlFileData
 
 	/* Are data pages protected by checksums? Zero if no checksum version */
 	uint32		data_checksum_version;
-
-	/*
-	 * Random nonce, used in authentication requests that need to proceed
-	 * based on values that are cluster-unique, like a SASL exchange that
-	 * failed at an early stage.
-	 */
-	char		mock_authentication_nonce[MOCK_AUTH_NONCE_LEN];
 
 	/* CRC of all above ... MUST BE LAST! */
 	pg_crc32c	crc;

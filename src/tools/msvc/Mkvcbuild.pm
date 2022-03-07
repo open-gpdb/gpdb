@@ -443,11 +443,11 @@ sub mkvcbuild
    # building with OpenSSL.
 	if (!$solution->{options}->{openssl})
 	{
-		$libpq->RemoveFile('src/common/sha2_openssl.c');
+		$libpq->RemoveFile('src\common\sha2_openssl.c');
 	}
 	else
 	{
-		$libpq->RemoveFile('src/common/sha2.c');
+		$libpq->RemoveFile('src\common\sha2.c');
 	}
 
 	if (!$buildclient)

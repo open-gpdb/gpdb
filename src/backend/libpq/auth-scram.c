@@ -108,6 +108,9 @@ typedef struct
 	char	   *logdetail;
 } scram_state;
 
+/* Nonce key length, see below */
+#define MOCK_AUTH_NONCE_LEN		32
+
 static void read_client_first_message(scram_state *state, char *input);
 static void read_client_final_message(scram_state *state, char *input);
 static char *build_server_first_message(scram_state *state);
@@ -1013,7 +1016,11 @@ scram_MockSalt(const char *username)
 {
 	pg_sha256_ctx ctx;
 	static uint8 sha_digest[PG_SHA256_DIGEST_LENGTH];
-	char	   *mock_auth_nonce = GetMockAuthenticationNonce();
+	char 	mock_auth_nonce[MOCK_AUTH_NONCE_LEN];
+	if (!pg_strong_random(mock_auth_nonce, MOCK_AUTH_NONCE_LEN))
+		ereport(COMMERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+						errmsg("could not generate mock nonce")));
 
 	/*
 	 * Generate salt using a SHA256 hash of the username and the cluster's
