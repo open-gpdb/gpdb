@@ -49,6 +49,7 @@
 #include "libpq/scram.h"
 #include "fe-auth.h"
 #include "libpq/md5.h"
+#include "libpq/pg_sha2.h"
 
 #if HAVE_GSSAPI_PROXY
 #include <gssapi/gssapi_ext.h>
@@ -1186,7 +1187,7 @@ PQencryptPasswordConn(PGconn *conn, const char *passwd, const char *user,
 		PGresult   *res;
 		char	   *val;
 
-		res = PQexec(conn, "show password_encryption");
+		res = PQexec(conn, "show password_hash_algorithm");
 		if (res == NULL)
 		{
 			/* PQexec() should've set conn->errorMessage already */
@@ -1222,11 +1223,11 @@ PQencryptPasswordConn(PGconn *conn, const char *passwd, const char *user,
 
 	/* Ok, now we know what algorithm to use */
 
-	if (strcmp(algorithm, "scram-sha-256") == 0)
+	if (strcmp(algorithm, "SCRAM-SHA-256") == 0)
 	{
 		crypt_pwd = pg_fe_scram_build_verifier(passwd);
 	}
-	else if (strcmp(algorithm, "md5") == 0)
+	else if (strcmp(algorithm, "MD5") == 0)
 	{
 		crypt_pwd = malloc(MD5_PASSWD_LEN + 1);
 		if (crypt_pwd)
@@ -1238,9 +1239,14 @@ PQencryptPasswordConn(PGconn *conn, const char *passwd, const char *user,
 			}
 		}
 	}
-	else if (strcmp(algorithm, "plain") == 0)
+	else if (strcmp(algorithm, "SHA-256") == 0)
 	{
-		crypt_pwd = strdup(passwd);
+		crypt_pwd = malloc(SHA256_PASSWD_LEN + 1);
+		if (!pg_sha256_encrypt(passwd, (char *) user, strlen(user), crypt_pwd))
+		{
+			free(crypt_pwd);
+			crypt_pwd = NULL;
+		}
 	}
 	else
 	{

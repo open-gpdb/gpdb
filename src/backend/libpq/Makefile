@@ -16,7 +16,7 @@ override CPPFLAGS += -I$(libpq_srcdir) -I$(top_srcdir)/src/port
 # be-fsstubs is here for historical reasons, probably belongs elsewhere
 
 OBJS = fe-auth-scram.o be-fsstubs.o be-secure.o auth.o crypt.o hba.o ip.o md5.o pqcomm.o \
-       pqformat.o pqsignal.o auth-scram.o sha2.o pg_sha2.o fe-protocol3.o fe-connect.o \
+       pqformat.o pqsignal.o auth-scram.o pg_sha2.o fe-protocol3.o fe-connect.o \
        fe-exec.o pqexpbuffer.o fe-auth.o fe-misc.o fe-protocol2.o fe-secure.o \
        $(filter getpeereid.o, $(LIBOBJS))
 

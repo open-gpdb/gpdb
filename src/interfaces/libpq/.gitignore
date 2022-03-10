@@ -30,3 +30,4 @@
 /ip.c
 /encnames.c
 /wchar.c
+/pg_sha2.c
