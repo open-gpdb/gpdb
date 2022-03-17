@@ -7756,7 +7756,7 @@
       <p>You can set this parameter for a database system, an individual database,
         or a session or query.</p>
       <p>For information about GPORCA, see <xref
-          href="../../admin_guide/query/topics/query-piv-optimizer.xml">About GPORCA</xref><ph
+          href="../../admin_guide/query/topics/query-piv-optimizer.html" format="html" scope="external">About GPORCA</xref><ph
           otherprops="op-print"> in the <cite>Greenplum Database Administrator Guide</cite></ph>. </p>
       <table id="table_zct_qn1_bpb">
         <tgroup cols="3">
