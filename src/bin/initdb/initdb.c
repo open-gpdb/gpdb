@@ -82,7 +82,7 @@ extern const char *select_default_timezone(const char *share_path);
 #define PG_VERSIONSTR "postgres (Greenplum Database) " PG_VERSION "\n"
 
 
-static const char *const auth_methods_host[] = {
+static const char *auth_methods_host[] = {
 	"trust", "reject", "scram-sha-256", "md5", "password", "ident", "radius",
 #ifdef ENABLE_GSS
 	"gss",
@@ -101,7 +101,7 @@ static const char *const auth_methods_host[] = {
 #endif
 	NULL
 };
-static const char *const auth_methods_local[] = {
+static const char *auth_methods_local[] = {
 	"trust", "reject", "scram-sha-256", "md5", "password", "peer", "radius",
 #ifdef USE_PAM
 	"pam", "pam ",

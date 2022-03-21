@@ -164,6 +164,7 @@ encrypt_password(PasswordType target_type, const char *role,
 				case PASSWORD_TYPE_MD5:
 					return pstrdup(password);
 			}
+			break;
 		case PASSWORD_TYPE_SHA256:
 			switch (guessed_type)
 			{
@@ -187,6 +188,7 @@ encrypt_password(PasswordType target_type, const char *role,
 				case PASSWORD_TYPE_SHA256:
 					return pstrdup(password);
 			}
+			break;
 		case PASSWORD_TYPE_SCRAM_SHA_256:
 			switch (guessed_type)
 			{
@@ -208,6 +210,7 @@ encrypt_password(PasswordType target_type, const char *role,
 				case PASSWORD_TYPE_SCRAM_SHA_256:
 					return pstrdup(password);
 			}
+			break;
 	}
 
 	/*
