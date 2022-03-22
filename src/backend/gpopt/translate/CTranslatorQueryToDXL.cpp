@@ -3619,6 +3619,13 @@ CTranslatorQueryToDXL::TranslateTVFToDXL(const RangeTblEntry *rte,
 	// if this is a folded function expression, generate a project over a CTG
 	if (!IsA(funcexpr, FuncExpr))
 	{
+		Oid funcTypeOid = gpdb::ExprType(rtfunc->funcexpr);
+		if (gpdb::IsCompositeType(funcTypeOid))
+		{
+			GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiQuery2DXLUnsupportedFeature,
+					   GPOS_WSZ_LIT("Row-type variable"));
+		}
+
 		CDXLNode *const_tbl_get_dxlnode = DXLDummyConstTableGet();
 
 		CDXLNode *project_list_dxlnode = GPOS_NEW(m_mp)
