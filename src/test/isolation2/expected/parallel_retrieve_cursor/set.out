@@ -6,5 +6,11 @@
 (exited with code 0)
 !\retcode gpstop -u;
 (exited with code 0)
+BEGIN;
+BEGIN
+DECLARE c1 PARALLEL RETRIEVE CURSOR FOR SELECT 1;
+ERROR:  extension "gp_parallel_retrieve_cursor" does not exist
+END;
+END
 CREATE EXTENSION IF NOT EXISTS gp_parallel_retrieve_cursor;
 CREATE

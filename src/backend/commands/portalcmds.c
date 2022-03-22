@@ -26,6 +26,7 @@
 #include <limits.h>
 
 #include "access/xact.h"
+#include "commands/extension.h"
 #include "commands/portalcmds.h"
 #include "executor/executor.h"
 #include "executor/tstoreReceiver.h"
@@ -100,6 +101,11 @@ PerformCursorOpen(PlannedStmt *stmt, ParamListInfo params,
 	cstmt->options |= CURSOR_OPT_NO_SCROLL;
 	
 	Assert(!(cstmt->options & CURSOR_OPT_SCROLL && cstmt->options & CURSOR_OPT_NO_SCROLL));
+
+	if (cstmt->options & CURSOR_OPT_PARALLEL_RETRIEVE)
+	{
+		get_extension_oid("gp_parallel_retrieve_cursor", false);
+	}
 
 	/*
 	 * Create a portal and copy the plan and queryString into its memory.
