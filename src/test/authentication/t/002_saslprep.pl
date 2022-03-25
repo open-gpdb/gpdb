@@ -42,7 +42,9 @@ SKIP:
 {
 	skip "authentication tests cannot run on Windows", 12 if ($windows_os);
 
-	# Initialize master node
+	# Initialize master node. Force UTF-8 encoding, so that we can use non-ASCII
+	# characters in the passwords below.
+	$ENV{"LANG"} = 'en_US.UTF-8';
 	my $node = get_new_node('master');
 	$node->init;
 	$node->start;
