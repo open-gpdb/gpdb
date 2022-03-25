@@ -458,7 +458,7 @@ CreateRole(CreateRoleStmt *stmt)
 
 	if (password)
 	{
-		if (!encrypt_password_flag || isHashedPasswd(password))
+		if (!encrypt_password_flag)
 			new_record[Anum_pg_authid_rolpassword - 1] =
 					CStringGetTextDatum(password);
 		else
@@ -1114,7 +1114,7 @@ AlterRole(AlterRoleStmt *stmt)
 	/* password */
 	if (password)
 	{
-		if (!encrypt_password_flag || isHashedPasswd(password))
+		if (!encrypt_password_flag)
 			new_record[Anum_pg_authid_rolpassword - 1] =
 				CStringGetTextDatum(password);
 		else
@@ -1138,8 +1138,8 @@ AlterRole(AlterRoleStmt *stmt)
 				new_record[Anum_pg_authid_rolpassword - 1] =
 						CStringGetTextDatum(shadow_pass);
 			}
-			new_record_repl[Anum_pg_authid_rolpassword - 1] = true;
 		}
+		new_record_repl[Anum_pg_authid_rolpassword - 1] = true;
 	}
 
 	/* unset password */

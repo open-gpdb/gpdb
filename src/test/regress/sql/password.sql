@@ -58,7 +58,7 @@ CREATE ROLE regress_passwd6 ENCRYPTED PASSWORD 'md53725413363ab045e20521bf36b8d8
 
 -- This looks like a valid SCRAM-SHA-256 verifier, but it is not
 -- so it should be hashed with SCRAM-SHA-256.
-CREATE ROLE regress_passwd6 PASSWORD 'SCRAM-SHA-256$1234';
+ALTER ROLE regress_passwd6 PASSWORD 'SCRAM-SHA-256$1234';
 -- These may look like valid MD5 verifiers, but they are not, so they
 -- should be hashed with SCRAM-SHA-256.
 -- trailing garbage at the end

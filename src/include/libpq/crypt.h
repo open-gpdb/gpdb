@@ -19,10 +19,6 @@
 #include "libpq/md5.h"
 #include "libpq/pg_sha2.h"
 
-#define isHashedPasswd(passwd) (isMD5(passwd) || isSHA256(passwd))
-
-#define MAX_PASSWD_HASH_LEN Max(MD5_PASSWD_LEN, SHA256_PASSWD_LEN)
-
 extern int password_hash_algorithm;
 /*
  * Types of password hashes or verifiers that can be stored in
