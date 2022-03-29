@@ -24,6 +24,7 @@ Options:
 '''
 
 import sys
+
 if sys.hexversion<0x2040400:
     sys.stderr.write("gpload needs python 2.4.4 or higher\n")
     sys.exit(2)
@@ -2585,7 +2586,30 @@ WHERE relname = 'staging_gpload_reusable_%s';""" % (encoding_conditions)
         if self.reuse_tables == False:
             self.cleanupSql.append('drop external table if exists %s'%self.extSchemaTable)
 
-		
+    #
+    # get distribution key for staging table, default is the DK for target table
+    # if it is not setted, we use the match columns for DK
+    #
+    def get_distribution_key(self):
+        
+        sql = '''select * from pg_get_table_distributedby('%s.%s'::regclass::oid)'''% (self.schema, self.table)
+        try:
+            dk_text = self.db.query(sql.encode('utf-8')).getresult()
+        except Exception as e:
+            self.log(self.ERROR, 'could not run SQL "%s": %s ' % (sql, unicode(e)))
+
+        if dk_text[0][0] == 'DISTRIBUTED RANDOMLY':
+            # target table doesn't have dk, we use match column
+            dk = self.getconfig('gpload:output:match_columns', list)
+            dk_text = " DISTRIBUTED BY (%s)" % ', '.join(dk)
+            return dk_text
+        else:
+            # use dk of target table
+            # result from db is a text, we need to make it unicode
+            return dk_text[0][0].decode("utf-8")
+
+
+
     #
     # Create a new staging table or find a reusable staging table to use for this operation
     # (only valid for update/merge operations).
@@ -2593,7 +2617,7 @@ WHERE relname = 'staging_gpload_reusable_%s';""" % (encoding_conditions)
     def create_staging_table(self):
 
         # make sure we set the correct distribution policy
-        distcols = self.getconfig('gpload:output:match_columns', list)
+        distcols = self.get_distribution_key()
 
         sql = "SELECT * FROM pg_class WHERE relname LIKE 'temp_gpload_reusable_%%';"
         resultList = self.db.query(sql.encode('utf-8')).getresult()
@@ -2646,11 +2670,14 @@ WHERE relname = 'staging_gpload_reusable_%s';""" % (encoding_conditions)
         sql = 'CREATE %sTABLE %s ' % (is_temp_table, self.staging_table_name)
         cols = map(lambda a:'"%s" %s' % (a[0], a[1]), target_columns)
         sql += "(%s)" % ','.join(cols)
-        #sql += " DISTRIBUTED BY (%s)" % ', '.join(distcols)
+        sql += distcols
         self.log(self.LOG, sql)
 
         if not self.options.D:
-            self.db.query(sql.encode('utf-8'))
+            try:
+                self.db.query(sql.encode('utf-8'))
+            except Exception as e:
+                self.log(self.ERROR,  'could not run SQL "%s": %s ' % (sql, unicode(e)))
             if not self.reuse_tables:
                 self.cleanupSql.append('DROP TABLE IF EXISTS %s' % self.staging_table_name)
 
@@ -2716,7 +2743,6 @@ WHERE relname = 'staging_gpload_reusable_%s';""" % (encoding_conditions)
                 strE = unicode(str(e), errors = 'ignore')
                 strF = unicode(str(sql), errors = 'ignore')
                 self.log(self.ERROR, strE + ' encountered while running ' + strF)
-
         #progress.condition.acquire()
         #progress.number = 1
         #progress.condition.wait()
