@@ -136,3 +136,11 @@ ifeq ($(with_openssl),yes)
 else
 	@echo "SSL is disabled for this build"
 endif
+
+install:
+	./configure_ssl.sh
+
+HOSTNAME=$(shell hostname)
+installcheck: install
+	$(top_builddir)/src/test/regress/pg_regress $(EXTRA_REGRESS_OPTS) --init-file=$(top_builddir)/src/test/regress/init_file --init-file=./init_file_ssl_connection --psqldir='$(PSQLDIR)' --inputdir=$(srcdir) --dbname=test_sslconnection --schedule=$(srcdir)/ssl_connection_schedule --user=ssltestuser --host=$(HOSTNAME) --sslmode=verify-full
+	./clear_ssl.sh
