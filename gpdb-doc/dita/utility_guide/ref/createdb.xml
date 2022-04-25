@@ -69,7 +69,7 @@ batch jobs and scripts where no user is present to enter a password.</pd></plent
               exist (or if it is the name of the new database being created),
                 <codeph>template1</codeph> will be used.</pd>
           </plentry></parml></sectiondiv></section><section id="section6"><title>Examples</title><p>To create the database <codeph>test</codeph> using the default options:</p><codeblock>createdb test</codeblock><p>To create the database <codeph>demo</codeph> using the Greenplum
-        coordinator on host <codeph>gpmaster</codeph>, port <codeph>54321</codeph>, using the
+        master on host <codeph>gpmaster</codeph>, port <codeph>54321</codeph>, using the
           <codeph>LATIN1</codeph> encoding scheme:</p><codeblock>createdb -p 54321 -h gpmaster -E LATIN1 demo</codeblock></section><section id="section7">
       <title>See Also</title>
       <p><ph otherprops="op-print"><codeph>CREATE DATABASE</codeph> in the <i>Greenplum Database
