@@ -15,7 +15,7 @@
 
 GP_IGNORE: formatted by atmsort.pm
 -- start_matchignore
--- m/pg_xlogdump: FATAL: error in WAL record at */
+-- m/pg_xlogdump: FATAL:  error in WAL record at */
 -- m/.*The 'DISTRIBUTED BY' clause determines the distribution of data*/
 -- m/.*Table doesn't have 'DISTRIBUTED BY' clause*/
 -- end_matchignore
@@ -64,7 +64,7 @@ VACUUM
 -1Uq: ... <quitting>
 
 -- Validate wal records (mirrorless setting has alternative answer file for this since wal_level is already minimal)
-! last_wal_file=$(psql -At -c "SELECT pg_xlogfile_name(pg_current_xlog_lsn())" postgres) && pg_xlogdump ${last_wal_file} -p ${COORDINATOR_DATA_DIRECTORY}/pg_xlog -r appendonly;
+! last_wal_file=$(psql -At -c "SELECT pg_xlogfile_name(pg_current_xlog_location())" postgres) && pg_xlogdump ${last_wal_file} -p ${MASTER_DATA_DIRECTORY}/pg_xlog -r appendonly;
 
 
 -- *********** Set wal_level=minimal **************
@@ -74,7 +74,7 @@ VACUUM
 !\retcode gpconfig -c max_wal_senders -v 0 --masteronly --skipvalidation;
 (exited with code 0)
 -- Restart QD
-!\retcode pg_ctl -l /dev/null -D $COORDINATOR_DATA_DIRECTORY restart -w -t 600 -m fast;
+!\retcode pg_ctl -l /dev/null -D $MASTER_DATA_DIRECTORY restart -w -t 600 -m fast;
 (exited with code 0)
 
 -- Switch WAL file
@@ -101,7 +101,7 @@ DELETE 5
 VACUUM
 
 -- Validate wal records
-! last_wal_file=$(psql -At -c "SELECT pg_xlogfile_name(pg_current_xlog_lsn())" postgres) && pg_xlogdump ${last_wal_file} -p ${MASTER_DATA_DIRECTORY}/pg_xlog -r appendonly;
+! last_wal_file=$(psql -At -c "SELECT pg_xlogfile_name(pg_current_xlog_location())" postgres) && pg_xlogdump ${last_wal_file} -p ${MASTER_DATA_DIRECTORY}/pg_xlog -r appendonly;
 
 
 -1U: DROP TABLE ao_foo;
