@@ -1102,14 +1102,14 @@ CheckPWChallengeAuth(Port *port, char **logdetail)
 	 * If 'md5' authentication is allowed, decide whether to perform 'md5' or
 	 * 'scram-sha-256' authentication based on the type of password the user
 	 * has.  If it's an MD5 hash, we must do MD5 authentication, and if it's
-	 * a SCRAM verifier, we must do SCRAM authentication.  If it's stored in
-	 * plaintext, we could do either one, so we opt for the more secure
-	 * mechanism, SCRAM.
+	 * stored in plaintext, we should do MD5 authentication to be compatible
+	 * with lower versions of PSQL. If it's a SCRAM verifier, we must do SCRAM
+	 * authentication.
 	 *
 	 * If MD5 authentication is not allowed, always use SCRAM.  If the user
 	 * had an MD5 password, CheckSCRAMAuth() will fail.
 	 */
-	if (port->hba->auth_method == uaMD5 && pwtype == PASSWORD_TYPE_MD5)
+	if (port->hba->auth_method == uaMD5 && (pwtype == PASSWORD_TYPE_MD5 || pwtype == PASSWORD_TYPE_PLAINTEXT))
 	{
 		auth_result = CheckMD5Auth(port, shadow_pass, logdetail);
 	}

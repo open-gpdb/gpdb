@@ -1427,8 +1427,9 @@ setup_config(void)
 		strcmp(authmethodhost, "scram-sha-256") == 0)
 	{
 		conflines = replace_token(conflines,
-								  "#password_encryption = md5",
-								  "password_encryption = scram-sha-256");
+								  "#password_encryption = on",
+								  "password_encryption = on");
+		conflines = add_assignment(conflines, "password_hash_algorithm", "scram-sha-256");
 	}
 
 	snprintf(path, sizeof(path), "%s/postgresql.conf", pg_data);

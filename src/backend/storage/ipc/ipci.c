@@ -53,7 +53,6 @@
 #include "utils/faultinjector.h"
 #include "utils/sharedsnapshot.h"
 #include "utils/gpexpand.h"
-#include "utils/snapmgr.h"
 
 #include "libpq-fe.h"
 #include "libpq-int.h"

@@ -940,12 +940,10 @@
 
 /* Define to 1 if you want float4 values to be passed by value. (Always
    defined in GPDB) */
+#undef USE_FLOAT4_BYVAL
+
 /* Define to use /dev/urandom for random number generation */
 #undef USE_DEV_URANDOM
-
-/* Define to 1 if you want float4 values to be passed by value.
-   (--enable-float4-byval) */
-#undef USE_FLOAT4_BYVAL
 
 /* Define to 1 if you want float8, int8, etc values to be passed by value.
    (Always defined in GPDB) */

@@ -220,7 +220,7 @@ pgp_s2k_fill(PGP_S2K *s2k, int mode, int digest_algo)
 
 	switch (s2k->mode)
 	{
-		case 0:
+		case PGP_S2K_SIMPLE:
 			break;
 		case PGP_S2K_SALTED:
 			if (!pg_strong_random(s2k->salt, PGP_S2K_SALT))

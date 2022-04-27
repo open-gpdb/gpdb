@@ -481,8 +481,11 @@ CreateRole(CreateRoleStmt *stmt)
 			if (password[0] == '\0' ||
 				plain_crypt_verify(stmt->role, password, "", &logdetail) == STATUS_OK)
 			{
-				ereport(NOTICE,
-						(errmsg("empty string is not a valid password, clearing password")));
+				if (Gp_role != GP_ROLE_EXECUTE)
+				{
+					ereport(NOTICE,
+							(errmsg("empty string is not a valid password, clearing password")));
+				}
 				new_record_nulls[Anum_pg_authid_rolpassword - 1] = true;
 			}
 			else
@@ -1126,8 +1129,11 @@ AlterRole(AlterRoleStmt *stmt)
 			if (password[0] == '\0' ||
 				plain_crypt_verify(stmt->role, password, "", &logdetail) == STATUS_OK)
 			{
-				ereport(NOTICE,
-						(errmsg("empty string is not a valid password, clearing password")));
+				if (Gp_role != GP_ROLE_EXECUTE)
+				{
+					ereport(NOTICE,
+							(errmsg("empty string is not a valid password, clearing password")));
+				}
 				new_record_nulls[Anum_pg_authid_rolpassword - 1] = true;
 			}
 			else

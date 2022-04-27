@@ -185,13 +185,13 @@ encrypt_password(PasswordType target_type, const char *role,
 				case PASSWORD_TYPE_MD5:
 
 					/*
-					 * cannot convert a MD5 verifier to an sha256 hash, so fall
+					 * cannot convert an MD5 verifier to a sha256 hash, so fall
 					 * through to save the MD5 verifier instead.
 					 */
 				case PASSWORD_TYPE_SCRAM_SHA_256:
 
 					/*
-					 * cannot convert a SCRAM verifier to an MD5 hash, so fall
+					 * cannot convert a SCRAM verifier to a sha256 hash, so fall
 					 * through to save the SCRAM verifier instead.
 					 */
 				case PASSWORD_TYPE_SHA256:
@@ -327,8 +327,8 @@ plain_crypt_verify(const char *role, const char *shadow_pass,
 	char		crypt_client_pass2[SHA256_PASSWD_LEN + 1];
 
 	/*
-	 * Client sent password in plaintext.  If we have an MD5 hash stored, hash
-	 * the password the client sent, and compare the hashes.  Otherwise
+	 * Client sent password in plaintext.  If we have an MD5 or SHA256 hash stored,
+	 * hash the password the client sent, and compare the hashes.  Otherwise
 	 * compare the plaintext passwords directly.
 	 */
 	switch (get_password_type(shadow_pass))
