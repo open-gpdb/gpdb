@@ -24,28 +24,28 @@ You can register the following modules in this manner:
 <td style="vertical-align:top;">
 <ul class="ul" id="topic_d45_wcw_pgb__ul_tc3_nlx_wp">
 <li class="li"><a class="xref" href="../ref_guide/modules/btree_gin.html">btree_gin</a></li>
-<li class="li"><a class="xref" href="../ref_guide/modules/citext.html">citext</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/dblink.html">dblink</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/diskquota.html">diskquota</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/fuzzystrmatch.html">fuzzystrmatch</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/gp_array_agg.html">gp_array_agg</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/gp_parallel_retrieve_cursor.html">gp_parallel_retrieve_cursor</a> (Beta)</li<
->li class="li"><a class="xref" href="../ref_guide/modules/gp_sparse_vector.html">gp_sparse_vector</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/greenplum_fdw.html">greenplum_fdw</a> (Beta)</li<
->/ul<
->/td<
->td style="vertical-align:top;">
+<li class="li"><a class="xref" href="../ref_guide/modules/citext.html">citext</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/dblink.html">dblink</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/diskquota.html">diskquota</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/fuzzystrmatch.html">fuzzystrmatch</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/gp_array_agg.html">gp_array_agg</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/gp_parallel_retrieve_cursor.html">gp_parallel_retrieve_cursor</a> (Beta)</li>
+<li class="li"><a class="xref" href="../ref_guide/modules/gp_sparse_vector.html">gp_sparse_vector</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/greenplum_fdw.html">greenplum_fdw</a> (Beta)</li>
+</ul>
+</td>
+<td style="vertical-align:top;">
 <ul class="ul">
-<li class="li"><a class="xref" href="../ref_guide/modules/hstore.html">hstore</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/orafce_ref.html">orafce</a> (Tanzu Greenplum only)</li<
->li class="li"><a class="xref" href="../ref_guide/modules/pageinspect.html">pageinspect</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/pg_trgm.html">pg_trgm</a></li>
-<li class="li"><a class="xref" href="../ref_guide/modules/pgcrypto.html">pgcrypto</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/postgres_fdw.html">postgres_fdw</a></li<
->li class="li"><a class="xref" href="../ref_guide/modules/sslinfo.html">sslinfo</a></li<
->/ul<
->/td<
->/tr>
+<li class="li"><a class="xref" href="../ref_guide/modules/hstore.html">hstore</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/orafce_ref.html">orafce</a> (Tanzu Greenplum only)</li>
+<li class="li"><a class="xref" href="../ref_guide/modules/pageinspect.html">pageinspect</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/pg_trgm.html">pg_trgm</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/pgcrypto.html">pgcrypto</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/postgres_fdw.html">postgres_fdw</a></li>
+<li class="li"><a class="xref" href="../ref_guide/modules/sslinfo.html">sslinfo</a></li>
+</ul>
+</td>
+</tr>
 </tbody></table>
 
 For additional information about the modules supplied with Greenplum Database, refer to [Additional Supplied Modules](../ref_guide/modules/intro.html) in the *Greenplum Database Reference Guide*.
