@@ -261,6 +261,8 @@ These configuration parameters control Greenplum Database logging.
 - [log\_duration](guc-list.html)
 - [log\_executor\_stats](guc-list.html)
 - [log\_hostname](guc-list.html)
+- [gp\_log\_endpoints](guc-list.html)
+- [gp\_log\_interconnect](guc-list.html)
 - [log\_parser\_stats](guc-list.html)
 - [log\_planner\_stats](guc-list.html)
 - [log\_statement](guc-list.html)
