@@ -42,7 +42,7 @@ By default, analyzedb creates a maximum of 5 concurrent sessions to analyze tabl
 
 For a partitioned, append-optimized table, analyzedb checks the partitioned table root partition and leaf partitions. If needed, the utility updates statistics for non-current partitions and the root partition. For information about how statistics are collected for partitioned tables, see [ANALYZE](../../ref_guide/sql_commands/ANALYZE.html).
 
-The root partition statistics is required by GPORCA. The `analyzedb` utility collects statistics on the root partition of a partitioned table if the statistics do not exist. If any of the leaf partitions have stale statistics, `analyzedb` also refreshes the root partition statistics. The cost of refreshing the root level statistics is comparable to analyzing one leaf partition.
+`analyzedb` must sample additional partitions within a partitioned table when it encounters a stale partition, even when statistics are already collected. Consider it a best practice to run `analyzedb` on the root partition any time that you add a new partition(s) to a partitioned table. This operation both analyzes the child leaf partitions in parallel and merges any updated statistics into the root partition.
 
 ## <a id="notes"></a>Notes 
 
