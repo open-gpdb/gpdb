@@ -1,5 +1,5 @@
 ---
-title: greenplum\_fdw \(Beta\) 
+title: greenplum\_fdw
 ---
 
 The `greenplum_fdw` module is a foreign-data wrapper \(FDW\) that you can use to run queries across one or more Greenplum Database version 6.20+ clusters.
@@ -29,7 +29,7 @@ Refer to [Installing Additional Supplied Modules](../../install_guide/install_mo
 
 ## <a id="topic_depend"></a>About Module Dependencies 
 
-`greenplum_fdw` depends on the [gp\_parallel\_retrieve\_cursor \(Beta\)](gp_parallel_retrieve_cursor.html) module.
+`greenplum_fdw` depends on the [gp\_parallel\_retrieve\_cursor](gp_parallel_retrieve_cursor.html) module.
 
 **Note:** You must register the `gp_parallel_retrieve_cursor` module in **each remote Greenplum database** with tables that you plan to access using the `greenplum_fdw` foreign-data wrapper.
 

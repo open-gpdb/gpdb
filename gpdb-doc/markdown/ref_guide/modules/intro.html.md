@@ -17,9 +17,9 @@ The following Greenplum Database and PostgreSQL `contrib` modules are installed;
 -   [fuzzystrmatch](fuzzystrmatch.html) - Determines similarities and differences between strings.
 -   [gp\_array\_agg](gp_array_agg.html) - Implements a parallel `array_agg()` aggregate function for Greenplum Database.
 -   [gp\_legacy\_string\_agg](gp_legacy_string_agg.html) - Implements a legacy, single-argument `string_agg()` aggregate function that was present in Greenplum Database 5.
--   [gp\_parallel\_retrieve\_cursor](gp_parallel_retrieve_cursor.html) \(Beta\) - Provides extended cursor functionality to retrieve data, in parallel, directly from Greenplum Database segments.
+-   [gp\_parallel\_retrieve\_cursor](gp_parallel_retrieve_cursor.html) - Provides extended cursor functionality to retrieve data, in parallel, directly from Greenplum Database segments.
 -   [gp\_sparse\_vector](gp_sparse_vector.html) - Implements a Greenplum Database data type that uses compressed storage of zeros to make vector computations on floating point numbers faster.
--   [greenplum\_fdw](greenplum_fdw.html) \(Beta\) - Provides a foreign data wrapper \(FDW\) for accessing data stored in one or more external Greenplum Database clusters.
+-   [greenplum\_fdw](greenplum_fdw.html) - Provides a foreign data wrapper \(FDW\) for accessing data stored in one or more external Greenplum Database clusters.
 -   [hstore](hstore.html) - Provides a data type for storing sets of key/value pairs within a single PostgreSQL value.
 -   [orafce](orafce_ref.html) - Provides Greenplum Database-specific Oracle SQL compatibility functions.
 -   [pageinspect](pageinspect.html) - Provides functions for low level inspection of the contents of database pages; available to superusers only.
