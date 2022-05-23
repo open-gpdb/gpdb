@@ -1,5 +1,5 @@
 ---
-title: gp\_legacy\_string\_agg 
+title: gp_legacy_string_agg 
 ---
 
 The `gp_legacy_string_agg` module re-introduces the single-argument `string_agg()` function that was present in Greenplum Database 5.

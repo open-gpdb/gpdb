@@ -1,5 +1,5 @@
 ---
-title: restore\_data 
+title: restore_data 
 ---
 
 Plugin command to stream data from the remote storage system to `stdout`.

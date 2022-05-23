@@ -1,5 +1,5 @@
 ---
-title: plugin\_api\_version 
+title: plugin_api_version 
 ---
 
 Plugin command to display the supported Backup Storage Plugin API version.

@@ -1,5 +1,5 @@
 ---
-title: queries\_\* 
+title: queries_* 
 ---
 
 The `queries_*` tables store high-level query status information.

@@ -1,5 +1,5 @@
 ---
-title: interface\_stats\_\* 
+title: interface_stats_* 
 ---
 
 The `interface_stats_*` tables store statistical metrics about communications over each active interface for a Greenplum Database instance.

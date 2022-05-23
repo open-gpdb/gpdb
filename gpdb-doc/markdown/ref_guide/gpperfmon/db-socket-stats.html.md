@@ -1,5 +1,5 @@
 ---
-title: socket\_stats\_\* 
+title: socket_stats_* 
 ---
 
 The `socket_stats_*` tables store statistical metrics about socket usage for a Greenplum Database instance. There are three system tables, all having the same columns:

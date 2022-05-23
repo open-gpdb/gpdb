@@ -1,5 +1,5 @@
 ---
-title: restore\_data\_subset 
+title: restore_data_subset 
 ---
 
 Plugin command to stream a filtered dataset from the remote storage system to `stdout` .

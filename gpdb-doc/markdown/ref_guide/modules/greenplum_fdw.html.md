@@ -1,5 +1,5 @@
 ---
-title: greenplum\_fdw
+title: greenplum_fdw
 ---
 
 The `greenplum_fdw` module is a foreign-data wrapper \(FDW\) that you can use to run queries across one or more Greenplum Database version 6.20+ clusters.

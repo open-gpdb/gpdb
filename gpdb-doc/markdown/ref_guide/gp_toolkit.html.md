@@ -1,5 +1,5 @@
 ---
-title: The gp\_toolkit Administrative Schema 
+title: The gp_toolkit Administrative Schema 
 ---
 
 Greenplum Database provides an administrative schema called `gp_toolkit` that you can use to query the system catalogs, log files, and operating environment for system status information. The `gp_toolkit` schema contains a number of views that you can access using SQL commands. The `gp_toolkit` schema is accessible to all database users, although some objects may require superuser permissions. For convenience, you may want to add the `gp_toolkit` schema to your schema search path. For example:

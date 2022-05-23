@@ -1,5 +1,5 @@
 ---
-title: setup\_plugin\_for\_restore 
+title: setup_plugin_for_restore 
 ---
 
 Plugin command to initialize a storage plugin for the restore operation.

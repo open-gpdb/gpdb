@@ -1,5 +1,5 @@
 ---
-title: postgres\_fdw 
+title: postgres_fdw 
 ---
 
 The `postgres_fdw` module is a foreign data wrapper \(FDW\) that you can use to access data stored in a remote PostgreSQL or Greenplum database.

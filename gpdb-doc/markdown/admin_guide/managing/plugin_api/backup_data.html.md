@@ -1,5 +1,5 @@
 ---
-title: backup\_data 
+title: backup_data 
 ---
 
 Plugin command to move streaming data from `stdin` to the remote storage system.

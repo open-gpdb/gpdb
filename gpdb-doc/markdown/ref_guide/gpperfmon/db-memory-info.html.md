@@ -1,5 +1,5 @@
 ---
-title: memory\_info 
+title: memory_info 
 ---
 
 The `memory_info` view shows per-host memory information from the `system_history` and `segment_history` tables. This allows administrators to compare the total memory available on a segment host, total memory used on a segment host, and dynamic memory used by query processes.

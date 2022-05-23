@@ -1,5 +1,5 @@
 ---
-title: btree\_gin 
+title: btree_gin 
 ---
 
 The `btree_gin` module provides sample generalized inverted index \(GIN\) operator classes that implement B-tree equivalent behavior for certain data types.

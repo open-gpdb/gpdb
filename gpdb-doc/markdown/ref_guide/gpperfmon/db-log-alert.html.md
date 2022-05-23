@@ -1,5 +1,5 @@
 ---
-title: log\_alert\_\* 
+title: log_alert_* 
 ---
 
 The `log_alert_*` tables store `pg_log` errors and warnings.

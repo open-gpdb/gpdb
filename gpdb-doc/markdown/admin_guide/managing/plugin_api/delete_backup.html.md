@@ -1,5 +1,5 @@
 ---
-title: delete\_backup 
+title: delete_backup 
 ---
 
 Plugin command to delete the directory for a given backup timestamp from a remote system.

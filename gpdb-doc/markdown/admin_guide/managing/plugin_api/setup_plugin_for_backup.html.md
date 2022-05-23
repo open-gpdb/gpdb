@@ -1,5 +1,5 @@
 ---
-title: setup\_plugin\_for\_backup 
+title: setup_plugin_for_backup 
 ---
 
 Plugin command to initialize a storage plugin for the backup operation.

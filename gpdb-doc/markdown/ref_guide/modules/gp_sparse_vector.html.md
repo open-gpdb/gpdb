@@ -1,5 +1,5 @@
 ---
-title: gp\_sparse\_vector 
+title: gp_sparse_vector 
 ---
 
 The `gp_sparse_vector` module implements a Greenplum Database data type and associated functions that use compressed storage of zeros to make vector computations on floating point numbers faster.

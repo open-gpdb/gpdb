@@ -1,5 +1,5 @@
 ---
-title: system\_\* 
+title: system_* 
 ---
 
 The `system_*` tables store system utilization metrics. There are three system tables, all having the same columns:

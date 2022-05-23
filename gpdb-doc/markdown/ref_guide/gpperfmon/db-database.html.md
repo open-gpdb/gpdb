@@ -1,5 +1,5 @@
 ---
-title: database\_\* 
+title: database_* 
 ---
 
 The `database_*` tables store query workload information for a Greenplum Database instance. There are three database tables, all having the same columns:

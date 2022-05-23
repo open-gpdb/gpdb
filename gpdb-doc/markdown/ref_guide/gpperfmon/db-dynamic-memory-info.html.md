@@ -1,5 +1,5 @@
 ---
-title: dynamic\_memory\_info 
+title: dynamic_memory_info 
 ---
 
 The `dynamic_memory_info` view shows a sum of the used and available dynamic memory for all segment instances on a segment host. Dynamic memory refers to the maximum amount of memory that Greenplum Database instance will allow the query processes of a single segment instance to consume before it starts cancelling processes. This limit, determined by the currently active resource management scheme \(resource group-based or resource queue-based\), is evaluated on a per-segment basis.

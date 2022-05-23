@@ -1,5 +1,5 @@
 ---
-title: cleanup\_plugin\_for\_backup 
+title: cleanup_plugin_for_backup 
 ---
 
 Plugin command to clean up a storage plugin after backup.

@@ -1,5 +1,5 @@
 ---
-title: gp\_array\_agg 
+title: gp_array_agg 
 ---
 
 The `gp_array_agg` module introduces a parallel `array_agg()` aggregate function that you can use in Greenplum Database.

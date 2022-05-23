@@ -1,5 +1,5 @@
 ---
-title: gp\_parallel\_retrieve\_cursor
+title: gp_parallel_retrieve_cursor
 ---
 
 The `gp_parallel_retrieve_cursor` module is an enhanced cursor implementation that you can use to create a special kind of cursor on the Greenplum Database master node, and retrieve query results, on demand and in parallel, directly from the Greenplum segments. Greenplum refers to such a cursor as a *parallel retrieve cursor*.

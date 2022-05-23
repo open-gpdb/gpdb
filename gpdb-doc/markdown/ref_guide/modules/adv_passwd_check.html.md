@@ -1,5 +1,5 @@
 ---
-title: advanced\_password\_check 
+title: advanced_password_check 
 ---
 
 The `advanced_password_check` module provides password quality checking for Greenplum Database.

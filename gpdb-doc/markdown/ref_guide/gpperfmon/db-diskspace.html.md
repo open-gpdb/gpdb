@@ -1,5 +1,5 @@
 ---
-title: diskspace\_\* 
+title: diskspace_* 
 ---
 
 The `diskspace_*` tables store diskspace metrics.

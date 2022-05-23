@@ -1,5 +1,5 @@
 ---
-title: backup\_file 
+title: backup_file 
 ---
 
 Plugin command to move a backup file to the remote storage system.
