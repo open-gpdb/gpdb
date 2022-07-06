@@ -3174,6 +3174,7 @@ ExecutePlan(EState *estate,
 {
 	TupleTableSlot *slot;
 	long		current_tuple_count;
+	ListCell *lc;
 
 	/*
 	 * For holdable cursor, the plan is executed without rewinding on gpdb. We
@@ -3195,6 +3196,12 @@ ExecutePlan(EState *estate,
 	/*
 	 * Make sure slice dependencies are met
 	 */
+	foreach(lc, estate->es_subplanstates)
+	{
+		PlanState	   *splanstate = (PlanState *) lfirst(lc);
+
+		ExecSliceDependencyNode(splanstate);
+	}
 	ExecSliceDependencyNode(planstate);
 
 #ifdef FAULT_INJECTOR
