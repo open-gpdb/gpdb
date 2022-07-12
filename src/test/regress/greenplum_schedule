@@ -293,4 +293,7 @@ test: run_utility_gpexpand_phase1
 # check correct error message when create extension error on segment
 test: create_extension_fail
 
+# check syslogger (since GP syslogger code is divergent from upstream)
+test: syslogger_gp
+
 # end of tests
