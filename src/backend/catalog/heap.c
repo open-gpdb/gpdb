@@ -3723,6 +3723,7 @@ should_have_valid_relfrozenxid(char relkind, char relstorage,
 	switch (relkind)
 	{
 		case RELKIND_RELATION:
+		case RELKIND_MATVIEW:
 			if (relstorage == RELSTORAGE_EXTERNAL ||
 				relstorage == RELSTORAGE_FOREIGN  ||
 				relstorage == RELSTORAGE_VIRTUAL ||
@@ -3734,7 +3735,6 @@ should_have_valid_relfrozenxid(char relkind, char relstorage,
 			return true;
 
 		case RELKIND_TOASTVALUE:
-		case RELKIND_MATVIEW:
 		case RELKIND_AOSEGMENTS:
 		case RELKIND_AOBLOCKDIR:
 		case RELKIND_AOVISIMAP:
