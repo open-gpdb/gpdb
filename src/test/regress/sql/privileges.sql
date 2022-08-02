@@ -799,6 +799,20 @@ REFRESH MATERIALIZED VIEW sro_mv;
 \c -
 REFRESH MATERIALIZED VIEW sro_mv;
 
+SET SESSION AUTHORIZATION regress_sro_user;
+CREATE FUNCTION unwanted_grant_nofail(int) RETURNS int
+	IMMUTABLE LANGUAGE plpgsql AS $$
+BEGIN
+	PERFORM unwanted_grant();
+	RAISE WARNING 'owned';
+	RETURN 1;
+EXCEPTION WHEN OTHERS THEN
+	RETURN 2;
+END$$;
+CREATE MATERIALIZED VIEW sro_index_mv AS SELECT 1 AS c;
+\c -
+REFRESH MATERIALIZED VIEW sro_index_mv;
+
 DROP OWNED BY regress_sro_user;
 DROP ROLE regress_sro_user;
 
