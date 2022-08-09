@@ -255,7 +255,7 @@ FILL MISSING FIELDS
 :   In both `TEXT` and `CSV` mode for readable external tables, specifying `FILL MISSING FIELDS` will set missing trailing field values to `NULL` \(instead of reporting an error\) when a row of data has missing data fields at the end of a line or row. Blank rows, fields with a `NOT NULL` constraint, and trailing delimiters on a line will still report an error.
 
 ENCODING 'encoding'
-:   Character set encoding to use for the external table. Specify a string constant \(such as `'SQL_ASCII'`\), an integer encoding number, or `DEFAULT` to use the default client encoding. See [Character Set Support](../character_sets.html).
+:   Character set encoding to use for the external table. Specify a string constant \(such as `'SQL_ASCII'`\), an integer encoding number, or `DEFAULT` to use the default server encoding. See [Character Set Support](../character_sets.html).
 
 LOG ERRORS \[PERSISTENTLY\]
 :   This is an optional clause that can precede a `SEGMENT REJECT LIMIT` clause to log information about rows with formatting errors. The error log data is stored internally. If error log data exists for a specified external table, new data is appended to existing error log data. The error log data is not replicated to mirror segments.
