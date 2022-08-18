@@ -9982,6 +9982,8 @@ XLogSaveBufferForHint(Buffer buffer, bool buffer_std)
 		rdata[1].next = NULL;
 
 		recptr = XLogInsert(RM_XLOG_ID, XLOG_FPI, rdata);
+
+		wait_to_avoid_large_repl_lag();
 	}
 
 	return recptr;
