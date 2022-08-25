@@ -22,6 +22,7 @@ The following Greenplum Database and PostgreSQL `contrib` modules are installed;
 -   [gp_pitr](gp_pitr.html.md) - Supports implementing Point-in-Time Recovery for Greenplum Database 6.
 -   [gp\_sparse\_vector](gp_sparse_vector.html) - Implements a Greenplum Database data type that uses compressed storage of zeros to make vector computations on floating point numbers faster.
 -   [greenplum\_fdw](greenplum_fdw.html) - Provides a foreign data wrapper \(FDW\) for accessing data stored in one or more external Greenplum Database clusters.
+-   [gp_subtransaction_overflow](gp_subtransaction_overflow.html) - Provides a view and user-defined function for querying for suboverflowed backends.
 -   [hstore](hstore.html) - Provides a data type for storing sets of key/value pairs within a single PostgreSQL value.
 -   [orafce](orafce_ref.html) - Provides Greenplum Database-specific Oracle SQL compatibility functions.
 -   [pageinspect](pageinspect.html) - Provides functions for low level inspection of the contents of database pages; available to superusers only.
