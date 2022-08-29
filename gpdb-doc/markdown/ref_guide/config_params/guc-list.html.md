@@ -2246,6 +2246,13 @@ For information about GPORCA, see [About GPORCA](../../admin_guide/query/topics/
 When GPORCA is enabled \(the default\), this parameter determines whether or not GPORCA generates a query plan for ordered aggregates. This parameter is disabled by default; GPORCA does not generate a plan for a query that includes an ordered aggregate, and the query falls back to the Postgres Planner.
 
 You can set this parameter for a database system, an individual database, or a session or query.
+## <a id="optimizer_enable_replicated_table"></a>optimizer\_enable\_replicated\_table 
+
+When GPORCA is enabled \(the default\), this parameter controls GPORCA's behavior when it encounters DML operations on a replicated table.
+
+The default value is `on`, GPORCA attempts to plan and execute operations on replicated tables. When `off`, GPORCA immediately falls back to the Postgres Planner when it detects replicated table operations.
+
+The parameter can be set for a database system, an individual database, or a session or query.
 
 For information about GPORCA, see [About GPORCA](../../admin_guide/query/topics/query-piv-optimizer.html) in the *Greenplum Database Administrator Guide*.
 
