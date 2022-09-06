@@ -58,7 +58,7 @@ PYLIB_DIR=$(SRC)/ext
 core: pygresql subprocess32
 	python gpconfig_modules/parse_guc_metadata.py $(DESTDIR)$(prefix)
 
-ifneq "$(wildcard $(CURDIR)/pythonSrc/ext/*.tar.gz)" ""
+ifeq ($(with_pythonsrc_ext), yes)
 install: installdirs installprograms core psutil pygresql pyyaml
 else
 install: installdirs installprograms core
