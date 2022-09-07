@@ -24,6 +24,7 @@ The following Greenplum Database and PostgreSQL `contrib` modules are installed;
 -   [greenplum\_fdw](greenplum_fdw.html) - Provides a foreign data wrapper \(FDW\) for accessing data stored in one or more external Greenplum Database clusters.
 -   [gp_subtransaction_overflow](gp_subtransaction_overflow.html) - Provides a view and user-defined function for querying for suboverflowed backends.
 -   [hstore](hstore.html) - Provides a data type for storing sets of key/value pairs within a single PostgreSQL value.
+-   [ip4r](ip4r.html) - Provides data types for operations on IPv4 and IPv6 IP addresses.
 -   [orafce](orafce_ref.html) - Provides Greenplum Database-specific Oracle SQL compatibility functions.
 -   [pageinspect](pageinspect.html) - Provides functions for low level inspection of the contents of database pages; available to superusers only.
 -   [pg\_trgm](pg_trgm.html) - Provides functions and operators for determining the similarity of alphanumeric text based on trigram matching. The module also provides index operator classes that support fast searching for similar strings.
