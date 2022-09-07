@@ -4,4 +4,9 @@
 m/\(xlogfuncs_gp\.c\:\d+.*/
 s/\(xlogfuncs_gp\.c:\d+.*/\(xlogfuncs_gp\.c:LINE_NUM\)/
 
+m/NOTICE:  One or more columns in the following table\(s\) do not have statistics: /
+s/.//gs
+m/HINT:  For non-partitioned tables, run analyze .+\. For partitioned tables, run analyze rootpartition .+\. See log for columns missing statistics\./
+s/.//gs
+
 -- end_matchsubs
