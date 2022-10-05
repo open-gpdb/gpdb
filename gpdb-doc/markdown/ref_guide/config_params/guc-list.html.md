@@ -326,7 +326,7 @@ Set this parameter to a number of [block\_size](#backslash_quote) blocks \(defau
 
 ## <a id="enable_implicit_timeformat_YYYYMMDDHH24MISS"></a>enable\_implicit\_timeformat\_YYYYMMDDHH24MISS 
 
-Enables or disables the deprecated implicit conversion of a string with the *YYYYMMDDHH24MISS* timestamp format to a valid date/time type.
+Activates or deactivates the deprecated implicit conversion of a string with the *YYYYMMDDHH24MISS* timestamp format to a valid date/time type.
 
 The default value is `off`. When this parameter is set to `on`, Greenplum Database converts a string with the timestamp format *YYYYMMDDHH24MISS* into a valid date/time type. You may require this conversion when loading data from Greenplum Database 5.
 
@@ -704,7 +704,7 @@ Enables plans that can dynamically eliminate the scanning of partitions.
 
 Activates or deactivates two-phase aggregation for the Postgres Planner.
 
-The default value is `off`; the Planner chooses the best aggregate path for a query based on the cost. When set to `on`, the Planner adds a disable cost to each of the first stage aggregate paths, which in turn forces the Planner to generate and choose a multi-stage aggregate path.
+The default value is `off`; the Planner chooses the best aggregate path for a query based on the cost. When set to `on`, the Planner adds a deactivation cost to each of the first stage aggregate paths, which in turn forces the Planner to generate and choose a multi-stage aggregate path.
 
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
@@ -768,7 +768,7 @@ If the Global Deadlock Detector is enabled, concurrent updates are permitted and
 
 ## <a id="gp_enable_gpperfmon"></a>gp\_enable\_gpperfmon 
 
-Enables or disables the data collection agents that populate the `gpperfmon` database.
+Activates or deactivates the data collection agents that populate the `gpperfmon` database.
 
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
@@ -1000,7 +1000,7 @@ Sets the frequency that the Greenplum Database server processes send query execu
 
 ## <a id="gpfdist_retry_timeout"></a>gpfdist\_retry\_timeout 
 
-Controls the time \(in seconds\) that Greenplum Database waits before returning an error when Greenplum Database is attempting to connect or write to a [gpfdist](../../utility_guide/ref/gpfdist.html) server and `gpfdist` does not respond. The default value is 300 \(5 minutes\). A value of 0 disables the timeout.
+Controls the time \(in seconds\) that Greenplum Database waits before returning an error when Greenplum Database is attempting to connect or write to a [gpfdist](../../utility_guide/ref/gpfdist.html) server and `gpfdist` does not respond. The default value is 300 \(5 minutes\). A value of 0 deactivates the timeout.
 
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
@@ -2261,7 +2261,7 @@ For information about GPORCA, see [About GPORCA](../../admin_guide/query/topics/
 
 ## <a id="optimizer_enable_orderedagg"></a>optimizer\_enable\_orderedagg 
 
-When GPORCA is enabled \(the default\), this parameter determines whether or not GPORCA generates a query plan for ordered aggregates. This parameter is disabled by default; GPORCA does not generate a plan for a query that includes an ordered aggregate, and the query falls back to the Postgres Planner.
+When GPORCA is enabled \(the default\), this parameter determines whether or not GPORCA generates a query plan for ordered aggregates. This parameter is deactivated by default; GPORCA does not generate a plan for a query that includes an ordered aggregate, and the query falls back to the Postgres Planner.
 
 You can set this parameter for a database system, an individual database, or a session or query.
 ## <a id="optimizer_enable_replicated_table"></a>optimizer\_enable\_replicated\_table 
