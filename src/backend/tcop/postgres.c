@@ -3517,7 +3517,13 @@ StatementCancelHandler(SIGNAL_ARGS)
 		 * interrupt, service the interrupt immediately
 		 */
 		if (ImmediateInterruptOK)
+		{
+			/* Print out stack for immediate interruption */
+			ereport(LOG,
+					(errmsg("immediate interruption"),
+					errprintstack(true)));
 			ProcessInterrupts(__FILE__, __LINE__);
+		}
 	}
 
 	/* If we're still here, waken anything waiting on the process latch */
