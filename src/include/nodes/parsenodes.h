@@ -1027,6 +1027,7 @@ typedef struct GroupingClause
 	NodeTag      type;
 	GroupingType groupType;
 	List         *groupsets;
+	int			 location;
 } GroupingClause;
 
 /*
