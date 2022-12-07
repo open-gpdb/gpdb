@@ -58,7 +58,6 @@ enum Edxltoken
 	EdxltokenCostModelType,
 	EdxltokenSegmentsForCosting,
 	EdxltokenHint,
-	EdxltokenMinNumOfPartsToRequireSortOnInsert,
 	EdxltokenJoinArityForAssociativityCommutativity,
 	EdxltokenArrayExpansionThreshold,
 	EdxltokenJoinOrderDPThreshold,
@@ -216,7 +215,6 @@ enum Edxltoken
 	EdxltokenPartLevelEqFilterElemList,
 	EdxltokenPartLevelFilterList,
 	EdxltokenPartLevel,
-	EdxltokenScalarPartOid,
 	EdxltokenScalarPartDefault,
 	EdxltokenScalarPartBound,
 	EdxltokenScalarPartBoundLower,
@@ -364,12 +362,10 @@ enum Edxltoken
 	EdxltokenGpSegmentIdColName,
 
 	EdxltokenActionColId,
-	EdxltokenOidColId,
 	EdxltokenCtidColId,
 	EdxltokenGpSegmentIdColId,
 	EdxltokenTupleOidColId,
 	EdxltokenUpdatePreservesOids,
-	EdxltokenInputSorted,
 
 	EdxltokenInputSegments,
 	EdxltokenOutputSegments,
