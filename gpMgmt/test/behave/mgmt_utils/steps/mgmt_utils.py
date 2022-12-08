@@ -51,7 +51,7 @@ def show_all_installed(gphome):
     name = x[0].lower()
     if 'ubuntu' in name:
         return "dpkg --get-selections --admindir=%s/share/packages/database/deb | awk '{print \$1}'" % gphome
-    elif 'centos' in name or 'red hat enterprise linux' in name:
+    elif 'centos' in name or 'red hat enterprise linux' in name or 'rocky' in name:
         return "rpm -qa --dbpath %s/share/packages/database" % gphome
     else:
         raise Exception('UNKNOWN platform: %s' % str(x))
