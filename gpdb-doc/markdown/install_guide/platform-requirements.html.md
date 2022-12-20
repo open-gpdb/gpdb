@@ -221,7 +221,7 @@ This table lists the versions of the Greenplum Extensions that are compatible wi
 </tr>
 <tr class="row">
 <td class="entry nocellnorowborder" style="vertical-align:top;" headers="d78288e683 "><a class="xref" href="../install_guide/install_python_dsmod.html">Python Data Science Module Package</a></td>
-<td class="entry nocellnorowborder" style="vertical-align:top;" headers="d78288e686 ">2.0.2</td>
+<td class="entry nocellnorowborder" style="vertical-align:top;" headers="d78288e686 ">2.0.6</td>
 <td class="entry cell-norowborder" style="vertical-align:top;" headers="d78288e689 "> </td>
 </tr>
 <tr class="row">
