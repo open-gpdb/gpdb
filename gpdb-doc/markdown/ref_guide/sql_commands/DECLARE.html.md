@@ -28,7 +28,7 @@ A cursor can be specified in the `WHERE CURRENT OF` clause of the [UPDATE](UPDAT
 
 **Parallel Retrieve Cursors**
 
-Greenplum Database supports a special type of cursor, a parallel retrieve cursor. You can use a parallel retrieve cursor to retrieve query results, in parallel, directly from the Greenplum Database segments, bypassing the Greenplum coordinator.
+Greenplum Database supports a special type of cursor, a parallel retrieve cursor. You can use a parallel retrieve cursor to retrieve query results, in parallel, directly from the Greenplum Database segments, bypassing the Greenplum master segment.
 
 Parallel retrieve cursors do not support the `WITH HOLD` clause. Greenplum Database ignores the `BINARY` clause when you declare a parallel retrieve cursor.
 

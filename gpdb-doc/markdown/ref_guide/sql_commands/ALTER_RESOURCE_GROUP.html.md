@@ -15,7 +15,7 @@ where group\_attribute is one of:
 ```
 CONCURRENCY <integer>
 CPU_RATE_LIMIT <integer> 
-CPUSET <coordinator_cores>;<segment_cores> 
+CPUSET <master_cores>;<segment_cores> 
 MEMORY_LIMIT <integer>
 MEMORY_SHARED_QUOTA <integer>
 MEMORY_SPILL_RATIO <integer>
@@ -52,10 +52,10 @@ CPU\_RATE\_LIMIT integer
 
 :   If you alter the `CPU_RATE_LIMIT` of a resource group in which you previously configured a `CPUSET`, `CPUSET` is deactivated, the reserved CPU cores are returned to Greenplum Database, and `CPUSET` is set to -1.
 
-CPUSET <coordinator_cores>;<segment_cores>
-:   The CPU cores to reserve for this resource group on the coordinator host and segment hosts. The CPU cores that you specify in must be available in the system and cannot overlap with any CPU cores that you specify for other resource groups.
+CPUSET <master_cores>;<segment_cores>
+:   The CPU cores to reserve for this resource group on the master host and segment hosts. The CPU cores that you specify in must be available in the system and cannot overlap with any CPU cores that you specify for other resource groups.
 
-:   Specify cores as a comma-separated list of single core numbers or core intervals. Define the coordinator host cores first, followed by segment host cores, and separate the two with a semicolon. You must enclose the full core configuration in single quotes. For example, '1;1,3-4' configures core 1 for the coordinator host, and cores 1, 3, and 4 for the segment hosts.
+:   Specify cores as a comma-separated list of single core numbers or core intervals. Define the master host cores first, followed by segment host cores, and separate the two with a semicolon. You must enclose the full core configuration in single quotes. For example, '1;1,3-4' configures core 1 for the master host, and cores 1, 3, and 4 for the segment hosts.
 
 :   If you alter the `CPUSET` value of a resource group for which you previously configured a `CPU_RATE_LIMIT`, `CPU_RATE_LIMIT` is deactivated, the reserved CPU resources are returned to Greenplum Database, and `CPU_RATE_LIMIT` is set to -1.
 
@@ -106,7 +106,7 @@ Update the memory spill ratio for a resource group:
 ALTER RESOURCE GROUP rgroup4 SET MEMORY_SPILL_RATIO 25;
 ```
 
-Reserve CPU core 1 for a resource group on the coordinator host and all segment hosts:
+Reserve CPU core 1 for a resource group on the master host and all segment hosts:
 
 ```
 ALTER RESOURCE GROUP rgroup5 SET CPUSET '1;1';
