@@ -93,7 +93,7 @@ ISCONFIG=$(GPPGDIR)/GNUmakefile
 ## On these platforms, we do the full build including the server. On other
 ## platforms, we do a client-only build.
 ##
-SERVER_PLATFORMS=rhel7_x86_64 rhel6_x86_64 rhel8_x86_64 linux_x86_64 photon3_x86_64 rocky8_x86_64
+SERVER_PLATFORMS=rhel7_x86_64 rhel6_x86_64 rhel8_x86_64 rocky8_x86_64 linux_x86_64 photon3_x86_64
 
 #---------------------------------------------------------------------
 # Compiler options
