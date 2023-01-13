@@ -49,7 +49,7 @@ CONCURRENCY integer
 
 :   You must set `CONCURRENCY` to zero \(0\) for resource groups that you create for external components.
 
-:   **Note:** You cannot set the `CONCURRENCY` value for the `admin_group` to zero \(0\).
+:   > **Note** You cannot set the `CONCURRENCY` value for the `admin_group` to zero \(0\).
 
 CPU\_RATE\_LIMIT integer
 CPUSET <master_cores>;<segment_cores>
@@ -61,7 +61,7 @@ CPUSET <master_cores>;<segment_cores>
 
 :   Specify cores as a comma-separated list of single core numbers or core number intervals. Define the master host cores first, followed by segment host cores, and separate the two with a semicolon. You must enclose the full core configuration in single quotes. For example, '1;1,3-4' configures core 1 for the master host, and cores 1, 3, and 4 for the segment hosts.
 
-:   **Note:** You can configure `CPUSET` for a resource group only after you have enabled resource group-based resource management for your Greenplum Database cluster.
+:   > **Note** You can configure `CPUSET` for a resource group only after you have enabled resource group-based resource management for your Greenplum Database cluster.
 
 MEMORY\_LIMIT integer
 :   The total percentage of Greenplum Database memory resources to reserve for this resource group. The minimum memory percentage you can specify for a resource group is 0. The maximum is 100. The default value is 0.

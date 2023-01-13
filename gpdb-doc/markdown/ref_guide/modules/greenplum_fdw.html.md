@@ -31,7 +31,7 @@ Refer to [Installing Additional Supplied Modules](../../install_guide/install_mo
 
 `greenplum_fdw` depends on the [gp\_parallel\_retrieve\_cursor](gp_parallel_retrieve_cursor.html) module.
 
-**Note:** You must register the `gp_parallel_retrieve_cursor` module in **each remote Greenplum database** with tables that you plan to access using the `greenplum_fdw` foreign-data wrapper.
+> **Note** You must register the `gp_parallel_retrieve_cursor` module in **each remote Greenplum database** with tables that you plan to access using the `greenplum_fdw` foreign-data wrapper.
 
 ## <a id="topic_about"></a>About the greenplum\_fdw Module 
 

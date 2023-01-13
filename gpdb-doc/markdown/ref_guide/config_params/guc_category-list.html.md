@@ -479,7 +479,7 @@ The parameters in this topic control the configuration of the Greenplum Database
 - [gp_max_packet_size](guc-list.html#gp_max_packet_size)
 
 
-**Note:** Greenplum Database supports only the UDPIFC \(default\) and TCP interconnect types.
+> **Note** Greenplum Database supports only the UDPIFC \(default\) and TCP interconnect types.
 
 ### <a id="topic51"></a>Dispatch Configuration Parameters 
 
