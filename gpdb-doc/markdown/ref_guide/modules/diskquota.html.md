@@ -463,8 +463,7 @@ When you expand the Greenplum Database cluster, each table consumes more table s
 
 The `diskquota` 2.1 module is installed when you install or upgrade Greenplum Database. Versions 1.x and 2.0.x of the module will continue to work after you upgrade Greenplum.
 
-> **Note**
-> `diskquota` will be paused during the upgrade procedure and will be automatically resumed when the upgrade completes.
+> > **Note** `diskquota` will be paused during the upgrade procedure and will be automatically resumed when the upgrade completes.
 
 *If you are upgrading from `diskquota` version 2.0.x*, perform the procedure in [Upgrading from Version 2.0.x](#upgrade_20to21).
 

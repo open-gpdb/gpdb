@@ -43,7 +43,7 @@ The tool also collects the following information:
 
 - AO data for a given appendonly table
 
-**NOTE**: some commands might not be able to be run if the user does not have correct permissions.
+> **Note** Some commands might not be able to be run if the user does not have correct permissions.
 
 ## <a id="exs"></a>Examples 
 

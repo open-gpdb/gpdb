@@ -55,7 +55,7 @@ The R package for PivotalR can be found at [https://cran.r-project.org/web/packa
 
 ## <a id="topic3"></a>Installing MADlib 
 
-**Note**: MADlib requires the `m4` macro processor version 1.4.13 or later.
+> **Note** MADlib requires the `m4` macro processor version 1.4.13 or later.
 
 To install MADlib on Greenplum Database, you first install a compatible Greenplum MADlib package and then install the MADlib function libraries on all databases that will use MADlib.
 

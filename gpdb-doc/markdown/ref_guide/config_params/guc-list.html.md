@@ -1070,7 +1070,7 @@ Specifies the type of address binding strategy Greenplum Database uses for commu
 
 - When this parameter is set to `wildcard`, Greenplum Database uses a wildcard address for binding, enabling the use of any network interface compliant with routing rules.
 
-**NOTE**: In some cases, inter-segment communication using the unicast strategy may not be possible. One example is if the source segment's address field and the destination segment's address field are on different subnets and/or existing routing rules do not allow for such
+> **Note** In some cases, inter-segment communication using the unicast strategy may not be possible. One example is if the source segment's address field and the destination segment's address field are on different subnets and/or existing routing rules do not allow for such
 communication. In these cases, you must configure this parameter to use a wildcard address for address binding.
 
 |Value Range|Default|Set Classifications|
@@ -2086,7 +2086,7 @@ Sets the maximum size in megabytes of Write-Ahead Logging (WAL) files on disk pe
 
 If the file size exceeds the maximum size, the files are released and are available for deletion. A mirror or standby may no longer be able to continue replication due to removal of required WAL files.
 
-**WARNING**: If `max_slot_wal_keep_size` is set to a non-default value for acting primaries, full and incremental recovery of their mirrors may not be possible. Depending on the workload on the primary running concurrently with a full recovery, the recovery may fail with a missing WAL error. Therefore, you must ensure that `max_slot_wal_keep_size` is set to the default of `-1` or a high enough value before running full recovery. Similarly, depending on how behind the downed mirror is, an incremental recovery of it may fail with a missing WAL complaint. In this case, full recovery would be the only recourse.
+> **Caution** If `max_slot_wal_keep_size` is set to a non-default value for acting primaries, full and incremental recovery of their mirrors may not be possible. Depending on the workload on the primary running concurrently with a full recovery, the recovery may fail with a missing WAL error. Therefore, you must ensure that `max_slot_wal_keep_size` is set to the default of `-1` or a high enough value before running full recovery. Similarly, depending on how behind the downed mirror is, an incremental recovery of it may fail with a missing WAL complaint. In this case, full recovery would be the only recourse.
 
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
