@@ -358,11 +358,9 @@ def main():
         dest='test_sections',
         choices=[
             'ICW',
-            'Replication',
             'ResourceGroups',
             'Interconnect',
             'CLI',
-            'UD',
             'AA',
             'Extensions',
             'Gpperfmon'
