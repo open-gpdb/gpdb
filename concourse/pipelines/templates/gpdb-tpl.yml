@@ -221,6 +221,10 @@ groups:
   - scram-sha-256_abi_test_server_[[ os_type ]]
   - scram-sha-256_abi_test_clients_[[ os_type ]]
 {% endif %}
+  # Not support enable fips on ubuntu18.04
+  {% if os_type != "ubuntu18.04" %}
+  - fips_[[ os_type ]]
+  {% endif %}
   - unit_tests_gporca_[[ os_type ]]
   - gpdb_pitr_[[ os_type ]]
   - gate_icw_end
@@ -311,6 +315,9 @@ groups:
   {% endif %}
   - compile_gpdb_[[ os_type ]]
   - unit_tests_gporca_[[ os_type ]]
+  {% if os_type != "ubuntu18.04" %}
+  - fips_[[ os_type ]]
+  {% endif %}
 {% if "CLI" in test_sections %}
   - pg_upgrade_[[ os_type ]]
 {% endif %}
@@ -753,7 +760,7 @@ resources:
 {% endif %}
 
 {% if not directed_release %}
-{% if os_type == default_os_type and pipeline_target == "prod" %}
+{% if os_type == default_os_type %}
 - name: bin_gpdb_clients_windows_rc
   type: gcs
   source:
@@ -1384,6 +1391,80 @@ jobs:
         WITH_MIRRORS: true
         TEST_OS: [[ test_os ]]
         CONFIGURE_FLAGS: ((configure_flags))
+
+{% if os_type != "ubuntu18.04" %}
+- name: fips_[[ os_type ]]
+  plan:
+  - in_parallel:
+    - get: gpdb_src
+      passed: [compile_gpdb_[[ os_type ]]]
+    - get: gpdb_binary
+      resource: bin_gpdb_[[ os_type ]]
+      passed: [compile_gpdb_[[ os_type ]]]
+      trigger: true
+    - get: ccp_src
+    - get: ccp-image
+    - get: terraform.d
+      params:
+        unpack: true
+  - put: terraform
+    params:
+      action: create
+      delete_on_failure: true
+      generate_random_name: true
+      plugin_dir: ../../terraform.d/plugin-cache/linux_amd64
+      terraform_source: ccp_src/google/
+      vars:
+        PLATFORM: [[ os_type ]]-fips
+        instance_type: n1-standard-2
+  - task: gen_cluster
+    file: ccp_src/ci/tasks/gen_cluster.yml
+    params:
+      AWS_ACCESS_KEY_ID: ((tf-machine-access-key-id))
+      AWS_SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
+      AWS_DEFAULT_REGION: ((aws-region))
+      BUCKET_PATH: clusters-google/
+      BUCKET_NAME: ((tf-bucket-name))
+      CLOUD_PROVIDER: google
+      PLATFORM: [[ os_type ]]-fips
+  - task: gpinitsystem
+    file: ccp_src/ci/tasks/gpinitsystem.yml
+    params:
+      PLATFORM: [[ os_type ]]-fips
+  - task: test_fips
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: gcr.io/data-gpdb-public-images/ccp
+          tag: "latest"
+      inputs:
+        - name: ccp_src
+        - name: cluster_env_files
+      run:
+        path: bash
+        args:
+          - -c
+          - |
+            set -e
+
+            ccp_src/scripts/setup_ssh_to_cluster.sh
+            ssh -t cdw <<EOF
+                set -e
+                cat /proc/sys/crypto/fips_enabled
+                # python regression test for "ERROR:root:code for hash md5 was not found."
+                if ! python -c "import hashlib"; then
+                    echo "Failed to import hashlib on a FIPS enabled environment."
+                    exit 1
+                fi
+                echo "Successfully imported hashlib on a FIPS enabled environment."
+            EOF
+    on_success:
+      <<: *ccp_destroy
+  ensure:
+    <<: *set_failed
+{% endif %}
 
 - name: gate_icw_end
   plan:
@@ -2168,6 +2249,9 @@ jobs:
         - pg_upgrade_[[ os_type ]]
         - gpexpand_[[ os_type ]]
         - check_[[ os_type ]]
+        {% if os_type != "ubuntu18.04" %}
+        - fips_[[ os_type ]]
+        {% endif %}
       - get: bin_gpdb_[[ os_type ]]
         trigger: true
         passed:
