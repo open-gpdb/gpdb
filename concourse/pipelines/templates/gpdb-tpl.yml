@@ -836,14 +836,17 @@ resources:
     regexp: gp-internal-artifacts/postgres-fdw-dependencies/postgresql-(10.4).tar.gz
 {% endif %}
 
-{% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+{% if os_type != default_os_type and pipeline_target == "prod" %}
 - name: reduced-frequency-trigger
   type: time
   source:
     location: America/Los_Angeles
     start: ((reduced-frequency-trigger-start-[[ os_type ]]))
     stop: ((reduced-frequency-trigger-stop-[[ os_type ]]))
-    interval: 168h
+    {% if os_type != "centos7" %}
+    days: [Monday]
+    {% else %}
+    days: [Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday]
 {% endif %}
 
 ## ======================================================================
@@ -893,12 +896,12 @@ jobs:
           {% if os_type == default_os_type %}
           - check_format
           {% endif %}
-        {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+        {% if os_type != default_os_type and pipeline_target == "prod" %}
         trigger: false
         {% else %}
         trigger: true
         {% endif %}
-      {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+      {% if os_type != default_os_type and pipeline_target == "prod" %}
       - get: reduced-frequency-trigger
         trigger: true
       {% endif %}
@@ -1038,7 +1041,7 @@ jobs:
   plan:
     - in_parallel:
         steps:
-          {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+          {% if os_type != default_os_type and pipeline_target == "prod" %}
           - get: reduced-frequency-trigger
             trigger: true
           {% endif %}
@@ -1047,7 +1050,7 @@ jobs:
               {% if os_type == default_os_type %}
               - check_format
               {% endif %}
-            {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+            {% if os_type != default_os_type and pipeline_target == "prod" %}
             trigger: false
             {% else %}
             trigger: true
@@ -1073,7 +1076,7 @@ jobs:
   plan:
     - in_parallel:
         steps:
-        {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+        {% if os_type != default_os_type and pipeline_target == "prod" %}
         - get: reduced-frequency-trigger
           trigger: true
         {% endif %}
@@ -1082,7 +1085,7 @@ jobs:
             {% if os_type == default_os_type %}
             - check_format
             {% endif %}
-          {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
+          {% if os_type != default_os_type and pipeline_target == "prod" %}
           trigger: false
           {% else %}
           trigger: true

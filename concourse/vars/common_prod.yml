@@ -26,14 +26,14 @@ gpdb-git-branch: 6X_STABLE
 gpdb-git-remote: https://github.com/greenplum-db/gpdb.git
 rc-build-type: debug
 rc-build-type-gcs: ".debug"
-reduced-frequency-trigger-start-rhel8: 5:00 AM
-reduced-frequency-trigger-stop-rhel8: 5:59 AM
-reduced-frequency-trigger-start-ubuntu18.04: 8:00 AM
-reduced-frequency-trigger-stop-ubuntu18.04: 8:59 AM
-reduced-frequency-trigger-start-centos7: 11:00 AM
-reduced-frequency-trigger-stop-centos7: 11:59 AM
-reduced-frequency-trigger-start-centos6: 2:00 PM
-reduced-frequency-trigger-stop-centos6: 2:59 PM
+reduced-frequency-trigger-start-rhel8: 0:00 AM
+reduced-frequency-trigger-stop-rhel8: 0:59 AM
+reduced-frequency-trigger-start-ubuntu18.04: 2:00 AM
+reduced-frequency-trigger-stop-ubuntu18.04: 2:59 AM
+reduced-frequency-trigger-start-centos7: 4:00 AM
+reduced-frequency-trigger-stop-centos7: 4:59 AM
+reduced-frequency-trigger-start-centos6: 6:00 AM
+reduced-frequency-trigger-stop-centos6: 6:59 AM
 gpdb_src-trigger-flag: true
 configure_flags: "--enable-cassert --enable-tap-tests"
 configure_flags_with_extensions: "--enable-cassert --enable-tap-tests --enable-debug-extensions"
