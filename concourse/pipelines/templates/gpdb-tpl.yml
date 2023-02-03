@@ -198,11 +198,11 @@ anchors:
 groups:
 - name: all
   jobs:
-  - check_format
   - compile_gpdb_[[ os_type ]]
   - prepare_binary_swap_gpdb_[[ os_type ]]
   - test_gpdb_clients_[[ os_type ]]
   {% if os_type == default_os_type %}
+  - check_format
   - compile_gpdb_photon3
   - compile_gpdb_sles12
   - test_gpdb_clients_sles12
@@ -866,12 +866,14 @@ jobs:
 ##         |_|
 ## ======================================================================
 
+{% if os_type == default_os_type %}
 - name: check_format
   plan:
     - get: gpdb_src
       trigger: true
     - task: check_format
       file: gpdb_src/concourse/tasks/check_format.yml
+{% endif %}
 
 ## ======================================================================
 ##   ____                      _ _
@@ -888,7 +890,9 @@ jobs:
       steps:
       - get: gpdb_src
         passed:
+          {% if os_type == default_os_type %}
           - check_format
+          {% endif %}
         {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
         trigger: false
         {% else %}
@@ -1040,7 +1044,9 @@ jobs:
           {% endif %}
           - get: gpdb_src
             passed:
+              {% if os_type == default_os_type %}
               - check_format
+              {% endif %}
             {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
             trigger: false
             {% else %}
@@ -1073,7 +1079,9 @@ jobs:
         {% endif %}
         - get: gpdb_src
           passed:
+            {% if os_type == default_os_type %}
             - check_format
+            {% endif %}
           {% if os_type != default_os_type and os_type != "centos7" and pipeline_target == "prod" %}
           trigger: false
           {% else %}
@@ -2212,7 +2220,9 @@ jobs:
       - get: gpdb_src
         trigger: true
         passed:
+        {% if os_type == default_os_type %}
         - check_format
+        {% endif %}
         - compile_gpdb_[[ os_type ]]
         {% if os_type == default_os_type %}
         - compile_gpdb_photon3
