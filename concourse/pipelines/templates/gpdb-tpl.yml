@@ -847,6 +847,7 @@ resources:
     days: [Monday]
     {% else %}
     days: [Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday]
+    {% endif %}
 {% endif %}
 
 ## ======================================================================
