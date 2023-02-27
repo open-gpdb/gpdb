@@ -19,7 +19,7 @@ Migrating from Open Source Greenplum Database to commercial VMware Greenplum inv
 
 Follow these steps to migrate Open Source Greenplum Database to VMware Greenplum:
 
-1. Log into your Open Source Greenplum Database coordinator host as the Greenplum administrative user:
+1. Log into your Open Source Greenplum Database master host as the Greenplum administrative user:
 
     ```
     $ su - gpadmin
@@ -31,7 +31,7 @@ Follow these steps to migrate Open Source Greenplum Database to VMware Greenplum
     $ gpstop -a
     ```
 
-3. Download the VMware Greenplum package from [VMware Tanzu Network](https://network.pivotal.io/), and then copy it to the `gpadmin` user's home directory on each coordinator, standby, and segment host.
+3. Download the VMware Greenplum package from [VMware Tanzu Network](https://network.pivotal.io/), and then copy it to the `gpadmin` user's home directory on each master, standby, and segment host.
 
 4. If you used `yum` or `apt` to install Greenplum Database to the default location, run the following commands on each host to replace the software:
 
@@ -80,7 +80,7 @@ Follow these steps to migrate Open Source Greenplum Database to VMware Greenplum
     $ source ~/.bashrc
     ```
 
-8. Once all segment hosts have been updated, log into the Greenplum Database coordinator as the `gpadmin` user and restart your Greenplum Database system:
+8. Once all segment hosts have been updated, log into the Greenplum Database master as the `gpadmin` user and restart your Greenplum Database system:
 
     ```
     $ su - gpadmin
