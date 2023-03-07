@@ -318,6 +318,10 @@ test: export_distributed_snapshot
 # gp_interconnect_address_type='unicast'
 test: motion_socket
 
+# test invalid connection to ic proxy when
+# gp_interconnect_type='proxy'
+test: ic_proxy_socket
+
 # test alter owner of partition table in utility mode
 test: alter_partition_table_owner
 
