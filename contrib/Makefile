@@ -29,6 +29,7 @@ SUBDIRS = \
 		pg_test_fsync	\
 		pg_test_timing	\
 		pg_trgm		\
+		isn			\
 		pg_upgrade	\
 		pg_upgrade_support \
 		pgbench		\
