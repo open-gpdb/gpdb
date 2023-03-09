@@ -5504,7 +5504,7 @@ ATAddToastIfNeeded(List **wqueue, LOCKMODE lockmode)
 		if (tab->relkind == RELKIND_RELATION ||
 			tab->relkind == RELKIND_MATVIEW)
 		{
-			bool		is_part;
+			bool is_part = !rel_needs_long_lock(tab->relid);
 
 			/*
 			 * FIXME: we've passed false as is_part_parent to make_new_heap().
@@ -5516,7 +5516,6 @@ ATAddToastIfNeeded(List **wqueue, LOCKMODE lockmode)
 			 * relation's OID, whether an auxiliary table needs valid
 			 * relfrozenxid or not?
 			 */
-			is_part = rel_is_part_child(tab->relid);
 			AlterTableCreateToastTable(tab->relid, (Datum) 0, lockmode,
 									   is_part, false);
 		}
@@ -16073,22 +16072,22 @@ rel_is_parent(Oid relid)
 }
 
 /*
- * Is the given relation a partition of a partitioned table?
+ * partition children, toast tables and indexes, and indexes on partition
+ * children do not need long lived locks because the lock on the partition master
+ * protects us.
  */
 bool
-rel_is_part_child(Oid relid)
+rel_needs_long_lock(Oid relid)
 {
-	bool		result = false;
-	Relation	rel;
-
-	rel = relation_open(relid, NoLock);
+	bool needs_lock = true;
+	Relation rel = relation_open(relid, NoLock);
 
 	relid = rel_get_table_oid(rel);
 
 	relation_close(rel, NoLock);
 
 	if (Gp_role == GP_ROLE_DISPATCH)
-		result = rel_is_child_partition(relid);
+		needs_lock = !rel_is_child_partition(relid);
 	else
 	{
 		Relation inhrel;
@@ -16110,12 +16109,12 @@ rel_is_part_child(Oid relid)
 								   true, NULL, 2, scankey);
 
 		if (systable_getnext(sscan))
-			result = true;
+			needs_lock = false;
 
 		systable_endscan(sscan);
 		heap_close(inhrel, AccessShareLock);
 	}
-	return result;
+	return needs_lock;
 }
 
 
