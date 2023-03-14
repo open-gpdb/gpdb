@@ -775,6 +775,7 @@ SELECT '' AS to_char_23, to_char(val, '9.999EEEE')				FROM num_data;
 SELECT '' AS to_char_24, to_char('100'::numeric, 'FM999.9');
 SELECT '' AS to_char_25, to_char('100'::numeric, 'FM999.');
 SELECT '' AS to_char_26, to_char('100'::numeric, 'FM999');
+SELECT to_char('12345678901'::float8, 'FM9999999999D9999900000000000000000');
 
 -- TO_NUMBER()
 --
