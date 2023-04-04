@@ -8,7 +8,7 @@ from gppylib.test.unit.gp_unittest import GpTestCase, run_tests
 class UnixCommandTestCase(GpTestCase):
     def setUp(self):
         self.subject = unix
-        self.subject.logger = Mock(spec=['log', 'warn', 'info', 'debug', 'error', 'warning', 'fatal'])
+        self.subject.logger = Mock(spec=['log', 'warn', 'info', 'debug', 'error', 'warning', 'fatal', 'critical'])
 
         self.apply_patches([
             patch('gppylib.commands.unix.check_pid_on_remotehost'),
