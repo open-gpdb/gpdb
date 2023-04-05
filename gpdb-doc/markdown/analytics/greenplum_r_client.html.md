@@ -2,6 +2,8 @@
 title: Greenplum Database R Client 
 ---
 
+> *Note* Greenplum Database R Client is deprecated and will be removed in a future Greenplum Database release.
+
 This chapter contains the following information:
 
 -   [About Greenplum R](#about)
