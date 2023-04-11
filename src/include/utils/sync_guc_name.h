@@ -112,6 +112,7 @@
 		"search_path",
 		"statement_mem",
 		"statement_timeout",
+		"synchronize_seqscans",
 		"temp_buffers",
 		"test_copy_qd_qe_split",
 		"test_print_prefetch_joinqual",

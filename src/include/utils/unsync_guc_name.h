@@ -489,7 +489,6 @@
 		"stats_queue_level",
 		"stats_temp_directory",
 		"superuser_reserved_connections",
-		"synchronize_seqscans",
 		"synchronous_commit",
 		"synchronous_standby_names",
 		"syslog_facility",
