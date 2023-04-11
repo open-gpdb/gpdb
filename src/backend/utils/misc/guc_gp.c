@@ -158,6 +158,7 @@ bool		gp_print_create_gang_time = false;
 bool		gp_enable_exchange_default_partition = false;
 int			dtx_phase2_retry_count = 0;
 bool		gp_log_suboverflow_statement = false;
+bool        gp_use_synchronize_seqscans_catalog_vacuum_full = false;
 
 bool		log_dispatch_stats = false;
 
@@ -3284,6 +3285,16 @@ struct config_bool ConfigureNamesBool_gp[] =
 		 &gp_log_suboverflow_statement,
 		 false,
 		 NULL, NULL, NULL
+	},
+
+	{
+		{"gp_use_synchronize_seqscans_catalog_vacuum_full", PGC_USERSET, COMPAT_OPTIONS_PREVIOUS,
+		 gettext_noop("Enable synchronized sequential scans for VACUUM FULL for catalog tables. Given by default now syncscans are not used for VACUUM FULL on catalog tables, this GUC will help in-case wish to fix pre-existing catalog state"),
+		 NULL
+		},
+		&gp_use_synchronize_seqscans_catalog_vacuum_full,
+		false,
+		NULL, NULL, NULL
 	},
 
 	/* End-of-list marker */
