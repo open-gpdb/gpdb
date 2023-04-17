@@ -8,7 +8,7 @@ Several utilities are installed when you install the Greenplum Database server. 
 
 -   The [VMware Greenplum Backup and Restore](https://docs.vmware.com/en/VMware-Greenplum-Backup-and-Restore/index.html) utilities.
 -   The [VMware Greenplum Copy Utility](https://docs.vmware.com/en/VMware-Greenplum-Data-Copy-Utility/index.html).
--   The [VMware Greenplum Streaming Server](https://docs.vmware.com/en/VMware-Tanzu-Greenplum-Streaming-Server/index.html) utilities.
+-   The [VMware Greenplum Streaming Server](https://docs.vmware.com/en/VMware-Greenplum-Streaming-Server/index.html) utilities.
 
 Additionally, the [VMware Greenplum Clients](/vmware/client_tool_guides/about.html) package is a separate download from VMware Tanzu Network that includes selected utilities from the Greenplum Database server installation that you can install on a client system.
 
@@ -46,7 +46,7 @@ Greenplum Database provides the following utility programs. Superscripts identif
 - [gpreload](ref/gpreload.html)
 - [gprestore](https://docs.vmware.com/en/VMware-Greenplum-Backup-and-Restore/index.html)<sup>1</sup>
 - [gpscp](ref/gpscp.html)
-- [gpss](https://docs.vmware.com/en/VMware-Tanzu-Greenplum-Streaming-Server/index.html)<sup>4</sup>
+- [gpss](https://docs.vmware.com/en/VMware-Greenplum-Streaming-Server/index.html)<sup>4</sup>
 - [gpssh](ref/gpssh.html)
 - [gpssh-exkeys](ref/gpssh-exkeys.html)
 - [gpstart](ref/gpstart.html)
