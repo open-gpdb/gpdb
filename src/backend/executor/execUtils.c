@@ -2243,7 +2243,7 @@ void mppExecutorFinishup(QueryDesc *queryDesc)
 		{
 			estate->dispatcherState = NULL;
 			FlushErrorState();
-			ReThrowError(qeError);
+			ThrowErrorData(qeError);
 		}
 
 		/* If top slice was delegated to QEs, get num of rows processed. */
