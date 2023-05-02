@@ -4945,19 +4945,24 @@ ResGroupSignalMoveQuery(int sessionId, void *slot, Oid groupId)
 
 		pid = proc->pid;
 		backendId = proc->backendId;
+
 		if (Gp_role == GP_ROLE_DISPATCH)
 		{
+			SpinLockAcquire(&proc->movetoMutex);
 			Assert(proc->movetoResSlot == NULL);
 			Assert(slot != NULL);
 			proc->movetoResSlot = slot;
+			SpinLockRelease(&proc->movetoMutex);
 			SendProcSignal(pid, PROCSIG_RESOURCE_GROUP_MOVE_QUERY, backendId);
 			break;
 		}
 		else if (Gp_role == GP_ROLE_EXECUTE)
 		{
+			SpinLockAcquire(&proc->movetoMutex);
 			Assert(groupId != InvalidOid);
 			Assert(proc->movetoGroupId == InvalidOid);
 			proc->movetoGroupId = groupId;
+			SpinLockRelease(&proc->movetoMutex);
 			SendProcSignal(pid, PROCSIG_RESOURCE_GROUP_MOVE_QUERY, backendId);
 			/* don't break, need to signal all the procs of this session */
 		}
