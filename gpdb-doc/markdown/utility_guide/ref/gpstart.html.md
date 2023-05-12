@@ -77,7 +77,7 @@ If the standby master is not accessible, you can start the system and troublesho
 --skip-heap-checksum-validation
 :   During startup, the utility does not validate the consistency of the heap checksum setting among the Greenplum Database master and segment instances. The default is to ensure that the heap checksum setting is the same on all instances, either enabled or deactivated.
 
-    **Warning:** Starting Greenplum Database without this validation could lead to data loss. Use this option to start Greenplum Database only when it is necessary to ignore the heap checksum verification errors to recover data or to troubleshoot the errors.
+> **Caution** Starting Greenplum Database without this validation could lead to data loss. Use this option to start Greenplum Database only when it is necessary to ignore the heap checksum verification errors to recover data or to troubleshoot the errors.
 
 -t timeout\_seconds
 :   Specifies a timeout in seconds to wait for a segment instance to start up. If a segment instance was shutdown abnormally \(due to power failure or killing its `postgres` database listener process, for example\), it may take longer to start up due to the database recovery and validation process. If not specified, the default timeout is 600 seconds.

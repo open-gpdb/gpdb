@@ -748,7 +748,7 @@ Controls availability of the `EXCHANGE DEFAULT PARTITION` clause for `ALTER TABL
 
 If the value is `on`, Greenplum Database returns a warning stating that exchanging the default partition might result in incorrect results due to invalid data in the default partition.
 
-**Warning:** Before you exchange the default partition, you must ensure the data in the table to be exchanged, the new default partition, is valid for the default partition. For example, the data in the new default partition must not contain data that would be valid in other leaf child partitions of the partitioned table. Otherwise, queries against the partitioned table with the exchanged default partition that are run by GPORCA might return incorrect results.
+> **Caution** Before you exchange the default partition, you must ensure the data in the table to be exchanged, the new default partition, is valid for the default partition. For example, the data in the new default partition must not contain data that would be valid in other leaf child partitions of the partitioned table. Otherwise, queries against the partitioned table with the exchanged default partition that are run by GPORCA might return incorrect results.
 
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
@@ -1714,7 +1714,7 @@ Greenplum Database uses checksums to prevent loading data that has been corrupte
 
 By default, when a checksum verify error occurs when reading a heap data page, Greenplum Database generates an error and prevents the page from being loaded into managed memory. When `ignore_checksum_failure` is set to on and a checksum verify failure occurs, Greenplum Database generates a warning, and allows the page to be read into managed memory. If the page is then updated it is saved to disk and replicated to the mirror. If the page header is corrupt an error is reported even if this option is enabled.
 
-**Warning:** Setting `ignore_checksum_failure` to on may propagate or hide data corruption or lead to other serious problems. However, if a checksum failure has already been detected and the page header is uncorrupted, setting `ignore_checksum_failure` to on may allow you to bypass the error and recover undamaged tuples that may still be present in the table.
+> **Caution** Setting `ignore_checksum_failure` to on may propagate or hide data corruption or lead to other serious problems. However, if a checksum failure has already been detected and the page header is uncorrupted, setting `ignore_checksum_failure` to on may allow you to bypass the error and recover undamaged tuples that may still be present in the table.
 
 The default setting is off, and it can only be changed by a superuser.
 
@@ -2656,7 +2656,7 @@ If [pljava\_classpath\_insecure](#pljava_classpath_insecure) is `false`, setting
 
 Controls whether the server configuration parameter [pljava\_classpath](#pljava_classpath) can be set by a user without Greenplum Database superuser privileges. When `true`, `pljava_classpath` can be set by a regular user. Otherwise, [pljava\_classpath](#pljava_classpath) can be set only by a database superuser. The default is `false`.
 
-**Warning:** Enabling this parameter exposes a security risk by giving non-administrator database users the ability to run unauthorized Java methods.
+> **Caution** Enabling this parameter exposes a security risk by giving non-administrator database users the ability to run unauthorized Java methods.
 
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
@@ -3203,7 +3203,7 @@ The value `false` deactivates SSL certificate authentication. These SSL exceptio
 
 You can set the value to `false` to deactivate authentication when testing the communication between the Greenplum Database external table and the `gpfdist` utility that is serving the external data.
 
-**Warning:** Deactivating SSL certificate authentication exposes a security risk by not validating the `gpfdists` SSL certificate.
+> **Caution** Deactivating SSL certificate authentication exposes a security risk by not validating the `gpfdists` SSL certificate.
 
 For information about the `gpfdists` protocol, see [gpfdists:// Protocol](../../admin_guide/external/g-gpfdists-protocol.html). For information about running the `gpfdist` utility, see [gpfdist](../../utility_guide/ref/gpfdist.html).
 
