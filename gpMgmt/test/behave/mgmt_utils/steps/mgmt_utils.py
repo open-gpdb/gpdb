@@ -1534,7 +1534,9 @@ def impl(context, when):
     context.saved_array[when] = GpArray.initFromCatalog(dbconn.DbURL())
 
 
+@given('we run a sample background script to generate a pid on "{seg}" segment')
 @when('we run a sample background script to generate a pid on "{seg}" segment')
+@then('we run a sample background script to generate a pid on "{seg}" segment')
 def impl(context, seg):
     if seg == "primary":
         if not hasattr(context, 'pseg_hostname'):
@@ -1544,6 +1546,8 @@ def impl(context, seg):
         if not hasattr(context, 'standby_host'):
             raise Exception("Standby host is not saved in the context")
         hostname = context.standby_host
+    elif seg == "master":
+        hostname = get_master_hostname()[0][0]
 
     filename = os.path.join(os.getcwd(), './test/behave/mgmt_utils/steps/data/pid_background_script.py')
 
@@ -1555,11 +1559,11 @@ def impl(context, seg):
     cmd.run(validateAfter=True)
 
     cmd = Command(name="Run Bg process to save pid",
-                  cmdStr='sh -c "python /tmp/pid_background_script.py" &>/dev/null &', remoteHost=hostname, ctxt=REMOTE)
+                  cmdStr='sh -c "python /tmp/pid_background_script.py /tmp/bgpid" &>/dev/null &', remoteHost=hostname, ctxt=REMOTE)
     cmd.run(validateAfter=True)
 
-    cmd = Command(name="get bg pid", cmdStr="ps ux | grep pid_background_script.py | grep -v grep | awk '{print \$2}'",
-                  remoteHost=hostname, ctxt=REMOTE)
+    cmd = Command(name="get Bg process PID",
+                  cmdStr='sleep 1; until [ -f /tmp/bgpid ]; do sleep 1; done; cat /tmp/bgpid', remoteHost=hostname, ctxt=REMOTE)
     cmd.run(validateAfter=True)
     context.bg_pid = cmd.get_stdout()
     if not context.bg_pid:
@@ -1578,6 +1582,8 @@ def impl(context, seg):
         if not hasattr(context, 'standby_host'):
             raise Exception("Standby host is not saved in the context")
         hostname = context.standby_host
+    elif seg == "master":
+        hostname = get_master_hostname()[0][0]
 
     cmd = Command(name="get bg pid", cmdStr="ps ux | grep pid_background_script.py | grep -v grep | awk '{print \$2}'",
                   remoteHost=hostname, ctxt=REMOTE)
@@ -4034,3 +4040,18 @@ def impl(context):
         for pid in host_to_pid_map[host]:
             if unix.check_pid_on_remotehost(pid, host):
                 raise Exception("Postgres process {0} not killed on {1}.".format(pid, host))
+
+
+@then( 'verify if the gprecoverseg.lock directory is present in master_data_directory')
+def impl(context):
+    gprecoverseg_lock_file = "%s/gprecoverseg.lock" % gp.get_masterdatadir()
+    if not os.path.exists(gprecoverseg_lock_file):
+        raise Exception('gprecoverseg.lock directory does not exist')
+    else:
+        return
+
+
+@when('the user asynchronously sets up to end {process_name} process with SIGHUP')
+def impl(context, process_name):
+    command = "ps ux | grep bin/%s | awk '{print $2}' | xargs kill -9" % (process_name)
+    run_async_command(context, command)
