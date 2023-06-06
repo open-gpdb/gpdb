@@ -4050,6 +4050,83 @@ join baz on varchar_3=text_any;
 -----------+--------+----------
 (0 rows)
 
+--
+-- Test case for Hash Join rescan after squelched without hashtable built
+-- See https://github.com/greenplum-db/gpdb/pull/15590
+--
+--- Lateral Join
+reset enable_hashjoin;
+set from_collapse_limit = 1;
+set join_collapse_limit = 1;
+select 1 from pg_namespace  join lateral
+    (select * from aclexplode(nspacl) x join pg_authid  on x.grantee = pg_authid.oid where rolname = current_user) z on true limit 1;
+ ?column? 
+----------
+        1
+(1 row)
+
+explain
+select 1 from pg_namespace  join lateral
+    (select * from aclexplode(nspacl) x join pg_authid  on x.grantee = pg_authid.oid where rolname = current_user) z on true limit 1;
+                                                  QUERY PLAN                                                   
+---------------------------------------------------------------------------------------------------------------
+ Limit  (cost=20000000200.16..20000000200.26 rows=1 width=0)
+   ->  Nested Loop  (cost=20000000200.16..20000000202.66 rows=24 width=0)
+         ->  Seq Scan on pg_namespace  (cost=10000000000.00..10000000001.07 rows=7 width=45)
+         ->  Hash Join  (cost=200.16..200.33 rows=4 width=0)
+               Hash Cond: (x.grantee = pg_authid.oid)
+               ->  Function Scan on aclexplode x  (cost=0.00..0.10 rows=10 width=4)
+               ->  Hash  (cost=200.14..200.14 rows=1 width=4)
+                     ->  Index Scan using pg_authid_oid_index on pg_authid  (cost=0.12..200.14 rows=1 width=4)
+                           Filter: (rolname = 'gpadmin'::name)
+ Optimizer: Postgres query optimizer
+(10 rows)
+
+reset from_collapse_limit;
+reset join_collapse_limit;
+--- NestLoop index join
+create table l_table (a int,  b int) distributed replicated;
+create index l_table_idx on l_table(a);
+create table r_table1 (ra1 int,  rb1 int) distributed replicated;
+create table r_table2 (ra2 int,  rb2 int) distributed replicated;
+insert into l_table select i % 10 , i from generate_series(1, 10000) i;
+insert into r_table1 select i, i from generate_series(1, 1000) i;
+insert into r_table2 values(11, 11), (1, 1) ;
+analyze l_table;
+analyze r_table1;
+analyze r_table2;
+set optimizer to off;
+set enable_nestloop to on;
+set enable_bitmapscan to off;
+set enable_seqscan=off;
+explain select * from r_table2 where ra2 in ( select a from l_table join r_table1 on b = rb1);
+                                              QUERY PLAN                                               
+-------------------------------------------------------------------------------------------------------
+ Gather Motion 1:1  (slice1; segments: 1)  (cost=20000000024.66..20000000871.86 rows=10 width=8)
+   ->  Nested Loop Semi Join  (cost=20000000024.66..20000000871.86 rows=10 width=8)
+         ->  Seq Scan on r_table2  (cost=10000000000.00..10000000001.02 rows=2 width=8)
+         ->  Hash Join  (cost=10000000024.66..10000000854.37 rows=100 width=4)
+               Hash Cond: (l_table.b = r_table1.rb1)
+               ->  Index Scan using l_table_idx on l_table  (cost=0.16..816.12 rows=1000 width=8)
+                     Index Cond: (a = r_table2.ra2)
+               ->  Hash  (cost=10000000012.00..10000000012.00 rows=334 width=4)
+                     ->  Seq Scan on r_table1  (cost=10000000000.00..10000000012.00 rows=1000 width=4)
+ Optimizer: Postgres query optimizer
+(10 rows)
+
+select * from r_table2 where ra2 in ( select a from l_table join r_table1 on b = rb1);
+ ra2 | rb2 
+-----+-----
+   1 |   1
+(1 row)
+
+reset optimizer;
+reset enable_nestloop;
+reset enable_bitmapscan;
+reset enable_seqscan;
+drop table l_table;
+drop table r_table1;
+drop table r_table2;
 -- Clean up. None of the objects we create are very interesting to keep around.
 reset search_path;
 set client_min_messages='warning';
