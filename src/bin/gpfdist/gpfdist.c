@@ -150,6 +150,8 @@ static void percent_encoding_to_char(char* p, char* pp, char* path);
 #define GPFDIST_MAX_LINE_MESSAGE     "Error: -m max row length must be between 32KB and 1MB"
 #endif
 
+#define SESSION_DEFAULT_KEEP_ALIVE 300
+#define SESSION_MAX_KEEP_ALIVE 86400
 
 /*	Struct of command line options */
 static struct
@@ -171,8 +173,9 @@ static struct
 	const char* c; /* config file */
 	struct transform* trlist; /* transforms from config file */
 	const char* ssl; /* path to certificates in case we use gpfdist with ssl */
-	int			w; /* The time used for session timeout in seconds */
-} opt = { 8080, 8080, 0, 0, 0, ".", 0, 0, -1, 5, 0, 32768, 0, 256, 0, 0, 0, 0 };
+	int			w; /* The time waiting when used for session timeout in seconds */
+	int 		k; /* The time used to clean up sessions in seconds */
+} opt = { 8080, 8080, 0, 0, 0, ".", 0, 0, -1, 5, 0, 32768, 0, 256, 0, 0, 0, 0 , 300};
 
 
 typedef union address
@@ -501,7 +504,7 @@ static void usage_error(const char* msg, int print_usage)
 		{
 			fprintf(stderr,
 					"gpfdist -- file distribution web server\n\n"
-						"usage: gpfdist [--ssl <certificates_directory>] [-d <directory>] [-p <http(s)_port>] [-l <log_file>] [-t <timeout>] [-v | -V | -s] [-m <maxlen>] [-w <timeout>]"
+						"usage: gpfdist [--ssl <certificates_directory>] [-d <directory>] [-p <http(s)_port>] [-l <log_file>] [-t <timeout>] [-v | -V | -s] [-m <maxlen>] [-w <timeout>] [-k <seconds>]"
 #ifdef GPFXDIST
 					    "[-c file]"
 #endif
@@ -527,7 +530,8 @@ static void usage_error(const char* msg, int print_usage)
 					    "        -c file    : configuration file for transformations\n"
 #endif
 						"        --version  : print version information\n"
-						"        -w timeout : timeout in seconds before close target file\n\n");
+						"        -w timeout : timeout in seconds before close target file\n"
+						"        -k seconds : timeout to clean up sessions in seconds\n\n");
 		}
 	}
 
@@ -590,6 +594,7 @@ static void parse_command_line(int argc, const char* const argv[],
 #endif
 	{ "version", 256, 0, "print version number" },
 	{ NULL, 'w', 1, "wait for session timeout in seconds" },
+	{ NULL, 'k', 1, "timeout to clean up sessions in seconds" },
 	{ 0 } };
 
 	status = apr_getopt_init(&os, pool, argc, argv);
@@ -674,6 +679,9 @@ static void parse_command_line(int argc, const char* const argv[],
 		case 'w':
 			opt.w = atoi(arg);
 			break;
+		case 'k':
+			opt.k = atoi(arg);
+			break;
 		}
 	}
 
@@ -696,10 +704,14 @@ static void parse_command_line(int argc, const char* const argv[],
 		usage_error("Error: -w timeout must be between 1 and 7200, or 0 for no timeout", 0);
 
 	/* validate max row length */
-    if (! ((GPFDIST_MAX_LINE_LOWER_LIMIT <= opt.m) && (opt.m <= GPFDIST_MAX_LINE_UPPER_LIMIT)))
-    	usage_error(GPFDIST_MAX_LINE_MESSAGE, 0);
+	if (! ((GPFDIST_MAX_LINE_LOWER_LIMIT <= opt.m) && (opt.m <= GPFDIST_MAX_LINE_UPPER_LIMIT)))
+		usage_error(GPFDIST_MAX_LINE_MESSAGE, 0);
 
-    if (!is_valid_listen_queue_size(opt.z))
+	/* validate session clean up timeout */
+	if ((SESSION_DEFAULT_KEEP_ALIVE > opt.k) || (opt.k > SESSION_MAX_KEEP_ALIVE))
+		usage_error("Error: -k session clean up timeout must be between 300 and 86400 (default is 300)", 0);
+
+	if (!is_valid_listen_queue_size(opt.z))
 		usage_error("Error: -z listen queue size must be between 16 and 512 (default is 256)", 0);
 
     /* get current directory, for ssl directory validation */
@@ -1476,7 +1488,7 @@ static void sessions_cleanup(void)
 		apr_hash_this(hi, 0, 0, &entry);
 		s = (session_t*) entry;
 
-		if (s->nrequest == 0 && (s->mtime < apr_time_now() - 300
+		if (s->nrequest == 0 && (s->mtime < apr_time_now() - opt.k
 				* APR_USEC_PER_SEC))
 		{
 			session[n++] = s;
