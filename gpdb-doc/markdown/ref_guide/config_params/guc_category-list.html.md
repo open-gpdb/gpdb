@@ -513,8 +513,8 @@ The parameters in this topic control the configuration of the Greenplum Database
 - [gp_content](guc-list.html#gp_content)
 - [gp_dbid](guc-list.html#gp_dbid)
 - [gp_retrieve_conn](guc-list.html#gp_retrieve_conn)
-- [gp_role](guc-list.html#gp_role)
 - [gp_session_id](guc-list.html#gp_session_id)
+- [gp_session_role](guc-list.html#gp_session_role)
 - [gp_server_version](guc-list.html#gp_server_version)
 - [gp_server_version_num](guc-list.html#gp_server_version_num)
 

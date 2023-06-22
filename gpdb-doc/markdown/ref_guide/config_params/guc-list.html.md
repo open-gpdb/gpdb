@@ -1482,14 +1482,6 @@ The default value is `false`.
 |-----------|-------|-------------------|
 |Boolean|false|read only|
 
-## <a id="gp_role"></a>gp\_role 
-
-The role of this server process is set to *dispatch* for the master and *execute* for a segment.
-
-|Value Range|Default|Set Classifications|
-|-----------|-------|-------------------|
-|dispatch<br/><br/>execute<br/><br/>utility| |read only|
-
 ## <a id="gp_safefswritesize"></a>gp\_safefswritesize 
 
 Specifies a minimum size for safe write operations to append-optimized tables in a non-mature file system. When a number of bytes greater than zero is specified, the append-optimized writer adds padding data up to that number in order to prevent data corruption due to file system errors. Each non-mature file system has a known safe write size that must be specified here when using Greenplum Database with that type of file system. This is commonly set to a multiple of the extent size of the file system; for example, Linux ext3 is 4096 bytes, so a value of 32768 is commonly used.
@@ -1537,6 +1529,14 @@ A system assigned ID number for a client session. Starts counting from 1 when th
 |Value Range|Default|Set Classifications|
 |-----------|-------|-------------------|
 |1-*n*|14|read only|
+
+## <a id="gp_session_role"></a>gp_session_role
+
+The role of this server process is set to *dispatch* for the master and *execute* for a segment.
+
+|Value Range|Default|Set Classifications|
+|-----------|-------|-------------------|
+|dispatch<br/><br/>execute<br/><br/>utility| |read only|
 
 ## <a id="gp_set_proc_affinity"></a>gp\_set\_proc\_affinity 
 

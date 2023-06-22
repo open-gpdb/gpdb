@@ -68,7 +68,7 @@ Maintenance mode should only be used with direction from VMware Technical Suppor
 
      <a id="kg155401"></a>
      ``` 
-     $ PGOPTIONS='-c gp_role=utility' psql postgres
+     $ PGOPTIONS='-c gp_session_role=utility' psql postgres
      ```
 
 3.  After completing your administrative tasks, stop the master in maintenance mode. Then, restart it in production mode.

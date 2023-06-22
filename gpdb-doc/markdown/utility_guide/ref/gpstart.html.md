@@ -64,7 +64,7 @@ If the standby master is not accessible, you can start the system and troublesho
 -m
 :   Optional. Starts the master instance only, which may be useful for maintenance tasks. This mode only allows connections to the master in utility mode. For example:
 
-:   `PGOPTIONS='-c gp_role=utility' psql`
+:   `PGOPTIONS='-c gp_session_role=utility' psql`
 
 :   The consistency of the heap checksum setting on master and segment instances is not checked.
 
@@ -112,7 +112,7 @@ Start the Greenplum master instance only and connect in utility mode:
 
 ```
 gpstart -m 
-PGOPTIONS='-c gp_role=utility' psql
+PGOPTIONS='-c gp_session_role=utility' psql
 ```
 
 ## <a id="section6"></a>See Also 
