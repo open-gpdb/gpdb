@@ -128,6 +128,7 @@ rhel6_x86_64_CONFIGFLAGS=--with-quicklz  --enable-gpperfmon --with-gssapi --enab
 rhel7_x86_64_CONFIGFLAGS=--with-quicklz  --enable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy ${ORCA_CONFIG} --with-libxml --with-pythonsrc-ext --with-uuid=e2fs
 rhel8_x86_64_CONFIGFLAGS=--with-quicklz  --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy ${ORCA_CONFIG} --with-libxml --with-pythonsrc-ext --with-uuid=e2fs
 rocky8_x86_64_CONFIGFLAGS=--with-quicklz --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy ${ORCA_CONFIG} --enable-gpcloud --with-libxml --with-openssl --with-pam --with-ldap --with-pythonsrc-ext --with-uuid=e2fs
+rhel9_x86_64_CONFIGFLAGS=--with-quicklz  --disable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy ${ORCA_CONFIG} --with-libxml --with-pythonsrc-ext --with-uuid=e2fs
 linux_x86_64_CONFIGFLAGS=${ORCA_CONFIG} --with-libxml --with-pythonsrc-ext --with-uuid=e2fs
 ubuntu18.04_x86_64_CONFIGFLAGS=--with-quicklz --enable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy ${ORCA_CONFIG} --with-libxml --with-pythonsrc-ext --with-uuid=e2fs
 ubuntu20.04_x86_64_CONFIGFLAGS=--with-quicklz --enable-gpperfmon --with-gssapi --enable-mapreduce --enable-orafce --enable-ic-proxy ${ORCA_CONFIG} --with-libxml --with-pythonsrc-ext --with-uuid=e2fs
@@ -682,7 +683,7 @@ gccVersionCheck :
 	    $(BLD_CC) --version ; \
 	    exit 1 ; \
 	fi
-	@$(BLD_CC) --version | head -n 1 | cut -d' ' -f3 | egrep '[0-3]\.[0-4]\.[0-1]' > /dev/null 2>&1 ; \
+	@$(BLD_CC) --version | head -n 1 | cut -d' ' -f3 | egrep '^[0-3]\.[0-4]\.[0-1]' > /dev/null 2>&1 ; \
 	if [ $$? -eq 0 ] ; then \
 	    echo "Error: GPDB must be compiled with GCC 3.4.2 or later." ; \
 	    echo "Current GCC version:" ; \
