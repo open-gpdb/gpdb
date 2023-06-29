@@ -5376,6 +5376,13 @@ readRecoveryCommandFile(void)
 					(errmsg_internal("archive_cleanup_command = '%s'",
 									 archiveCleanupCommand)));
 		}
+		else if (strcmp(item->name, "pause_at_recovery_target") == 0)
+		{
+			ereport(WARNING,
+					(errcode(ERRCODE_WARNING_DEPRECATED_FEATURE),
+					 errmsg("pause_at_recovery_target is deprecated and no longer has function"),
+					 errhint("Use recovery parameter \"recovery_target_action\" instead.")));
+		}
 		else if (strcmp(item->name, "recovery_target_action") == 0)
 		{
 			if (strcmp(item->value, "pause") == 0)
