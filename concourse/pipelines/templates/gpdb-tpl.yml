@@ -205,11 +205,11 @@ groups:
   jobs:
   - gate_compile_start
   - compile_gpdb_[[ compile_platform ]]
-  {% if os_type != "rhel9" and os_type != "oel9" %}
+  {% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
   - prepare_binary_swap_gpdb_[[ os_type ]]
   {% endif %}
   - test_gpdb_clients_[[ os_type ]]
-  {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+  {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
   - Publish Server Builds
   {% endif %}
   {% if os_type == default_os_type %}
@@ -271,16 +271,17 @@ groups:
   - gate_advanced_analytics_end
 {% endif %}
 
+
 ## ======================================================================
 {% if "Release" in test_sections or build_test_rc_rpm or directed_release %}
 {% if os_type != "rhel8" and os_type != "oel8" %}
-{% if os_type == "rhel9" and os_type != "oel9" %}
+{% if os_type == "rocky9" %}
 - name: Release
   jobs:
   - gate_compile_end
   - gate_release_candidate_start
   - Release_Candidate
-{% else %}
+{% elif os_type != "oel9" and os_type != "rhel9" %}
 - name: Release
   jobs:
 {% if "Release" in test_sections or directed_release %}
@@ -296,6 +297,7 @@ groups:
   - Build_Release_Candidate_RPMs
   {% endif %}
 {% endif %}
+
 {% endif %}
 {% endif %}
 {% endif %}
@@ -305,11 +307,11 @@ groups:
   jobs:
   - gate_compile_start
   - compile_gpdb_[[ compile_platform ]]
-  {% if os_type != "rhel9" and os_type != "oel9" %}
+  {% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
   - prepare_binary_swap_gpdb_[[ os_type ]]
   {% endif %}
   - test_gpdb_clients_[[ os_type ]]
-  {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+  {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
   - Publish Server Builds
   {% endif %}
   {% if os_type == default_os_type %}
@@ -500,7 +502,7 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     versioned_file: gpdb-package-testing/deb_gpdb_ubuntu20.04/greenplum-db-6-ubuntu20.04-amd64.deb
 {% else %}
-{% if os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: previous_gpdb
   type: pivnet
   source:
@@ -524,7 +526,7 @@ resources:
     {% endif %}
 {% endif %}
 
-  {% if ( os_type == compile_platform ) or ( os_type != compile_platform and "ICW" in test_sections ) %}
+  {% if ( os_type == compile_platform ) or ( os_type != compile_platform and "ICW" in test_sections) %}
    # for os_type oel8 and rhel8, gpdb6-oel8-build and gpdb6-rhel8-build is only used in ICW job: unit_tests_gporca_[[os_type]]
 - name: gpdb6-[[ os_type ]]-build
   type: registry-image
@@ -611,7 +613,7 @@ resources:
 
 {% if "Release" in test_sections or directed_release %}
 {% if not directed_release %}
-{% if os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: bin_gpdb_icw_green
   type: s3
   source:
@@ -622,7 +624,7 @@ resources:
     versioned_file: bin_gpdb/gpdb_branch_6X_STABLE/icw_green/bin_gpdb.tar.gz
 {% endif %}
 
-{% if os_type != "rhel8" and os_type != "oel8" %}
+{% if os_type != "rhel8" and os_type != "oel8"  and os_type != "rhel9" and os_type != "oel9" %}
 - name: bin_gpdb_clients_[[ os_type ]]_rc
   type: gcs
   source:
@@ -698,7 +700,7 @@ resources:
 {% endif %}
 
 {% if not directed_release and "Release" in test_sections or build_test_rc_rpm %}
-{% if os_type != "ubuntu20.04" and os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "ubuntu20.04" and os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: gpdb_rpm_installer_[[ os_type ]]
   type: gcs
   source:
@@ -710,7 +712,7 @@ resources:
     regexp: server/published/gpdb6/greenplum-db-(.*)-[[ os_type ]]-x86_64((rc-build-type-gcs)).rpm
 {% endif %}
 
-{% if os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: greenplum-database-release
   type: git
   icon: git
@@ -738,7 +740,8 @@ resources:
 {% endif %}
 {% endif %}
 
-{% if os_type != "rhel9" and os_type != "oel9" %}
+
+{% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: binary_swap_gpdb_[[ os_type ]]
   type: gcs
   source:
@@ -747,7 +750,7 @@ resources:
     versioned_file: ((pipeline-name))/binary_swap_gpdb_[[ os_type ]]/bin_gpdb.tar.gz
 {% endif %}
 
-{% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: server-build-[[ os_type ]]
   type: gcs
   source:
@@ -1020,7 +1023,7 @@ jobs:
           file: gpdb_artifacts/bin_gpdb_clients.tar.gz
 {% endif %}
 
-{% if os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: prepare_binary_swap_gpdb_[[ os_type ]]
   plan:
   - in_parallel:
@@ -1204,10 +1207,8 @@ jobs:
         aws_ebs_volume_type: standard
     get_params:
       action: destroy
-
 {% endif %}
-
-{% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: Publish Server Builds
   plan:
   - in_parallel:
@@ -1270,11 +1271,11 @@ jobs:
       params:
         skip_download: 'true'
       passed:
-        {% if os_type != "rhel9" and os_type != "oel9" %}
+        {% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
         - prepare_binary_swap_gpdb_[[ os_type ]]
         {% endif %}
         - test_gpdb_clients_[[ os_type ]]
-        {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+        {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
         - Publish Server Builds
         {% endif %}
         {% if os_type == default_os_type %}
@@ -1286,20 +1287,20 @@ jobs:
         skip_download: 'true'
       passed:
       - test_gpdb_clients_[[ os_type ]]
-      {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+      {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
       - Publish Server Builds
       {% endif %}
     - get: bin_gpdb_clients
       params:
         skip_download: 'true'
       passed: [test_gpdb_clients_[[ os_type ]]]
-    {% if os_type != "rhel9" and os_type != "oel9" %}
+    {% if os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
     - get: binary_swap_gpdb_[[ os_type ]]
       params:
         skip_download: 'true'
       passed: [ prepare_binary_swap_gpdb_[[ os_type ]] ]
     {% endif %}
-    {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
+    {% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
     - get: server-build-[[ os_type ]]
       params:
         skip_download: 'true'
@@ -2555,7 +2556,7 @@ jobs:
 ## |  _ <  __/ |  __/ (_| \__ \  __/
 ## |_| \_\___|_|\___|\__,_|___/\___|
 ## ======================================================================
-{% if os_type != "rhel8" and os_type != "oel8" %}
+{% if os_type != "rhel8" and os_type != "oel8" and os_type != "rhel9" and os_type != "oel9" %}
 {% if "Release" in test_sections or directed_release %}
 - name: gate_release_candidate_start
   plan:
@@ -2566,7 +2567,7 @@ jobs:
         params:
           skip_download: 'true'
         passed:
-        {% if os_type == "rhel9" and os_type != "oel9" %}
+        {% if os_type == "rocky9" %}
         - gate_compile_end
         {% else %}
         - gate_icw_end
@@ -2577,7 +2578,7 @@ jobs:
         params:
           skip_download: 'true'
         passed:
-        {% if os_type == "rhel9" and os_type != "oel9" %}
+        {% if os_type == "rocky9" %}
         - gate_compile_end
         {% else %}
         - gate_icw_end
@@ -2588,7 +2589,7 @@ jobs:
         params:
           skip_download: 'true'
         passed:
-        {% if os_type == "rhel9" and os_type != "oel9" %}
+        {% if os_type == "rocky9" %}
         - gate_compile_end
         {% else %}
         - gate_icw_end
@@ -2727,7 +2728,7 @@ jobs:
 {% endif %}
 
 {% if not directed_release %}
-{% if os_type != "ubuntu20.04" and os_type != "rhel9" and os_type != "oel9" %}
+{% if os_type != "ubuntu20.04" and os_type != "rhel9" and os_type != "oel9" and os_type != "rocky9" %}
 - name: Build_Release_Candidate_RPMs
   plan:
   - in_parallel:
