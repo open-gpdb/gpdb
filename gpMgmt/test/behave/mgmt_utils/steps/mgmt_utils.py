@@ -27,6 +27,7 @@ from os import path
 
 from gppylib.gparray import GpArray, ROLE_PRIMARY, ROLE_MIRROR
 from gppylib.commands.gp import SegmentStart, GpStandbyStart, MasterStop
+from gppylib.commands.gp import get_masterdatadir
 from gppylib.commands import gp, unix
 from gppylib.commands.unix import CMD_CACHE
 from gppylib.commands.pg import PgBaseBackup
@@ -484,6 +485,7 @@ def impl(context, logdir):
         time.sleep(0.1)
         if attempt == num_retries:
             raise Exception('Timed out after {} retries'.format(num_retries))
+
 
 @then('verify that lines from recovery_progress.file are present in segment progress files in {logdir}')
 def impl(context, logdir):
@@ -1610,7 +1612,6 @@ def impl(context, seg):
     if not context.bg_pid:
         raise Exception("Unable to obtain the pid of the background script. Seg Host: %s, get_results: %s" %
                         (hostname, cmd.get_stdout()))
-
 
 @when('the background pid is killed on "{seg}" segment')
 @then('the background pid is killed on "{seg}" segment')
@@ -3895,7 +3896,10 @@ def impl(context):
 
 
 @when('the user runs {command} and selects {input}')
+@then('the user runs {command} and selects {input}')
 def impl(context, command, input):
+    if input == "no mode but presses enter":
+        input = os.linesep
     p = Popen(command.split(), stdout=PIPE, stdin=PIPE, stderr=PIPE)
     stdout, stderr = p.communicate(input=input)
 
@@ -3904,6 +3908,17 @@ def impl(context, command, input):
     context.ret_code = p.returncode
     context.stdout_message = stdout
     context.error_message = stderr
+
+@when('the user runs {command}, selects {input} and interrupt the process')
+def impl(context, command, input):
+    p = Popen(command.split(), stdout=PIPE, stdin=PIPE, stderr=PIPE)
+    p.stdin.write(input.encode())
+    p.stdin.flush()
+    time.sleep(120)
+    # interrupt the process.
+    p.terminate()
+    p.communicate(input=input.encode())
+
 
 def are_on_different_subnets(primary_hostname, mirror_hostname):
     x = platform.linux_distribution()
@@ -4168,11 +4183,11 @@ def impl(context):
                 raise Exception("Postgres process {0} not killed on {1}.".format(pid, host))
 
 
-@then( 'verify if the gprecoverseg.lock directory is present in master_data_directory')
-def impl(context):
-    gprecoverseg_lock_file = "%s/gprecoverseg.lock" % gp.get_masterdatadir()
-    if not os.path.exists(gprecoverseg_lock_file):
-        raise Exception('gprecoverseg.lock directory does not exist')
+@then('verify if the {lock_file} directory is present in master_data_directory')
+def impl(context, lock_file):
+    utility_lock_file = "%s/%s" % (gp.get_masterdatadir(), lock_file)
+    if not os.path.exists(utility_lock_file):
+        raise Exception('{0} directory does not exist'.format(utility_lock_file))
     else:
         return
 
