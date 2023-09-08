@@ -174,7 +174,7 @@ class SimpleMainLock:
             # If the process is already killed, remove the lock directory.
             if not unix.check_pid(self.pidfilepid):
                 shutil.rmtree(self.ppath)
-
+                
         # try and acquire the lock
         try:
             self.pidlockfile.acquire()
