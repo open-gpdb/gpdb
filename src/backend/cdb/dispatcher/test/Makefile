@@ -30,3 +30,5 @@ cdbdisp_query.t: \
 	$(MOCK_DIR)/backend/libpq/fe-misc_mock.o \
 	$(MOCK_DIR)/backend/cdb/cdbfts_mock.o \
 	$(MOCK_DIR)/backend/utils/misc/gpexpand_mock.o
+
+include $(top_builddir)/src/backend/mock.mk
