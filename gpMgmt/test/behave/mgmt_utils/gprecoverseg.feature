@@ -1,7 +1,7 @@
 @gprecoverseg
 Feature: gprecoverseg tests
 
-    Scenario Outline: <scenario>recovery works with tablespaces
+    Scenario Outline: <scenario> recovery works with tablespaces
         Given the database is running
           And a tablespace is created with data
           And user stops all primary processes
@@ -296,7 +296,33 @@ Feature: gprecoverseg tests
         And all the segments are running
         And the segments are synchronized
 
-  Scenario: gprecoverseg differential recovery displays rsync progress to the user
+    Scenario: gprecoverseg runs with given master data directory option
+        Given the database is running
+          And all the segments are running
+          And the segments are synchronized
+          And user stops all mirror processes
+          And user can start transactions
+          And "MASTER_DATA_DIRECTORY" environment variable is not set
+         Then the user runs utility "gprecoverseg" with master data directory and "-F -a"
+          And gprecoverseg should return a return code of 0
+          And "MASTER_DATA_DIRECTORY" environment variable should be restored
+          And all the segments are running
+          And the segments are synchronized
+
+    Scenario: gprecoverseg priorities given master data directory over env option
+        Given the database is running
+          And all the segments are running
+          And the segments are synchronized
+          And user stops all mirror processes
+          And user can start transactions
+          And the environment variable "MASTER_DATA_DIRECTORY" is set to "/tmp/"
+         Then the user runs utility "gprecoverseg" with master data directory and "-F -a"
+          And gprecoverseg should return a return code of 0
+          And "MASTER_DATA_DIRECTORY" environment variable should be restored
+          And all the segments are running
+          And the segments are synchronized
+
+    Scenario: gprecoverseg differential recovery displays rsync progress to the user
         Given the database is running
         And all the segments are running
         And the segments are synchronized
@@ -1410,6 +1436,7 @@ Feature: gprecoverseg tests
         And the segments are synchronized
         And the backup pid file is deleted on "primary" segment
         And the background pid is killed on "primary" segment
+
       Examples:
         | scenario     | args               |
         | differential | -a --differential  |

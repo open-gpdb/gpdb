@@ -362,7 +362,7 @@ def impl(context, dbname):
     drop_database(context, dbname)
 
 
-@given('{env_var} environment variable is not set')
+@given('"{env_var}" environment variable is not set')
 def impl(context, env_var):
     if not hasattr(context, 'orig_env'):
         context.orig_env = dict()
@@ -1199,6 +1199,15 @@ def impl(context, options):
 def impl(context, options):
     context.execute_steps(u'''Then the user runs command "gpactivatestandby -a %s" from standby master''' % options)
     context.standby_was_activated = True
+
+
+@given('the user runs utility "{utility}" with master data directory and "{options}"')
+@when('the user runs utility "{utility}" with master data directory and "{options}"')
+@then('the user runs utility "{utility}" with master data directory and "{options}"')
+def impl(context, utility, options):
+    cmd = "{} -d {} {}".format(utility, master_data_dir, options)
+    context.execute_steps(u'''then the user runs command "%s"''' % cmd )
+
 
 @then('gpintsystem logs should {contain} lines about running backout script')
 def impl(context, contain):
