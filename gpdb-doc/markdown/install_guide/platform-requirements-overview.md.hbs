@@ -40,58 +40,73 @@ Greenplum Database 6 requires the following software packages on RHEL/CentOS 6/7
 -   bash
 -   bzip2
 -   curl
--   krb5
+-   iproute
+-   krb5-devel
 -   libcgroup (RHEL/CentOS 6)
--   libcgroup-tools (RHEL/CentOS 7)
+-   libcgroup-tools (RHEL/CentOS 7 and RHEL/CentOS 8)
 -   libcurl
--   libevent
+-   libevent (RHEL/CentOS 7 and RHEL/CentOS 8)
+-   libeven2 (RHEL/CentOS 6)
+-   libuuid
 -   libxml2
 -   libyaml
--   zlib
+-   less
+-   net-tools (Debian/Fedora)
 -   openldap
+-   openssh
 -   openssh-client
+-   openssh-server
 -   openssl
--   openssl-libs \(RHEL7/Centos7\)
--   perl
--   readline
--   rsync
--   R
--   sed \(used by `gpinitsystem`\)
--   tar
--   zip
-
-VMware Greenplum Database 6 client software requires these operating system packages:
-
--   apr
--   apr-util
--   libyaml
--   libevent
-
-On Ubuntu systems, Greenplum Database 6 requires the following software packages, which are installed automatically as dependencies when you install Greenplum Database with the Debian package installer:
-
--   libapr1
--   libaprutil1
--   bash
--   bzip2
--   krb5-multidev
--   libcurl3-gnutls
--   libcurl4
--   libevent-2.1-6
--   libxml2
--   libyaml-0-2
--   zlib1g
--   libldap-2.4-2
--   openssh-client
--   openssl
+-   openssl-libs (RHEL/CentOS 7 and RHEL/CentOS 8)
 -   perl
 -   readline
 -   rsync
 -   sed
 -   tar
+-   which
 -   zip
--   net-tools
--   less
+-   zlib
+
+VMware Greenplum Database 6 client software requires these operating system packages:
+
+-   apr
+-   bzip2
+-   libedit
+-   libyaml
+-   libevent (RHEL/CentOS 7 and RHEL/CentOS 8)
+-   libevent2 (RHEL/CentOS 6)
+-   openssh
+-   zlib
+
+On Ubuntu systems, Greenplum Database 6 requires the following software packages, which are installed automatically as dependencies when you install Greenplum Database with the Debian package installer:
+
+-   bash
+-   bzip2
 -   iproute2
+-   iputils-ping
+-   krb5-multidev
+-   libapr1
+-   libaprutil1
+-   libcurl3-gnutls
+-   libcurl4
+-   libevent-2.1-6
+-   libldap-2.4-2
+-   libreadline7 or libreadline8
+-   libuuid1
+-   libxml2
+-   libyaml-0-2
+-   less
+-   locales
+-   net-tools
+-   openssh-client
+-   openssh-server
+-   openssl
+-   perl
+-   rsync
+-   sed
+-   tar
+-   zip
+-   zlib1g
 
 Greenplum Database 6 uses Python 2.7.18, which is included with the product installation \(and not installed as a package dependency\).
 
