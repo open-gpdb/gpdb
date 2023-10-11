@@ -4327,3 +4327,14 @@ def impl(context, command, num):
             raise Exception(
                 "Expected %s to occur %s times but Found %d times" .format(expected_pattern, num, match_count))
 
+
+
+
+@given('save the information of the database "{dbname}"')
+def impl(context, dbname):
+    with dbconn.connect(dbconn.DbURL(dbname='template1'), unsetSearchPath=False) as conn:
+        query = """SELECT datname,oid  FROM pg_database WHERE datname='{0}';""" .format(dbname)
+        datname, oid = dbconn.execSQLForSingletonRow(conn, query)
+        context.db_name = datname
+        context.db_oid = oid
+
