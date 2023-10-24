@@ -315,6 +315,12 @@ int			gp_workfile_limit_per_query = 0;
 /* Maximum number of workfiles to be created by a query */
 int			gp_workfile_limit_files_per_query = 0;
 
+/*
+ * The overhead memory (kB) used by all compressed workfiles of a single
+ * workfile_set
+ */
+int         gp_workfile_compression_overhead_limit = 0;
+
 /* Gpmon */
 bool		gp_enable_gpperfmon = false;
 int			gp_gpperfmon_send_interval = 1;

@@ -3518,6 +3518,17 @@ struct config_int ConfigureNamesInt_gp[] =
 	},
 
 	{
+		{"gp_workfile_compression_overhead_limit", PGC_USERSET, RESOURCES,
+			gettext_noop("The overhead memory (kB) limit for all compressed workfiles of a single workfile_set."),
+			gettext_noop("0 for no limit. Once the limit is hit, the following files will not be compressed."),
+			GUC_UNIT_KB
+		},
+		&gp_workfile_compression_overhead_limit,
+		2048 * 1024, 0, INT_MAX,
+		NULL, NULL, NULL
+	},
+
+	{
 		{"gp_workfile_limit_per_segment", PGC_POSTMASTER, RESOURCES,
 			gettext_noop("Maximum disk space (in KB) used for workfiles per segment."),
 			gettext_noop("0 for no limit. Current query is terminated when limit is exceeded."),
