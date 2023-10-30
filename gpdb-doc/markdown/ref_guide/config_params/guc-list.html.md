@@ -1085,6 +1085,14 @@ communication. In these cases, you must configure this parameter to use a wildca
 |-----------|-------|-------------------|
 |wildcard,unicast|wildcard|local, system, reload|
 
+## <a id="gp_interconnect_cursor_ic_table_size"></a>gp_interconnect_cursor_ic_table_size
+
+Specifies the size of the Cursor History Table for UDP interconnect. Although it is not usually necessary, you may increase it if running a user-defined function which contains many concurrent cursor queries hangs. The default value is 128.
+
+|Value Range|Default|Set Classifications|
+|-----------|-------|-------------------|
+|128-102400|128|master, session, reload|
+
 ## <a id="gp_interconnect_debug_retry_interval"></a>gp_interconnect_debug_retry_interval 
 
 Specifies the interval, in seconds, to log Greenplum Database interconnect debugging messages when the server configuration parameter [gp\_log\_interconnect](#gp_log_interconnect) is set to `DEBUG`. The default is 10 seconds.

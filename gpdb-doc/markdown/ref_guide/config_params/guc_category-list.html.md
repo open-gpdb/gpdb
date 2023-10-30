@@ -475,6 +475,7 @@ The parameters in this topic control the configuration of the Greenplum Database
 ### <a id="topic50"></a>Interconnect Configuration Parameters 
 
 - [gp_interconnect_address_type](guc-list.html#gp_interconnect_address_type)
+- [gp_interconnect_cursor_ic_table_size](guc-list.html#gp_interconnect_cursor_ic_table_size)
 - [gp_interconnect_fc_method](guc-list.html#gp_interconnect_fc_method)
 - [gp_interconnect_proxy_addresses](guc-list.html#gp_interconnect_proxy_addresses)
 - [gp_interconnect_queue_depth](guc-list.html#gp_interconnect_queue_depth)
