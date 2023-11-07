@@ -3,14 +3,15 @@ Feature: gprecoverseg tests
 
     Scenario Outline: <scenario> recovery works with tablespaces
         Given the database is running
-          And a tablespace is created with data
           And user stops all primary processes
           And user can start transactions
+          And a tablespace is created with data
          When the user runs "gprecoverseg <args>"
          Then gprecoverseg should return a return code of 0
           And the segments are synchronized
           And verify replication slot internal_wal_replication_slot is available on all the segments
           And the tablespace is valid
+          And the tablespace has valid symlink
           And the database segments are in execute mode
 
         Given another tablespace is created with data
@@ -19,6 +20,7 @@ Feature: gprecoverseg tests
           And the segments are synchronized
           And verify replication slot internal_wal_replication_slot is available on all the segments
           And the tablespace is valid
+          And the tablespace has valid symlink
           And the other tablespace is valid
           And the database segments are in execute mode
       Examples:
@@ -685,13 +687,14 @@ Feature: gprecoverseg tests
   @concourse_cluster
   Scenario Outline: <scenario> incremental recovery works with tablespaces on a multi-host environment
     Given the database is running
-    And a tablespace is created with data
     And user stops all primary processes
     And user can start transactions
+    And a tablespace is created with data
     When the user runs "gprecoverseg <args>"
     Then gprecoverseg should return a return code of 0
     And the segments are synchronized
     And the tablespace is valid
+    And the tablespace has valid symlink
     And the database segments are in execute mode
 
     Given another tablespace is created with data
@@ -700,6 +703,7 @@ Feature: gprecoverseg tests
     And the segments are synchronized
     And verify replication slot internal_wal_replication_slot is available on all the segments
     And the tablespace is valid
+    And the tablespace has valid symlink
     And the other tablespace is valid
     And the database segments are in execute mode
     Examples:
@@ -747,6 +751,7 @@ Feature: gprecoverseg tests
 
         # verify the data
     And the tablespace is valid
+    And the tablespace has valid symlink
     And the row count from table "public.before_host_is_down" in "gptest" is verified against the saved data
     And the row count from table "public.after_host_is_down" in "gptest" is verified against the saved data
 
