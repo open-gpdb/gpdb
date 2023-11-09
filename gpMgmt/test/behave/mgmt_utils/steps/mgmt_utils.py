@@ -459,7 +459,7 @@ def impl(context, logdir):
             with open(recovery_progress_file, 'r') as fp:
                 context.recovery_lines = fp.readlines()
             for line in context.recovery_lines:
-                recovery_type, dbid, progress = line.strip().split(':', 2)
+                recovery_type, dbid, progress = line.strip().split(':')[:3]
                 progress_pattern = re.compile(get_recovery_progress_pattern(recovery_type))
                 # TODO: assert progress line in the actual hosts bb/rewind progress file
                 if re.search(progress_pattern, progress) and dbid.isdigit() and recovery_type in ['full', 'differential', 'incremental']:
@@ -4337,4 +4337,44 @@ def impl(context, dbname):
         datname, oid = dbconn.execSQLForSingletonRow(conn, query)
         context.db_name = datname
         context.db_oid = oid
+
+
+
+
+@then('the user waits until recovery_progress.file is created in {logdir} and verifies that all dbids progress with {stage} are present')
+def impl(context, logdir, stage):
+    all_segments = GpArray.initFromCatalog(dbconn.DbURL()).getDbList()
+    failed_segments = filter(lambda seg: seg.getSegmentStatus() == 'd', all_segments)
+    stage_patterns = []
+    for seg in failed_segments:
+        dbid = seg.getSegmentDbId()
+        if stage == "tablespace":
+            pat = "Syncing tablespace of dbid {} for oid".format(dbid)
+        else:
+            pat = "differential:{}" .format(dbid)
+        stage_patterns.append(pat)
+    if len(stage_patterns) == 0:
+        raise Exception('Failed to get the details of down segment')
+    attempt = 0
+    num_retries = 9000
+    log_dir = _get_gpAdminLogs_directory() if logdir == 'gpAdminLogs' else logdir
+    recovery_progress_file = '{}/recovery_progress.file'.format(log_dir)
+    while attempt < num_retries:
+        attempt += 1
+        if os.path.exists(recovery_progress_file):
+            if verify_elements_in_file(recovery_progress_file, stage_patterns):
+                return
+        time.sleep(0.1)
+        if attempt == num_retries:
+            raise Exception('Timed out after {} retries'.format(num_retries))
+
+
+def verify_elements_in_file(filename, elements):
+    with open(filename, 'r') as file:
+        content = file.read()
+        for element in elements:
+            if element not in content:
+                return False
+
+        return True
 

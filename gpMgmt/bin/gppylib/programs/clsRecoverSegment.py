@@ -256,6 +256,14 @@ class GpRecoverSegmentProgram:
         if self.__options.replayLag and not self.__options.rebalanceSegments:
             raise ProgramArgumentValidationException("--replay-lag should be used only with -r")
 
+        # Checking rsync version before performing a differential recovery operation.
+        # the --info=progress2 option, which provides whole file transfer progress, requires rsync 3.1.0 or above
+        min_rsync_ver = "3.1.0"
+        if self.__options.differentialResynchronization and not unix.validate_rsync_version(min_rsync_ver):
+            raise ProgramArgumentValidationException("To perform a differential recovery, a minimum rsync version "
+                                                         "of {0} is required. Please ensure that rsync is updated to "
+                                                         "version {0} or higher.".format(min_rsync_ver))
+
         faultProberInterface.getFaultProber().initializeProber(gpEnv.getMasterPort())
 
         confProvider = configInterface.getConfigurationProvider().initializeProvider(gpEnv.getMasterPort())
