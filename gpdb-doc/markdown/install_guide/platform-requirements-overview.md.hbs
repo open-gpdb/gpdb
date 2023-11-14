@@ -6,9 +6,12 @@ This topic describes the Greenplum Database 6 platform and operating system soft
 
 Greenplum Database 6 runs on the following operating system platforms:
 
+-   Red Hat Enterprise Linux 64-bit 9.x
 -   Red Hat Enterprise Linux 64-bit 8.7 or later (As of Greenplum Database version 6.20. See the following [Note](#rhel-issues))
 -   Red Hat Enterprise Linux 64-bit 7.x \(See the following [Note](#rhel-issues).\)
 -   Red Hat Enterprise Linux 64-bit 6.x
+-   Rocky Linux 9.x
+-   Rocky Linux 8.7 or later
 -   CentOS 64-bit 7.x
 -   CentOS 64-bit 6.x
 -   Ubuntu 18.04 LTS
@@ -40,6 +43,7 @@ Greenplum Database 6 requires the following software packages on RHEL/CentOS 6/7
 -   bash
 -   bzip2
 -   curl
+-   compat-openssl11 (RHEL/Rocky 9)
 -   iproute
 -   krb5-devel
 -   libcgroup (RHEL/CentOS 6)
@@ -50,6 +54,7 @@ Greenplum Database 6 requires the following software packages on RHEL/CentOS 6/7
 -   libuuid
 -   libxml2
 -   libyaml
+-   libzstd (RHEL/Rocky 9)
 -   less
 -   net-tools (Debian/Fedora)
 -   openldap
@@ -59,6 +64,7 @@ Greenplum Database 6 requires the following software packages on RHEL/CentOS 6/7
 -   openssl
 -   openssl-libs (RHEL/CentOS 7 and RHEL/Rocky 8)
 -   perl
+-   python3 (RHEL/Rocky 9)
 -   readline
 -   rsync
 -   sed
