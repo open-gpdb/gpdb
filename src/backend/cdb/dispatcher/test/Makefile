@@ -3,8 +3,7 @@ top_builddir = ../../../../..
 include $(top_builddir)/src/Makefile.global
 
 TARGETS=cdbdispatchresult \
-		cdbgang \
-		cdbdisp_query
+		cdbgang
 
 include $(top_builddir)/src/backend/mock.mk
 
@@ -24,9 +23,4 @@ cdbgang.t: \
 	$(MOCK_DIR)/backend/utils/mmgr/redzone_handler_mock.o \
 	$(MOCK_DIR)/backend/utils/misc/faultinjector_mock.o
 
-cdbdisp_query.t: \
-	$(MOCK_DIR)/backend/access/transam/xlog_mock.o \
-	$(MOCK_DIR)/backend/libpq/fe-exec_mock.o \
-	$(MOCK_DIR)/backend/libpq/fe-misc_mock.o \
-	$(MOCK_DIR)/backend/cdb/cdbfts_mock.o \
-	$(MOCK_DIR)/backend/utils/misc/gpexpand_mock.o
+include $(top_builddir)/src/backend/mock.mk
