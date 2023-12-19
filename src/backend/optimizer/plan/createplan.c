@@ -54,6 +54,7 @@
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
 #include "utils/uri.h"
+#include "optimizer/walkers.h"
 
 #include "cdb/cdbllize.h"		/* pull_up_Flow() */
 #include "cdb/cdbmutate.h"
@@ -3131,6 +3132,7 @@ create_nestloop_plan(PlannerInfo *root,
 	List	   *otherclauses;
 	Relids		outerrelids;
 	List	   *nestParams;
+	Bitmapset  *bmsNestParams;
 	ListCell   *cell;
 	ListCell   *prev;
 	ListCell   *next;
@@ -3244,6 +3246,7 @@ create_nestloop_plan(PlannerInfo *root,
 	 */
 	outerrelids = best_path->outerjoinpath->parent->relids;
 	nestParams = NIL;
+	bmsNestParams = NULL;
 	prev = NULL;
 	for (cell = list_head(root->curOuterParams); cell; cell = next)
 	{
@@ -3256,6 +3259,7 @@ create_nestloop_plan(PlannerInfo *root,
 			root->curOuterParams = list_delete_cell(root->curOuterParams,
 													cell, prev);
 			nestParams = lappend(nestParams, nlp);
+			bmsNestParams = bms_add_member(bmsNestParams, nlp->paramno);
 		}
 		else if (IsA(nlp->paramval, PlaceHolderVar) &&
 				 bms_overlap(((PlaceHolderVar *) nlp->paramval)->phrels,
@@ -3268,6 +3272,7 @@ create_nestloop_plan(PlannerInfo *root,
 			root->curOuterParams = list_delete_cell(root->curOuterParams,
 													cell, prev);
 			nestParams = lappend(nestParams, nlp);
+			bmsNestParams = bms_add_member(bmsNestParams, nlp->paramno);
 		}
 		else
 			prev = cell;
@@ -3280,6 +3285,12 @@ create_nestloop_plan(PlannerInfo *root,
 							  outer_plan,
 							  inner_plan,
 							  best_path->jointype);
+
+	/*
+	 * Check whether pass lateral params by a motion.
+	 */
+	if (!bms_is_empty(bmsNestParams))
+		checkMotionWithParam((Node*) inner_plan, bmsNestParams, root);
 
 	copy_path_costsize(root, &join_plan->join.plan, &best_path->path);
 
