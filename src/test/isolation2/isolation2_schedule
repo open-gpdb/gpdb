@@ -166,6 +166,7 @@ test: uao/vacuum_index_stats_row
 test: uao/insert_should_not_use_awaiting_drop_row
 test: uao/bitmapindex_rescan_row
 test: uao/create_index_allows_readonly_row
+test: uao/concurrent_inserts_hash_crash_row
 # Refer to the case comment for why it is commented out.
 # test: uao/bad_buffer_on_temp_ao_row
 
@@ -224,6 +225,7 @@ test: uao/vacuum_index_stats_column
 test: uao/insert_should_not_use_awaiting_drop_column
 test: uao/bitmapindex_rescan_column
 test: uao/create_index_allows_readonly_column
+test: uao/concurrent_inserts_hash_crash_column
 # Refer to the case comment for why it is commented out.
 # test: uao/bad_buffer_on_temp_ao_column
 
