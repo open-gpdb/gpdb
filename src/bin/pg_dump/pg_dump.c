@@ -13851,7 +13851,7 @@ dumpTableSchema(Archive *fout, TableInfo *tbinfo)
 		/*
 		 * Dump distributed by clause.
 		 */
-		if (dumpPolicy && tbinfo->relkind != RELKIND_FOREIGN_TABLE && !tbinfo->parents)
+		if (dumpPolicy && tbinfo->relkind != RELKIND_FOREIGN_TABLE)
 			addDistributedBy(fout, q, tbinfo, actual_atts);
 
 		/*
