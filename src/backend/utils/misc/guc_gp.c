@@ -433,6 +433,7 @@ bool		optimizer_replicated_table_insert;
 
 /* GUCs for slice table*/
 int			gp_max_slices;
+int			gp_max_system_slices;
 
 /* System Information */
 static int	gp_server_version_num;
@@ -4669,6 +4670,16 @@ struct config_int ConfigureNamesInt_gp[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&gp_max_slices,
+		0, 0, INT_MAX, NULL, NULL
+	},
+
+	{
+		{"gp_max_system_slices", PGC_SUSET, PRESET_OPTIONS,
+			gettext_noop("Maximum slices for a single query (superuser guc)"),
+			NULL,
+			GUC_NOT_IN_SAMPLE
+		},
+		&gp_max_system_slices,
 		0, 0, INT_MAX, NULL, NULL
 	},
 
