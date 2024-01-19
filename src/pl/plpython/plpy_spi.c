@@ -78,8 +78,7 @@ PLy_spi_prepare(PyObject *self, PyObject *args)
 	oldcontext = CurrentMemoryContext;
 	oldowner = CurrentResourceOwner;
 
-	if(!PLy_spi_subtransaction_begin(oldcontext, oldowner))
-		return NULL;
+	PLy_spi_subtransaction_begin(oldcontext, oldowner);
 
 	PG_TRY();
 	{
@@ -255,8 +254,7 @@ PLy_spi_execute_plan(PyObject *ob, PyObject *list, int64 limit)
 	oldcontext = CurrentMemoryContext;
 	oldowner = CurrentResourceOwner;
 
-	if(!PLy_spi_subtransaction_begin(oldcontext, oldowner))
-		return NULL;
+	PLy_spi_subtransaction_begin(oldcontext, oldowner);
 
 	PG_TRY();
 	{
@@ -369,8 +367,7 @@ PLy_spi_execute_query(char *query, int64 limit)
 	oldcontext = CurrentMemoryContext;
 	oldowner = CurrentResourceOwner;
 
-	if(!PLy_spi_subtransaction_begin(oldcontext, oldowner))
-		return NULL;
+	PLy_spi_subtransaction_begin(oldcontext, oldowner);
 
 	PG_TRY();
 	{
@@ -501,9 +498,7 @@ PLy_spi_execute_fetch_result(SPITupleTable *tuptable, int64 rows, int status)
  *	MemoryContext oldcontext = CurrentMemoryContext;
  *	ResourceOwner oldowner = CurrentResourceOwner;
  *
- *	if(!PLy_spi_subtransaction_begin(oldcontext, oldowner))
- *		return NULL;
- *	
+ *	PLy_spi_subtransaction_begin(oldcontext, oldowner);
  *	PG_TRY();
  *	{
  *		<call SPI functions>
@@ -520,48 +515,12 @@ PLy_spi_execute_fetch_result(SPITupleTable *tuptable, int64 rows, int status)
  * These utilities take care of restoring connection to the SPI manager and
  * setting a Python exception in case of an abort.
  */
-bool
+void
 PLy_spi_subtransaction_begin(MemoryContext oldcontext, ResourceOwner oldowner)
 {
-	PG_TRY();
-	{
-		/* Start subtransaction (could fail) */
-		BeginInternalSubTransaction(NULL);
-		/* Want to run inside function's memory context */
-		MemoryContextSwitchTo(oldcontext);
-	}
-	PG_CATCH();
-	{
-		ErrorData *edata;
-		PLyExceptionEntry *entry;
-		PyObject *exc;
-
-		/* Ensure we restore original context and owner */
-		MemoryContextSwitchTo(oldcontext);
-		CurrentResourceOwner = oldowner;
-
-		/* Save error info */
-		edata = CopyErrorData();
-		FlushErrorState();
-
-		/* Look up the correct exception */
-		entry = hash_search(PLy_spi_exceptions, &(edata->sqlerrcode),
-							HASH_FIND, NULL);
-
-		/*
-		 * This could be a custom error code, if that's the case fallback to
-		 * SPIError
-		 */
-		exc = entry ? entry->exc : PLy_exc_spi_error;
-		/* Make Python raise the exception */
-		PLy_spi_exception_set(exc, edata);
-		FreeErrorData(edata);
-
-		return false;
-	}
-	PG_END_TRY();
-
-	return true;
+	BeginInternalSubTransaction(NULL);
+	/* Want to run inside function's memory context */
+	MemoryContextSwitchTo(oldcontext);
 }
 
 void
