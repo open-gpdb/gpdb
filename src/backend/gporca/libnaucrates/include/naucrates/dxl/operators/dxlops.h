@@ -110,6 +110,7 @@
 #include "naucrates/dxl/operators/CDXLScalarOneTimeFilter.h"
 #include "naucrates/dxl/operators/CDXLScalarOpExpr.h"
 #include "naucrates/dxl/operators/CDXLScalarOpList.h"
+#include "naucrates/dxl/operators/CDXLScalarParam.h"
 #include "naucrates/dxl/operators/CDXLScalarPartBound.h"
 #include "naucrates/dxl/operators/CDXLScalarPartBoundInclusion.h"
 #include "naucrates/dxl/operators/CDXLScalarPartBoundOpen.h"

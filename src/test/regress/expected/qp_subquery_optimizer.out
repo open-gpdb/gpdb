@@ -707,7 +707,7 @@ select Tbl01.*,foo(Tbl01.a) as foo from Tbl01; -- showing foo values
 
 select Tbl01.* from Tbl01 where foo(Tbl01.a) not in (select a from Tbl03);
 INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Query Parameter
+DETAIL:  Feature not supported: Use optimizer_enable_query_parameter to enable Orca with query parameters
 CONTEXT:  SQL function "foo" during startup
  a | b  | c  
 ---+----+----

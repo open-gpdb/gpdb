@@ -20,6 +20,7 @@ extern "C" {
 #include "nodes/primnodes.h"
 #include "utils/date.h"
 #include "utils/datum.h"
+#include "utils/guc.h"
 #include "utils/uuid.h"
 }
 
@@ -230,6 +231,32 @@ CTranslatorScalarToDXL::TranslateVarToDXL(
 
 //---------------------------------------------------------------------------
 //	@function:
+//		CTranslatorScalarToDXL::TranslateParamToDXL
+//
+//	@doc:
+//		Create a DXL node for a scalar param expression from a GPDB Param
+//---------------------------------------------------------------------------
+CDXLNode *
+CTranslatorScalarToDXL::TranslateParamToDXL(
+	const Expr *expr, const CMappingVarColId *var_colid_mapping)
+{
+	GPOS_ASSERT(IsA(expr, Param));
+	const Param *param = (Param *) expr;
+
+	CDXLScalarParam *scalar_param = GPOS_NEW(m_mp) CDXLScalarParam(
+		m_mp, param->paramid,
+		GPOS_NEW(m_mp) CMDIdGPDB(IMDId::EmdidGeneral, param->paramtype),
+		param->paramtypmod);
+
+	// create the DXL node holding the scalar param operator
+	CDXLNode *dxlnode = GPOS_NEW(m_mp) CDXLNode(m_mp, scalar_param);
+
+	return dxlnode;
+}
+
+
+//---------------------------------------------------------------------------
+//	@function:
 //		CTranslatorScalarToDXL::TranslateScalarToDXL
 //
 //	@doc:
@@ -294,8 +321,15 @@ CTranslatorScalarToDXL::TranslateScalarToDXL(
 		// give a better message.
 		if (tag == T_Param)
 		{
-			GPOS_RAISE(gpdxl::ExmaDXL, gpdxl::ExmiQuery2DXLUnsupportedFeature,
-					   GPOS_WSZ_LIT("Query Parameter"));
+			if (!optimizer_enable_query_parameter)
+			{
+				GPOS_RAISE(
+					gpdxl::ExmaDXL, gpdxl::ExmiQuery2DXLUnsupportedFeature,
+					GPOS_WSZ_LIT(
+						"Use optimizer_enable_query_parameter to enable Orca with query parameters"));
+			}
+			return CTranslatorScalarToDXL::TranslateParamToDXL(
+				expr, var_colid_mapping);
 		}
 		else
 		{

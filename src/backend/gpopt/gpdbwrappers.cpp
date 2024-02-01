@@ -2744,7 +2744,7 @@ gpdb::GetParseRowmark(Query *query, Index rtindex)
 		get_parse_rowmark(query, rtindex);
 	}
 	GP_WRAP_END;
-	return nullptr;
+	return NULL;
 }
 
 List *
@@ -2755,7 +2755,7 @@ gpdb::FindAllInheritors(Oid parentrelId, LOCKMODE lockmode, List **numparents)
 		return find_all_inheritors(parentrelId, lockmode, numparents);
 	}
 	GP_WRAP_END;
-	return nullptr;
+	return NULL;
 }
 
 gpos::BOOL

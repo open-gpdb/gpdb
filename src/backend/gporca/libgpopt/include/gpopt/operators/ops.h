@@ -44,6 +44,7 @@
 #include "gpopt/operators/CScalarNullIf.h"
 #include "gpopt/operators/CScalarNullTest.h"
 #include "gpopt/operators/CScalarOp.h"
+#include "gpopt/operators/CScalarParam.h"
 #include "gpopt/operators/CScalarProjectElement.h"
 #include "gpopt/operators/CScalarProjectList.h"
 #include "gpopt/operators/CScalarSubquery.h"

@@ -188,6 +188,7 @@ CTranslatorExprToDXL::InitScalarTranslators()
 		 &gpopt::CTranslatorExprToDXL::PdxlnBitmapBoolOp},
 		{COperator::EopScalarSortGroupClause,
 		 &gpopt::CTranslatorExprToDXL::PdxlnScSortGroupClause},
+		{COperator::EopScalarParam, &gpopt::CTranslatorExprToDXL::PdxlnScParam},
 	};
 
 	const ULONG translators_mapping_len = GPOS_ARRAY_SIZE(rgScalarTranslators);
@@ -7030,6 +7031,32 @@ CTranslatorExprToDXL::PdxlnScArrayCoerceExpr(CExpression *pexprArrayCoerceExpr)
 	pdxlnArrayCoerceExpr->AddChild(child_dxlnode);
 
 	return pdxlnArrayCoerceExpr;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CTranslatorExprToDXL::PdxlnScParam
+//
+//	@doc:
+//		Create a DXL scalar param node from an optimizer scalar param expr.
+//
+//---------------------------------------------------------------------------
+CDXLNode *
+CTranslatorExprToDXL::PdxlnScParam(CExpression *pexprScParam)
+{
+	GPOS_ASSERT(NULL != pexprScParam);
+
+	CScalarParam *popScParam = CScalarParam::PopConvert(pexprScParam->Pop());
+	popScParam->MdidType()->AddRef();
+
+	CDXLScalarParam *dxl_scalar_param = GPOS_NEW(m_mp)
+		CDXLScalarParam(m_mp, popScParam->Id(), popScParam->MdidType(),
+						popScParam->TypeModifier());
+
+	// create the DXL node holding the scalar param operator
+	CDXLNode *dxlnode = GPOS_NEW(m_mp) CDXLNode(m_mp, dxl_scalar_param);
+
+	return dxlnode;
 }
 
 //---------------------------------------------------------------------------

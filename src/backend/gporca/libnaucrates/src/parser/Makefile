@@ -150,6 +150,7 @@ OBJS        = CParseHandlerAgg.o \
               CParseHandlerScalarOp.o \
               CParseHandlerScalarOpExpr.o \
               CParseHandlerScalarOpList.o \
+              CParseHandlerScalarParam.o \
               CParseHandlerScalarPartBound.o \
               CParseHandlerScalarPartBoundInclusion.o \
               CParseHandlerScalarPartBoundOpen.o \

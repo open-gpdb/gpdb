@@ -143,6 +143,7 @@ public:
 		EopScalarCmp,
 		EopScalarIsDistinctFrom,
 		EopScalarIdent,
+		EopScalarParam,
 		EopScalarProjectElement,
 		EopScalarProjectList,
 		EopScalarNAryJoinPredList,

@@ -146,6 +146,7 @@
 #include "naucrates/dxl/parser/CParseHandlerScalarOp.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOpExpr.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarOpList.h"
+#include "naucrates/dxl/parser/CParseHandlerScalarParam.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarPartBound.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarPartBoundInclusion.h"
 #include "naucrates/dxl/parser/CParseHandlerScalarPartBoundOpen.h"

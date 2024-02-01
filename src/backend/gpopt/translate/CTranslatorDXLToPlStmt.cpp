@@ -3351,7 +3351,15 @@ CTranslatorDXLToPlStmt::TranslateDXLFilterList(
 			Expr *filter_expr =
 				m_translator_dxl_to_scalar->TranslateDXLToScalar(
 					child_filter_dxlnode, &colid_var_mapping);
-			filters_list = gpdb::LAppend(filters_list, filter_expr);
+			// Don't attempt static partition selection for query parameters
+			if (filter_expr->type == T_Param)
+			{
+				continue;
+			}
+			else
+			{
+				filters_list = gpdb::LAppend(filters_list, filter_expr);
+			}
 		}
 	}
 

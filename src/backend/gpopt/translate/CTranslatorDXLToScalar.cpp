@@ -42,6 +42,7 @@ extern "C" {
 #include "naucrates/dxl/operators/CDXLDatumInt4.h"
 #include "naucrates/dxl/operators/CDXLDatumInt8.h"
 #include "naucrates/dxl/operators/CDXLDatumOid.h"
+#include "naucrates/dxl/operators/CDXLScalarParam.h"
 #include "naucrates/dxl/xml/dxltokens.h"
 #include "naucrates/md/IMDAggregate.h"
 #include "naucrates/md/IMDFunction.h"
@@ -150,6 +151,8 @@ CTranslatorDXLToScalar::TranslateDXLToScalar(const CDXLNode *dxlnode,
 		 &CTranslatorDXLToScalar::TranslateDXLScalarValuesListToScalar},
 		{EdxlopScalarSortGroupClause,
 		 &CTranslatorDXLToScalar::TranslateDXLScalarSortGroupClauseToScalar},
+		{EdxlopScalarParam,
+		 &CTranslatorDXLToScalar::TranslateDXLScalarParamToScalar},
 	};
 
 	const ULONG num_translators = GPOS_ARRAY_SIZE(translators);
@@ -365,6 +368,35 @@ CTranslatorDXLToScalar::TranslateDXLScalarOpExprToScalar(
 	op_expr->opcollid = gpdb::TypeCollation(op_expr->opresulttype);
 
 	return (Expr *) op_expr;
+}
+
+//---------------------------------------------------------------------------
+//	@function:
+//		CTranslatorDXLToScalar::TranslateDXLScalarParamToScalar
+//
+//	@doc:
+//		Translates a DXL scalar param into a GPDB Param node
+//---------------------------------------------------------------------------
+Expr *
+CTranslatorDXLToScalar::TranslateDXLScalarParamToScalar(
+	const CDXLNode *scalar_param_node, CMappingColIdVar *colid_var)
+{
+	GPOS_ASSERT(NULL != scalar_param_node);
+	CDXLScalarParam *scalar_param_dxl =
+		CDXLScalarParam::Cast(scalar_param_node->GetOperator());
+
+	Param *param = MakeNode(Param);
+	// Hardcoded to PARAM_EXTERN, as only PARAM_EXTERN can be passed in from the query.
+	// PARAM_EXEC is created by other operators (joins, subqueries, etc.) for subplans in the plan output
+	param->paramkind = PARAM_EXTERN;
+	param->paramid = scalar_param_dxl->GetId();
+	param->paramtype =
+		CMDIdGPDB::CastMdid(scalar_param_dxl->GetMDIdType())->Oid();
+	param->paramtypmod = scalar_param_dxl->GetTypeModifier();
+	// GPDB_91_MERGE_FIXME: collation
+	param->paramcollid = gpdb::TypeCollation(param->paramtype);
+
+	return (Expr *) param;
 }
 
 //---------------------------------------------------------------------------

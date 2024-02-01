@@ -148,6 +148,7 @@ CParseHandlerFactory::Init(CMemoryPool *mp)
 		{EdxltokenScalarDistinctComp, &CreateDistinctCmpParseHandler},
 		{EdxltokenScalarIdent, &CreateScIdParseHandler},
 		{EdxltokenScalarOpExpr, &CreateScOpExprParseHandler},
+		{EdxltokenScalarParam, &CreateScParamParseHandler},
 		{EdxltokenScalarArrayComp, &CreateScArrayCmpParseHandler},
 		{EdxltokenScalarBoolOr, &CreateScBoolExprParseHandler},
 		{EdxltokenScalarBoolNot, &CreateScBoolExprParseHandler},
@@ -1149,6 +1150,16 @@ CParseHandlerFactory::CreateScOpExprParseHandler(
 {
 	return GPOS_NEW(mp)
 		CParseHandlerScalarOpExpr(mp, parse_handler_mgr, parse_handler_root);
+}
+
+// creates a parse handler for parsing a scalar Param
+CParseHandlerBase *
+CParseHandlerFactory::CreateScParamParseHandler(
+	CMemoryPool *mp, CParseHandlerManager *parse_handler_mgr,
+	CParseHandlerBase *parse_handler_root)
+{
+	return GPOS_NEW(mp)
+		CParseHandlerScalarParam(mp, parse_handler_mgr, parse_handler_root);
 }
 
 // creates a parse handler for parsing a scalar OpExpr

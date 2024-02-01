@@ -659,6 +659,31 @@ CDXLOperatorFactory::MakeDXLOpExpr(CDXLMemoryManager *dxl_memory_manager,
 		CDXLScalarOpExpr(mp, op_id, return_type_mdid, value_copy);
 }
 
+//---------------------------------------------------------------------------
+//	@function:
+//		CDXLOperatorFactory::MakeDXLScalarParam
+//
+//	@doc:
+//		Construct a scalar param operator
+//
+//---------------------------------------------------------------------------
+CDXLScalar *
+CDXLOperatorFactory::MakeDXLScalarParam(CDXLMemoryManager *dxl_memory_manager,
+										const Attributes &attrs)
+{
+	// get the memory pool from the memory manager
+	CMemoryPool *mp = dxl_memory_manager->Pmp();
+
+	INT param_id = ExtractConvertAttrValueToInt(
+		dxl_memory_manager, attrs, EdxltokenParamId, EdxltokenScalarParam);
+	IMDId *mdid_type = ExtractConvertAttrValueToMdId(
+		dxl_memory_manager, attrs, EdxltokenTypeId, EdxltokenScalarParam);
+	INT type_modifier = ExtractConvertAttrValueToInt(
+		dxl_memory_manager, attrs, EdxltokenTypeMod, EdxltokenScalarParam, true,
+		default_type_modifier);
+
+	return GPOS_NEW(mp) CDXLScalarParam(mp, param_id, mdid_type, type_modifier);
+}
 
 //---------------------------------------------------------------------------
 //	@function:
