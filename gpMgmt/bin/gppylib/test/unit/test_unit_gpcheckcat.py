@@ -435,6 +435,143 @@ class GpCheckCatTestCase(GpTestCase):
                 self.num_joins = 0
                 self.num_starts = 0
 
+    def test_checkMixDistPolicy_with_error_on_execution(self):
+        # Mocking the database connection to raise an exception during execution
+
+        self.db_connection.query.side_effect = Exception("Simulated error during execution")
+
+        # Call the function to test
+        self.subject.checkMixDistPolicy()
+
+        # Assertions
+        self.assertEqual(self.db_connection.query.call_count, 1)
+        self.assertEqual(self.db_connection.query.dictresult.call_count, 0)
+        self.assertFalse(self.subject.GV.checkStatus)
+        self.subject.setError.assert_any_call(self.subject.ERROR_NOREPAIR)
+
+    @patch('gpcheckcat.connect2')
+    def test_checkMixDistPolicy_exception_on_connect(self, mock_connect2):
+        # Mocking the database connection to raise an exception during connection
+        mock_connect2.side_effect = Exception("Simulated error during connection")
+
+        # Call the function to test
+        self.subject.checkMixDistPolicy()
+
+        # Assertions
+        self.assertEqual(mock_connect2.call_count, 1)
+        self.assertFalse(self.subject.GV.checkStatus)
+        self.assertEqual(mock_connect2.query.call_count, 0)
+        self.assertEqual(mock_connect2.query.dictresult.call_count, 0)
+        self.subject.setError.assert_any_call(self.subject.ERROR_NOREPAIR)
+
+    def test_fetch_guc_value_with_error_on_execution(self):
+        # Mocking the database connection to raise an exception during execution
+
+        self.db_connection.query.side_effect = Exception("Simulated error during execution")
+
+        # Call the function to test
+        self.subject.fetch_guc_value("gp_use_legacy_hashops")
+
+        # Assertions
+        self.assertEqual(self.db_connection.query.call_count, 1)
+        self.assertEqual(self.db_connection.query.dictresult.call_count, 0)
+        self.assertFalse(self.subject.GV.checkStatus)
+        self.subject.setError.assert_any_call(self.subject.ERROR_NOREPAIR)
+
+    @patch('gpcheckcat.connect2')
+    def test_fetch_guc_value_exception_on_connect(self, mock_connect2):
+        # Mocking the database connection to raise an exception during connection
+        mock_connect2.side_effect = Exception("Simulated error during connection")
+
+        # Call the function to test
+        self.subject.fetch_guc_value("gp_use_legacy_hashops")
+
+        # Assertions
+        self.assertEqual(mock_connect2.call_count, 1)
+        self.assertFalse(self.subject.GV.checkStatus)
+        self.assertEqual(mock_connect2.query.call_count, 0)
+        self.assertEqual(mock_connect2.query.dictresult.call_count, 0)
+        self.subject.setError.assert_any_call(self.subject.ERROR_NOREPAIR)
+
+    def test_generateDistPolicyQueryFile(self):
+        # Call the function
+        self.subject.generateDistPolicyQueryFile()
+
+        # Check if the file is created
+        self.assertTrue(os.path.exists('gpcheckcat.distpolicy.sql'))
+
+        # Read the file and check if it contains the expected query
+        with open('gpcheckcat.distpolicy.sql', 'r') as fp:
+            generated_query = fp.read()
+
+        expected_query = '''
+     -- all tables that use legacy policy:
+     with legacy_opclass_oids(oid_array) as (
+       select
+         array_agg(oid)
+       from
+         pg_opclass
+       where
+         opcfamily in (
+           select
+             amprocfamily
+           from
+             pg_amproc
+           where
+             amproc :: oid in (
+               6140, 6141, 6142, 6143, 6144, 6145, 6146,
+               6147, 6148, 6149, 6150, 6151, 6152,
+               6153, 6154, 6155, 6156, 6157, 6158,
+               6159, 6160, 6161, 6162, 6163, 6164,
+               6165, 6166, 6167, 6168, 6170, 6169,
+               6171
+             )
+         )
+     )
+    select
+         localoid :: regclass :: text as "Legacy Policy"
+    from
+         gp_distribution_policy,
+         legacy_opclass_oids
+     where
+         policytype = 'p'
+         and distclass :: oid[] && oid_array;
+ -- all tables that don't use any legacy policy:
+ with legacy_opclass_oids(oid_array) as (
+   select
+     array_agg(oid)
+   from
+     pg_opclass
+   where
+     opcfamily in (
+       select
+         amprocfamily
+       from
+         pg_amproc
+       where
+         amproc :: oid in (
+           6140, 6141, 6142, 6143, 6144, 6145, 6146,
+           6147, 6148, 6149, 6150, 6151, 6152,
+           6153, 6154, 6155, 6156, 6157, 6158,
+           6159, 6160, 6161, 6162, 6163, 6164,
+           6165, 6166, 6167, 6168, 6170, 6169,
+           6171
+         )
+     )
+ )
+select
+   localoid :: regclass :: text as "Non Legacy Policy"
+from
+   gp_distribution_policy,
+   legacy_opclass_oids
+where
+   policytype = 'p'
+   and not (distclass :: oid[] && oid_array);
+           '''
+        self.assertEqual.__self__.maxDiff = None
+        self.assertTrue(generated_query.strip() == expected_query.strip())
+
+
 # Define a mock class to represent CatalogTable objects
 class MockCatalogTable:
     def __init__(self, table_name):
