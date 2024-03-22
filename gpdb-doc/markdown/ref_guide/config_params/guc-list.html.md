@@ -938,6 +938,16 @@ Specifies the executing interval \(in seconds\) of the global deadlock detector 
 |-----------|-------|-------------------|
 |5 - `INT_MAX` secs|120 secs|master, system, reload|
 
+## <a id="gp_keep_partition_children_locks"></a>gp_keep_partition_children_locks
+
+If turned on, maintains the relation locks on all append-optimized leaf partitions involved in a query until the end of a transaction. Turning this parameter on can help avoid relatively rare visibility issues in queries, such as `read beyond eof` when running concurrently with lazy `VACUUM`(s) directly on the leaves.
+
+> **Note** Turning `gp_keep_partition_children_locks` on implies that an additional lock will be held for each append-optimized child in each partition hierarchy involved in a query, until the end of transaction. You may require to increase the value of `max_locks_per_transaction`.
+
+|Value Range|Default|Set Classifications|
+|-----------|-------|-------------------|
+|Boolean|false|master, session, reload|
+
 ## <a id="gp_log_endpoints"></a>gp\_log\_endpoints
 
 Controls the amount of parallel retrieve cursor endpoint detail that Greenplum Database writes to the server log file.

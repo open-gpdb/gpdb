@@ -175,6 +175,7 @@ The following parameters control the types of plan operations the Postgres Plann
 - [gp_enable_relsize_collection](guc-list.html#gp_enable_relsize_collection)
 - [gp_enable_sort_distinct](guc-list.html#gp_enable_sort_distinct)
 - [gp_enable_sort_limit](guc-list.html#gp_enable_sort_limit)
+- [gp_keep_partition_children_locks](#gp_keep_partition_children_locks)
 
 ### <a id="topic23"></a>Postgres Planner Costing Parameters 
 
