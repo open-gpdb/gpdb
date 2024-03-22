@@ -2357,10 +2357,12 @@ def _checkAllTablesForMissingEntries():
     catalog_issues = {}
     tables = GV.catalog.getCatalogTables()
     for catalog_table_obj in sorted(tables):
+        catalog_name = catalog_table_obj.getTableName()
+        if catalog_name == "pg_description" or catalog_name == "pg_shdescription":
+            continue
         issues = checkTableMissingEntry(catalog_table_obj)
         if not issues:
             continue
-        catalog_name = catalog_table_obj.getTableName()
         _, pk_name = getPrimaryKeyColumn(catalog_name, catalog_table_obj.getPrimaryKey())
         # We do this check in this function rather than getPrimaryKeyColumn as
         # it is used in checkACL and we do not want to modify that functionality

@@ -248,10 +248,32 @@ class GpCheckCatTestCase(GpTestCase):
         self.subject.checkForeignKey.assert_called_once_with([cat_obj_mock])
 
     @patch('gpcheckcat.checkTableMissingEntry', return_value = None)
-    def test_checkMissingEntry__no_issues(self, mock1):
+    @patch('gpcheckcat.GV.catalog' )
+    def test_checkMissingEntry__no_issues(self, mock1, mock_getCatalog):
         cat_mock = Mock()
-        cat_tables = ["input1", "input2"]
-        cat_mock.getCatalogTables.return_value = cat_tables
+        mock_tables = [
+            MockCatalogTable("input1"),
+            MockCatalogTable("input2"),
+        ]
+        # Set the return value of the mocked method
+        cat_mock.getCatalogTables.return_value = mock_tables
+        self.subject.GV.catalog = cat_mock
+
+        self.subject.runOneCheck("missing_extraneous")
+
+        self.assertTrue(self.subject.GV.missingEntryStatus)
+        self.subject.setError.assert_not_called()
+
+    @patch('gpcheckcat.checkTableMissingEntry', return_value = None)
+    @patch('gpcheckcat.GV.catalog' )
+    def test_checkMissingEntry__ignores_pg_description(self, mock1, mock2):
+        cat_mock = Mock()
+        mock_tables = [
+            MockCatalogTable("pg_description"),
+            MockCatalogTable("pg_shdescription"),
+        ]
+        # Set the return value of the mocked method
+        cat_mock.getCatalogTables.return_value = mock_tables
         self.subject.GV.catalog = cat_mock
 
         self.subject.runOneCheck("missing_extraneous")
@@ -412,6 +434,17 @@ class GpCheckCatTestCase(GpTestCase):
                 self.num_batches += 1
                 self.num_joins = 0
                 self.num_starts = 0
+
+# Define a mock class to represent CatalogTable objects
+class MockCatalogTable:
+    def __init__(self, table_name):
+        self.table_name = table_name
+
+    def getTableName(self):
+        return self.table_name
+
+    def getCatalogTables(self):
+        return self
 class Global():
     def __init__(self):
         self.opt = {}
