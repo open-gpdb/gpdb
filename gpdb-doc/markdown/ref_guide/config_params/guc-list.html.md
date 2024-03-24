@@ -1878,6 +1878,14 @@ This outputs a line to the server log detailing each successful connection. Some
 |-----------|-------|-------------------|
 |Boolean|off|local, system, reload|
 
+## <a id="log_checkpoints"></a>log\_checkpoints
+
+Causes checkpoints and restartpoints to be logged in the server log. Some statistics are included in the log messages, including the number of buffers written and the time spent writing them.
+
+|Value Range| Default | Set Classifications    |
+|-----------|---------|------------------------|
+|Boolean| on| local, system, reload  |
+
 ## <a id="log_disconnections"></a>log\_disconnections 
 
 This outputs a line in the server log at termination of a client session, and includes the duration of the session.
