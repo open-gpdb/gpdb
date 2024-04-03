@@ -65,12 +65,14 @@ PG_FUNCTION_INFO_V1(view_has_unknown_casts);
 PG_FUNCTION_INFO_V1(view_has_removed_operators);
 PG_FUNCTION_INFO_V1(view_has_removed_functions);
 PG_FUNCTION_INFO_V1(view_has_removed_types);
+PG_FUNCTION_INFO_V1(view_has_changed_function_signatures);
 
 static bool check_node_anyarray_walker(Node *node, void *context);
 static bool check_node_unknown_walker(Node *node, void *context);
 static bool check_node_removed_operators_walker(Node *node, void *context);
 static bool check_node_removed_functions_walker(Node *node, void *context);
 static bool check_node_removed_types_walker(Node *node, void *context);
+static bool check_node_changed_function_signatures_walker(Node *node, void *context);
 
 Datum
 set_next_pg_type_oid(PG_FUNCTION_ARGS)
@@ -712,4 +714,112 @@ check_node_removed_types_walker(Node *node, void *context)
 	}
 
 	return expression_tree_walker(node, check_node_removed_types_walker, context);
+}
+
+Datum
+view_has_changed_function_signatures(PG_FUNCTION_ARGS)
+{
+	Oid		  view_oid = PG_GETARG_OID(0);
+	Relation  rel = try_relation_open(view_oid, AccessShareLock, false);
+	Query	 *viewquery;
+	bool	  found;
+
+	if (!RelationIsValid(rel))
+		elog(ERROR, "Could not open relation file for relation oid %u", view_oid);
+
+	if(rel->rd_rel->relkind == RELKIND_VIEW)
+	{
+		viewquery = get_view_query(rel);
+		found = query_tree_walker(viewquery, check_node_changed_function_signatures_walker, NULL, 0);
+	}
+	else
+		found = false;
+
+	relation_close(rel, AccessShareLock);
+
+	PG_RETURN_BOOL(found);
+}
+
+static bool
+check_node_changed_function_signatures_walker(Node *node, void *context)
+{
+	Assert(context == NULL);
+
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, FuncExpr))
+	{
+		Oid func_oid = ((FuncExpr *)node)->funcid;
+		if (func_oid == 12501 || // gp_toolkit.__gp_aocsseg
+			func_oid == 12502 || // gp_toolkit.__gp_aocsseg_history
+			func_oid == 12506 || // gp_toolkit.__gp_aoseg
+			func_oid == 12500 || // gp_toolkit.__gp_aoseg_history
+			func_oid ==  2335 || // pg_catalog.array_agg
+			func_oid ==  2334 || // pg_catalog.array_agg_finalfn
+			func_oid ==  2333 || // pg_catalog.array_agg_transfn
+			func_oid ==  3484 || // pg_catalog.gin_consistent_jsonb
+			func_oid ==  3487 || // pg_catalog.gin_consistent_jsonb_path
+			func_oid ==  3482 || // pg_catalog.gin_extract_jsonb
+			func_oid ==  3485 || // pg_catalog.gin_extract_jsonb_path
+			func_oid ==  3483 || // pg_catalog.gin_extract_jsonb_query
+			func_oid ==  3486 || // pg_catalog.gin_extract_jsonb_query_path
+			func_oid ==  3488 || // pg_catalog.gin_triconsistent_jsonb
+			func_oid ==  3489 || // pg_catalog.gin_triconsistent_jsonb_path
+			func_oid ==  3921 || // pg_catalog.gin_tsquery_triconsistent
+			func_oid ==  2578 || // pg_catalog.gist_box_consistent
+			func_oid ==  2591 || // pg_catalog.gist_circle_consistent
+			func_oid ==  2179 || // pg_catalog.gist_point_consistent
+			func_oid ==  3064 || // pg_catalog.gist_point_distance
+			func_oid ==  2585 || // pg_catalog.gist_poly_consistent
+			func_oid ==  6036 || // pg_catalog.gp_dist_wait_status
+			func_oid ==  6022 || // pg_catalog.gp_execution_segment
+			func_oid ==  5035 || // pg_catalog.gp_request_fts_probe_scan
+			func_oid == 11823 || // pg_catalog.gp_tablespace_segment_location
+			func_oid ==  3698 || // pg_catalog.gtsquery_union
+			func_oid ==  3651 || // pg_catalog.gtsvector_union
+			func_oid ==  3553 || // pg_catalog.inet_gist_consistent
+			func_oid ==  3554 || // pg_catalog.inet_gist_union
+			func_oid ==  6225 || // pg_catalog.int4_pivot_accum
+			func_oid ==  2121 || // pg_catalog.max
+			func_oid ==  2137 || // pg_catalog.min
+			func_oid ==  3786 || // pg_catalog.pg_create_logical_replication_slot
+			func_oid ==  3779 || // pg_catalog.pg_create_physical_replication_slot
+			func_oid ==  2511 || // pg_catalog.pg_cursor
+			func_oid ==  3566 || // pg_catalog.pg_event_trigger_dropped_objects
+			func_oid ==  3781 || // pg_catalog.pg_get_replication_slots
+			func_oid ==  3839 || // pg_catalog.pg_identify_object
+			func_oid ==  3445 || // pg_catalog.pg_import_system_collations
+			func_oid ==  3783 || // pg_catalog.pg_logical_slot_get_binary_changes
+			func_oid ==  3782 || // pg_catalog.pg_logical_slot_get_changes
+			func_oid ==  3785 || // pg_catalog.pg_logical_slot_peek_binary_changes
+			func_oid ==  3784 || // pg_catalog.pg_logical_slot_peek_changes
+			func_oid ==  6066 || // pg_catalog.pg_resgroup_get_status
+			func_oid ==  3078 || // pg_catalog.pg_sequence_parameters
+			func_oid ==  2084 || // pg_catalog.pg_show_all_settings
+			func_oid ==  2172 || // pg_catalog.pg_start_backup
+			func_oid ==  3307 || // pg_catalog.pg_stat_file
+			func_oid ==  2022 || // pg_catalog.pg_stat_get_activity
+			func_oid ==  3099 || // pg_catalog.pg_stat_get_wal_senders
+			func_oid ==  6226 || // pg_catalog.pivot_sum
+			func_oid ==  3875 || // pg_catalog.range_gist_consistent
+			func_oid ==  3876 || // pg_catalog.range_gist_union
+			func_oid ==  3495 || // pg_catalog.to_regclass
+			func_oid ==  3492 || // pg_catalog.to_regoper
+			func_oid ==  3476 || // pg_catalog.to_regoperator
+			func_oid ==  3494 || // pg_catalog.to_regproc
+			func_oid ==  3479 || // pg_catalog.to_regprocedure
+			func_oid ==  3493)   // pg_catalog.to_regtype
+			return true;
+
+		return false;
+	}
+	else if (IsA(node, Query))
+	{
+		/* recurse into subselects and ctes */
+		Query *query = (Query *) node;
+		return query_tree_walker(query, check_node_changed_function_signatures_walker, context, 0);
+	}
+
+	return expression_tree_walker(node, check_node_changed_function_signatures_walker, context);
 }
