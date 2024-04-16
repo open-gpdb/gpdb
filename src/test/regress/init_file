@@ -85,6 +85,9 @@ m/^WARNING:  table ".*" contains rows in segment .*, which is outside the # of s
 # not always echoed to the client.
 m/FATAL:  terminating connection due to administrator command/
 
+# Ignore creating zero-column table warning
+m/^WARNING:  creating a table with no columns./
+
 -- end_matchignore
 
 -- start_matchsubs
