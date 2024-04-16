@@ -575,7 +575,7 @@ setup_endpoint_token_entry()
 	tag.sessionID = gp_session_id;
 	tag.userID = GetUserId();
 
-	Assert(LWLockHeldByMeInMode(ParallelCursorEndpointLock, LW_EXCLUSIVE));
+	Assert(LWLockHeldExclusiveByMe(ParallelCursorEndpointLock));
 	infoEntry = (EndpointTokenEntry *) hash_search(EndpointTokenHash, &tag, HASH_ENTER, &found);
 	elogif(gp_log_endpoints, LOG, "CDB_ENDPOINT: Finish endpoint init. Found EndpointTokenEntry? %d", found);
 
@@ -717,7 +717,7 @@ unset_endpoint_sender_pid(Endpoint *endpoint)
 {
 	Assert(endpoint);
 	Assert(!endpoint->empty);
-	Assert(LWLockHeldByMeInMode(ParallelCursorEndpointLock, LW_EXCLUSIVE));
+	Assert(LWLockHeldExclusiveByMe(ParallelCursorEndpointLock));
 
 	elogif(gp_log_endpoints, LOG, "CDB_ENDPOINT: unset endpoint sender pid");
 
@@ -847,7 +847,7 @@ free_endpoint(Endpoint *endpoint)
 
 	Assert(endpoint);
 	Assert(!endpoint->empty);
-	Assert(LWLockHeldByMeInMode(ParallelCursorEndpointLock, LW_EXCLUSIVE));
+	Assert(LWLockHeldExclusiveByMe(ParallelCursorEndpointLock));
 
 	elogif(gp_log_endpoints, LOG, "CDB_ENDPOINT: free endpoint '%s'", endpoint->name);
 
