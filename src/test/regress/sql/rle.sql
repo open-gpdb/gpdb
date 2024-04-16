@@ -4827,7 +4827,7 @@ select count(distinct j) from co_rle_zstd_table_level;
 create table co_rle_zstd_mixed(i int, j int encoding(compresstype=rle_type, compresslevel=6))
     with (appendonly=true, orientation=column, compresstype=rle_type, compresslevel=1);
 \d+ co_rle_zstd_mixed
-create table co_rle_zstd_table_level_ctas with(appendonly=true, orientation=column, compresstype=rle_type, compresslevel=5) as select 1;
+create table co_rle_zstd_table_level_ctas with(appendonly=true, orientation=column, compresstype=rle_type, compresslevel=5) as select 1 as i distributed by (i);
 \d+ co_rle_zstd_table_level_ctas
 select * from co_rle_zstd_table_level_ctas;
 

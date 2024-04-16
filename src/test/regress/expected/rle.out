@@ -11357,20 +11357,20 @@ Checksum: t
 Distributed by: (i)
 Options: appendonly=true, orientation=column, compresstype=rle_type, compresslevel=1
 
-create table co_rle_zstd_table_level_ctas with(appendonly=true, orientation=column, compresstype=rle_type, compresslevel=5) as select 1;
+create table co_rle_zstd_table_level_ctas with(appendonly=true, orientation=column, compresstype=rle_type, compresslevel=5) as select 1 as i distributed by (i);
 \d+ co_rle_zstd_table_level_ctas
-                             Append-Only Columnar Table "public.co_rle_zstd_table_level_ctas"
-  Column  |  Type   | Modifiers | Storage | Stats target | Compression Type | Compression Level | Block Size | Description 
-----------+---------+-----------+---------+--------------+------------------+-------------------+------------+-------------
- ?column? | integer |           | plain   |              | rle_type         | 5                 | 32768      | 
+                            Append-Only Columnar Table "public.co_rle_zstd_table_level_ctas"
+ Column |  Type   | Modifiers | Storage | Stats target | Compression Type | Compression Level | Block Size | Description 
+--------+---------+-----------+---------+--------------+------------------+-------------------+------------+-------------
+ i      | integer |           | plain   |              | rle_type         | 5                 | 32768      | 
 Checksum: t
-Distributed randomly
+Distributed by: (i)
 Options: appendonly=true, orientation=column, compresstype=rle_type, compresslevel=5
 
 select * from co_rle_zstd_table_level_ctas;
- ?column? 
-----------
-        1
+ i 
+---
+ 1
 (1 row)
 
 -- Now test with gp_default_storage_options
