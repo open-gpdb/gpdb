@@ -220,3 +220,30 @@ drop table test;
 
 1q:
 2q:
+
+-- test concurrent update with before row update trigger
+create table t_trigger (tc1 int, tc2 int, update_time timestamp without time zone DEFAULT now() NOT NULL);
+-- create a function which is used by trigger
+CREATE FUNCTION update_update_time() RETURNS trigger AS $$ /*in func*/
+BEGIN /*in func*/
+	NEW.update_time = now(); /*in func*/
+	return NEW; /*in func*/
+END; /*in func*/
+$$ /*in func*/
+LANGUAGE plpgsql;
+
+CREATE TRIGGER trig BEFORE INSERT OR UPDATE ON t_trigger FOR EACH ROW EXECUTE PROCEDURE update_update_time();
+/* original time is a very very old timestamp */
+insert into t_trigger values (1, 1, '1000-01-01');
+1: begin;
+1: update t_trigger set tc2 = 2 where tc1 = 1;
+2&: update t_trigger set tc2 = 3 where tc1 = 1;
+1: commit;
+2<:
+-- verify that trigger works. The case running time must larger then the old original data for years.
+select tc1, tc2, extract(epoch from (update_time - '1000-01-01'))/3600/24/365 > 2 from t_trigger;
+1: drop trigger trig on t_trigger;
+1: drop function update_update_time();
+1: drop table t_trigger;
+1q:
+2q:
