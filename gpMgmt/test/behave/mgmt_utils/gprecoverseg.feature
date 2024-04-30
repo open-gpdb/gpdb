@@ -53,6 +53,7 @@ Feature: gprecoverseg tests
           And a tablespace is created with data
          When the user runs "gprecoverseg <args>"
          Then gprecoverseg should return a return code of 0
+          And gprecoverseg should print "Future gprecoverseg executions might remove the currently created pg_basebackup/pg_rewind/rsync progress files, please save these files if needed." to stdout
           And the segments are synchronized
           And verify replication slot internal_wal_replication_slot is available on all the segments
           And the tablespace is valid
@@ -341,8 +342,8 @@ Feature: gprecoverseg tests
       And gprecoverseg should print "Segments successfully recovered" to stdout
       And check if gprecoverseg ran gpsegsetuprecovery.py 1 times with the expected args
       And check if gprecoverseg ran gpsegrecovery.py 1 times with the expected args
-      And gpAdminLogs directory has no "pg_basebackup*" files
-      And gpAdminLogs directory has no "pg_rewind*" files
+      And gpAdminLogs directory has "pg_basebackup*" files
+      And gpAdminLogs directory has "pg_rewind*" files
       And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
       And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
       And the old data directories are cleaned up for content 0
@@ -363,7 +364,7 @@ Feature: gprecoverseg tests
         When the user runs "gprecoverseg -a -s"
         Then gprecoverseg should return a return code of 0
         And gprecoverseg should print "Done!" to stdout for each mirror
-        And gpAdminLogs directory has no "pg_rewind*" files
+        And gpAdminLogs directory has "pg_rewind*" files
         And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
         And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
 
@@ -381,7 +382,7 @@ Feature: gprecoverseg tests
         Then gprecoverseg should return a return code of 0
         And gprecoverseg should print "Initiating segment recovery. Upon completion, will start the successfully recovered segments" to stdout
         And gprecoverseg should not print "pg_basebackup: base backup completed" to stdout
-        And gpAdminLogs directory has no "pg_basebackup*" files
+        And gpAdminLogs directory has "pg_basebackup*" files
         And all the segments are running
         And the segments are synchronized
 
@@ -423,9 +424,7 @@ Feature: gprecoverseg tests
         And gprecoverseg should print "Initiating segment recovery. Upon completion, will start the successfully recovered segments" to stdout
         And gprecoverseg should print "total size" to stdout for each mirror
         And gprecoverseg should print "Segments successfully recovered" to stdout
-        And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
-        And gpAdminLogs directory has no "pg_rewind*" files on all segment hosts
-        And gpAdminLogs directory has no "rsync*" files on all segment hosts
+        And gpAdminLogs directory has "rsync*" files on all segment hosts
         And gpAdminLogs directory has "gpsegrecovery*" files
         And gpAdminLogs directory has "gpsegsetuprecovery*" files
         And all the segments are running
@@ -445,9 +444,7 @@ Feature: gprecoverseg tests
         And gprecoverseg should print "Initiating segment recovery. Upon completion, will start the successfully recovered segments" to stdout
         And gprecoverseg should not print "total size is .*  speedup is .*" to stdout
         And gprecoverseg should print "Segments successfully recovered" to stdout
-        And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
-        And gpAdminLogs directory has no "pg_rewind*" files on all segment hosts
-        And gpAdminLogs directory has no "rsync*" files on all segment hosts
+        And gpAdminLogs directory has "rsync*" files on all segment hosts
         And gpAdminLogs directory has "gpsegrecovery*" files
         And gpAdminLogs directory has "gpsegsetuprecovery*" files
         And all the segments are running
@@ -528,7 +525,7 @@ Feature: gprecoverseg tests
         When the user runs "gprecoverseg -a -s"
         And gprecoverseg should print "skipping pg_rewind on mirror as recovery.conf is present" to stdout
         Then gprecoverseg should return a return code of 0
-        And gpAdminLogs directory has no "pg_rewind*" files
+        And gpAdminLogs directory has "pg_rewind*" files
         And all the segments are running
         And the segments are synchronized
         And the cluster is rebalanced
@@ -1094,8 +1091,8 @@ Feature: gprecoverseg tests
     And verify that lines from recovery_progress.file are present in segment progress files in gpAdminLogs
     And the user reset the walsender on the primary on content 0
     And the user waits until saved async process is completed
-    And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
-    And gpAdminLogs directory has no "pg_rewind*" files on all segment hosts
+    And gpAdminLogs directory has "pg_basebackup*" files on respective hosts only for content 0,1
+    And gpAdminLogs directory has "pg_rewind*" files on respective hosts only for content 2
     And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
     And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
     And the cluster is recovered in full and rebalanced
@@ -1120,7 +1117,7 @@ Feature: gprecoverseg tests
     And check if incremental recovery failed for mirrors with content 0 for gprecoverseg
     And gprecoverseg should print "Failed to recover the following segments. You must run either gprecoverseg --differential or gprecoverseg -F for all incremental failures" to stdout
     And check if incremental recovery was successful for mirrors with content 1,2
-    And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
+    And gpAdminLogs directory has "pg_rewind*" files on all segment hosts
     And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
     And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
 
@@ -1145,7 +1142,7 @@ Feature: gprecoverseg tests
     And gprecoverseg should print "Failed to recover the following segments. You must run either gprecoverseg --differential or gprecoverseg -F for all differential failures" to stdout
     And verify that mirror on content 1,2 is up
     And the segments are synchronized for content 1,2
-    And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
+    And gpAdminLogs directory has "rsync*" files on all segment hosts
     And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
     And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
     And the temporary directory is removed
@@ -1408,8 +1405,8 @@ Feature: gprecoverseg tests
     And check if incremental recovery was successful for mirrors with content 2
     And check if mirrors on content 0 are moved to new location on input file
     And check if mirrors on content 1,2 are in their original configuration
-    And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
-    And gpAdminLogs directory has no "pg_rewind*" files on all segment hosts
+    And gpAdminLogs directory has "pg_basebackup*" files on respective hosts only for content 0,1
+    And gpAdminLogs directory has "pg_rewind*" files on respective hosts only for content 2
     And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
     And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
     And verify there are no recovery backout files
@@ -1418,6 +1415,7 @@ Feature: gprecoverseg tests
     And the mode of all the created data directories is changed to 0700
     Then the user runs "gprecoverseg -a"
     And gprecoverseg should return a return code of 0
+    And all previous progress files are removed from gpAdminLogs directory on respective hosts only for content 0
     And user can start transactions
     And the segments are synchronized
     And the cluster is rebalanced
@@ -1454,8 +1452,7 @@ Feature: gprecoverseg tests
     And verify that mirror on content 0,1,2 is down
 
     And check if mirrors on content 0,1,2 are moved to new location on input file
-    And gpAdminLogs directory has no "pg_basebackup*" files on all segment hosts
-    And gpAdminLogs directory has no "pg_rewind*" files on all segment hosts
+    And gpAdminLogs directory has "pg_basebackup*" files on all segment hosts
     And gpAdminLogs directory has "gpsegsetuprecovery*" files on all segment hosts
     And gpAdminLogs directory has "gpsegrecovery*" files on all segment hosts
     And verify there are no recovery backout files
