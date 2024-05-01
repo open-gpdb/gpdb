@@ -356,6 +356,8 @@ extern bool gp_perfmon_print_packet_info;
 extern bool gp_enable_relsize_collection;
 extern bool gp_keep_partition_children_locks;
 
+extern int wal_sender_archiving_status_interval;
+
 /* Debug DTM Action */
 typedef enum
 {

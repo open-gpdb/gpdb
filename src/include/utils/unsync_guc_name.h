@@ -544,6 +544,7 @@
 		"wal_receiver_status_interval",
 		"wal_receiver_timeout",
 		"wal_segment_size",
+		"wal_sender_archiving_status_interval",
 		"wal_sender_timeout",
 		"wal_sync_method",
 		"wal_writer_delay",
