@@ -531,6 +531,7 @@ These parameters control the configuration of the replication between Greenplum 
 - [wait_for_replication_threshold](guc-list.html#wait_for_replication_threshold)
 - [wal_keep_segments](guc-list.html#wal_keep_segments)
 - [wal_receiver_status_interval](guc-list.html#wal_receiver_status_interval)
+- [wal_sender_archiving_status_interval](guc-list.html#wal_sender_archiving_status_interval)
 
 ## <a id="topic56"></a>Greenplum PL/Java Parameters 
 
