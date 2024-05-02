@@ -56,6 +56,11 @@ DROP TABLE IF EXISTS public.aopart_lineitem CASCADE;
 DROP TABLE co_rle_zstd1;
 DROP TABLE co_rle_zstd3;
 DROP TABLE co6;
+DROP TABLE co_rle_zstd_table_level;
+DROP TABLE co_rle_zstd_mixed;
+DROP TABLE co_rle_zstd_table_level_ctas;
+DROP TABLE co_rle_zstd_def_storage_options;
+
 
 \c isolation2test;
 DROP VIEW IF EXISTS locktest_segments;
