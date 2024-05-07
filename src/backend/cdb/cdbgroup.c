@@ -551,12 +551,28 @@ cdb_grouping_planner(PlannerInfo *root,
 		{
 			if (root->group_pathkeys == NIL)
 			{
-				/*
-				 * Grouping, but no grouping key. This arises in cases like
-				 * SELECT DISTINCT <constant>, where we need to eliminate
-				 * duplicates, but there is no key to hash on.
-				 */
-				plan_1p.group_prep = MPP_GRP_PREP_HASH_GROUPS;
+				List *grpList = get_sortgrouplist_exprs(root->parse->groupClause, root->parse->targetList);
+
+				if (cdbpathlocus_collocates_expressions(root, plan_1p.input_locus, grpList, false /* exact_match */))
+				{
+					/*
+					 * root->group_pathkeys could be set to NULL if groupClause
+					 * is NULL, so we should check the original groupClause in
+					 * the parse tree. We set MPP_GRP_PREP_NONE when the subpath's
+					 * locus collocates with groupClause.
+					 */
+					plan_1p.group_prep = MPP_GRP_PREP_NONE;
+					plan_1p.distinctkey_collocate = true;
+				}
+				else
+				{
+					/*
+					* Grouping, but no grouping key. This arises in cases like
+					* SELECT DISTINCT <constant>, where we need to eliminate
+					* duplicates, but there is no key to hash on.
+					*/
+					plan_1p.group_prep = MPP_GRP_PREP_HASH_GROUPS;
+				}
 			}
 			else if (grouping_is_hashable(root->parse->groupClause))
 			{
