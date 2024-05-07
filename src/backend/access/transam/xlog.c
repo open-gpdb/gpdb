@@ -8618,8 +8618,14 @@ ReadCheckpointRecord(XLogReaderState *xlogreader, XLogRecPtr RecPtr,
 		/*
 		 * Find Xacts that are distributed committed from the checkpoint record and
 		 * store them such that they can utilized later during DTM recovery.
+		 *
+		 * The coordinator may execute write DTX during gpexpand, so the newly
+		 * added segment may contain DTX info in checkpoint XLOG. However, this step
+		 * is useless and should be avoided for segments, or fatal may be thrown since
+		 * max_tm_gxacts is 0 in segments.
 		 */
-		XLogProcessCheckpointRecord(record);
+		if(IS_QUERY_DISPATCHER())
+			XLogProcessCheckpointRecord(record);
 	}
 
 	return record;
