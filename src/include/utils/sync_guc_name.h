@@ -5,6 +5,7 @@
 		"commit_siblings",
 		"coredump_on_memerror",
 		"DateStyle",
+		"deadlock_timeout",
 		"default_tablespace",
 		"dev_opt_unsafe_truncate_in_subtransaction",
 		"dml_ignore_target_partition_check",
