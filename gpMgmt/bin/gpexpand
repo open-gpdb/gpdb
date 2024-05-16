@@ -34,7 +34,8 @@ try:
     from gppylib.system.environment import GpMasterEnvironment
     from pygresql.pgdb import DatabaseError
     from pygresql import pg
-    from gppylib.gpcatalog import MASTER_ONLY_TABLES
+    from gppylib.gpcatalog import MASTER_ONLY_TABLES_MAPPED
+    from gppylib.gpcatalog import MASTER_ONLY_TABLES_NON_MAPPED
     from gppylib.operations.package import SyncPackages
     from gppylib.operations.utils import ParallelOperation
     from gppylib.parseutils import line_reader, check_values, canonicalize_address
@@ -1432,11 +1433,13 @@ class gpexpand:
         self.pool.check_results()
 
         """
-        Build the list of delete statements based on the MASTER_ONLY_TABLES
-        defined in gpcatalog.py
+        Build the list of DELETE and TRUNCATE statements based on the subset of
+        MASTER_ONLY_TABLES defined in gpcatalog.py. Mapped tables cannot
+        be TRUNCATEd, and we will have to DELETE from them.
         """
-        statements = ["delete from pg_catalog.%s" % tab for tab in MASTER_ONLY_TABLES]
-
+        delete_statements = ["delete from pg_catalog.%s" % tab for tab in MASTER_ONLY_TABLES_MAPPED]
+        truncate_statements = ["truncate pg_catalog.%s" % tab for tab in MASTER_ONLY_TABLES_NON_MAPPED]
+        statements = delete_statements + truncate_statements
         """
           Connect to each database in the new segments, and clean up the catalog tables.
         """

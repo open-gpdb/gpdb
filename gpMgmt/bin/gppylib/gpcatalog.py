@@ -21,18 +21,25 @@ logger = gplog.get_default_logger()
 class GPCatalogException(Exception):
     pass
 
-# Hard coded since "master only" is not defined in the catalog
-MASTER_ONLY_TABLES = [
+# The following lists capture "master only" tables. They are hard-coded
+# since there is no notion of "master only" defined in the catalog.
+# Depending on whether a relation is mapped or not, we have 2 sub-lists.
+# See RelationIsMapped().
+MASTER_ONLY_TABLES_MAPPED = [
     'gp_segment_configuration',
     'gp_configuration_history',
-    'gp_segment_configuration',
+    'pg_stat_last_shoperation'
+]
+
+MASTER_ONLY_TABLES_NON_MAPPED = [
     'pg_partition',
     'pg_partition_rule',
     'pg_stat_last_operation',
-    'pg_stat_last_shoperation',
     'pg_statistic',
-    'pg_partition_encoding',
-    ]
+    'pg_partition_encoding'
+]
+
+MASTER_ONLY_TABLES = MASTER_ONLY_TABLES_MAPPED + MASTER_ONLY_TABLES_NON_MAPPED
 
 # Hard coded tables that have different values on every segment
 SEGMENT_LOCAL_TABLES = [
