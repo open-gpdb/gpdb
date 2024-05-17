@@ -3626,10 +3626,8 @@ CopyFrom(CopyState cstate)
 		 * is hardcoded to 'archive' in GPDB, so it wouldn't have any effect
 		 * anyway.
 		 */
-#if 0
 		if (!XLogIsNeeded())
 			hi_options |= HEAP_INSERT_SKIP_WAL;
-#endif
 	}
 
 	oldcontext = MemoryContextSwitchTo(estate->es_query_cxt);
