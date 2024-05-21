@@ -1023,6 +1023,12 @@ public:
 	static BOOL FScalarConstBoolNull(CExpression *pexpr);
 
 	static BOOL FScalarConstOrBinaryCoercible(CExpression *pexpr);
+
+	static CExpression *ReplaceColrefWithProjectExpr(CMemoryPool *mp,
+													 CExpression *pexpr,
+													 CColRef *pcolref,
+													 CExpression *pprojExpr);
+
 };	// class CUtils
 
 // hash set from expressions

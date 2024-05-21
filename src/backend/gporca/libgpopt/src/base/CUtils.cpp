@@ -5024,4 +5024,29 @@ CUtils::AddExprs(CExpressionArrays *results_exprs,
 	}
 	GPOS_ASSERT(results_exprs->Size() >= input_exprs->Size());
 }
+
+// Replace column reference with projection expr recursively
+CExpression *
+CUtils::ReplaceColrefWithProjectExpr(CMemoryPool *mp, CExpression *pexpr,
+									 CColRef *pcolref, CExpression *pprojExpr)
+{
+	// replace reference
+	if (pexpr->Pop()->Eopid() == COperator::EopScalarIdent &&
+		CColRef::Equals(CScalarIdent::PopConvert(pexpr->Pop())->Pcr(), pcolref))
+	{
+		pprojExpr->AddRef();
+		return pprojExpr;
+	}
+
+	// recurse to children
+	CExpressionArray *pdrgpexprChildren = GPOS_NEW(mp) CExpressionArray(mp);
+	for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
+	{
+		pdrgpexprChildren->Append(
+			ReplaceColrefWithProjectExpr(mp, (*pexpr)[ul], pcolref, pprojExpr));
+	}
+	COperator *pop = pexpr->Pop();
+	pop->AddRef();
+	return GPOS_NEW(mp) CExpression(mp, pop, pdrgpexprChildren);
+}
 // EOF

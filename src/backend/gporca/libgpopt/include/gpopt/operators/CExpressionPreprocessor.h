@@ -213,11 +213,6 @@ private:
 	static CExpression *PexprTransposeSelectAndProject(CMemoryPool *mp,
 													   CExpression *pexpr);
 
-	static CExpression *CollapseSelectAndReplaceColref(CMemoryPool *mp,
-													   CExpression *expr,
-													   CColRef *pcolref,
-													   CExpression *pprojExpr);
-
 	// private ctor
 	CExpressionPreprocessor();
 
