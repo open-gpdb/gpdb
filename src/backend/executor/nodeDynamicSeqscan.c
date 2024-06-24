@@ -275,9 +275,8 @@ ExecEndDynamicSeqScan(DynamicSeqScanState *node)
 void
 ExecReScanDynamicSeqScan(DynamicSeqScanState *node)
 {
+	/* reset partition internal state */
 	DynamicSeqScanEndCurrentScan(node);
-
-	// reset partition internal state
 
 	/*
 	 * If any PARAM_EXEC Params used in pruning expressions have changed, then
