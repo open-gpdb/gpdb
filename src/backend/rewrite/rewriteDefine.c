@@ -576,9 +576,6 @@ DefineQueryRewrite(char *rulename,
 		toastrelid = event_relation->rd_rel->reltoastrelid;
 
 		/* drop storage while table still looks like a table  */
-		if (RelationDropStorage_hook) {
-			(*RelationDropStorage_hook)(event_relation);
-		}
 		RelationDropStorage(event_relation);
 		DeleteSystemAttributeTuples(event_relid);
 		/* delete distribution policy record */

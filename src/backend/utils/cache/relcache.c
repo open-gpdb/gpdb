@@ -3238,9 +3238,6 @@ RelationSetNewRelfilenode(Relation relation, TransactionId freezeXid,
 	/*
 	 * Schedule unlinking of the old storage at transaction commit.
 	 */
-	if (RelationDropStorage_hook) {
-		(*RelationDropStorage_hook)(relation);
-	}
 	RelationDropStorage(relation);
 
 	/*

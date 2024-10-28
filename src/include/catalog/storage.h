@@ -34,9 +34,4 @@ extern void AtSubAbort_smgr(void);
 extern void PostPrepare_smgr(void);
 
 
-/* Hook for yezzey metadata-related logic */
-typedef void (*RelationDropStorage_hook_type) (Relation);
-extern PGDLLIMPORT RelationDropStorage_hook_type RelationDropStorage_hook;
-
-
 #endif   /* STORAGE_H */

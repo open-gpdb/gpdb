@@ -13562,9 +13562,6 @@ ATExecSetTableSpace(Oid tableOid, Oid newTableSpace, LOCKMODE lockmode)
 	}
 
 	/* drop old relation, and close new one */
-	if (RelationDropStorage_hook) {
-		(*RelationDropStorage_hook)(rel);
-	}
 	RelationDropStorage(rel);
 	smgrclose(dstrel);
 

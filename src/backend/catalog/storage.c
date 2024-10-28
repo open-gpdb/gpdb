@@ -63,8 +63,6 @@ typedef struct PendingRelDelete
 
 static PendingRelDelete *pendingDeletes = NULL; /* head of linked list */
 
-RelationDropStorage_hook_type RelationDropStorage_hook = NULL;
-
 /*
  * RelationCreateStorage
  *		Create physical storage for a relation.
