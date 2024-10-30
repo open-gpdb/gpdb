@@ -1,0 +1,45 @@
+name: Run tests
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the main branch
+  push:
+    branches:
+      - 6X_STABLE
+  pull_request:
+    branches:
+      - 6X_STABLE
+
+
+jobs:
+  build_and_release:
+    strategy:
+        fail-fast: false
+        matrix:
+          os: [ubuntu-latest]
+          compiler: [gcc]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Install dependencies
+      run: sudo bash README.ubuntu.bash 
+
+
+    - name: Build 
+      run: | 
+        ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=/usr/local/gpdb \
+        --enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd
+        export GPHOME=/usr/local/gpdb/
+        export PATH=$PATH:/usr/local/gpdb/bin
+        make -d
+        make && make install
+    
+    - name: Check
+      run: make check
+
+    - name: Install check
+      run: make installcheck
