@@ -52,10 +52,6 @@ COPY yezzey_test/generate_ssh_key.sh /home/krebs/
 
 RUN ["/home/krebs/generate_ssh_key.sh"]
 
-RUN cd /tmp/ \
-&& git clone https://github.com/greenplum-db/gp-xerces.git \
-&& cd ./gp-xerces/ && mkdir build && cd build && ../configure --prefix=/usr/local && make -j \
-&& sudo make install
 
 RUN cd /tmp/ \
 && git clone https://github.com/boundary/sigar.git \
@@ -74,11 +70,13 @@ RUN sudo mkdir /usr/local/gpdb \
 RUN sudo chown -R krebs:root /home/krebs \
 && git status
 
-RUN  git submodule update --init \
-&& cd gpcontrib/yezzey && git checkout ${yezzeyRef} && cd /home/krebs \
-&& sed -i '/^trusted/d' gpcontrib/yezzey/yezzey.control \
-&& ./configure --prefix=/usr/local/gpdb/ --with-openssl --enable-debug-extensions --enable-gpperfmon --with-python --with-libxml CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' \
-&& make -j8 && make -j8 install
+RUN  git submodule update --init 
+RUN cd gpcontrib/yezzey 
+RUN git checkout ${yezzeyRef} && cd /home/krebs 
+RUN sed -i '/^trusted/d' gpcontrib/yezzey/yezzey.control 
+RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=/usr/local/gpdb \
+--enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
+RUN make -j8 && make -j8 install
 
 RUN sed -i "s/\$ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/yezzey-s3.conf \
 && sed -i "s/\$SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/yezzey-s3.conf \
