@@ -1453,7 +1453,7 @@ psql_completion(const char *text, int start, int end)
 		static const char *const list_ALTER2[] =
 		{"ADD", "ALTER", "CLUSTER ON", "DISABLE", "DROP", "ENABLE", "INHERIT",
 			"NO INHERIT", "RENAME", "RESET", "OWNER TO", "SET",
-		"VALIDATE CONSTRAINT", "REPLICA IDENTITY", NULL};
+		"VALIDATE CONSTRAINT", "REPLICA IDENTITY", "TRUNCATE", NULL};
 
 		COMPLETE_WITH_LIST(list_ALTER2);
 	}
@@ -1539,12 +1539,32 @@ psql_completion(const char *text, int start, int end)
 			 pg_strcasecmp(prev_wd, "TO") != 0)
 		COMPLETE_WITH_CONST("TO");
 
-	/* If we have TABLE <sth> DROP, provide COLUMN or CONSTRAINT */
+	/* ALTER TABLE <sth> ADD, provide COLUMN, CONSTRAINT, PARTITION or DEFAULT PARTITION*/
+	else if (pg_strcasecmp(prev3_wd, "TABLE") == 0 &&
+			 pg_strcasecmp(prev_wd, "ADD") == 0)
+	{
+		static const char *const list_TABLEDROP[] =
+		{"COLUMN", "CONSTRAINT", "PARTITION", "DEFAULT PARTITION", NULL};
+
+		COMPLETE_WITH_LIST(list_TABLEDROP);
+	}
+
+	/* ALTER TABLE <sth> TRUNCATE, provide PARTITION or DEFAULT PARTITION*/
+	else if (pg_strcasecmp(prev3_wd, "TABLE") == 0 &&
+			 pg_strcasecmp(prev_wd, "TRUNCATE") == 0)
+	{
+		static const char *const list_TABLEDROP[] =
+		{"PARTITION", "DEFAULT PARTITION", NULL};
+
+		COMPLETE_WITH_LIST(list_TABLEDROP);
+	}
+
+	/* If we have TABLE <sth> DROP, provide COLUMN, CONSTRAINT, PARTITION or DEFAULT PARTITION */
 	else if (pg_strcasecmp(prev3_wd, "TABLE") == 0 &&
 			 pg_strcasecmp(prev_wd, "DROP") == 0)
 	{
 		static const char *const list_TABLEDROP[] =
-		{"COLUMN", "CONSTRAINT", NULL};
+		{"COLUMN", "CONSTRAINT", "PARTITION", "DEFAULT PARTITION", NULL};
 
 		COMPLETE_WITH_LIST(list_TABLEDROP);
 	}
