@@ -81,9 +81,13 @@ RelationCreateStorage(RelFileNode rnode, char relpersistence, char relstorage)
 	SMgrRelation srel;
 	BackendId	backend;
 	bool		needs_wal;
+	bool        no_error_on_exists;
+
+	no_error_on_exists = RELPERSISTENCE_FAST_TEMP == relpersistence;
 
 	switch (relpersistence)
 	{
+		case RELPERSISTENCE_FAST_TEMP:
 		case RELPERSISTENCE_TEMP:
 			backend = TempRelBackendId;
 			needs_wal = false;
@@ -102,6 +106,8 @@ RelationCreateStorage(RelFileNode rnode, char relpersistence, char relstorage)
 	}
 
 	srel = smgropen(rnode, backend);
+	if (no_error_on_exists && srel->smgr->smgr_exists(srel, MAIN_FORKNUM))
+		return;
 	smgrcreate(srel, MAIN_FORKNUM, false);
 
 	if (needs_wal)

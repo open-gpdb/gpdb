@@ -51,7 +51,9 @@
 #include "access/visibilitymap.h"
 #include "access/xact.h"
 #include "access/xlogutils.h"
+#include "access/fasttab.h"
 #include "catalog/catalog.h"
+#include "catalog/storage.h"
 #include "catalog/namespace.h"
 #include "miscadmin.h"
 #include "pgstat.h"
@@ -70,6 +72,8 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/tqual.h"
+#include "utils/memutils.h"
+#include "lib/ilist.h"
 
 #include "catalog/oid_dispatch.h"
 #include "cdb/cdbvars.h"
@@ -226,6 +230,10 @@ initscan(HeapScanDesc scan, ScanKey key, bool is_rescan)
 	 * results for a non-MVCC snapshot, the caller must hold some higher-level
 	 * lock that ensures the interesting tuple(s) won't change.)
 	 */
+	if (scan->rs_rd->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		RelationCreateStorage(scan->rs_rd->rd_node, scan->rs_rd->rd_rel->relpersistence ,
+						  scan->rs_rd->rd_rel->relstorage);
+
 	scan->rs_nblocks = RelationGetNumberOfBlocks(scan->rs_rd);
 
 	/*
@@ -1674,6 +1682,9 @@ heap_beginscan_internal(Relation relation, Snapshot snapshot,
 
 	initscan(scan, key, false);
 
+	/* Initialize part of `scan` related to virtual catalog. */
+	fasttab_beginscan(scan);
+
 	return scan;
 }
 
@@ -1695,6 +1706,9 @@ heap_afterscan(HeapScanDesc scan)
 		ReleaseBuffer(scan->rs_cbuf);
 		scan->rs_cbuf = InvalidBuffer;
 	}
+
+	/* Reinitialize part of `scan` related to virtual catalog. */
+	fasttab_beginscan(scan);
 }
 
 /* ----------------
@@ -1711,6 +1725,9 @@ heap_rescan(HeapScanDesc scan,
 	 * reinitialize scan descriptor
 	 */
 	initscan(scan, key, true);
+	
+	/* Reinitialize part of `scan` related to virtual catalog. */
+	fasttab_beginscan(scan);
 }
 
 /* ----------------
@@ -1775,6 +1792,12 @@ heap_endscan(HeapScanDesc scan)
 HeapTuple
 heap_getnext(HeapScanDesc scan, ScanDirection direction)
 {
+	HeapTuple	fasttab_result;
+
+	/* First return all virtual tuples, then regular ones. */
+	fasttab_result = fasttab_getnext(scan, direction);
+	if (HeapTupleIsValid(fasttab_result))
+		return fasttab_result;
 	/* Note: no locking manipulations needed */
 
 	HEAPDEBUG_1;				/* heap_getnext( info ) */
@@ -1854,6 +1877,8 @@ heap_fetch(Relation relation,
 	Page		page;
 	OffsetNumber offnum;
 	bool		valid;
+
+	Assert(!IsFasttabHandledRelationId(relation->rd_id));
 
 	/*
 	 * Fetch and pin the appropriate page of the relation.
@@ -1978,13 +2003,24 @@ heap_hot_search_buffer(ItemPointer tid, Relation relation, Buffer buffer,
 					   Snapshot snapshot, HeapTuple heapTuple,
 					   bool *all_dead, bool first_call)
 {
-	Page		dp = (Page) BufferGetPage(buffer);
+	Page		dp;
 	TransactionId prev_xmax = InvalidTransactionId;
 	BlockNumber blkno;
 	OffsetNumber offnum;
 	bool		at_chain_start;
 	bool		valid;
 	bool		skip;
+	bool		fasttab_result;
+
+	/* Return matching virtual tuple if there is one. */
+	if (fasttab_hot_search_buffer(tid, relation, heapTuple, all_dead, &fasttab_result))
+		return fasttab_result;
+
+	/*
+	 * `buffer` can be InvalidBuffer for in-memory tuples, so we should call
+	 * BufferGetPage only after we verified it's not a case.
+	 */
+	dp = (Page) BufferGetPage(buffer);
 
 	/* If this is not the first call, previous call returned a (live!) tuple */
 	if (all_dead)
@@ -2148,6 +2184,8 @@ heap_get_latest_tid(Relation relation,
 	BlockNumber blk;
 	ItemPointerData ctid;
 	TransactionId priorXmax;
+
+	Assert(!IsFasttabHandledRelationId(relation->rd_id));
 
 	/* this is to avoid Assert failures on bad input */
 	if (!ItemPointerIsValid(tid))
@@ -2381,6 +2419,7 @@ heap_insert(Relation relation, HeapTuple tup, CommandId cid,
 	FaultInjector_InjectFaultIfSet("heap_insert", DDLNotSpecified, "",
 								   RelationGetRelationName(relation));
 #endif
+	Oid			fasttab_result;
 
 	/*
 	 * Fill in tuple header fields, assign an OID, and toast the tuple if
@@ -2390,6 +2429,29 @@ heap_insert(Relation relation, HeapTuple tup, CommandId cid,
 	 * into the relation; tup is the caller's original untoasted data.
 	 */
 	heaptup = heap_prepare_insert(relation, tup, xid, cid, options, isFrozen);
+
+	/* If it's a virtual tuple it should be inserted in virtual catalog. */
+	if (fasttab_insert(relation, tup, heaptup, &fasttab_result, false)) {
+		/*
+		* If tuple is cachable, mark it for invalidation from the caches in case
+		* we abort.  Note it is OK to do this after releasing the buffer, because
+		* the heaptup data structure is all in local memory, not in the shared
+		* buffer.
+		*/
+		if (IsSystemRelation(relation))
+		{
+			/*
+			* Also make note of the OID we used, so that it is dispatched to the
+			* segments, when this CREATE statement is dispatched.
+			*/
+			if (Gp_role == GP_ROLE_DISPATCH && relation->rd_rel->relhasoids)
+				AddDispatchOidFromTuple(relation, heaptup);
+
+			CacheInvalidateHeapTuple(relation, heaptup, NULL);
+		}
+		
+		return fasttab_result;
+	}
 
 	/*
 	 * Find buffer to insert this tuple into.  If the page is all visible,
@@ -2613,7 +2675,7 @@ heap_prepare_insert(Relation relation, HeapTuple tup, TransactionId xid,
 				oid = GetPreassignedOidForTuple(relation, tup);
 
 			if (!OidIsValid(oid))
-				oid = GetNewOid(relation);
+				oid = GetNewOid(relation, '\0');
 
 			HeapTupleSetOid(tup, oid);
 		}
@@ -2690,6 +2752,7 @@ heap_multi_insert(Relation relation, HeapTuple *tuples, int ntuples,
 
 	/* currently not needed (thus unsupported) for heap_multi_insert() */
 	AssertArg(!(options & HEAP_INSERT_NO_LOGICAL));
+	Assert(!IsFasttabHandledRelationId(relation->rd_id));
 
 	needwal = !(options & HEAP_INSERT_SKIP_WAL) && RelationNeedsWAL(relation);
 	saveFreeSpace = RelationGetTargetPageFreeSpace(relation,
@@ -3111,6 +3174,10 @@ heap_delete(Relation relation, ItemPointer tid,
 	Assert(RelationIsHeap(relation));
 
 	gp_expand_protect_catalog_changes(relation);
+	/* If it's a virtual tuple, it should be deleted from virtual catalog. */
+	if (fasttab_delete(relation, tid))
+		return HeapTupleMayBeUpdated;
+
 
 	block = ItemPointerGetBlockNumber(tid);
 	buffer = ReadBuffer(relation, block);
@@ -3579,6 +3646,10 @@ heap_update_internal(Relation relation, ItemPointer otid, HeapTuple newtup,
 	Assert(!RelationIsAppendOptimized(relation));
 
 	gp_expand_protect_catalog_changes(relation);
+
+	/* If it's a virtual tuple it should be updated in virtual catalog. */
+	if (fasttab_update(relation, otid, newtup))
+		return HeapTupleMayBeUpdated;
 
 	/*
 	 * Fetch the list of attributes to be checked for HOT update.  This is
@@ -4690,6 +4761,8 @@ heap_lock_tuple(Relation relation, HeapTuple tuple,
 				new_infomask2;
 	bool		have_tuple_lock = false;
 
+	Assert(!IsFasttabHandledRelationId(relation->rd_id));
+
 	*buffer = ReadBuffer(relation, ItemPointerGetBlockNumber(tid));
 	LockBuffer(*buffer, BUFFER_LOCK_EXCLUSIVE);
 
@@ -5261,6 +5334,8 @@ static void
 heap_acquire_tuplock(Relation relation, ItemPointer tid, LockTupleMode mode,
 					 bool nowait, bool *have_tuple_lock)
 {
+	Assert(!IsFasttabHandledRelationId(relation->rd_id));
+
 	if (*have_tuple_lock)
 		return;
 
@@ -5961,6 +6036,8 @@ static HTSU_Result
 heap_lock_updated_tuple(Relation rel, HeapTuple tuple, ItemPointer ctid,
 						TransactionId xid, LockTupleMode mode)
 {
+	Assert(!IsFasttabHandledRelationId(rel->rd_id));
+
 	/*
 	 * If the tuple has not been updated, or has moved into another partition
 	 * (effectively a delete) stop here.
@@ -6012,6 +6089,10 @@ heap_inplace_update(Relation relation, HeapTuple tuple)
 	HeapTupleHeader htup;
 	uint32		oldlen;
 	uint32		newlen;
+
+	/* If it's a virtual tuple it should be updated in virtual catalog. */
+	if (fasttab_inplace_update(relation, tuple))
+		return;
 
 	buffer = ReadBuffer(relation, ItemPointerGetBlockNumber(&(tuple->t_self)));
 	LockBuffer(buffer, BUFFER_LOCK_EXCLUSIVE);
@@ -6435,6 +6516,8 @@ heap_prepare_freeze_tuple(HeapTupleHeader tuple,
 	bool		freeze_xmax = false;
 	TransactionId xid;
 
+	Assert(!IsFasttabItemPointer(&tuple->t_ctid));
+
 	frz->frzflags = 0;
 	frz->t_infomask2 = tuple->t_infomask2;
 	frz->t_infomask = tuple->t_infomask;
@@ -6624,6 +6707,8 @@ heap_prepare_freeze_tuple(HeapTupleHeader tuple,
 void
 heap_execute_freeze_tuple(HeapTupleHeader tuple, xl_heap_freeze_tuple *frz)
 {
+	Assert(!IsFasttabItemPointer(&tuple->t_ctid));
+
 	HeapTupleHeaderSetXmax(tuple, frz->xmax);
 
 	if (frz->frzflags & XLH_FREEZE_XVAC)
@@ -7030,6 +7115,8 @@ heap_tuple_needs_freeze(HeapTupleHeader tuple, TransactionId cutoff_xid,
 						MultiXactId cutoff_multi, Buffer buf)
 {
 	TransactionId xid;
+
+	Assert(!IsFasttabItemPointer(&tuple->t_ctid));
 
 	xid = HeapTupleHeaderGetXmin(tuple);
 	if (TransactionIdIsNormal(xid) &&

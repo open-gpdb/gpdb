@@ -28,6 +28,7 @@
 #include "access/xact.h"
 #include "access/xact_storage_tablespace.h"
 #include "access/xlogutils.h"
+#include "access/fasttab.h"
 #include "catalog/catalog.h"
 #include "catalog/namespace.h"
 #include "catalog/oid_dispatch.h"
@@ -2591,6 +2592,9 @@ StartTransaction(void)
 	initialize_wal_bytes_written();
 	ShowTransactionState("StartTransaction");
 
+	/* Make preparations related to virtual catalog */
+	fasttab_begin_transaction();
+
 	elogif(Debug_print_full_dtm, LOG,
 		   "StartTransaction in DTX Context = '%s', "
 		   "isolation level %s, read-only = %d, %s",
@@ -2896,6 +2900,9 @@ CommitTransaction(void)
 	s->state = TRANS_DEFAULT;
 
 	/* we're now in a consistent state to handle an interrupt. */
+	/* Perform actions related to virtual catalog. */
+	fasttab_end_transaction();
+
 	RESUME_INTERRUPTS();
 
 	/* Release resource group slot at the end of a transaction */
@@ -3384,6 +3391,9 @@ AbortTransaction(void)
 		AtEOXact_WorkFile();
 		pgstat_report_xact_timestamp(0);
 	}
+
+	/* Perform actions related to virtual catalog. */
+	fasttab_abort_transaction();
 
 	/*
 	 * Exported snapshots must be cleared before transaction ID is reset.  In
@@ -4779,6 +4789,9 @@ DefineSavepoint(char *name)
 				 BlockStateAsString(s->blockState));
 			break;
 	}
+
+	/* Perform actions related to virtual catalog. */
+	fasttab_define_savepoint(name);
 }
 
 /*
@@ -5008,6 +5021,9 @@ RollbackToSavepoint(List *options)
 	else
 		elog(FATAL, "RollbackToSavepoint: unexpected state %s",
 			 BlockStateAsString(xact->blockState));
+
+	/* Perform actions related to virtual catalog. */
+	fasttab_rollback_to_savepoint(name);
 }
 
 static void

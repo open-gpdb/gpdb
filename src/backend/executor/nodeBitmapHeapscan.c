@@ -43,6 +43,7 @@
 
 #include "access/relscan.h"
 #include "access/transam.h"
+#include "access/fasttab.h"
 #include "executor/execdebug.h"
 #include "executor/nodeBitmapHeapscan.h"
 #include "pgstat.h"
@@ -377,6 +378,34 @@ BitmapHeapNext(BitmapHeapScanState *node)
 				node->lossy_pages++;
 
 			CheckSendPlanStateGpmonPkt(&node->ss.ps);
+			if(tbmres->blockno < scan->rs_nblocks)
+			{
+				/*
+				 * Normal case. Fetch the current heap page and identify
+				 * candidate tuples.
+				 */
+				bitgetpage(scan, tbmres);
+			}
+			else
+			{
+				/*
+				 * Probably we are looking for in-memory tuple. This code
+				 * executes in cases when CurrentFasttabBlockId is larger than
+				 * normal block id's.
+				 */
+				OffsetNumber i;
+
+				/*
+				 * Check all tuples on a virtual page.
+				 *
+				 * NB: 0 is an invalid offset.
+				 */
+				for(i = 1; i <= MaxHeapTuplesPerPage; i++)
+					scan->rs_vistuples[i-1] = FASTTAB_ITEM_POINTER_BIT | i;
+
+				scan->rs_ntuples = MaxHeapTuplesPerPage;
+				tbmres->recheck = true;
+			}
 
 			/*
 			 * Set rs_cindex to first slot to examine
@@ -461,16 +490,29 @@ BitmapHeapNext(BitmapHeapScanState *node)
 		 * Okay to fetch the tuple
 		 */
 		targoffset = scan->rs_vistuples[scan->rs_cindex];
-		dp = (Page) BufferGetPage(scan->rs_cbuf);
-		lp = PageGetItemId(dp, targoffset);
-		Assert(ItemIdIsNormal(lp));
 
-		scan->rs_ctup.t_data = (HeapTupleHeader) PageGetItem((Page) dp, lp);
-		scan->rs_ctup.t_len = ItemIdGetLength(lp);
-#if 0
-		scan->rs_ctup.t_tableOid = scan->rs_rd->rd_id;
-#endif
 		ItemPointerSet(&scan->rs_ctup.t_self, tbmres->blockno, targoffset);
+
+		/* Is it a virtual TID? */
+		if (IsFasttabItemPointer(&scan->rs_ctup.t_self))
+		{
+			/* Fetch tuple from virtual catalog (if tuple still exists). */
+			if(!fasttab_simple_heap_fetch(scan->rs_rd, scan->rs_snapshot, &scan->rs_ctup))
+				continue;
+		}
+		else
+		{
+			/* Regular logic. */
+			dp = (Page) BufferGetPage(scan->rs_cbuf);
+			lp = PageGetItemId(dp, targoffset);
+			Assert(ItemIdIsNormal(lp));
+
+			scan->rs_ctup.t_data = (HeapTupleHeader) PageGetItem((Page) dp, lp);
+			scan->rs_ctup.t_len = ItemIdGetLength(lp);
+#if 0
+			scan->rs_ctup.t_tableOid = scan->rs_rd->rd_id;
+#endif
+		}
 
 		pgstat_count_heap_fetch(scan->rs_rd);
 

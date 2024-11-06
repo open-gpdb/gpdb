@@ -103,6 +103,8 @@
 #include "utils/vmem_tracker.h"
 #include "tcop/idle_resource_cleaner.h"
 
+#include "access/fasttab.h"
+
 /* ----------------
  *		global variables
  * ----------------
@@ -1057,7 +1059,8 @@ exec_mpp_query(const char *query_string,
 			   const char * serializedQuerytree, int serializedQuerytreelen,
 			   const char * serializedPlantree, int serializedPlantreelen,
 			   const char * serializedParams, int serializedParamslen,
-			   const char * serializedQueryDispatchDesc, int serializedQueryDispatchDesclen)
+			   const char * serializedQueryDispatchDesc, int serializedQueryDispatchDesclen,
+			   const char * serializedQueryEnvironment, int serializedQueryEnvironmentLen)
 {
 	CommandDest dest = whereToSendOutput;
 	MemoryContext oldcontext;
@@ -1337,6 +1340,14 @@ exec_mpp_query(const char *query_string,
 		CHECK_FOR_INTERRUPTS();
 
 		/*
+		* Deserialize virtual catalog.
+		*/
+
+		fasttab_deserialize(serializedQueryEnvironmentLen, serializedQueryEnvironment);
+
+		CommandCounterIncrement();
+
+		/*
 		 * Create unnamed portal to run the query or queries in. If there
 		 * already is one, silently drop it.
 		 */
@@ -1598,7 +1609,7 @@ restore_guc_to_QE(void )
  * Execute a "simple Query" protocol message.
  */
 static void
-exec_simple_query(const char *query_string)
+exec_simple_query(const char *query_string, const char * serializedQueryEnvironment, int serializedQueryEnvironmentLen)
 {
 	CommandDest dest = whereToSendOutput;
 	MemoryContext oldcontext;
@@ -1681,6 +1692,14 @@ exec_simple_query(const char *query_string)
 	 * significant to PreventTransactionChain.)
 	 */
 	isTopLevel = (list_length(parsetree_list) == 1);
+
+	/*
+	* Deserialize virtual catalog.
+	*/
+
+	fasttab_deserialize(serializedQueryEnvironmentLen, serializedQueryEnvironment);
+
+	CommandCounterIncrement();
 
 	/*
 	 * Run through the raw parsetree(s) and process each one.
@@ -5403,7 +5422,7 @@ PostgresMain(int argc, char *argv[],
 					else if (am_faulthandler)
 						HandleFaultMessage(query_string);
 					else
-						exec_simple_query(query_string);
+						exec_simple_query(query_string, NULL, 0);
 
 					send_ready_for_query = true;
 				}
@@ -5424,6 +5443,7 @@ PostgresMain(int argc, char *argv[],
 					const char *serializedPlantree = NULL;
 					const char *serializedParams = NULL;
 					const char *serializedQueryDispatchDesc = NULL;
+					const char *serializedQueryEnvironment = NULL;
 					const char *resgroupInfoBuf = NULL;
 
 					int query_string_len = 0;
@@ -5432,6 +5452,7 @@ PostgresMain(int argc, char *argv[],
 					int serializedPlantreelen = 0;
 					int serializedParamslen = 0;
 					int serializedQueryDispatchDesclen = 0;
+					int serializedQueryEnvironmentLen = 0;
 					int resgroupInfoLen = 0;
 					TimestampTz statementStart;
 					Oid suid;
@@ -5506,6 +5527,18 @@ PostgresMain(int argc, char *argv[],
 						SetTempNamespaceStateAfterBoot(tempNamespaceId, tempToastNamespaceId);
 					}
 
+					/* process query environment */
+					{
+						/* truncate virtual catalog */
+						(void)fasttab_abort_transaction();
+
+						serializedQueryEnvironmentLen = pq_getmsgint(&input_message, sizeof(serializedQueryEnvironmentLen));
+
+						serializedQueryEnvironment = pq_getmsgbytes(&input_message, serializedQueryEnvironmentLen);
+
+						elogif(Debug_print_full_dtm, LOG, "MPP dispatched stmt environment from QD: %d tuples len.", serializedQueryEnvironmentLen);
+					}
+
 					pq_getmsgend(&input_message);
 
 					elogif(Debug_print_full_dtm, LOG, "MPP dispatched stmt from QD: %s.",query_string);
@@ -5554,7 +5587,7 @@ PostgresMain(int argc, char *argv[],
 						}
 						else
 						{
-							exec_simple_query(query_string);
+							exec_simple_query(query_string, serializedQueryEnvironment, serializedQueryEnvironmentLen);
 						}
 					}
 					else
@@ -5562,7 +5595,8 @@ PostgresMain(int argc, char *argv[],
 									   serializedQuerytree, serializedQuerytreelen,
 									   serializedPlantree, serializedPlantreelen,
 									   serializedParams, serializedParamslen,
-									   serializedQueryDispatchDesc, serializedQueryDispatchDesclen);
+									   serializedQueryDispatchDesc, serializedQueryDispatchDesclen,
+									   serializedQueryEnvironment, serializedQueryEnvironmentLen);
 
 					SetUserIdAndSecContext(GetOuterUserId(), 0);
 

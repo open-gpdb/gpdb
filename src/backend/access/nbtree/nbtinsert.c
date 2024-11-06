@@ -20,6 +20,7 @@
 #include "access/transam.h"
 #include "cdb/cdbappendonlyam.h"
 #include "cdb/cdbaocsam.h"
+#include "access/fasttab.h"
 #include "miscadmin.h"
 #include "storage/lmgr.h"
 #include "storage/predicate.h"
@@ -390,6 +391,18 @@ _bt_check_unique(Relation rel, IndexTuple itup, Relation heapRel,
 					 * If we are doing a recheck, we expect to find the tuple we
 					 * are rechecking.  It's not a duplicate, but we have to keep
 					 * scanning.
+					 * If its in-memory tuple there is for sure no transaction
+					 * to wait for.
+					 */
+					if (IsFasttabItemPointer(&htid))
+						return InvalidTransactionId;
+
+					/*
+					 * It is a duplicate. If we are only doing a partial
+					 * check, then don't bother checking if the tuple is being
+					 * updated in another transaction. Just return the fact
+					 * that it is a potential conflict and leave the full
+					 * check till later.
 					 */
 					if (checkUnique == UNIQUE_CHECK_EXISTING &&
 						ItemPointerCompare(&htid, &itup->t_tid) == 0)

@@ -55,6 +55,7 @@
 #include "catalog/oid_dispatch.h"
 #include "catalog/pg_attribute_encoding.h"
 #include "catalog/pg_type.h"
+#include "catalog/storage.h"
 #include "cdb/cdbpartition.h"
 #include "commands/copy.h"
 #include "commands/createas.h"
@@ -2687,6 +2688,11 @@ InitResultRelInfo(ResultRelInfo *resultRelInfo,
 	resultRelInfo->nBufferedTuples = 0;
 	resultRelInfo->bufferedTuples = NULL;
 	resultRelInfo->biState = GetBulkInsertState();
+
+
+	if (resultRelationDesc->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		RelationCreateStorage(resultRelationDesc->rd_node, resultRelationDesc->rd_rel->relpersistence,
+						  resultRelationDesc->rd_rel->relstorage);
 }
 
 

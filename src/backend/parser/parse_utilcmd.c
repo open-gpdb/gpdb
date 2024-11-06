@@ -223,7 +223,8 @@ transformCreateStmt(CreateStmt *stmt, const char *queryString, bool createPartit
 	 * specified to be in pg_temp, so no need for anything extra in that case.
 	 */
 	if (stmt->relation->schemaname == NULL
-		&& stmt->relation->relpersistence != RELPERSISTENCE_TEMP)
+		&& stmt->relation->relpersistence != RELPERSISTENCE_TEMP
+		&& stmt->relation->relpersistence != RELPERSISTENCE_FAST_TEMP)
 		stmt->relation->schemaname = get_namespace_name(namespaceid);
 
 	/* Set up pstate and CreateStmtContext */

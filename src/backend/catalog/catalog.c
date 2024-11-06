@@ -445,7 +445,7 @@ IsSharedRelation(Oid relationId)
  * there are some exceptions.
  */
 static bool
-RelationNeedsSynchronizedOIDs(Relation relation)
+RelationNeedsSynchronizedOIDs(Relation relation, char targerrelpersistence)
 {
 	if (IsSystemNamespace(RelationGetNamespace(relation)))
 	{
@@ -507,7 +507,7 @@ RelationNeedsSynchronizedOIDs(Relation relation)
  * OIDs, because SnapshotToast considers dead rows as active indefinitely.)
  */
 Oid
-GetNewOid(Relation relation)
+GetNewOid(Relation relation, char targerrelpersistence)
 {
 	Oid			newOid;
 	Oid			oidIndex;
@@ -550,7 +550,7 @@ GetNewOid(Relation relation)
 	 * GetNewOid() is called in a segment. (There are a few exceptions, see
 	 * RelationNeedsSynchronizedOIDs()).
 	 */
-	if (Gp_role == GP_ROLE_EXECUTE && RelationNeedsSynchronizedOIDs(relation))
+	if (Gp_role == GP_ROLE_EXECUTE && RelationNeedsSynchronizedOIDs(relation, targerrelpersistence))
 		elog(PANIC, "allocated OID %u for relation \"%s\" in segment",
 			 newOid, RelationGetRelationName(relation));
 
@@ -661,7 +661,8 @@ GetNewRelFileNode(Oid reltablespace, Relation pg_class, char relpersistence)
 	switch (relpersistence)
 	{
 		case RELPERSISTENCE_TEMP:
-			backend = TempRelBackendId;
+		case RELPERSISTENCE_FAST_TEMP:
+			backend = InvalidBackendId;
 			break;
 		case RELPERSISTENCE_UNLOGGED:
 		case RELPERSISTENCE_PERMANENT:

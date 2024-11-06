@@ -71,6 +71,8 @@
 #include "access/xlog.h"
 #include "access/bitmap.h"
 
+#include "access/fasttab.h"
+#include "catalog/catalog.h"
 #include "catalog/index.h"
 #include "catalog/catalog.h"
 #include "pgstat.h"
@@ -213,9 +215,14 @@ index_insert(Relation indexRelation,
 			 IndexUniqueCheck checkUnique)
 {
 	FmgrInfo   *procedure;
+	bool		result;
 
 	RELATION_CHECKS;
 	GET_REL_PROCEDURE(aminsert);
+
+	/* If it's a virtual ItemPointer, process it accordingly. */
+	if (fasttab_index_insert(indexRelation, heap_t_ctid, &result))
+		return result;
 
 	if (!(indexRelation->rd_am->ampredlocks))
 		CheckForSerializableConflictIn(indexRelation,
@@ -313,6 +320,8 @@ index_beginscan_internal(Relation indexRelation,
 									  Int32GetDatum(nkeys),
 									  Int32GetDatum(norderbys)));
 
+	/* Initialize part of `scan` related to virtual catalog */
+	fasttab_index_beginscan(scan);
 	return scan;
 }
 
@@ -358,6 +367,9 @@ index_rescan(IndexScanDesc scan,
 				  Int32GetDatum(nkeys),
 				  PointerGetDatum(orderbys),
 				  Int32GetDatum(norderbys));
+
+	/* Reinitialize part of `scan` related to virtual catalog. */
+	fasttab_index_rescan(scan, keys, nkeys, orderbys, norderbys);
 }
 
 /* ----------------
@@ -371,6 +383,9 @@ index_endscan(IndexScanDesc scan)
 
 	SCAN_CHECKS;
 	GET_SCAN_PROCEDURE(amendscan);
+
+	/* Free part of `scan` related to virtual catalog. */
+	fasttab_index_endscan(scan);
 
 	/* Release any held pin on a heap page */
 	if (BufferIsValid(scan->xs_cbuf))
@@ -426,6 +441,7 @@ index_restrpos(IndexScanDesc scan)
 	FmgrInfo   *procedure;
 
 	Assert(IsMVCCSnapshot(scan->xs_snapshot));
+	Assert(!IsFasttabHandledIndexId(scan->indexRelation->rd_id));
 
 	SCAN_CHECKS;
 	GET_SCAN_PROCEDURE(amrestrpos);
@@ -447,23 +463,12 @@ index_restrpos(IndexScanDesc scan)
 ItemPointer
 index_getnext_tid(IndexScanDesc scan, ScanDirection direction)
 {
-	FmgrInfo   *procedure;
 	bool		found;
-
-	SCAN_CHECKS;
-	GET_SCAN_PROCEDURE(amgettuple);
 
 	Assert(TransactionIdIsValid(RecentGlobalXmin));
 
-	/*
-	 * The AM's amgettuple proc finds the next index entry matching the scan
-	 * keys, and puts the TID into scan->xs_ctup.t_self.  It should also set
-	 * scan->xs_recheck and possibly scan->xs_itup, though we pay no attention
-	 * to those fields here.
-	 */
-	found = DatumGetBool(FunctionCall2(procedure,
-									   PointerGetDatum(scan),
-									   Int32GetDatum(direction)));
+	/* Get the next regular or virtual TID */
+	found = fasttab_index_getnext_tid_merge(scan, direction);
 
 	/* Reset kill flag immediately for safety */
 	scan->kill_prior_tuple = false;
@@ -510,6 +515,17 @@ index_fetch_heap(IndexScanDesc scan)
 	ItemPointer tid = &scan->xs_ctup.t_self;
 	bool		all_dead = false;
 	bool		got_heap_tuple;
+
+	/* Is it a virtual TID? */
+	if (IsFasttabItemPointer(tid))
+	{
+		bool		fasttab_result;
+
+		/* Just get virtual tuple by TID */
+		got_heap_tuple = fasttab_hot_search_buffer(tid, scan->heapRelation, &scan->xs_ctup, &all_dead, &fasttab_result);
+		Assert(got_heap_tuple && fasttab_result);
+		return &scan->xs_ctup;
+	}
 
 	/* We can skip the buffer-switching logic if we're in mid-HOT chain. */
 	if (!scan->xs_continue_hot)
@@ -672,19 +688,24 @@ index_getbitmap(IndexScanDesc scan, Node **bitmapP)
 	/* just make sure this is false... */
 	scan->kill_prior_tuple = false;
 
-	/*
-	 * have the am's getbitmap proc do all the work.
-	 */
-	d = FunctionCall2(procedure,
-					  PointerGetDatum(scan),
-					  PointerGetDatum(bitmapP));
+	/* Try to use virtual catalog procedure first */
+	if (!fasttab_index_getbitmap(scan, bitmapP, &ntids))
+	{
+		/* if it failed - have the am's getbitmap proc do all the work. */
+		/*
+		* have the am's getbitmap proc do all the work.
+		*/
+		d = FunctionCall2(procedure,
+						PointerGetDatum(scan),
+						PointerGetDatum(bitmapP));
 
-	ntids = DatumGetInt64(d);
+		ntids = DatumGetInt64(d);
 
-	/* If int8 is pass-by-ref, must free the result to avoid memory leak */
+		/* If int8 is pass-by-ref, must free the result to avoid memory leak */
 #ifndef USE_FLOAT8_BYVAL
-	pfree(DatumGetPointer(d));
+		pfree(DatumGetPointer(d));
 #endif
+	}
 
 	pgstat_count_index_tuples(scan->indexRelation, ntids);
 

@@ -174,9 +174,11 @@ DESCR("");
 #define		  RELKIND_AOVISIMAP		  'M'		/* AO visibility map */
 #define		  RELKIND_YEZZEYINDEX	  'Y'		/* yezzey external storage map */
 
+#define		  RELPERSISTENCE_UNDEFINED  '?'		/* invalid relpersistence value */
 #define		  RELPERSISTENCE_PERMANENT	'p'		/* regular table */
 #define		  RELPERSISTENCE_UNLOGGED	'u'		/* unlogged permanent table */
 #define		  RELPERSISTENCE_TEMP		't'		/* temporary table */
+#define		  RELPERSISTENCE_FAST_TEMP	'f'		/* fast temporary table */
 
 /* default selection for replica identity (primary key or nothing) */
 #define		  REPLICA_IDENTITY_DEFAULT	'd'
