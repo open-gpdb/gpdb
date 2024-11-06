@@ -323,8 +323,6 @@ BitmapHeapNext(BitmapHeapScanState *node)
 
 		if (tbmres == NULL || tbmres->ntuples == 0)
 		{
-			CHECK_FOR_INTERRUPTS();
-
 			if (QueryFinishPending)
 				return NULL;
 
