@@ -1686,15 +1686,6 @@ find_expr_references_walker(Node *node,
 										   context->addrs);
 					break;
 
-				/*
-				 * Dependencies for regrole should be shared among all
-				 * databases, so explicitly inhibit to have dependencies.
-				 */
-				case REGROLEOID:
-					ereport(ERROR,
-							(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-							 errmsg("constant of the type \'regrole\' cannot be used here")));
-					break;
 			}
 		}
 		return false;

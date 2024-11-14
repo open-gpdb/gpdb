@@ -151,7 +151,6 @@ GetCCHashEqFuncs(Oid keytype, PGFunction *hashfunc, RegProcedure *eqfunc)
 		case REGTYPEOID:
 		case REGCONFIGOID:
 		case REGDICTIONARYOID:
-		case REGROLEOID:
 			*hashfunc = hashoid;
 
 			*eqfunc = F_OIDEQ;
