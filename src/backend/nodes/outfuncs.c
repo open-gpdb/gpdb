@@ -3133,6 +3133,7 @@ static void
 _outExpandStmtSpec(StringInfo str, const ExpandStmtSpec *node)
 {
 	WRITE_NODE_TYPE("EXPANDSTMTSPEC");
+	WRITE_INT_FIELD(numseg);
 	WRITE_OID_FIELD(backendId);
 }
 

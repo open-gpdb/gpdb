@@ -1231,6 +1231,7 @@ _readExpandStmtSpec(void)
 {
 	READ_LOCALS(ExpandStmtSpec);
 
+	READ_INT_FIELD(numseg);
 	READ_OID_FIELD(backendId);
 
 	READ_DONE();

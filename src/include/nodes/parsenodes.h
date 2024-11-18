@@ -1514,7 +1514,11 @@ typedef enum AlterTableType
 	AT_PartSplit,				/* Split */
 	AT_PartTruncate,			/* Truncate */
 	AT_PartAddInternal,			/* CREATE TABLE time partition addition */
-	AT_PartAttachIndex			/* ALTER INDEX ATTACH PARTITION (not exposed to user) */
+	AT_PartAttachIndex,			/* ALTER INDEX ATTACH PARTITION (not exposed to user) */
+
+
+	/* YGP addons */
+	AT_ShrinkTable					/* SHRINK DISTRIBUTED */
 } AlterTableType;
 
 typedef struct ReplicaIdentityStmt
@@ -2124,6 +2128,7 @@ typedef struct ExpandStmtSpec
 {
 	NodeTag				type;
 	/* for ctas method */
+	int                 numseg;
 	Oid					backendId;
 } ExpandStmtSpec;
 

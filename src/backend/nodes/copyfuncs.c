@@ -3622,6 +3622,7 @@ _copyExpandStmtSpec(const ExpandStmtSpec *from)
 {
 	ExpandStmtSpec *newnode = makeNode(ExpandStmtSpec);
 
+	COPY_SCALAR_FIELD(numseg);
 	COPY_SCALAR_FIELD(backendId);
 
 	return newnode;
