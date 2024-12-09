@@ -5097,6 +5097,9 @@ has_privs_of_role(Oid member, Oid role)
 bool
 is_member_of_role(Oid member, Oid role)
 {
+	Oid mdb_superuser_roleoid;
+	List *roles;
+
 	/* Fast path for simple case */
 	if (member == role)
 		return true;
@@ -5105,11 +5108,31 @@ is_member_of_role(Oid member, Oid role)
 	if (superuser_arg(member))
 		return true;
 
+	roles = roles_is_member_of(member);
+
+	mdb_superuser_roleoid = get_role_oid("mdb_superuser", true /*if nodoby created mdb_superuser role in this database*/);
+
+	if (list_member_oid(roles, mdb_superuser_roleoid)) {
+		/* if target role is superuser, disallow */
+		if (!superuser_arg(role)) {
+			/* GPDB: Here we keep msg from PG-patch, which checks
+			* for pre-defined roles cases. However, there is no 
+			* such roles (in GP & in out patches)
+			*/
+			/* we want mdb_roles_admin to bypass
+			* has_priv_of_roles test
+			* if target role is neither superuser nor
+			* some dangerous system role
+			*/
+			return true;
+		}
+	}
+	
 	/*
 	 * Find all the roles that member is a member of, including multi-level
 	 * recursion, then see if target role is any one of them.
 	 */
-	return list_member_oid(roles_is_member_of(member), role);
+	return list_member_oid(roles, role);
 }
 
 /*
@@ -5135,15 +5158,37 @@ check_is_member_of_role(Oid member, Oid role)
 bool
 is_member_of_role_nosuper(Oid member, Oid role)
 {
+	Oid mdb_superuser_roleoid;
+	List *roles;
+
 	/* Fast path for simple case */
 	if (member == role)
 		return true;
+
+	roles = roles_is_member_of(member);
+	mdb_superuser_roleoid = get_role_oid("mdb_superuser", true /*if nodoby created mdb_superuser role in this database*/);
+
+	if (list_member_oid(roles, mdb_superuser_roleoid)) {
+		/* if target role is superuser, disallow */
+		if (!superuser_arg(role)) {
+			/* GPDB: Here we keep msg from PG-patch, which checks
+			* for pre-defined roles cases. However, there is no 
+			* such roles (in GP & in out patches)
+			*/
+			/* we want mdb_roles_admin to bypass
+			* has_priv_of_roles test
+			* if target role is neither superuser nor
+			* some dangerous system role
+			*/
+			return true;
+		}
+	}
 
 	/*
 	 * Find all the roles that member is a member of, including multi-level
 	 * recursion, then see if target role is any one of them.
 	 */
-	return list_member_oid(roles_is_member_of(member), role);
+	return list_member_oid(roles, role);
 }
 
 
