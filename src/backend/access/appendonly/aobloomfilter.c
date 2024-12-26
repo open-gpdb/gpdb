@@ -9,7 +9,7 @@
 #include "access/aobloomfilter.h"
 
 void
-SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int aoblknum)
+SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int varblocknum)
 {
     Buffer		buffer;
     Page		page;
@@ -19,13 +19,13 @@ SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int 
 
     fixed_filter = ao_bloom_filter_serealize(filter, offset);
 
-    blkno = AOBLF_CALC_PAGE(aoblknum);
+    blkno = AOBLF_CALC_PAGE(varblocknum);
 
 	buffer = ReadBufferExtended(aorel, FSM_FORKNUM, blkno, RBM_NORMAL, NULL);
 	LockBuffer(buffer, BUFFER_LOCK_EXCLUSIVE);
 	page = BufferGetPage(buffer);
 
-    pointer = PageGetSpecialPointer(page) + AOBLF_CALC_OFFSET(aoblknum) * sizeof(BloomFilterFixed);
+    pointer = PageGetSpecialPointer(page) + AOBLF_CALC_OFFSET(varblocknum) * sizeof(BloomFilterFixed);
 
     memcpy(pointer, fixed_filter, sizeof(BloomFilterFixed));
 

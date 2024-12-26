@@ -1512,8 +1512,6 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 
 	dataLen = VarBlockMakerFinish(&aoInsertDesc->varBlockMaker);
 
-	aoInsertDesc->varblockCount++;
-
 	aoblknum = 1 + AOBLF_CALC_PAGE(aoInsertDesc->varblockCount);
 
 	RelationOpenSmgr(aoInsertDesc->aoi_rel);
@@ -1526,7 +1524,9 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 
 	SaveBloomFilterForBlock(aoInsertDesc->aoi_rel, 
 			aoInsertDesc->varBlockMaker.blf, 
-			aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, aoblknum);
+			aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, aoInsertDesc->varblockCount);
+
+	aoInsertDesc->varblockCount++;
 
 	if (!aoInsertDesc->shouldCompress)
 	{
