@@ -1417,7 +1417,8 @@ setupNextWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 						  aoInsertDesc->nonCompressedData,
 						  aoInsertDesc->maxDataLen,
 						  aoInsertDesc->tempSpace,
-						  aoInsertDesc->tempSpaceLen);
+						  aoInsertDesc->tempSpaceLen,
+						  aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition);
 
 	}
 	else
@@ -1431,7 +1432,8 @@ setupNextWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 						  aoInsertDesc->uncompressedBuffer,
 						  aoInsertDesc->maxDataLen,
 						  aoInsertDesc->tempSpace,
-						  aoInsertDesc->tempSpaceLen);
+						  aoInsertDesc->tempSpaceLen,
+						  aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition);
 	}
 
 	aoInsertDesc->bufferCount++;
@@ -1514,8 +1516,17 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 
 	aoblknum = 1 + AOBLF_CALC_PAGE(aoInsertDesc->varblockCount);
 
-	if (aoblknum < smgrnblocks(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM))
+	RelationOpenSmgr(aoInsertDesc->aoi_rel);
+
+	smgrcreate(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM, true);
+
+	if (aoblknum > smgrnblocks(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM))
 		ao_fsm_extend(aoInsertDesc->aoi_rel, aoblknum);
+
+
+	SaveBloomFilterForBlock(aoInsertDesc->aoi_rel, 
+			aoInsertDesc->varBlockMaker.blf, 
+			aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, aoblknum);
 
 	if (!aoInsertDesc->shouldCompress)
 	{
@@ -2958,6 +2969,9 @@ appendonly_insert(AppendOnlyInsertDesc aoInsertDesc,
 	MemTuple	tup = NULL;
 	bool		need_toast;
 	bool		isLargeContent;
+	bool		isnull;
+	Datum		bloom_datum;
+	Form_pg_attribute att;
 
 	Assert(aoInsertDesc->usableBlockSize > 0 && aoInsertDesc->tempSpaceLen > 0);
 	Assert(aoInsertDesc->toast_tuple_threshold > 0 && aoInsertDesc->toast_tuple_target > 0);
@@ -3120,6 +3134,17 @@ appendonly_insert(AppendOnlyInsertDesc aoInsertDesc,
 			}
 		}
 	}
+
+	bloom_datum = memtuple_getattr(tup, aoInsertDesc->mt_bind, 1, &isnull);
+
+	if (isnull)
+		elog(ERROR, "FAILED TO BLOOM NULL TUP");
+
+
+	att = TupleDescAttr(RelationGetDescr(aoInsertDesc->aoi_rel), 0);
+	if (!att->attbyval)
+		elog(ERROR, "FAILED TO BLOOM BY REF TUP");
+	bloom_add_element(aoInsertDesc->varBlockMaker.blf, &bloom_datum, att->attlen);	
 
 	if (!isLargeContent)
 	{

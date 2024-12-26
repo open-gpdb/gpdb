@@ -4,27 +4,26 @@
 #include "utils/rel.h"
 #include "storage/buf_internals.h"
 #include "storage/bufpage.h"
+#include "lib/bloomfilter.h"
 
 #include "access/aobloomfilter.h"
 
-void SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int aoblknum)
+void
+SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int aoblknum)
 {
     Buffer		buffer;
     Page		page;
     BlockNumber blkno;
-    AOBFPage metapage;
     BloomFilterFixed *fixed_filter;
     char * pointer;
 
-    fixed_filter = ao_bloom_filter_serealize(filter);
+    fixed_filter = ao_bloom_filter_serealize(filter, offset);
 
     blkno = AOBLF_CALC_PAGE(aoblknum);
 
-	buffer = ReadBufferExtended(aorel, VISIBILITYMAP_FORKNUM, blkno, RBM_NORMAL, NULL);
+	buffer = ReadBufferExtended(aorel, FSM_FORKNUM, blkno, RBM_NORMAL, NULL);
 	LockBuffer(buffer, BUFFER_LOCK_EXCLUSIVE);
 	page = BufferGetPage(buffer);
-
-	metapage = PageGetContents(page);
 
     pointer = PageGetSpecialPointer(page) + AOBLF_CALC_OFFSET(aoblknum) * sizeof(BloomFilterFixed);
 
@@ -33,6 +32,7 @@ void SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int aoblknum)
 	MarkBufferDirtyHint(buffer, false);
 
 	LockBuffer(buffer, BUFFER_LOCK_UNLOCK);
+    ReleaseBuffer(buffer);
 }
 
 bloom_filter *
@@ -42,7 +42,17 @@ ao_bloom_filter_deserealize(BloomFilterFixed *bf)
 }
 
 BloomFilterFixed *
-ao_bloom_filter_serealize(bloom_filter *bf)
+ao_bloom_filter_serealize(bloom_filter *bf, int64 off)
 {
+    BloomFilterFixed *blff;
 
+    blff = palloc0(sizeof(BloomFilterFixed));
+
+    blff->offset = off;
+    blff->k_hash_funcs = bf->k_hash_funcs;
+    blff->seed = bf->seed;
+
+    memcpy(blff->bitset, bf->bitset, sizeof(char) * AOBLF_SIZE);
+
+    return blff;
 }
