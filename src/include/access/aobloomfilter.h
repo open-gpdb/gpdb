@@ -29,9 +29,10 @@ typedef AOBFPageData *AOBFPage;
 #define AOBLF_CALC_PAGE(x) (x / AOBLF_N_FILTERS)
 #define AOBLF_CALC_OFFSET(x) (x % AOBLF_N_FILTERS)
 
-extern bloom_filter* ao_bloom_filter_deserealize(BloomFilterFixed *bf);
-extern BloomFilterFixed* ao_bloom_filter_serealize(bloom_filter *bf, int64 off);
+extern bloom_filter *ao_bloom_filter_deserealize(BloomFilterFixed *bf);
+extern BloomFilterFixed *ao_bloom_filter_serealize(bloom_filter *bf, int64 off);
 
-extern void SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int aoblknum);
+extern void SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int64 aoblknum);
+extern bloom_filter *FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum);
 
 #endif /* AOBLOOMFILTER_H */

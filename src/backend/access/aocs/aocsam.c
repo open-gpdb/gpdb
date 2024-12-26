@@ -875,9 +875,15 @@ OpenAOCSDatumStreams(AOCSInsertDesc desc)
 		FormatAOSegmentFileName(basepath, seginfo->segno, i, &fileSegNo, fn);
 		Assert(strlen(fn) + 1 <= MAXPGPATH);
 
-		datumstreamwrite_open_file(desc->ds[i], fn, e->eof, e->eof_uncompressed, seginfo->modcount,
-								   &rnode,
-								   fileSegNo, seginfo->formatversion);
+		datumstreamwrite_open_file(desc->ds[i], 
+									fn,
+									e->eof,
+									e->eof_uncompressed,
+									0,
+									seginfo->modcount,
+									&rnode,
+									fileSegNo,
+									seginfo->formatversion);
 	}
 
 	pfree(basepath);
@@ -2041,7 +2047,10 @@ aocs_addcol_newsegfile(AOCSAddColumnDesc desc,
 								&fileSegNo, fn);
 		Assert(strlen(fn) + 1 <= MAXPGPATH);
 		datumstreamwrite_open_file(desc->dsw[i], fn,
-								   0 /* eof */ , 0 /* eof_uncompressed */ , 0, /*modcount*/
+								   0 /* eof */ ,
+								   0 /* eof_uncompressed */ ,
+								   0 /* varblockcount */,
+								   0, /*modcount*/
 								   &relfilenode, fileSegNo,
 								   version);
 		desc->dsw[i]->blockFirstRowNum = 1;

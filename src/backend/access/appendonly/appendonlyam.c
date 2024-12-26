@@ -511,6 +511,7 @@ SetCurrentFileSegForWrite(AppendOnlyInsertDesc aoInsertDesc)
 									aoInsertDesc->fsInfo->formatversion,
 									eof,
 									eof_uncompressed,
+									fsinfo->varblockcount,
 									aoInsertDesc->fsInfo->modcount,
 									&rnode,
 									aoInsertDesc->cur_segno);
@@ -1495,6 +1496,7 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 	int			executorBlockKind;
 	int			itemCount;
 	int32		dataLen;
+	int64		varblkcnt;
 	BlockNumber aoblknum;
 
 	executorBlockKind = AoExecutorBlockKind_VarBlock;
@@ -1512,19 +1514,24 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 
 	dataLen = VarBlockMakerFinish(&aoInsertDesc->varBlockMaker);
 
-	aoblknum = 1 + AOBLF_CALC_PAGE(aoInsertDesc->varblockCount);
+	if (RelationIsAoRows(aoInsertDesc->aoi_rel))
+	{
+		varblkcnt = aoInsertDesc->storageWrite.bufferedAppend.largeWriteVarBlock + aoInsertDesc->varblockCount;
 
-	RelationOpenSmgr(aoInsertDesc->aoi_rel);
+		aoblknum = 1 + AOBLF_CALC_PAGE(varblkcnt);
 
-	smgrcreate(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM, true);
+		RelationOpenSmgr(aoInsertDesc->aoi_rel);
 
-	if (aoblknum > smgrnblocks(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM))
-		ao_fsm_extend(aoInsertDesc->aoi_rel, aoblknum);
+		smgrcreate(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM, true);
+
+		if (aoblknum > smgrnblocks(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM))
+			ao_fsm_extend(aoInsertDesc->aoi_rel, aoblknum);
 
 
-	SaveBloomFilterForBlock(aoInsertDesc->aoi_rel, 
-			aoInsertDesc->varBlockMaker.blf, 
-			aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, aoInsertDesc->varblockCount);
+		SaveBloomFilterForBlock(aoInsertDesc->aoi_rel, 
+				aoInsertDesc->varBlockMaker.blf, 
+				aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, varblkcnt);
+	}
 
 	aoInsertDesc->varblockCount++;
 

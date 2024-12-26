@@ -282,6 +282,7 @@ extern void datumstreamwrite_open_file(
 						   char *fn,
 						   int64 eof,
 						   int64 eofUncompressed,
+						   int64 varblockcount,
 						   int64 modcount,
 						   RelFileNodeBackend *relFileNode,
 						   int32 segmentFileNum,

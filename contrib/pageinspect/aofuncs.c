@@ -12,11 +12,14 @@
 #include "catalog/pg_namespace.h"
 #include "utils/syscache.h"
 
+#include "access/aobloomfilter.h"
+
 #include "cdb/cdbaocsam.h"
 #include "cdb/cdbappendonlyam.h"
 
 PG_FUNCTION_INFO_V1(get_ao_headers_info);
 PG_FUNCTION_INFO_V1(get_aocs_headers_info);
+PG_FUNCTION_INFO_V1(check_bloom_filter);
 
 typedef struct AOHeadersInfoCxt {
     AppendOnlyScanDesc scan;
@@ -427,4 +430,42 @@ ReadNext:
 
     relation_close(r, AccessShareLock);
     SRF_RETURN_DONE(funcctx);
+}
+
+
+/* aobloomfilter.c */
+Datum
+check_bloom_filter(PG_FUNCTION_ARGS)
+{
+    bool    res;
+    bloom_filter * blf;
+    Relation    r;
+	Form_pg_attribute att;
+    Oid	   oid = PG_GETARG_OID(0);
+    int64   varblocknum = PG_GETARG_INT64(1);
+    Datum   d = PG_GETARG_DATUM(2);
+
+
+	if (!superuser())
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 (errmsg("must be superuser to use raw page functions"))));
+ 
+    r = relation_open(oid, AccessShareLock);
+
+    if (!RelationIsAoCols(r))
+		ereport(ERROR,
+				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
+				 (errmsg("must be an AOCS relation to use raw headerfunctions"))));
+
+
+	att = TupleDescAttr(RelationGetDescr(r), 0);
+	if (!att->attbyval)
+		elog(ERROR, "FAILED TO BLOOM BY REF TUP");
+
+    blf = FetchBloomFilterForVarblock(r, varblocknum);
+
+    res = !bloom_lacks_element(blf, d, att->attlen);
+
+    PG_RETURN_BOOL(res);
 }
