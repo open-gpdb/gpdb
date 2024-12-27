@@ -596,11 +596,12 @@ AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorRea
 
 			elogif(Debug_appendonly_print_scan, LOG,
 				   "Append-only scan read small non-compressed block for table '%s' "
-				   "(length = %d, segment file '%s', block offset in file = " INT64_FORMAT ")",
+				   "(length = %d, segment file '%s', block offset in file = " INT64_FORMAT ", total offset = " INT64_FORMAT ")",
 				   AppendOnlyStorageRead_RelationName(executorReadBlock->storageRead),
 				   executorReadBlock->dataLen,
 				   AppendOnlyStorageRead_SegmentFileName(executorReadBlock->storageRead),
-				   executorReadBlock->headerOffsetInFile);
+				   executorReadBlock->headerOffsetInFile,
+				   executorReadBlock->storageRead->bufferedRead.largeReadPosition +  executorReadBlock->storageRead->bufferedRead.bufferOffset);
 		}
 		else
 		{
@@ -657,11 +658,12 @@ AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorRea
 			elogif(Debug_appendonly_print_scan, LOG,
 				   "Append-only scan read large row for table '%s' "
 				   "(length = %d, segment file '%s', "
-				   "block offset in file = " INT64_FORMAT ")",
+				   "block offset in file = " INT64_FORMAT ", total offset = " INT64_FORMAT ")",
 				   AppendOnlyStorageRead_RelationName(executorReadBlock->storageRead),
 				   executorReadBlock->dataLen,
 				   AppendOnlyStorageRead_SegmentFileName(executorReadBlock->storageRead),
-				   executorReadBlock->headerOffsetInFile);
+				   executorReadBlock->headerOffsetInFile,
+				   executorReadBlock->storageRead->bufferedRead.largeReadPosition +  executorReadBlock->storageRead->bufferedRead.bufferOffset);
 		}
 	}
 	else
@@ -687,12 +689,13 @@ AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorRea
 		elogif(Debug_appendonly_print_scan, LOG,
 			   "Append-only scan read decompressed block for table '%s' "
 			   "(compressed length %d, length = %d, segment file '%s', "
-			   "block offset in file = " INT64_FORMAT ")",
+			   "block offset in file = " INT64_FORMAT ", total offset = " INT64_FORMAT ")",
 			   AppendOnlyStorageRead_RelationName(executorReadBlock->storageRead),
 			   compressedLen,
 			   executorReadBlock->dataLen,
 			   AppendOnlyStorageRead_SegmentFileName(executorReadBlock->storageRead),
-			   executorReadBlock->headerOffsetInFile);
+			   executorReadBlock->headerOffsetInFile,
+			   executorReadBlock->storageRead->bufferedRead.largeReadPosition +  executorReadBlock->storageRead->bufferedRead.bufferOffset);
 	}
 
 	/*
@@ -737,10 +740,11 @@ AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorRea
 			}
 
 			elogif(Debug_appendonly_print_scan, LOG,
-				   "append-only scan read VarBlock for table '%s' with %d items (block offset in file = " INT64_FORMAT ")",
+				   "append-only scan read VarBlock for table '%s' with %d items (block offset in file = " INT64_FORMAT ", total offset = " INT64_FORMAT ")",
 				   AppendOnlyStorageRead_RelationName(executorReadBlock->storageRead),
 				   executorReadBlock->readerItemCount,
-				   executorReadBlock->headerOffsetInFile);
+				   executorReadBlock->headerOffsetInFile,
+				   executorReadBlock->storageRead->bufferedRead.largeReadPosition +  executorReadBlock->storageRead->bufferedRead.bufferOffset);
 			break;
 
 		case AoExecutorBlockKind_SingleRow:
@@ -756,10 +760,11 @@ AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorRea
 			executorReadBlock->singleRow = executorReadBlock->dataBuffer;
 			executorReadBlock->singleRowLen = executorReadBlock->dataLen;
 
-			elogif(Debug_appendonly_print_scan, LOG, "Append-only scan read single row for table '%s' with length %d (block offset in file = " INT64_FORMAT ")",
+			elogif(Debug_appendonly_print_scan, LOG, "Append-only scan read single row for table '%s' with length %d (block offset in file = " INT64_FORMAT ", total offset = " INT64_FORMAT ")",
 				   AppendOnlyStorageRead_RelationName(executorReadBlock->storageRead),
 				   executorReadBlock->singleRowLen,
-				   executorReadBlock->headerOffsetInFile);
+				   executorReadBlock->headerOffsetInFile,
+				   executorReadBlock->storageRead->bufferedRead.largeReadPosition +  executorReadBlock->storageRead->bufferedRead.bufferOffset);
 
 			break;
 
@@ -825,6 +830,7 @@ AppendOnlyExecutionReadBlock_SetPositionInfo(AppendOnlyExecutorReadBlock *execut
 static void
 AppendOnlyExecutionReadBlock_FinishedScanBlock(AppendOnlyExecutorReadBlock *executorReadBlock)
 {
+	++executorReadBlock->totalVarblockCount;
 	executorReadBlock->blockFirstRowNum += executorReadBlock->rowCount;
 }
 
@@ -874,6 +880,7 @@ static void
 AppendOnlyExecutorReadBlock_ResetCounts(AppendOnlyExecutorReadBlock *executorReadBlock)
 {
 	executorReadBlock->totalRowsScannned = 0;
+	executorReadBlock->totalVarblockCount = 0;
 }
 
 /*
@@ -1049,12 +1056,13 @@ AppendOnlyExecutorReadBlock_ProcessTuple(AppendOnlyExecutorReadBlock *executorRe
 
 	elogif(Debug_appendonly_print_scan_tuple && valid, LOG,
 		   "Append-only scan tuple for table '%s' "
-		   "(AOTupleId %s, tuple length %d, memtuple length %d, block offset in file " INT64_FORMAT ")",
+		   "(AOTupleId %s, tuple length %d, memtuple length %d, block offset in file " INT64_FORMAT ", total offset = " INT64_FORMAT ")",
 		   AppendOnlyStorageRead_RelationName(executorReadBlock->storageRead),
 		   AOTupleIdToString(aoTupleId),
 		   tupleLen,
 		   memtuple_get_size(tuple),
-		   executorReadBlock->headerOffsetInFile);
+		   executorReadBlock->headerOffsetInFile,
+		   executorReadBlock->storageRead->bufferedRead.largeReadPosition +  executorReadBlock->storageRead->bufferedRead.bufferOffset);
 
 	return valid;
 }
@@ -1260,8 +1268,11 @@ AppendOnlyExecutorReadBlock_FetchTuple(AppendOnlyExecutorReadBlock *executorRead
  * You can think of this scan routine as get next "executor" AO block.
  */
 static bool
-getNextBlock(AppendOnlyScanDesc scan)
+getNextBlock(AppendOnlyScanDesc scan, int nkeys, ScanKey key)
 {
+	int64 offset;
+	bloom_filter *blf;
+
 	if (scan->aos_need_new_segfile)
 	{
 		/*
@@ -1270,6 +1281,16 @@ getNextBlock(AppendOnlyScanDesc scan)
 		if (!SetNextFileSegForRead(scan))
 			return false;
 	}
+
+	offset = scan->executorReadBlock.headerOffsetInFile;
+
+	while (1)
+	{
+		// FetchBloomFilterForVarblock(scan->aos_rd, );
+		break;
+	}
+
+
 
 	if (!AppendOnlyExecutorReadBlock_GetBlockInfo(
 												  &scan->storageRead,
@@ -1337,7 +1358,7 @@ appendonlygettup(AppendOnlyScanDesc scan,
 			 * get a block to process, or finished reading all the data (all
 			 * 'segment' files) for this relation.
 			 */
-			while (!getNextBlock(scan))
+			while (!getNextBlock(scan, nkeys, key))
 			{
 				/* have we read all this relation's data. done! */
 				if (scan->aos_done_all_segfiles)
@@ -1515,23 +1536,7 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 	dataLen = VarBlockMakerFinish(&aoInsertDesc->varBlockMaker);
 
 	if (RelationIsAoRows(aoInsertDesc->aoi_rel))
-	{
 		varblkcnt = aoInsertDesc->storageWrite.bufferedAppend.largeWriteVarBlock + aoInsertDesc->varblockCount;
-
-		aoblknum = 1 + AOBLF_CALC_PAGE(varblkcnt);
-
-		RelationOpenSmgr(aoInsertDesc->aoi_rel);
-
-		smgrcreate(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM, true);
-
-		if (aoblknum > smgrnblocks(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM))
-			ao_fsm_extend(aoInsertDesc->aoi_rel, aoblknum);
-
-
-		SaveBloomFilterForBlock(aoInsertDesc->aoi_rel, 
-				aoInsertDesc->varBlockMaker.blf, 
-				aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, varblkcnt);
-	}
 
 	aoInsertDesc->varblockCount++;
 
@@ -1606,6 +1611,29 @@ finishWriteBlock(AppendOnlyInsertDesc aoInsertDesc)
 									   dataLen,
 									   executorBlockKind,
 									   itemCount);
+	}
+
+
+	if (RelationIsAoRows(aoInsertDesc->aoi_rel))
+	{
+		aoblknum = 1 + AOBLF_CALC_PAGE(varblkcnt);
+
+		RelationOpenSmgr(aoInsertDesc->aoi_rel);
+
+		smgrcreate(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM, true);
+
+		if (aoblknum > smgrnblocks(aoInsertDesc->aoi_rel->rd_smgr, FSM_FORKNUM))
+			ao_fsm_extend(aoInsertDesc->aoi_rel, aoblknum);
+
+		elog(LOG, 
+			"writing hint bloom for varblock " INT64_FORMAT " in offset " INT64_FORMAT" - "INT64_FORMAT"",
+			 varblkcnt, aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition, 
+			 aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition + aoInsertDesc->storageWrite.bufferedAppend.largeWriteLen);
+
+		SaveBloomFilterForBlock(aoInsertDesc->aoi_rel, 
+				aoInsertDesc->varBlockMaker.blf, 
+				aoInsertDesc->storageWrite.bufferedAppend.largeWritePosition + aoInsertDesc->storageWrite.bufferedAppend.largeWriteLen,
+				 varblkcnt);
 	}
 
 	/* Insert an entry to the block directory */

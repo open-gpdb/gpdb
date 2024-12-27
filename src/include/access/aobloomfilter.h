@@ -8,9 +8,12 @@
 
 #define AOBLF_SIZE 128
 
+#define BLOOM_F_MAGIC 0xD0D0CACA
+
 typedef struct BloomFilterFixed {
+    uint32      magic;
     /* K hash functions are used, seeded by caller's seed */
-    int64       offset;
+    int64       offset;    
     int			k_hash_funcs;
     uint64		seed;
     /* m is bitset size, in bits.  Must be a power of two <= 2^32.  */

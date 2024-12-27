@@ -26,7 +26,7 @@ typedef struct AOHeadersInfoCxt {
     TupleTableSlot *slot;
 } AOHeadersInfoCxt;
 
-#define NUM_GET_AO_HEADERS_INFO 9
+#define NUM_GET_AO_HEADERS_INFO 10
 #define NUM_GET_AOCS_HEADERS_INFO 8
 
 Datum
@@ -85,17 +85,19 @@ get_ao_headers_info(PG_FUNCTION_ARGS)
                         -1 /* typmod */, 0 /* attdim */);
         TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)3, "buffer offset", INT4OID,
                         -1 /* typmod */, 0 /* attdim */);
-        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)4, "block kind", TEXTOID,
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)4, "total Varblock count", INT8OID,
                         -1 /* typmod */, 0 /* attdim */);
-        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)5, "header kind", TEXTOID,
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)5, "block kind", TEXTOID,
                         -1 /* typmod */, 0 /* attdim */);
-        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)6, "current item count", INT4OID,
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)6, "header kind", TEXTOID,
                         -1 /* typmod */, 0 /* attdim */);
-        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)7, "isCompressed",
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)7, "current item count", INT4OID,
+                        -1 /* typmod */, 0 /* attdim */);
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)8, "isCompressed",
                         BOOLOID, -1 /* typmod */, 0 /* attdim */);
-        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)8, "isLarge",
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)9, "isLarge",
                         BOOLOID, -1 /* typmod */, 0 /* attdim */);
-        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)9,
+        TupleDescInitEntry(funcctx->tuple_desc, (AttrNumber)10,
                         "dataLen", INT4OID, -1 /* typmod */,
                         0 /* attdim */);
 
@@ -148,43 +150,45 @@ get_ao_headers_info(PG_FUNCTION_ARGS)
         values[0] = Int64GetDatum(scan->executorReadBlock.blockFirstRowNum);
         values[1] = Int64GetDatum(scan->storageRead.bufferedRead.largeReadPosition);
         values[2] = Int32GetDatum(scan->storageRead.bufferedRead.bufferOffset);
+        values[3] = Int64GetDatum(scan->executorReadBlock.totalVarblockCount);
+
 
         switch (scan->executorReadBlock.executorBlockKind)
         {
             case AoExecutorBlockKind_VarBlock:
-            values[3] = CStringGetTextDatum("varblock");
+            values[4] = CStringGetTextDatum("varblock");
             break;
             case AoExecutorBlockKind_SingleRow:
-            values[3] = CStringGetTextDatum("single row");
-            break;
-            default:
-            values[3] = CStringGetTextDatum("unknown");
-            break;
-        }
-
-        switch (scan->storageRead.current.headerKind)
-        {
-            case AoHeaderKind_SmallContent:
-            values[4] = CStringGetTextDatum("small content");
-            break;
-            case AoHeaderKind_LargeContent:
-            values[4] = CStringGetTextDatum("large content");
-            break;
-            case AoHeaderKind_NonBulkDenseContent:
-            values[4] = CStringGetTextDatum("non bulk dense content");
-            break;
-            case AoHeaderKind_BulkDenseContent:
-            values[4] = CStringGetTextDatum("bulk dense content");
+            values[4] = CStringGetTextDatum("single row");
             break;
             default:
             values[4] = CStringGetTextDatum("unknown");
             break;
         }
 
-        values[5] = Int32GetDatum(scan->executorReadBlock.currentItemCount);
-        values[6] = BoolGetDatum(scan->executorReadBlock.isCompressed);
-        values[7] = BoolGetDatum(scan->executorReadBlock.isLarge);
-        values[8] = Int32GetDatum(scan->executorReadBlock.dataLen);
+        switch (scan->storageRead.current.headerKind)
+        {
+            case AoHeaderKind_SmallContent:
+            values[5] = CStringGetTextDatum("small content");
+            break;
+            case AoHeaderKind_LargeContent:
+            values[5] = CStringGetTextDatum("large content");
+            break;
+            case AoHeaderKind_NonBulkDenseContent:
+            values[5] = CStringGetTextDatum("non bulk dense content");
+            break;
+            case AoHeaderKind_BulkDenseContent:
+            values[5] = CStringGetTextDatum("bulk dense content");
+            break;
+            default:
+            values[5] = CStringGetTextDatum("unknown");
+            break;
+        }
+
+        values[6] = Int32GetDatum(scan->executorReadBlock.currentItemCount);
+        values[7] = BoolGetDatum(scan->executorReadBlock.isCompressed);
+        values[8] = BoolGetDatum(scan->executorReadBlock.isLarge);
+        values[9] = Int32GetDatum(scan->executorReadBlock.dataLen);
 
         AppendOnlyExecutorReadBlock_GetContents(
                                                 &scan->executorReadBlock);
@@ -208,6 +212,8 @@ get_ao_headers_info(PG_FUNCTION_ARGS)
             scan->bufferDone = true;
             break;
         }
+
+        elog(DEBUG3, "large read pos after block content %d, offset %d", scan->storageRead.bufferedRead.largeReadPosition, scan->storageRead.bufferedRead.bufferOffset);
 
         relation_close(r, AccessShareLock);
         SRF_RETURN_NEXT(funcctx, result);
@@ -370,7 +376,6 @@ ReadNext:
                 values[1] = Int64GetDatum(scan->ds[i]->ao_read.bufferedRead.largeReadPosition);
                 values[2] = Int32GetDatum(scan->ds[i]->ao_read.bufferedRead.bufferOffset);
 
-
                 switch (scan->ds[i]->ao_read.current.headerKind)
                 {
                     case AoHeaderKind_SmallContent:
@@ -453,10 +458,10 @@ check_bloom_filter(PG_FUNCTION_ARGS)
  
     r = relation_open(oid, AccessShareLock);
 
-    if (!RelationIsAoCols(r))
+    if (!RelationIsAoRows(r))
 		ereport(ERROR,
 				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-				 (errmsg("must be an AOCS relation to use raw headerfunctions"))));
+				 (errmsg("must be an Append-Optimized relation to use raw headerfunctions"))));
 
 
 	att = TupleDescAttr(RelationGetDescr(r), 0);
@@ -465,7 +470,12 @@ check_bloom_filter(PG_FUNCTION_ARGS)
 
     blf = FetchBloomFilterForVarblock(r, varblocknum);
 
-    res = !bloom_lacks_element(blf, d, att->attlen);
+    if (blf != NULL)
+        res = !bloom_lacks_element(blf, &d, att->attlen);
+    else
+        res = true;
+
+    relation_close(r, AccessShareLock);
 
     PG_RETURN_BOOL(res);
 }

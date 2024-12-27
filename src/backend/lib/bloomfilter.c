@@ -108,14 +108,14 @@ bloom_create(int64 total_elems, int bloom_work_mem, uint64 seed)
 }
 
 bloom_filter *
-bloom_create_nbytes(int64 nbytes, uint64 seed)
+bloom_create_nbytes(int64 nbytes, int k_hash_funcs, uint64 seed)
 {
 	bloom_filter *filter;
 
 	/* Allocate bloom filter with unset bitset */
 	filter = palloc0(offsetof(bloom_filter, bitset) +
 					 sizeof(unsigned char) * nbytes);
-	filter->k_hash_funcs = MAX_HASH_FUNCS;
+	filter->k_hash_funcs = k_hash_funcs;
 	filter->seed = seed;
 	filter->m = nbytes;
 

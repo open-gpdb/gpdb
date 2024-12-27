@@ -86,7 +86,7 @@ VarBlockMakerInit(
 	VarBlockSet_version(varBlockMaker->header, InitialVersion);
 	VarBlockSet_offsetsAreSmall(varBlockMaker->header, true);
 
-	varBlockMaker->blf = bloom_create_nbytes(AOBLF_SIZE, random() % PG_INT32_MAX);
+	varBlockMaker->blf = bloom_create_nbytes(AOBLF_SIZE, 4 /* default */, random() % PG_INT32_MAX);
 	varBlockMaker->largeWritePosition = largeWritePosition;
 }
 

@@ -178,6 +178,7 @@ RETURNS TABLE (
     "first row number" BIGINT,
     "large read position" BIGINT,
     "buffer offset" INTEGER,
+    "total varblock count" BIGINT,
     "block kind" TEXT,
     "header kind" TEXT,
     "current item count" INTEGER,

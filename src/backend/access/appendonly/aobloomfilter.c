@@ -21,6 +21,7 @@ SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int6
     char * pointer;
 
     fixed_filter = ao_bloom_filter_serealize(filter, offset);
+    fixed_filter->magic = BLOOM_F_MAGIC;
 
     blkno = AOBLF_CALC_PAGE(varblocknum);
     page_offset = AOBLF_CALC_OFFSET(varblocknum);
@@ -66,6 +67,9 @@ FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum)
 	LockBuffer(buffer, BUFFER_LOCK_UNLOCK);
     ReleaseBuffer(buffer);
 
+    if (fixed_filter->magic != BLOOM_F_MAGIC)
+        return NULL;
+
     return ao_bloom_filter_deserealize(fixed_filter);
 }
 
@@ -73,10 +77,10 @@ bloom_filter *
 ao_bloom_filter_deserealize(BloomFilterFixed *bf)
 {
     bloom_filter * blf;
-    blf = bloom_create_nbytes(AOBLF_SIZE, bf->seed);
+    blf = bloom_create_nbytes(AOBLF_SIZE, bf->k_hash_funcs, bf->seed);
 
-    blf->k_hash_funcs = bf->k_hash_funcs;
     blf->m = AOBLF_SIZE;
+    blf->seed = bf->seed;
     memcpy(blf->bitset, bf->bitset, sizeof(char) * AOBLF_SIZE);
 
     return blf;
