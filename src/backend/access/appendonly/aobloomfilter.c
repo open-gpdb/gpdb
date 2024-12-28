@@ -41,7 +41,7 @@ SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int6
 }
 
 bloom_filter *
-FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum)
+FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum, int64 *next_offset)
 {
     Buffer		buffer;
     Page		page;
@@ -69,6 +69,8 @@ FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum)
 
     if (fixed_filter->magic != BLOOM_F_MAGIC)
         return NULL;
+
+    *next_offset = fixed_filter->offset;
 
     return ao_bloom_filter_deserealize(fixed_filter);
 }

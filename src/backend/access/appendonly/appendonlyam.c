@@ -1271,6 +1271,7 @@ static bool
 getNextBlock(AppendOnlyScanDesc scan, int nkeys, ScanKey key)
 {
 	int64 offset;
+	int64 tmp_offset;
 	bloom_filter *blf;
 
 	if (scan->aos_need_new_segfile)
@@ -1286,11 +1287,25 @@ getNextBlock(AppendOnlyScanDesc scan, int nkeys, ScanKey key)
 
 	while (1)
 	{
-		// FetchBloomFilterForVarblock(scan->aos_rd, );
+		for (int i = 0; i < nkeys; ++i)
+		{
+			if (key[i].sk_attno == 1 && key[i].sk_strategy == BTEqualStrategyNumber)
+			{
+				blf = FetchBloomFilterForVarblock(scan->aos_rd, scan->executorReadBlock.totalVarblockCount, &tmp_offset);
+
+				if (blf != NULL && bloom_lacks_element(blf, key[i].sk_argument, sizeof(int)))
+				{
+					elog(LOG, "skip bytes " INT64_FORMAT " - " INT64_FORMAT "", offset, tmp_offset);
+					offset = tmp_offset;
+				}
+
+				break;
+			} 
+		}
 		break;
 	}
 
-
+	scan->executorReadBlock.headerOffsetInFile = offset;
 
 	if (!AppendOnlyExecutorReadBlock_GetBlockInfo(
 												  &scan->storageRead,

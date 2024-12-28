@@ -36,6 +36,6 @@ extern bloom_filter *ao_bloom_filter_deserealize(BloomFilterFixed *bf);
 extern BloomFilterFixed *ao_bloom_filter_serealize(bloom_filter *bf, int64 off);
 
 extern void SaveBloomFilterForBlock(Relation aorel, bloom_filter *filter, int64 offset, int64 aoblknum);
-extern bloom_filter *FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum);
+extern bloom_filter *FetchBloomFilterForVarblock(Relation aorel, int64 varblocknum, int64 *next_offset);
 
 #endif /* AOBLOOMFILTER_H */

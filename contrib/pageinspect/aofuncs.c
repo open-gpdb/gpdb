@@ -445,6 +445,7 @@ check_bloom_filter(PG_FUNCTION_ARGS)
     bool    res;
     bloom_filter * blf;
     Relation    r;
+    int64   offset;
 	Form_pg_attribute att;
     Oid	   oid = PG_GETARG_OID(0);
     int64   varblocknum = PG_GETARG_INT64(1);
@@ -468,7 +469,7 @@ check_bloom_filter(PG_FUNCTION_ARGS)
 	if (!att->attbyval)
 		elog(ERROR, "FAILED TO BLOOM BY REF TUP");
 
-    blf = FetchBloomFilterForVarblock(r, varblocknum);
+    blf = FetchBloomFilterForVarblock(r, varblocknum, &offset);
 
     if (blf != NULL)
         res = !bloom_lacks_element(blf, &d, att->attlen);
