@@ -36,6 +36,8 @@ RUN echo 'krebs ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers
 USER krebs
 WORKDIR /home/krebs
 
+COPY yezzey_test/generate_ssh_key.sh /home/krebs/
+
 RUN ["/home/krebs/generate_ssh_key.sh"]
 
 
