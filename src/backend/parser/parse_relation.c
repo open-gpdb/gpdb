@@ -3391,7 +3391,7 @@ isQueryUsingTempRelation_walker(Node *node, void *context)
 				char		relpersistence = rel->rd_rel->relpersistence;
 
 				heap_close(rel, AccessShareLock);
-				if (relpersistence == RELPERSISTENCE_TEMP)
+				if (relpersistence == RELPERSISTENCE_TEMP || relpersistence == RELPERSISTENCE_FAST_TEMP)
 					return true;
 			}
 		}

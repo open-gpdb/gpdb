@@ -24,6 +24,7 @@
 #include "catalog/namespace.h"
 #include "catalog/pg_appendonly_fn.h"
 #include "catalog/pg_tablespace.h"
+#include "catalog/storage.h"
 #include "commands/dbcommands.h"
 #include "commands/tablespace.h"
 #include "common/relpath.h"
@@ -385,6 +386,10 @@ calculate_relation_size(Relation rel, ForkNumber forknum)
 	unsigned int segcount = 0;
 
 	relationpath = relpathbackend(rel->rd_node, rel->rd_backend, forknum);
+
+	if (rel->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		RelationCreateStorage(rel->rd_node, rel->rd_rel->relpersistence ,
+						  rel->rd_rel->relstorage);
 
 if (RelationIsHeap(rel))
 {
@@ -1056,6 +1061,7 @@ pg_relation_filepath(PG_FUNCTION_ARGS)
 			backend = InvalidBackendId;
 			break;
 		case RELPERSISTENCE_TEMP:
+		case RELPERSISTENCE_FAST_TEMP:
 			if (isTempOrToastNamespace(relform->relnamespace))
 				backend = MyBackendId;
 			else

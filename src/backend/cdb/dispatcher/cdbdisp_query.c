@@ -49,6 +49,8 @@
 #include "cdb/cdbcopy.h"
 #include "executor/execUtils.h"
 
+#include "access/fasttab.h"
+
 #define QUERY_STRING_TRUNCATE_SIZE (1024)
 
 extern bool Test_print_direct_dispatch_info;
@@ -421,6 +423,10 @@ CdbDispatchUtilityStatement(struct Node *stmt,
 {
 	DispatchCommandQueryParms *pQueryParms;
 	bool needTwoPhase = flags & DF_NEED_TWO_PHASE;
+
+	if (fasttab_get_relpersistence_hint() == RELPERSISTENCE_FAST_TEMP) {
+		return;
+	}
 
 	if (needTwoPhase)
 		setupDtxTransaction();
@@ -863,6 +869,8 @@ buildGpQueryString(DispatchCommandQueryParms *pQueryParms,
 	int			sddesc_len = pQueryParms->serializedQueryDispatchDesclen;
 	const char *dtxContextInfo = pQueryParms->serializedDtxContextInfo;
 	int			dtxContextInfo_len = pQueryParms->serializedDtxContextInfolen;
+	char *queryEnvInfo = 0;
+	int			queryEnvInfo_len = NULL;
 	int64		currentStatementStartTimestamp = GetCurrentStatementStartTimestamp();
 	Oid			sessionUserId = GetSessionUserId();
 	Oid			outerUserId = GetOuterUserId();
@@ -904,6 +912,9 @@ buildGpQueryString(DispatchCommandQueryParms *pQueryParms,
 	if (IsResGroupActivated())
 		SerializeResGroupInfo(&resgroupInfo);
 
+	/* fasttab read */
+	fasttab_serialize(&queryEnvInfo_len, &queryEnvInfo);
+
 	total_query_len = 1 /* 'M' */ +
 		sizeof(len) /* message length */ +
 		sizeof(gp_command_count) +
@@ -928,7 +939,8 @@ buildGpQueryString(DispatchCommandQueryParms *pQueryParms,
 		resgroupInfo.len +
 		sizeof(tempNamespaceId) +
 		sizeof(tempToastNamespaceId) +
-		0;
+		0 + 
+		sizeof(queryEnvInfo_len) + queryEnvInfo_len /* query environment */;
 
 	shared_query = palloc(total_query_len);
 
@@ -1052,6 +1064,16 @@ buildGpQueryString(DispatchCommandQueryParms *pQueryParms,
 	pos += sizeof(tempNamespaceId);
 	memcpy(pos, &tempToastNamespaceId, sizeof(tempToastNamespaceId));
 	pos += sizeof(tempToastNamespaceId);
+
+	tmp = htonl(queryEnvInfo_len);
+	memcpy(pos, &tmp, sizeof(queryEnvInfo_len));
+	pos += sizeof(queryEnvInfo_len);
+
+	if (queryEnvInfo_len > 0)
+	{
+		memcpy(pos, queryEnvInfo, queryEnvInfo_len);
+		pos += queryEnvInfo_len;
+	}
 
 	/*
 	 * fill in length placeholder

@@ -54,6 +54,8 @@
  *		variables, macros and other stuff
  */
 
+#define CACHEDEBUG
+
 #ifdef CACHEDEBUG
 #define CACHE1_elog(a,b)				elog(a,b)
 #define CACHE2_elog(a,b,c)				elog(a,b,c)

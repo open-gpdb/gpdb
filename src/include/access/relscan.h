@@ -18,7 +18,9 @@
 #include "access/heapam.h"
 #include "access/htup_details.h"
 #include "access/itup.h"
+#include "lib/ilist.h"
 #include "access/tupdesc.h"
+#include "access/fasttab.h"
 
 #include "access/formatter.h"
 
@@ -52,6 +54,8 @@ typedef struct HeapScanDescData
 	int			rs_cindex;		/* current tuple's index in vistuples */
 	int			rs_ntuples;		/* number of visible tuples on page */
 	OffsetNumber rs_vistuples[MaxHeapTuplesPerPage];	/* their offsets */
+
+	dlist_node *rs_curr_inmem_tupnode;	/* current virtual tuple, or NULL */
 }	HeapScanDescData;
 
 /*
@@ -92,6 +96,19 @@ typedef struct IndexScanDescData
 
 	/* state data for traversing HOT chains in index_getnext */
 	bool		xs_continue_hot;	/* T if must keep walking HOT chain */
+
+	/* sorted list of virtual tuples that should be returned during a scan */
+	dlist_head	xs_inmem_tuplist;
+	/* memoized corresponding FasttabIndexMethodsTable entry */
+	FasttabIndexMethods indexMethods;
+	/* whether xs_inmem_tuplist was initialized */
+	bool		xs_inmem_tuplist_init_done;
+	/* whether xs_inmem_tuplist contains a regular tuple */
+	bool		xs_regular_tuple_enqueued;
+	/* whether internal regular scan was finished */
+	bool		xs_regular_scan_finished;
+	/* whether information that scan was finished was returned */
+	bool		xs_scan_finish_returned;
 }	IndexScanDescData;
 
 /*

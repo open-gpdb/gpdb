@@ -31,6 +31,7 @@
 #include "access/transam.h"
 #include "access/visibilitymap.h"
 #include "access/xact.h"
+#include "access/fasttab.h"
 #include "bootstrap/bootstrap.h"
 #include "catalog/aoblkdir.h"
 #include "catalog/binary_upgrade.h"
@@ -892,7 +893,7 @@ index_create(Relation heapRelation,
 			indexRelationId = GetPreassignedOidForRelation(namespaceId, indexRelationName);
 
 		if (!OidIsValid(indexRelationId))
-			indexRelationId = GetNewOid(pg_class);
+			indexRelationId = GetNewOid(pg_class, '\0');
 	}
 
 	/*
@@ -2681,6 +2682,14 @@ IndexBuildHeapScan(Relation heapRelation,
 	while ((heapTuple = heap_getnext(scan, ForwardScanDirection)) != NULL)
 	{
 		bool		tupleIsAlive;
+
+		/*
+		 * Ignore in-memory tuples here. These tuples are in fact not indexed.
+		 * They are mixed in during index scans right from the virtual heap
+		 * instead.
+		 */
+		if (IsFasttabItemPointer(&heapTuple->t_self))
+			continue;
 
 		CHECK_FOR_INTERRUPTS();
 

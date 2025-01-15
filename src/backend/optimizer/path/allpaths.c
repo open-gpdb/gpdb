@@ -630,6 +630,7 @@ static bool
 is_table_distributed(Oid relid)
 {
 	HeapTuple	gp_policy_tuple;
+	char relpersistence;
 
 	gp_policy_tuple = SearchSysCache1(GPPOLICYID, ObjectIdGetDatum(relid));
 	if (HeapTupleIsValid(gp_policy_tuple))

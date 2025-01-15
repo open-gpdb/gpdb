@@ -20,6 +20,7 @@
 #include "access/reloptions.h"
 #include "access/twophase.h"
 #include "access/xact.h"
+#include "access/fasttab.h"
 #include "catalog/catalog.h"
 #include "catalog/namespace.h"
 #include "catalog/toasting.h"
@@ -1263,6 +1264,9 @@ ProcessUtilitySlow(Node *parsetree,
 																cstmt->is_part_child,
 																cstmt->is_part_parent);
 							}
+
+							fasttab_set_relpersistence_hint(cstmt->relation->relpersistence);
+
 							if (Gp_role == GP_ROLE_DISPATCH)
 							{
 								CdbDispatchUtilityStatement((Node *) stmt,
@@ -1290,6 +1294,8 @@ ProcessUtilitySlow(Node *parsetree,
 									StoreViewQuery(relOid, query, false);
 								}
 							}
+
+							fasttab_clear_relpersistence_hint();
 
 							CommandCounterIncrement();
 							/*

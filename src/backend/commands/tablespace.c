@@ -1510,7 +1510,7 @@ GetDefaultTablespace(char relpersistence)
 	Oid			result;
 
 	/* The temp-table case is handled elsewhere */
-	if (relpersistence == RELPERSISTENCE_TEMP)
+	if (relpersistence == RELPERSISTENCE_TEMP || relpersistence == RELPERSISTENCE_FAST_TEMP)
 	{
 		PrepareTempTablespaces();
 		return GetNextTempTableSpace();

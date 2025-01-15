@@ -158,7 +158,7 @@ GetRelationPath(Oid dbNode, Oid spcNode, Oid relNode,
 	{
 		/* Shared system relations live in {datadir}/global */
 		Assert(dbNode == 0);
-		Assert(backendId == InvalidBackendId);
+		Assert(backendId == InvalidBackendId || backendId == TempRelBackendId);
 		if (forkNumber != MAIN_FORKNUM)
 			path = psprintf("global/%u_%s",
 							relNode, forkNames[forkNumber]);

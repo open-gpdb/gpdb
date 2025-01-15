@@ -507,7 +507,7 @@ typedef struct ViewOptions
  * RelationUsesLocalBuffers
  *		True if relation's pages are stored in local buffers.
  *
- * In GPDB, we do not use local buffers for temp tables because segmates need
+ * In GPDB, we do not use local buffers for temp tables because segments need
  * to share temp table contents.  Currently, there is no other reason to use
  * local buffers.
  */
@@ -518,7 +518,7 @@ typedef struct ViewOptions
  *		True if relation's catalog entries live in a private namespace.
  */
 #define RelationUsesTempNamespace(relation) \
-	((relation)->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
+	(((relation)->rd_rel->relpersistence == RELPERSISTENCE_TEMP) || ((relation)->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP))
 
 /*
  * RELATION_IS_LOCAL
@@ -539,7 +539,7 @@ typedef struct ViewOptions
  * Beware of multiple eval of argument
  */
 #define RELATION_IS_OTHER_TEMP(relation) \
-	((relation)->rd_rel->relpersistence == RELPERSISTENCE_TEMP && \
+	((((relation)->rd_rel->relpersistence == RELPERSISTENCE_TEMP) || ((relation)->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP)) && \
 	 !(relation)->rd_islocaltemp)
 
 

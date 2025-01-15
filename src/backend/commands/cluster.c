@@ -28,6 +28,9 @@
 #include "catalog/aoseg.h"
 #include "catalog/aoblkdir.h"
 #include "catalog/aovisimap.h"
+#include "access/xlog.h"
+#include "access/fasttab.h"
+#include "catalog/pg_am.h"
 #include "catalog/catalog.h"
 #include "catalog/dependency.h"
 #include "catalog/heap.h"
@@ -1099,6 +1102,10 @@ copy_heap_data(Oid OIDNewHeap, Oid OIDOldHeap, Oid OIDOldIndex, bool verbose,
 			if (tuple == NULL)
 				break;
 
+			/* No need to move in-memory tuple anywhere */
+			if (IsFasttabItemPointer(&tuple->t_self))
+				continue;
+
 			/* Since we used no scan keys, should never need to recheck */
 			if (indexScan->xs_recheck)
 				elog(ERROR, "CLUSTER does not support lossy index conditions");
@@ -1110,6 +1117,10 @@ copy_heap_data(Oid OIDNewHeap, Oid OIDOldHeap, Oid OIDOldIndex, bool verbose,
 			tuple = heap_getnext(heapScan, ForwardScanDirection);
 			if (tuple == NULL)
 				break;
+
+			/* No need to move in-memory tuple anywhere */
+			if (IsFasttabItemPointer(&tuple->t_self))
+				continue;
 
 			buf = heapScan->rs_cbuf;
 		}

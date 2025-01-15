@@ -16,6 +16,7 @@
 
 #include "access/htup_details.h"
 #include "access/xact.h"
+#include "access/fasttab.h"
 #include "catalog/dependency.h"
 #include "catalog/heap.h"
 #include "catalog/index.h"
@@ -591,6 +592,13 @@ findDependentObjects(const ObjectAddress *object,
 	{
 		Form_pg_depend foundDep = (Form_pg_depend) GETSTRUCT(tup);
 
+		/*
+		 * Ignore in-memory tuples here. They are properly handled by virtual
+		 * catalog logic already.
+		 */
+		if (IsFasttabItemPointer(&tup->t_self))
+			continue;
+
 		otherObject.classId = foundDep->refclassid;
 		otherObject.objectId = foundDep->refobjid;
 		otherObject.objectSubId = foundDep->refobjsubid;
@@ -773,6 +781,13 @@ findDependentObjects(const ObjectAddress *object,
 	{
 		Form_pg_depend foundDep = (Form_pg_depend) GETSTRUCT(tup);
 		int			subflags;
+
+		/*
+		 * Ignore in-memory tuples here. They are properly handled by virtual
+		 * catalog logic already.
+		 */
+		if (IsFasttabItemPointer(&tup->t_self))
+			continue;
 
 		otherObject.classId = foundDep->classid;
 		otherObject.objectId = foundDep->objid;
