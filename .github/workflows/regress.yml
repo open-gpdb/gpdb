@@ -15,6 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file docker/yezzey/Dockerfile --tag yezzey_test:1234 && docker run yezzey_test:1234
+      run: docker build . --file docker/regress/Dockerfile --tag regress_test:1234 && docker run regress_test:1234
       
       
