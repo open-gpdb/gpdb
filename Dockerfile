@@ -5,6 +5,8 @@ ARG secretAccessKey
 ARG bucketName
 ARG yezzeyRef
 
+ENV YEZZEY_REF=${yezzeyRef:-v1.8_opengpdb}
+
 ENV AWS_ACCESS_KEY_ID=${accessKeyId}
 ENV AWS_SECRET_ACCESS_KEY=${secretAccessKey}
 ENV S3_BUCKET=${bucketName}
@@ -72,7 +74,7 @@ RUN sudo chown -R krebs:root /home/krebs \
 
 RUN  git submodule update --init 
 RUN rm -fr gpcontrib/yezzey 
-RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey -b ${yezzeyRef} && cd /home/krebs 
+RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey -b ${YEZZEY_REF} && cd /home/krebs 
 RUN sed -i '/^trusted/d' gpcontrib/yezzey/yezzey.control 
 RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=/usr/local/gpdb \
 --enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
