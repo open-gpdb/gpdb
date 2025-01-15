@@ -29,9 +29,9 @@ RUN ln -snf /usr/share/zoneinfo/Europe/London /etc/localtime && echo Europe/Lond
   libgpgme-dev libgpgme11 sudo iproute2 less software-properties-common \
   openssh-client openssh-server
 
-COPY yezzey_test/install-wal-g.sh /home/krebs
+COPY yezzey_test/install_yproxy.sh /home/krebs
 
-RUN ["/home/krebs/install-wal-g.sh"]
+RUN ["/home/krebs/install_yproxy.sh"]
 
 RUN apt-get install -y locales \
 && locale-gen "en_US.UTF-8" \
@@ -71,17 +71,15 @@ RUN sudo chown -R krebs:root /home/krebs \
 && git status
 
 RUN  git submodule update --init 
-RUN cd gpcontrib/yezzey 
-RUN git checkout ${yezzeyRef} && cd /home/krebs 
+RUN rm -fr gpcontrib/yezzey 
+RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey -b ${yezzeyRef} && cd /home/krebs 
 RUN sed -i '/^trusted/d' gpcontrib/yezzey/yezzey.control 
 RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=/usr/local/gpdb \
 --enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
 RUN make -j8 && make -j8 install
 
-RUN sed -i "s/\$ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/yezzey-s3.conf \
-&& sed -i "s/\$SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/yezzey-s3.conf \
-&& sed -i "s/\$AWS_ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/wal-g-conf.yaml \
-&& sed -i "s/\$AWS_SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/wal-g-conf.yaml \
-&& sed -i "s/\$WALG_S3_PREFIX/s3:\/\/${bucketName}\/yezzey-test-files/g" yezzey_test/wal-g-conf.yaml
+RUN sed -i "s/\$AWS_ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/yproxy.conf \
+&& sed -i "s/\$AWS_SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/yproxy.conf \
+&& sed -i "s/\$WALG_S3_PREFIX/s3:\/\/${bucketName}\/yezzey-test-files/g" yezzey_test/yproxy.conf
 
 ENTRYPOINT ["./yezzey_test/run_tests.sh"]
