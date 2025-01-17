@@ -29,8 +29,7 @@ apt-get install -y \
   openssl \
   python2-dev \
   python3-pip \
-  zlib1g-dev \
-  libpstreams-dev
+  zlib1g-dev
 
 ln -s /bin/python2.7 /usr/bin/python
 curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
