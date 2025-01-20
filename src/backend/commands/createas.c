@@ -52,6 +52,7 @@
 #include "catalog/aovisimap.h"
 #include "catalog/oid_dispatch.h"
 #include "catalog/pg_attribute_encoding.h"
+#include "catalog/storage.h"
 #include "cdb/cdbappendonlyam.h"
 #include "cdb/cdbaocsam.h"
 #include "cdb/cdbdisp_query.h"
@@ -195,14 +196,24 @@ create_ctas_internal(List *attrList, IntoClause *into, QueryDesc *queryDesc, boo
 	 *
 	 * Pass the policy that was computed by the planner.
 	 */
-	intoRelationAddr = DefineRelation(create,
-									relkind,
-									InvalidOid,
-									NULL,
-									relstorage,
-									false,
-									queryDesc->ddesc ? queryDesc->ddesc->useChangedAOOpts : true,
-									queryDesc->plannedstmt->intoPolicy);
+
+	if (!(Gp_role == GP_ROLE_EXECUTE && create->relation->relpersistence == RELPERSISTENCE_FAST_TEMP))
+		intoRelationAddr = DefineRelation(create,
+										relkind,
+										InvalidOid,
+										NULL,
+										relstorage,
+										false,
+										queryDesc->ddesc ? queryDesc->ddesc->useChangedAOOpts : true,
+										queryDesc->plannedstmt->intoPolicy);
+	else 
+	{
+		Oid nspoid;
+		nspoid = RangeVarGetCreationNamespace(create->relation);
+		intoRelationAddr.objectId = get_relname_relid(create->relation->relname, nspoid);
+		intoRelationAddr.classId = RelationRelationId;
+		intoRelationAddr.objectSubId = InvalidOid;
+	}
 
 	intoRelationId = intoRelationAddr.objectId;
 
@@ -222,10 +233,14 @@ create_ctas_internal(List *attrList, IntoClause *into, QueryDesc *queryDesc, boo
 
 	(void) heap_reloptions(RELKIND_TOASTVALUE, toast_options, true);
 
-	NewRelationCreateToastTable(intoRelationId, toast_options, false, false);
-	AlterTableCreateAoSegTable(intoRelationId, false, false);
-	/* don't create AO block directory here, it'll be created when needed. */
-	AlterTableCreateAoVisimapTable(intoRelationId, false, false);
+
+	if (!(Gp_role == GP_ROLE_EXECUTE && create->relation->relpersistence == RELPERSISTENCE_FAST_TEMP))
+	{
+		NewRelationCreateToastTable(intoRelationId, toast_options, false, false);
+		AlterTableCreateAoSegTable(intoRelationId, false, false);
+		/* don't create AO block directory here, it'll be created when needed. */
+		AlterTableCreateAoVisimapTable(intoRelationId, false, false);
+	}
 
 	/* Create the "view" part of a materialized view. */
 	if (is_matview)
@@ -236,6 +251,7 @@ create_ctas_internal(List *attrList, IntoClause *into, QueryDesc *queryDesc, boo
 		StoreViewQuery(intoRelationId, query, false);
 		CommandCounterIncrement();
 	}
+
 	if (Gp_role == GP_ROLE_DISPATCH && dispatch)
 		CdbDispatchUtilityStatement((Node *) create,
 									DF_CANCEL_ON_ERROR |
@@ -319,6 +335,11 @@ create_ctas_nodata(List *tlist, IntoClause *into, QueryDesc *queryDesc)
 
 	/* Add column encoding entries based on the WITH clause */
 	Relation rel = heap_open(intoRelationAddr.objectId, AccessExclusiveLock);
+
+	if (rel->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		RelationCreateStorage(rel->rd_node, rel->rd_rel->relpersistence ,
+						  rel->rd_rel->relstorage);
+
 	/* Noop for non-AOCS */
 	AddDefaultRelationAttributeOptions(rel, into->options);
 	heap_close(rel, NoLock);
@@ -674,6 +695,11 @@ intorel_initplan(struct QueryDesc *queryDesc, int eflags)
 	 * Finally we can open the target table
 	 */
 	intoRelationDesc = heap_open(intoRelationAddr.objectId, AccessExclusiveLock);
+
+
+	if (intoRelationDesc->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		RelationCreateStorage(intoRelationDesc->rd_node, intoRelationDesc->rd_rel->relpersistence ,
+						  intoRelationDesc->rd_rel->relstorage);
 
 	/*
 	 * Add column encoding entries based on the WITH clause.
