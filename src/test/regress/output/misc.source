@@ -620,11 +620,10 @@ drop table oldstyle_test;
 --
 -- rewrite rules
 --
-
-
 --- mdb-related
 SELECT mdb_locale_enabled();
- mdb_locale_enabled
+ mdb_locale_enabled 
 --------------------
  t
 (1 row)
+
