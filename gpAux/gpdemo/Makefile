@@ -24,6 +24,10 @@ ifeq ($(WITH_MIRRORS), )
 WITH_MIRRORS = true
 endif
 
+ifeq ($(ENABLE_COPY), )
+ENABLE_COPY = true
+endif
+
 ifeq ($(WITH_MIRRORS), true)
 WITH_STANDBY = true
 endif
@@ -32,6 +36,7 @@ export DEMO_PORT_BASE=$(PORT_BASE)
 export NUM_PRIMARY_MIRROR_PAIRS
 export WITH_MIRRORS
 export WITH_STANDBY
+export ENABLE_COPY
 export BLDWRAP_POSTGRES_CONF_ADDONS
 export DEFAULT_QD_MAX_CONNECT=150
 

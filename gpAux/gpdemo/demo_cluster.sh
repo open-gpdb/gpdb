@@ -340,6 +340,17 @@ if [ "${WITH_MIRRORS}" == "true" ]; then
 	EOF
 fi
 
+if [ "${ENABLE_COPY}" == "true" ]; then
+    cat >> $CLUSTER_CONFIG_POSTGRES_ADDONS <<-EOF
+
+		# Turn on COPY for cluster
+		ycmdb.yc_allow_copy_to_program=on
+		ycmdb.yc_allow_copy_from_file=on
+		ycmdb.yc_allow_copy_to_file=on
+
+	EOF
+fi
+
 
 STANDBY_INIT_OPTS=""
 if [ "${WITH_STANDBY}" == "true" ]; then
