@@ -1645,7 +1645,7 @@ cdbexplain_NodeSummary(ExplainState *es, CdbExplain_NodeSummary *ns) {
 
 			appendStringInfoSpaces(es->str, nsi_spaces);
 
-			appendStringInfo(es->str, "(seg%d) %d %.2f %.2f %.2f %.2f %.2f %.0f %.0f %.0f %.0f %.0f %d %.2f %.0f %d %d %d %ld %d %d\n", 
+			appendStringInfo(es->str, "(seg%d) %d %.2ld %.2ld %.2f %.2f %.2f %.0f %.0f %.0f %.0f %.0f %d %.2ld %.0f %d %d %d %ld %d %d\n", 
 				ns->segindex0 + i, 
 				nsi->pstype, 
 				nsi->starttime.tv_sec, nsi->counter.tv_sec, nsi->firsttuple, nsi->startup, nsi->total,
