@@ -820,6 +820,9 @@ fasttab_define_savepoint(const char *name)
 void
 fasttab_rollback_to_savepoint(const char *name)
 {
+#ifndef FASTTAB_SUPPORT_SUBTX
+	return;
+#endif
 	Assert(PointerIsValid(name));
 	Assert(FasttabTransactionInProgress());
 	Assert(FasttabSnapshotIsAnonymous(FasttabSnapshotGetCurrent()));
