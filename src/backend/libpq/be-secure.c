@@ -86,14 +86,15 @@ static void close_SSL(Port *);
 static const char *SSLerrmessage(unsigned long ecode);
 #endif
 
-static bool SSL_initialized = false;
-
 char	   *ssl_cert_file;
 char	   *ssl_key_file;
 char	   *ssl_ca_file;
 char	   *ssl_crl_file;
 
 #ifdef USE_SSL
+
+static bool SSL_initialized = false;
+
 static bool initialize_ecdh(SSL_CTX *context, bool failOnError);
 static SSL_CTX *SSL_context = NULL;
 static bool ssl_loaded_verify_locations = false;
