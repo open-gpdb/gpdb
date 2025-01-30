@@ -220,9 +220,10 @@ index_insert(Relation indexRelation,
 	RELATION_CHECKS;
 	GET_REL_PROCEDURE(aminsert);
 
-	/* If it's a virtual ItemPointer, process it accordingly. */
-	if (fasttab_index_insert(indexRelation, heap_t_ctid, &result))
-		return result;
+	if (!RelationIsAppendOptimized(heapRelation))
+		/* If it's a virtual ItemPointer, process it accordingly. */
+		if (fasttab_index_insert(indexRelation, heap_t_ctid, &result))
+			return result;
 
 	if (!(indexRelation->rd_am->ampredlocks))
 		CheckForSerializableConflictIn(indexRelation,
