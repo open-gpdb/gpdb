@@ -64,4 +64,4 @@ createdb $USER
 /usr/bin/yproxy -c /tmp/yproxy.yaml -ldebug > /dev/null 2>&1 &
 
 cd gpcontrib/yezzey
-make installcheck || cat /home/krebs/gpcontrib/yezzey/regression.diffs && exit 1
+make installcheck || (cat /home/krebs/gpcontrib/yezzey/regression.diffs && exit 1)
