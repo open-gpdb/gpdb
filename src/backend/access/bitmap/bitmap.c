@@ -240,7 +240,7 @@ bmgetbitmap(PG_FUNCTION_ARGS)
 	 * node in the amgetbitmap AM.
 	 */
 	Assert(bmNodeP);
-	if (*bmNodeP == NULL)
+	if (*bmNodeP == NULL || IsA(*bmNodeP, TIDBitmap) && tbm_is_empty((TIDBitmap*)*bmNodeP))
 	{
 		StreamBitmap *sb = makeNode(StreamBitmap);
 		sb->streamNode = is;
