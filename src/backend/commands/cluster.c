@@ -1103,7 +1103,7 @@ copy_heap_data(Oid OIDNewHeap, Oid OIDOldHeap, Oid OIDOldIndex, bool verbose,
 				break;
 
 			/* No need to move in-memory tuple anywhere */
-			if (IsFasttabItemPointer(&tuple->t_self))
+			if (!RelationIsAppendOptimized(heapScan->rs_rd) && IsFasttabItemPointer(&tuple->t_self))
 				continue;
 
 			/* Since we used no scan keys, should never need to recheck */
@@ -1119,7 +1119,7 @@ copy_heap_data(Oid OIDNewHeap, Oid OIDOldHeap, Oid OIDOldIndex, bool verbose,
 				break;
 
 			/* No need to move in-memory tuple anywhere */
-			if (IsFasttabItemPointer(&tuple->t_self))
+			if (!RelationIsAppendOptimized(heapScan->rs_rd) && IsFasttabItemPointer(&tuple->t_self))
 				continue;
 
 			buf = heapScan->rs_cbuf;

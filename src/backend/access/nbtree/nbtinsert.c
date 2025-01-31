@@ -394,7 +394,7 @@ _bt_check_unique(Relation rel, IndexTuple itup, Relation heapRel,
 					 * If its in-memory tuple there is for sure no transaction
 					 * to wait for.
 					 */
-					if (IsFasttabItemPointer(&htid))
+					if (!RelationIsAppendOptimized(rel) && IsFasttabItemPointer(&htid))
 						return InvalidTransactionId;
 
 					/*

@@ -596,7 +596,7 @@ findDependentObjects(const ObjectAddress *object,
 		 * Ignore in-memory tuples here. They are properly handled by virtual
 		 * catalog logic already.
 		 */
-		if (IsFasttabItemPointer(&tup->t_self))
+		if (!RelationIsAppendOptimized(scan->heap_rel) && IsFasttabItemPointer(&tup->t_self))
 			continue;
 
 		otherObject.classId = foundDep->refclassid;
@@ -786,7 +786,7 @@ findDependentObjects(const ObjectAddress *object,
 		 * Ignore in-memory tuples here. They are properly handled by virtual
 		 * catalog logic already.
 		 */
-		if (IsFasttabItemPointer(&tup->t_self))
+		if (!RelationIsAppendOptimized(scan->heap_rel) && IsFasttabItemPointer(&tup->t_self))
 			continue;
 
 		otherObject.classId = foundDep->classid;

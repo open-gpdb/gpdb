@@ -494,7 +494,7 @@ BitmapHeapNext(BitmapHeapScanState *node)
 		ItemPointerSet(&scan->rs_ctup.t_self, tbmres->blockno, targoffset);
 
 		/* Is it a virtual TID? */
-		if (IsFasttabItemPointer(&scan->rs_ctup.t_self))
+		if (!RelationIsAppendOptimized(scan->rs_rd) && IsFasttabItemPointer(&scan->rs_ctup.t_self))
 		{
 			/* Fetch tuple from virtual catalog (if tuple still exists). */
 			if(!fasttab_simple_heap_fetch(scan->rs_rd, scan->rs_snapshot, &scan->rs_ctup))

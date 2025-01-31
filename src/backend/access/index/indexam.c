@@ -518,7 +518,7 @@ index_fetch_heap(IndexScanDesc scan)
 	bool		got_heap_tuple;
 
 	/* Is it a virtual TID? */
-	if (IsFasttabItemPointer(tid))
+	if (!RelationIsAppendOptimized(scan->heapRelation) &&  IsFasttabItemPointer(tid))
 	{
 		bool		fasttab_result;
 

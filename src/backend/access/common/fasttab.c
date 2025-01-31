@@ -1794,7 +1794,7 @@ fasttab_simple_heap_fetch(Relation relation, Snapshot snapshot,
 	 * No need to lock any buffers for in-memory tuple, they could not even
 	 * exist!
 	 */
-	if (IsFasttabItemPointer(tid))
+	if (!RelationIsAppendOptimized(relation) && IsFasttabItemPointer(tid))
 		return heap_hot_search_buffer(tid, relation, buffer, snapshot, tuple, NULL, true);
 
 	/* Fetch and pin the appropriate page of the relation. */
@@ -1980,15 +1980,14 @@ fasttab_index_getbitmap(IndexScanDesc scan, Node **bitmap, int64 *result)
 	bool		heap_opened = false;
 	TIDBitmap	*tbm;
 
-
-	/* XXX should we use less than work_mem for this? */
-	tbm = tbm_create(work_mem * 1024L);
-	*bitmap = (Node *) tbm;
-
 	Assert(PointerIsValid(scan->indexRelation));
 
 	if (!IsFasttabHandledIndexId(RelationGetRelid(scan->indexRelation)))
 		return false;
+
+	/* XXX should we use less than work_mem for this? */
+	tbm = tbm_create(work_mem * 1024L);
+	*bitmap = (Node *) tbm;
 
 	/* Fill heapRelation if it's NULL, we require it in fasttab_* procedures */
 	if (!scan->heapRelation)
