@@ -81,7 +81,7 @@ ao_insert_replay(XLogRecord *record)
 	dbPath = GetDatabasePath(xlrec->target.node.dbNode,
 							 xlrec->target.node.spcNode);
 
-	struct f_smgr_ao * smgrao_curr = smgrao();
+	const struct f_smgr_ao * smgrao_curr = smgrao();
 
 	if (xlrec->target.segment_filenum == 0)
 		snprintf(path, MAXPGPATH, "%s/%u", dbPath, xlrec->target.node.relNode);
@@ -166,7 +166,7 @@ ao_truncate_replay(XLogRecord *record)
 	dbPath = GetDatabasePath(xlrec->target.node.dbNode,
 							 xlrec->target.node.spcNode);
 
-	struct f_smgr_ao * smgrao_curr = smgrao();
+	const struct f_smgr_ao * smgrao_curr = smgrao();
 
 	if (xlrec->target.segment_filenum == 0)
 		snprintf(path, MAXPGPATH, "%s/%u", dbPath, xlrec->target.node.relNode);

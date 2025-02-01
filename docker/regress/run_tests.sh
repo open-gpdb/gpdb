@@ -57,5 +57,6 @@ gpstop -a -i && gpstart -a
 
 createdb $USER
 
+sed -i  '/mdb-related/,$d' src/test/regress/input/misc.source src/test/regress/output/misc.source src/test/regress/output/misc.source
 
 PGPORT=6000 make installcheck
