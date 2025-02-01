@@ -151,7 +151,13 @@ OpenAOSegmentFile(Relation aorel, const char *nspname, char *filepathname, int64
 
 	RelationOpenSmgr(aorel);
 
-	fd = aorel->rd_smgr->smgr_ao->smgr_AORelOpenSegFile(RelationGetRelid(aorel), nspname, RelationGetRelationName(aorel), filepathname, O_RDWR | PG_BINARY, 0600, modcount);
+	fd = aorel->rd_smgr->smgr_ao->smgr_AORelOpenSegFile(
+		RelationGetRelid(aorel), 
+		nspname,
+		RelationGetRelationName(aorel),
+		filepathname,
+		fileFlags, 0600, modcount);
+
 	if (fd < 0)
 	{
 		if (logicalEof == 0 && errno == ENOENT)
@@ -320,8 +326,8 @@ copy_file(char *srcsegpath, char *dstsegpath,
 {
 	File		srcFile;
 	File		dstFile;
-	struct f_smgr_ao *srcSmgr;
-	struct f_smgr_ao *dstSmgr;
+	const struct f_smgr_ao *srcSmgr;
+	const struct f_smgr_ao *dstSmgr;
 	int64		left;
 	off_t		offset;
 	char       *buffer = palloc(BLCKSZ);
