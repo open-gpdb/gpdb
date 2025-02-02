@@ -1510,7 +1510,7 @@ pg_event_trigger_dropped_objects(PG_FUNCTION_ARGS)
  * function run by the Event Trigger.
  */
 Datum
-pg_event_trigger_table_rewrite_oid(PG_FUNCTION_ARGS)
+pg_event_trigger_table_rewrite_oid_internal(PG_FUNCTION_ARGS)
 {
 	/*
 	 * Protect this function from being called out of context
@@ -1531,7 +1531,7 @@ pg_event_trigger_table_rewrite_oid(PG_FUNCTION_ARGS)
  * Make the rewrite reason available to the user.
  */
 Datum
-pg_event_trigger_table_rewrite_reason(PG_FUNCTION_ARGS)
+pg_event_trigger_table_rewrite_reason_internal(PG_FUNCTION_ARGS)
 {
 	/*
 	 * Protect this function from being called out of context

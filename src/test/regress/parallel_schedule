@@ -136,8 +136,6 @@ test: alter_generic misc psql async
 # merge, it was done a long time ago, it's time to revisit this so we can re-
 # enable it
 #test: rules
-# event triggers cannot run concurrently with any test that runs DDL
-test: event_trigger
 
 # ----------
 # Another group of parallel tests

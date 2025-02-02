@@ -1304,9 +1304,9 @@ extern Datum unique_key_recheck(PG_FUNCTION_ARGS);
 
 /* commands/event_trigger.c */
 extern Datum pg_event_trigger_dropped_objects(PG_FUNCTION_ARGS);
-extern Datum pg_event_trigger_table_rewrite_oid(PG_FUNCTION_ARGS);
-extern Datum pg_event_trigger_table_rewrite_reason(PG_FUNCTION_ARGS);
 /* Used with gp aux catalog */
+extern Datum pg_event_trigger_table_rewrite_oid_internal(PG_FUNCTION_ARGS);
+extern Datum pg_event_trigger_table_rewrite_reason_internal(PG_FUNCTION_ARGS);
 extern Datum pg_event_trigger_ddl_commands_internal(PG_FUNCTION_ARGS);
 
 /* commands/extension.c */

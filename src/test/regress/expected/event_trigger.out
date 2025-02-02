@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS gp_aux_catalog;
 -- should fail, return type mismatch
 create event trigger regress_event_trigger
    on ddl_command_start
