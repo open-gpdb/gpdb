@@ -11,7 +11,7 @@ ENV YEZZEY_REF=${yezzeyRef:-v1.8_opengpdb}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN useradd -rm -d /home/krebs -s /bin/bash -g root -G sudo -u 1001 krebs
+RUN useradd -rm -d /home/gpadmin -s /bin/bash -g root -G sudo -u 1001 gpadmin
 
 RUN ln -snf /usr/share/zoneinfo/Europe/London /etc/localtime && echo Europe/London > /etc/timezone \
 && apt-get update -o Acquire::AllowInsecureRepositories=true && apt-get install -y --no-install-recommends --allow-unauthenticated \
@@ -31,14 +31,14 @@ RUN apt-get install -y locales \
 && locale-gen "en_US.UTF-8" \
 && update-locale LC_ALL="en_US.UTF-8"
 
-RUN echo 'krebs ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers
+RUN echo 'gpadmin ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers
 
-USER krebs
-WORKDIR /home/krebs
+USER gpadmin
+WORKDIR /home/gpadmin
 
-COPY yezzey_test/generate_ssh_key.sh /home/krebs/
+COPY yezzey_test/generate_ssh_key.sh /home/gpadmin/
 
-RUN ["/home/krebs/generate_ssh_key.sh"]
+RUN ["/home/gpadmin/generate_ssh_key.sh"]
 
 
 RUN cd /tmp/ \
@@ -52,21 +52,21 @@ RUN cd /tmp/ \
 && mkdir build && cd build && cmake .. && make \
 && sudo make install
 
-COPY . /home/krebs
+COPY . /home/gpadmin
 
 RUN sudo DEBIAN_FRONTEND=noninteractive ./README.ubuntu.bash \
 && sudo apt install -y libhyperic-sigar-java libaprutil1-dev libuv1-dev
 
 RUN sudo mkdir /usr/local/gpdb \
-&& sudo chown krebs:root /usr/local/gpdb
+&& sudo chown gpadmin:root /usr/local/gpdb
 
-RUN sudo chown -R krebs:root /home/krebs \
+RUN sudo chown -R gpadmin:root /home/gpadmin \
 && git status
 
 RUN  git submodule update --init 
 RUN rm -fr gpcontrib/yezzey 
 
-RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey -b ${YEZZEY_REF} && cd /home/krebs 
+RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey -b ${YEZZEY_REF} && cd /home/gpadmin 
 
 RUN sed -i '/^trusted/d' gpcontrib/yezzey/yezzey.control 
 RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=/usr/local/gpdb \

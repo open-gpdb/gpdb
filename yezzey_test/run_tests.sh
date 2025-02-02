@@ -4,7 +4,7 @@ set -ex
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_rsa
 sudo service ssh start
-ssh -o StrictHostKeyChecking=no krebs@$(hostname) "echo 'Hello world'"
+ssh -o StrictHostKeyChecking=no gpadmin@$(hostname) "echo 'Hello world'"
 
 sudo bash -c 'cat >> /etc/ld.so.conf <<-EOF
 /usr/local/lib
@@ -48,7 +48,7 @@ export GPHOME=/usr/local/gpdb
 source $GPHOME/greenplum_path.sh
 ulimit -n 65536
 make destroy-demo-cluster && make create-demo-cluster
-export USER=krebs
+export USER=gpadmin
 source gpAux/gpdemo/gpdemo-env.sh
 
 gpconfig -c shared_preload_libraries -v yezzey
@@ -64,4 +64,4 @@ createdb $USER
 /usr/bin/yproxy -c /tmp/yproxy.yaml -ldebug > /dev/null 2>&1 &
 
 cd gpcontrib/yezzey
-make installcheck || (cat /home/krebs/gpcontrib/yezzey/regression.diffs && exit 1)
+make installcheck || (cat /home/gpadmin/gpcontrib/yezzey/regression.diffs && exit 1)
