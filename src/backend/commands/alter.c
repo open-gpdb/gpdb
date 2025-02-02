@@ -912,7 +912,7 @@ AlterObjectOwner_internal(Relation rel, Oid objectId, Oid new_ownerId)
 		bool	   *replaces;
 		bool		mdb_admin_can_take = !superuser_arg(old_ownerId);
 		Oid			mdb_admin = get_role_oid("mdb_admin", true);
-		bool		is_mdb_admin = is_member_of_role(GetUserId(), mdb_admin);
+		bool		is_mdb_admin = OidIsValid(mdb_admin) && is_member_of_role(GetUserId(), mdb_admin);
 		bool		bypass_owner_checks = mdb_admin_can_take && is_mdb_admin;
 
 		/* Superusers can bypass permission checks */
