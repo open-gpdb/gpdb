@@ -4826,7 +4826,7 @@ LOCATION (
 )
 FORMAT 'CUSTOM' (formatter='gpformatter');
 SELECT * FROM tbl_ext_gpformatter;
-ERROR:  unexpected end of file (fileam.c:1098)  (seg0 slice1 127.0.1.1:6002 pid=155340) (fileam.c:1086)
+ERROR:  unexpected end of file (fileam.c:1096)  (seg0 slice1 127.0.1.1:6002 pid=155340) (fileam.c:1086)
 CONTEXT:  External table tbl_ext_gpformatter
 COMMIT;
 --
