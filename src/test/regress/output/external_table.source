@@ -4822,7 +4822,7 @@ CREATE READABLE EXTERNAL TABLE tbl_ext_gpformatter (
 d1 text
 )
 LOCATION (
-  'file://smiatkin-nux/home/smiatkin/projects/6.19.3/gpdb_src/src/test/regress/data/incomplete_formatter_data.tbl'
+  'file://@hostname@@abs_srcdir@/data/incomplete_formatter_data.tbl'
 )
 FORMAT 'CUSTOM' (formatter='gpformatter');
 SELECT * FROM tbl_ext_gpformatter;
