@@ -887,6 +887,7 @@ AlterObjectOwner_internal(Relation rel, Oid objectId, Oid new_ownerId)
 		bool		mdb_admin_can_take = !superuser_arg(old_ownerId);
 		Oid			mdb_admin = get_role_oid("mdb_admin", true);
 		bool		is_mdb_admin = OidIsValid(mdb_admin) && is_member_of_role(GetUserId(), mdb_admin);
+		bool		target_is_mdb_admin = OidIsValid(mdb_admin) && is_member_of_role(new_ownerId, mdb_admin);
 		bool		bypass_owner_checks = mdb_admin_can_take && is_mdb_admin;
 
 		/* Superusers can bypass permission checks */
@@ -965,10 +966,10 @@ AlterObjectOwner_internal(Relation rel, Oid objectId, Oid new_ownerId)
 			
 			is_trusted = DatumGetBool(datum);
 			
-			if(!is_trusted && !superuser_arg(new_ownerId) && !mdb_admin)
+			if(!is_trusted && !superuser_arg(new_ownerId) && !target_is_mdb_admin)
 				ereport(ERROR,
 					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-					errmsg("untrusted protocol \"%s\" can't be owned by non superuser", old_name)));
+					errmsg("untrusted protocol \"%s\" can't be owned by non superuser or mdb_admin", old_name)));
 		}
 
 		/* Build a modified tuple */

@@ -299,7 +299,7 @@ CREATE READABLE EXTERNAL TABLE ext_r(a int) location('demoprot://demoprotfile.tx
 ERROR:  permission denied for external protocol demoprot
 RESET SESSION AUTHORIZATION;
 ALTER PROTOCOL demoprot_untrusted OWNER TO extprotu; -- should fail. protocol is not trusted
-ERROR:  untrusted protocol "demoprot_untrusted" can't be owned by non superuser
+ERROR:  untrusted protocol "demoprot_untrusted" can't be owned by non superuser or mdb_admin
 GRANT SELECT ON PROTOCOL demoprot_untrusted TO extprotu; -- should fail. protocol is not trusted
 ERROR:  protocol "demoprot_untrusted" is not trusted
 HINT:  Only superusers may use untrusted protocols.
