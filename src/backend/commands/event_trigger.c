@@ -1200,6 +1200,8 @@ EventTriggerSupportsGrantObjectType(GrantObjectType objtype)
 		case ACL_OBJECT_LARGEOBJECT:
 		case ACL_OBJECT_NAMESPACE:
 		case ACL_OBJECT_TYPE:
+		/* opengpdb addon */
+		case ACL_OBJECT_EXTPROTOCOL:
 			return true;
 		default:
 			Assert(false);
