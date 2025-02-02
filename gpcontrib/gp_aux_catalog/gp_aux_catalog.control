@@ -1,0 +1,6 @@
+# gp_aux_catalog extension
+comment = 'provides aux catalog functionality'
+default_version = '1.0'
+module_pathname = '$libdir/gp_aux_catalog'
+relocatable = true
+

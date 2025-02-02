@@ -1935,7 +1935,7 @@ EventTriggerCollectAlterDefPrivs(AlterDefaultPrivilegesStmt *stmt)
  * being run.
  */
 Datum
-pg_event_trigger_ddl_commands(PG_FUNCTION_ARGS)
+pg_event_trigger_ddl_commands_internal(PG_FUNCTION_ARGS)
 {
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
 	TupleDesc	tupdesc;
