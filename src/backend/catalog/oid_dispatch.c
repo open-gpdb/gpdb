@@ -69,7 +69,6 @@
 
 #include "postgres.h"
 
-#include "access/fasttab.h"
 #include "catalog/pg_amop.h"
 #include "catalog/pg_amproc.h"
 #include "catalog/pg_attrdef.h"
@@ -115,6 +114,7 @@
 #include "utils/memutils.h"
 #include "utils/rbtree.h"
 #include "miscadmin.h"
+#include "access/fasttab.h"
 
 /* #define OID_DISPATCH_DEBUG */
 

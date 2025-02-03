@@ -16,7 +16,6 @@
 
 #include "postgres.h"
 
-#include "access/fasttab.h"
 #include "access/xact.h"
 #include "libpq-fe.h"
 #include "libpq-int.h"
@@ -50,6 +49,7 @@
 #include "cdb/cdbcopy.h"
 #include "executor/execUtils.h"
 
+#include "access/fasttab.h"
 
 #define QUERY_STRING_TRUNCATE_SIZE (1024)
 

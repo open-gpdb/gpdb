@@ -339,7 +339,7 @@ fasttab_set_relpersistence_hint(char relpersistence)
 
 
 char
-fasttab_get_relpersistence_hint(void)
+fasttab_get_relpersistence_hint()
 {
 	return CurrentRelpersistenceHint;
 }
@@ -871,8 +871,10 @@ fasttab_deserialize(int queryTupleLen, char *ser)
 	Datum			tup_values[MaxHeapAttributeNumber];
 	Relation		tupRel;
 	MemTupleBinding	*mt_bind;
+	MemTuple		memtup;
 	HeapTuple		ht;
 	int idx;
+	int srSz;
 	int srOff;
 	int itemLen;
 	int lastIndex;
@@ -918,12 +920,12 @@ fasttab_deserialize(int queryTupleLen, char *ser)
 			mt_bind = create_memtuple_binding(RelationGetDescr(tupRel));
 		}
 
-		memtuple_deform((MemTuple)currMemTuple, mt_bind, tup_values, tup_isnull);
+		memtuple_deform(currMemTuple, mt_bind, tup_values, tup_isnull);
 
 		ht = heap_form_tuple(RelationGetDescr(tupRel), tup_values, tup_isnull);
 
 		if (mtbind_has_oid(mt_bind))
-			HeapTupleSetOid(ht, MemTupleGetOid((MemTuple) currMemTuple, mt_bind));
+			HeapTupleSetOid(ht, MemTupleGetOid(currMemTuple, mt_bind));
 
 #ifdef FASTTAB_DEBUG
 		elog(NOTICE, "FASTTAB: fasttab_deserialize tuple, memtup oid = %d, heaptup oid = %d, relation relid = %d",
@@ -1962,12 +1964,10 @@ fasttab_index_getbitmap(IndexScanDesc scan, Node **bitmap, int64 *result)
 {
 	int64		ntids = 0;
 	bool		heap_opened = false;
-	TIDBitmap	*tbm;
 
 
 	/* XXX should we use less than work_mem for this? */
-	tbm = tbm_create(work_mem * 1024L);
-	*bitmap = (Node *) tbm;
+	*bitmap = tbm_create(work_mem * 1024L);
 
 	Assert(PointerIsValid(scan->indexRelation));
 
@@ -1998,7 +1998,7 @@ fasttab_index_getbitmap(IndexScanDesc scan, Node **bitmap, int64 *result)
 
 	while (fasttab_index_getnext_tid_merge(scan, ForwardScanDirection))
 	{
-		tbm_add_tuples(tbm, &scan->xs_ctup.t_self, 1, false);
+		tbm_add_tuples(bitmap, &scan->xs_ctup.t_self, 1, false);
 		ntids++;
 	}
 

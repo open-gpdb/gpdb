@@ -50,8 +50,7 @@ extern bool IsFasttabHandledRelationId(Oid relId);
 extern bool IsFasttabHandledIndexId(Oid indexId);
 
 extern void fasttab_set_relpersistence_hint(char relpersistence);
-
-extern char fasttab_get_relpersistence_hint(void);
+extern char fasttab_get_relpersistence_hint();
 
 extern void fasttab_clear_relpersistence_hint(void);
 
