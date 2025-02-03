@@ -157,10 +157,6 @@ static FasttabRelationMethodsData FasttabRelationMethodsTable[] =
 	{StatisticRelationId, &generic_is_inmem_tuple, 1,
 		{Anum_pg_statistic_starelid, 0}
 	},
-	/* 6105 */
-	{AppendOnlyRelationId, &generic_is_inmem_tuple, 1,
-		{Anum_pg_appendonly_relid, 0}
-	},
 };
 
 /* Number of tables that can have a virtual part */
@@ -268,11 +264,6 @@ static FasttabIndexMethodsData FasttabIndexMethodsTable[] =
 	{ClassTblspcRelfilenodeIndexId, 2,
 		{Anum_pg_class_reltablespace, Anum_pg_class_relfilenode, 0},
 		{CompareOid, CompareOid, CompareInvalid}
-	},
-	/* 5007, unique */
-	{AppendOnlyRelidIndexId, 1,
-		{Anum_pg_appendonly_relid, 0},
-		{CompareOid, CompareInvalid}
 	},
 };
 
