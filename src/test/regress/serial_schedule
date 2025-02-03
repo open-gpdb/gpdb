@@ -154,4 +154,4 @@ test: xml
 test: event_trigger
 test: stats
 test: createdb
-ignore: fast_temp
+test: fast_temp
