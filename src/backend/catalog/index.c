@@ -2688,7 +2688,7 @@ IndexBuildHeapScan(Relation heapRelation,
 		 * They are mixed in during index scans right from the virtual heap
 		 * instead.
 		 */
-		if (!RelationIsAppendOptimized(scan->rs_rd) && IsFasttabItemPointer(&heapTuple->t_self))
+		if (IsFasttabItemPointer(&heapTuple->t_self))
 			continue;
 
 		CHECK_FOR_INTERRUPTS();
