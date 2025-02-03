@@ -65,4 +65,6 @@ createdb $USER
 
 cd gpcontrib/yezzey
 make installcheck || (cat /home/gpadmin/gpcontrib/yezzey/regression.diffs && exit 1)
+git submodule init
+git submodule update
 make test || (exit 1)
