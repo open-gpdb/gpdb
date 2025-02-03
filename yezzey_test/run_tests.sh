@@ -64,7 +64,18 @@ createdb $USER
 /usr/bin/yproxy -c /tmp/yproxy.yaml -ldebug > /dev/null 2>&1 &
 
 cd gpcontrib/yezzey
+
 make installcheck || (cat /home/gpadmin/gpcontrib/yezzey/regression.diffs && exit 1)
+if [ $? -eq 1 ]
+then
+  cat /home/gpadmin/gpcontrib/yezzey/regression.diffs
+	exit 1
+fi
+
 git submodule init
 git submodule update
 make test || (exit 1)
+if [ $? -eq 1 ]
+then
+	exit 1
+fi
