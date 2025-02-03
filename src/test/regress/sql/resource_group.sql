@@ -26,10 +26,11 @@ CREATE ROLE role_dump_test1 RESOURCE GROUP rg_dump_test1;
 CREATE ROLE role_dump_test2 RESOURCE GROUP rg_dump_test2;
 CREATE ROLE role_dump_test3 RESOURCE GROUP rg_dump_test3;
 
-CREATE ROLE mdb_admin RESOURCE GROUP rg_dump_test1;
+CREATE ROLE mdb_admin_x RESOURCE GROUP rg_dump_test1;
+GRANT mdb_admin TO mdb_admin_x;
 CREATE ROLE not_mdb_admin RESOURCE GROUP rg_dump_test1;
 
-SET ROLE mdb_admin;
+SET ROLE mdb_admin_x;
 
 CREATE RESOURCE GROUP mdb_admin_test1 WITH (concurrency=2, cpu_rate_limit=5, memory_limit=5);
 CREATE RESOURCE GROUP mdb_admin_test2 WITH (concurrency=2, cpu_rate_limit=5, memory_limit=5);
@@ -47,5 +48,5 @@ DROP RESOURCE GROUP admin_group;
 
 RESET ROLE;
 DROP RESOURCE GROUP mdb_admin_test2;
-DROP ROLE mdb_admin;
+DROP ROLE mdb_admin_x;
 DROP ROLE not_mdb_admin;
