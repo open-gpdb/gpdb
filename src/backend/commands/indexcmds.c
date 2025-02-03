@@ -2687,7 +2687,7 @@ ReindexDatabase(ReindexStmt *stmt)
 			continue;
 
 		/* Skip temp tables of other backends; we can't reindex them at all */
-		if ((classtuple->relpersistence == RELPERSISTENCE_TEMP || classtuple->relpersistence == RELPERSISTENCE_FAST_TEMP) &&
+		if (classtuple->relpersistence == RELPERSISTENCE_TEMP &&
 			!isTempNamespace(classtuple->relnamespace))
 			continue;
 

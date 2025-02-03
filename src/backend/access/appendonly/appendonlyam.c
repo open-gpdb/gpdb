@@ -2965,7 +2965,7 @@ appendonly_insert(AppendOnlyInsertDesc aoInsertDesc,
 		 * object store (objects need to contain pointers to one another).
 		 */
 		if (!OidIsValid(tupleOid))
-			tupleOid = GetNewOid(relation, '\0');
+			tupleOid = GetNewOid(relation);
 
 		MemTupleSetOid(tup, aoInsertDesc->mt_bind, tupleOid);
 	}

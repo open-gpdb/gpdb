@@ -507,7 +507,7 @@ createdb(const CreatedbStmt *stmt)
 	{
 		do
 		{
-			dboid = GetNewOid(pg_database_rel, '\0');
+			dboid = GetNewOid(pg_database_rel);
 		} while (check_db_file_conflict(dboid));
 	}
 

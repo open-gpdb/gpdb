@@ -39,8 +39,6 @@
 #include "access/reloptions.h"
 #include "access/xact.h"
 #include "catalog/aocatalog.h"
-#include "access/xlog.h"
-#include "access/fasttab.h"
 #include "catalog/binary_upgrade.h"
 #include "catalog/catalog.h"
 #include "catalog/dependency.h"
@@ -1357,7 +1355,7 @@ AddNewRelationType(const char *typeName,
  *	tupdesc: tuple descriptor (source of column definitions)
  *	cooked_constraints: list of precooked check constraints and defaults
  *	relkind: relkind for new rel
- *	relpersistence: rel's persistence status (permanent, temp, fast temp or unlogged)
+ *	relpersistence: rel's persistence status (permanent, temp, or unlogged)
  *	shared_relation: TRUE if it's to be a shared relation
  *	mapped_relation: TRUE if the relation will use the relfilenode map
  *	oidislocal: TRUE if oid column (if any) should be marked attislocal
@@ -1419,8 +1417,6 @@ heap_create_with_catalog(const char *relname,
 	StdRdOptions *stdRdOptions;
 	int			safefswritesize = gp_safefswritesize;
 	char	   *relarrayname = NULL;
-
-	fasttab_set_relpersistence_hint(relpersistence);
 
 	pg_class_desc = heap_open(RelationRelationId, RowExclusiveLock);
 
@@ -1519,8 +1515,8 @@ heap_create_with_catalog(const char *relname,
 	 * GP_ROLE_DISPATCH and GP_ROLE_UTILITY do not have preassigned OIDs.
 	 * Allocate new OIDs here.
 	 */
-	if (!OidIsValid(relid) && (Gp_role != GP_ROLE_EXECUTE))
-		relid = GetNewOid(pg_class_desc, relpersistence);
+	if (!OidIsValid(relid) && Gp_role != GP_ROLE_EXECUTE)
+		relid = GetNewOid(pg_class_desc);
 
 	/*
 	 * Determine the relation's initial permissions.
@@ -1611,104 +1607,76 @@ heap_create_with_catalog(const char *relname,
 													 true);
 
 			if (new_array_oid == InvalidOid && IsBinaryUpgrade)
-				new_array_oid = GetNewOid(pg_type, '\0');
+				new_array_oid = GetNewOid(pg_type);
 		}
 		else
-			new_array_oid = GetNewOid(pg_type, '\0');
+			new_array_oid = GetNewOid(pg_type);
 		heap_close(pg_type, AccessShareLock);
 	}
 
-	PG_TRY();
+	/*
+	 * Since defining a relation also defines a complex type, we add a new
+	 * system type corresponding to the new relation.  The OID of the type can
+	 * be preselected by the caller, but if reltypeid is InvalidOid, we'll
+	 * generate a new OID for it.
+	 *
+	 * NOTE: we could get a unique-index failure here, in case someone else is
+	 * creating the same type name in parallel but hadn't committed yet when
+	 * we checked for a duplicate name above.
+	 */
+	new_type_addr = AddNewRelationType(relname,
+									   relnamespace,
+									   relid,
+									   relkind,
+									   ownerid,
+									   reltypeid,
+									   new_array_oid);
+	new_type_oid = new_type_addr.objectId;
+	if (typaddress)
+		*typaddress = new_type_addr;
+
+	/*
+	 * Now make the array type if wanted.
+	 */
+	if (OidIsValid(new_array_oid))
 	{
 		if (!relarrayname)
 			relarrayname = makeArrayTypeName(relname, relnamespace);
-		/* Set a relpersistence hint. See procedure description. */
-		fasttab_set_relpersistence_hint(relpersistence);
 
-		/*
-		 * Since defining a relation also defines a complex type, we add a new
-		 * system type corresponding to the new relation.  The OID of the type
-		 * can be preselected by the caller, but if reltypeid is InvalidOid,
-		 * we'll generate a new OID for it.
-		 *
-		 * NOTE: we could get a unique-index failure here, in case someone
-		 * else is creating the same type name in parallel but hadn't
-		 * committed yet when we checked for a duplicate name above.
-		 */
-		new_type_addr = AddNewRelationType(relname,
-										   relnamespace,
-										   relid,
-										   relkind,
-										   ownerid,
-										   reltypeid,
-										   new_array_oid);
+		TypeCreate(new_array_oid,		/* force the type's OID to this */
+				   relarrayname,	/* Array type name */
+				   relnamespace,	/* Same namespace as parent */
+				   InvalidOid,	/* Not composite, no relationOid */
+				   0,			/* relkind, also N/A here */
+				   ownerid,		/* owner's ID */
+				   -1,			/* Internal size (varlena) */
+				   TYPTYPE_BASE,	/* Not composite - typelem is */
+				   TYPCATEGORY_ARRAY,	/* type-category (array) */
+				   false,		/* array types are never preferred */
+				   DEFAULT_TYPDELIM,	/* default array delimiter */
+				   F_ARRAY_IN,	/* array input proc */
+				   F_ARRAY_OUT, /* array output proc */
+				   F_ARRAY_RECV,	/* array recv (bin) proc */
+				   F_ARRAY_SEND,	/* array send (bin) proc */
+				   InvalidOid,	/* typmodin procedure - none */
+				   InvalidOid,	/* typmodout procedure - none */
+				   F_ARRAY_TYPANALYZE,	/* array analyze procedure */
+				   new_type_oid,	/* array element type - the rowtype */
+				   true,		/* yes, this is an array type */
+				   InvalidOid,	/* this has no array type */
+				   InvalidOid,	/* domain base type - irrelevant */
+				   NULL,		/* default value - none */
+				   NULL,		/* default binary representation */
+				   false,		/* passed by reference */
+				   'd',			/* alignment - must be the largest! */
+				   'x',			/* fully TOASTable */
+				   -1,			/* typmod */
+				   0,			/* array dimensions for typBaseType */
+				   false,		/* Type NOT NULL */
+				   InvalidOid); /* rowtypes never have a collation */
 
-		/* Clear relpersistence hint. */
-		fasttab_clear_relpersistence_hint();
-
-		new_type_oid = new_type_addr.objectId;
-		if (typaddress)
-			*typaddress = new_type_addr;
-
-		/*
-		 * Now make the array type if wanted.
-		 */
-		if (OidIsValid(new_array_oid))
-		{
-			char	   *relarrayname;
-
-			relarrayname = makeArrayTypeName(relname, relnamespace);
-
-			/* Set a relpersistence hint. See procedure description. */
-			fasttab_set_relpersistence_hint(relpersistence);
-
-			TypeCreate(new_array_oid,	/* force the type's OID to this */
-					   relarrayname,	/* Array type name */
-					   relnamespace,	/* Same namespace as parent */
-					   InvalidOid,		/* Not composite, no relationOid */
-					   0,		/* relkind, also N/A here */
-					   ownerid, /* owner's ID */
-					   -1,		/* Internal size (varlena) */
-					   TYPTYPE_BASE,	/* Not composite - typelem is */
-					   TYPCATEGORY_ARRAY,		/* type-category (array) */
-					   false,	/* array types are never preferred */
-					   DEFAULT_TYPDELIM,		/* default array delimiter */
-					   F_ARRAY_IN,		/* array input proc */
-					   F_ARRAY_OUT,		/* array output proc */
-					   F_ARRAY_RECV,	/* array recv (bin) proc */
-					   F_ARRAY_SEND,	/* array send (bin) proc */
-					   InvalidOid,		/* typmodin procedure - none */
-					   InvalidOid,		/* typmodout procedure - none */
-					   F_ARRAY_TYPANALYZE,		/* array analyze procedure */
-					   new_type_oid,	/* array element type - the rowtype */
-					   true,	/* yes, this is an array type */
-					   InvalidOid,		/* this has no array type */
-					   InvalidOid,		/* domain base type - irrelevant */
-					   NULL,	/* default value - none */
-					   NULL,	/* default binary representation */
-					   false,	/* passed by reference */
-					   'd',		/* alignment - must be the largest! */
-					   'x',		/* fully TOASTable */
-					   -1,		/* typmod */
-					   0,		/* array dimensions for typBaseType */
-					   false,	/* Type NOT NULL */
-					   InvalidOid);		/* rowtypes never have a collation */
-
-			/* Clear relpersistence hint. */
-			fasttab_clear_relpersistence_hint();
-
-			pfree(relarrayname);
-		}
-
+		pfree(relarrayname);
 	}
-	PG_CATCH();
-	{
-		/* clear relpersistence hint in case of error */
-		fasttab_clear_relpersistence_hint();
-		PG_RE_THROW();
-	}
-	PG_END_TRY();
-
 
 	/*
 	 * now create an entry in pg_class for the relation.
@@ -1794,7 +1762,7 @@ heap_create_with_catalog(const char *relname,
 
 		recordDependencyOnNewAcl(RelationRelationId, relid, 0, ownerid, relacl);
 
-		if (relpersistence != RELPERSISTENCE_TEMP && relpersistence != RELPERSISTENCE_FAST_TEMP)
+		if (relpersistence != RELPERSISTENCE_TEMP)
 			recordDependencyOnCurrentExtension(&myself, false);
 
 		if (reloftypeid)
@@ -1923,8 +1891,6 @@ heap_create_with_catalog(const char *relname,
 	 */
 	heap_close(new_rel_desc, NoLock);	/* do not unlock till end of xact */
 	heap_close(pg_class_desc, RowExclusiveLock);
-
-	fasttab_clear_relpersistence_hint();
 
 	return relid;
 }

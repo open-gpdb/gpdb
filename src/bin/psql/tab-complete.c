@@ -761,7 +761,6 @@ static const pgsql_thing_t words_after_create[] = {
 	{"DOMAIN", NULL, &Query_for_list_of_domains},
 	{"EVENT TRIGGER", NULL, NULL},
 	{"EXTENSION", Query_for_list_of_extensions},
-	{"FAST TEMP", NULL, NULL, THING_NO_DROP},		/* for CREATE FAST TEMP TABLE ... */
 	{"FOREIGN DATA WRAPPER", NULL, NULL},
 	{"FOREIGN TABLE", NULL, NULL},
 	{"FUNCTION", NULL, &Query_for_list_of_functions},
@@ -2276,7 +2275,7 @@ psql_completion(const char *text, int start, int end)
 	/* Complete "CREATE TEMP/TEMPORARY" with the possible temp objects */
 	else if (pg_strcasecmp(prev2_wd, "CREATE") == 0 &&
 			 (pg_strcasecmp(prev_wd, "TEMP") == 0 ||
-			  pg_strcasecmp(prev_wd, "TEMPORARY") == 0) || pg_strcasecmp(prev3_wd, "CREATE") == 0 && pg_strcasecmp(prev2_wd, "FAST") == 0 && pg_strcasecmp(prev_wd, "TEMP") == 0)
+			  pg_strcasecmp(prev_wd, "TEMPORARY") == 0))
 	{
 		static const char *const list_TEMP[] =
 		{"SEQUENCE", "TABLE", "VIEW", NULL};

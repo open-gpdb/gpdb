@@ -2156,7 +2156,7 @@ AssignTypeArrayOid(void)
 	{
 		Relation	pg_type = heap_open(TypeRelationId, AccessShareLock);
 
-		type_array_oid = GetNewOid(pg_type, '\0');
+		type_array_oid = GetNewOid(pg_type);
 		heap_close(pg_type, AccessShareLock);
 	}
 

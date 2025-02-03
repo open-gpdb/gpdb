@@ -114,7 +114,6 @@
 #include "utils/memutils.h"
 #include "utils/rbtree.h"
 #include "miscadmin.h"
-#include "access/fasttab.h"
 
 /* #define OID_DISPATCH_DEBUG */
 
@@ -954,9 +953,6 @@ AddDispatchOidFromTuple(Relation catalogrel, HeapTuple tuple)
 	MemoryContext oldcontext;
 	bool		found;
 	bool		exempt;
-
-	if (fasttab_get_relpersistence_hint() == RELPERSISTENCE_FAST_TEMP) 
-		return;
 
 	if (Gp_role == GP_ROLE_EXECUTE || IsBootstrapProcessingMode())
 		return;

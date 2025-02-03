@@ -295,7 +295,7 @@ RangeVarGetRelidExtended(const RangeVar *relation, LOCKMODE lockmode,
 		 * operation, which must be careful to find the temp table, even when
 		 * pg_temp is not first in the search path.
 		 */
-		if (relation->relpersistence == RELPERSISTENCE_TEMP || relation->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		if (relation->relpersistence == RELPERSISTENCE_TEMP)
 		{
 			if (!OidIsValid(myTempNamespace))
 				relId = InvalidOid;		/* this probably can't happen? */
@@ -474,7 +474,7 @@ RangeVarGetCreationNamespace(const RangeVar *newRelation)
 		namespaceId = get_namespace_oid(newRelation->schemaname, false);
 		/* we do not check for USAGE rights here! */
 	}
-	else if (newRelation->relpersistence == RELPERSISTENCE_TEMP || newRelation->relpersistence == RELPERSISTENCE_FAST_TEMP)
+	else if (newRelation->relpersistence == RELPERSISTENCE_TEMP)
 	{
 		/* Initialize temp namespace if first time through */
 		if (!OidIsValid(myTempNamespace))
@@ -642,7 +642,6 @@ RangeVarAdjustRelationPersistence(RangeVar *newRelation, Oid nspid)
 	switch (newRelation->relpersistence)
 	{
 		case RELPERSISTENCE_TEMP:
-		case RELPERSISTENCE_FAST_TEMP:
 			if (!isTempOrToastNamespace(nspid))
 			{
 				if (isAnyTempNamespace(nspid))

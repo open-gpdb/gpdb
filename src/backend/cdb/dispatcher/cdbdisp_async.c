@@ -93,6 +93,7 @@ typedef struct CdbDispatchCmdAsync
 	 */
 	char	   *query_text;
 	int			query_text_len;
+
 } CdbDispatchCmdAsync;
 
 static void *cdbdisp_makeDispatchParams_async(int maxSlices, int largestGangSize, char *queryText, int len);

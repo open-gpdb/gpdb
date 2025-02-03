@@ -2143,8 +2143,7 @@ do_autovacuum(void)
 		 * Check if it is a temp table (presumably, of some other backend's).
 		 * We cannot safely process other backends' temp tables.
 		 */
-		if (classForm->relpersistence == RELPERSISTENCE_TEMP ||
-			classForm->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		if (classForm->relpersistence == RELPERSISTENCE_TEMP)
 		{
 			int			backendID;
 			PGPROC	   *proc;
@@ -2257,8 +2256,7 @@ do_autovacuum(void)
 		/*
 		 * We cannot safely process other backends' temp tables, so skip 'em.
 		 */
-		if (classForm->relpersistence == RELPERSISTENCE_TEMP ||
-			classForm->relpersistence == RELPERSISTENCE_FAST_TEMP)
+		if (classForm->relpersistence == RELPERSISTENCE_TEMP)
 			continue;
 
 		relid = HeapTupleGetOid(tuple);

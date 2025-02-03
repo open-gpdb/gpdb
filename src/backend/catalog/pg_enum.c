@@ -95,7 +95,7 @@ EnumValuesCreate(Oid enumTypeOid, List *vals)
 		{
 			do
 			{
-				new_oid = GetNewOid(pg_enum, '\0');
+				new_oid = GetNewOid(pg_enum);
 			} while (new_oid & 1);
 		}
 		oids[elemno] = new_oid;
@@ -370,7 +370,7 @@ restart:
 			bool		sorts_ok;
 
 			/* Get a new OID (different from all existing pg_enum tuples) */
-			newOid = GetNewOid(pg_enum, '\0');
+			newOid = GetNewOid(pg_enum);
 
 			/*
 			 * Detect whether it sorts correctly relative to existing

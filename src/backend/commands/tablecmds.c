@@ -31,8 +31,6 @@
 #include "access/tupconvert.h"
 #include "access/xact.h"
 #include "catalog/aocatalog.h"
-#include "access/xlog.h"
-#include "access/fasttab.h"
 #include "catalog/catalog.h"
 #include "catalog/dependency.h"
 #include "catalog/heap.h"
@@ -616,8 +614,7 @@ DefineRelation(CreateStmt *stmt,
 	 * Check consistency of arguments
 	 */
 	if (stmt->oncommit != ONCOMMIT_NOOP
-		&& stmt->relation->relpersistence != RELPERSISTENCE_TEMP
-		&& stmt->relation->relpersistence != RELPERSISTENCE_FAST_TEMP)
+		&& stmt->relation->relpersistence != RELPERSISTENCE_TEMP)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
 				 errmsg("ON COMMIT can only be used on temporary tables")));
@@ -640,8 +637,7 @@ DefineRelation(CreateStmt *stmt,
 	 * code.  This is needed because calling code might not expect untrusted
 	 * tables to appear in pg_temp at the front of its search path.
 	 */
-	if ((stmt->relation->relpersistence == RELPERSISTENCE_TEMP ||
-		 stmt->relation->relpersistence == RELPERSISTENCE_FAST_TEMP)
+	if (stmt->relation->relpersistence == RELPERSISTENCE_TEMP
 		&& InSecurityRestrictedOperation())
 		ereport(ERROR,
 				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -2255,9 +2251,7 @@ MergeAttributes(List *schema, List *supers, char relpersistence, bool isPartitio
 							parent->relname)));
 		/* Permanent rels cannot inherit from temporary ones */
 		if (relpersistence != RELPERSISTENCE_TEMP &&
-			relpersistence != RELPERSISTENCE_FAST_TEMP &&
-			(relation->rd_rel->relpersistence == RELPERSISTENCE_TEMP ||
-			 relation->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP))
+			relation->rd_rel->relpersistence == RELPERSISTENCE_TEMP)
 			ereport(ERROR,
 					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 					 errmsg("cannot inherit from temporary relation \"%s\"",
@@ -2271,8 +2265,7 @@ MergeAttributes(List *schema, List *supers, char relpersistence, bool isPartitio
 							parent->relname)));
 
 		/* If existing rel is temp, it must belong to this session */
-		if ((relation->rd_rel->relpersistence == RELPERSISTENCE_TEMP ||
-			 relation->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP) &&
+		if (relation->rd_rel->relpersistence == RELPERSISTENCE_TEMP &&
 			!relation->rd_islocaltemp)
 			ereport(ERROR,
 					(errcode(ERRCODE_WRONG_OBJECT_TYPE),
@@ -9594,9 +9587,7 @@ ATAddForeignKeyConstraint(AlteredTableInfo *tab, Relation rel,
 						 errmsg("constraints on unlogged tables may reference only permanent or unlogged tables")));
 			break;
 		case RELPERSISTENCE_TEMP:
-		case RELPERSISTENCE_FAST_TEMP:
-			if (pkrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP &&
-				pkrel->rd_rel->relpersistence != RELPERSISTENCE_FAST_TEMP)
+			if (pkrel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
 				ereport(ERROR,
 						(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
 						 errmsg("constraints on temporary tables may reference only temporary tables")));
@@ -14017,30 +14008,12 @@ ATExecAddInherit(Relation child_rel, Node *node, LOCKMODE lockmode)
 	ATSimplePermissions(parent_rel, ATT_TABLE);
 
 	/* Permanent rels cannot inherit from temporary ones */
-	if ((parent_rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP ||
-		 parent_rel->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP) &&
-		(child_rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP &&
-		 child_rel->rd_rel->relpersistence != RELPERSISTENCE_FAST_TEMP))
+	if (parent_rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP &&
+		child_rel->rd_rel->relpersistence != RELPERSISTENCE_TEMP)
 		ereport(ERROR,
 				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 				 errmsg("cannot inherit from temporary relation \"%s\"",
 						RelationGetRelationName(parent_rel))));
-						
-	/* If parent rel is temp, it must belong to this session */
-	if ((parent_rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP ||
-		 parent_rel->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP) &&
-		!parent_rel->rd_islocaltemp)
-		ereport(ERROR,
-				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-		errmsg("cannot inherit from temporary relation of another session")));
-
-	/* Ditto for the child */
-	if ((child_rel->rd_rel->relpersistence == RELPERSISTENCE_TEMP ||
-		 child_rel->rd_rel->relpersistence == RELPERSISTENCE_FAST_TEMP) &&
-		!child_rel->rd_islocaltemp)
-		ereport(ERROR,
-				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
-		 errmsg("cannot inherit to temporary relation of another session")));
 
 	if (is_partition)
 	{
@@ -17461,7 +17434,7 @@ ATPExecPartExchange(AlteredTableInfo *tab, Relation rel, AlterPartitionCmd *pc)
 			if (Gp_role == GP_ROLE_EXECUTE)
 				array_oid = GetPreassignedOidForType(newnspid, relarrayname, true);
 			else
-				array_oid = GetNewOid(typrel, '\0');
+				array_oid = GetNewOid(typrel);
 
 			heap_close(typrel, AccessShareLock);
 

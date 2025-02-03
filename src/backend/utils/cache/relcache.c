@@ -569,11 +569,8 @@ RelationBuildTupleDesc(Relation relation)
 			ndef++;
 		}
 		need--;
-		if (need == -1) need = 0;
-		/*
 		if (need == 0)
 			break;
-		*/
 	}
 
 	/*
@@ -930,7 +927,6 @@ RelationBuildDesc(Oid targetRelId, bool insertIt)
 			relation->rd_islocaltemp = false;
 			break;
 		case RELPERSISTENCE_TEMP:
-		case RELPERSISTENCE_FAST_TEMP:
 			if (isTempOrToastNamespace(relation->rd_rel->relnamespace))
 			{
 				relation->rd_backend = TempRelBackendId;
@@ -1935,7 +1931,6 @@ RelationReloadIndexInfo(Relation relation)
 			 RelationGetRelid(relation));
 	relp = (Form_pg_class) GETSTRUCT(pg_class_tuple);
 	memcpy(relation->rd_rel, relp, CLASS_TUPLE_SIZE);
-
 	/* Reload reloptions in case they changed */
 	if (relation->rd_options)
 		pfree(relation->rd_options);
@@ -3071,7 +3066,6 @@ RelationBuildLocalRelation(const char *relname,
 			rel->rd_islocaltemp = false;
 			break;
 		case RELPERSISTENCE_TEMP:
-		case RELPERSISTENCE_FAST_TEMP:
 			Assert(isTempOrToastNamespace(relnamespace));
 			rel->rd_backend = TempRelBackendId;
 			rel->rd_islocaltemp = true;

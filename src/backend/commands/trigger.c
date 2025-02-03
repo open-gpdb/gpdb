@@ -528,7 +528,7 @@ CreateTrigger(CreateTrigStmt *stmt, const char *queryString,
 	if (OidIsValid(stmt->trigOid))
 		trigoid = stmt->trigOid;
 	else
-		trigoid = GetNewOid(tgrel, '\0');
+		trigoid = GetNewOid(tgrel);
 
 	/*
 	 * If trigger is internally generated, modify the provided trigger name to
