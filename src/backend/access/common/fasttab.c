@@ -778,10 +778,6 @@ fasttab_abort_transaction(void)
 void
 fasttab_define_savepoint(const char *name)
 {
-#ifndef FASTTAB_SUPPORT_SUBTX
-	return;
-#endif
-
 	Assert(FasttabTransactionInProgress());
 	Assert(FasttabSnapshotIsAnonymous(FasttabSnapshotGetCurrent()));
 
