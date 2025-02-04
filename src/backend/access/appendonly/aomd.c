@@ -373,7 +373,7 @@ copy_file(char *srcsegpath, char *dstsegpath,
 				(errcode_for_file_access(),
 				 (errmsg("could not seek to end of file %s: %m", srcsegpath))));
 
-	if (FileSeek(srcFile, 0, SEEK_SET) < 0)
+	if (srcSmgr->smgr_FileSeek(srcFile, 0, SEEK_SET) < 0)
 		ereport(ERROR,
 				(errcode_for_file_access(),
 				 (errmsg("could not seek to beginning of file %s: %m", srcsegpath))));
