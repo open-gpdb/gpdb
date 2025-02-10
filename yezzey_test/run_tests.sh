@@ -61,7 +61,7 @@ gpstop -a -i && gpstart -a
 createdb $USER
 
 #run yproxy in daemon mode
-/usr/bin/yproxy -c /tmp/yproxy.yaml -ldebug > /dev/null 2>&1 &
+/usr/bin/yproxy -c /tmp/yproxy.yaml -ldebug > yproxy.log 2>&1 &
 
 cd gpcontrib/yezzey
 make installcheck || (cat /home/gpadmin/gpcontrib/yezzey/regression.diffs && exit 1)
