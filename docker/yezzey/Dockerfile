@@ -3,6 +3,7 @@ FROM ubuntu:focal
 ARG accessKeyId
 ARG secretAccessKey
 ARG bucketName
+ARG s3endpoint
 ARG yezzeyRef
 
 ENV YEZZEY_REF=${yezzeyRef:-v1.8_opengpdb}
@@ -11,6 +12,7 @@ ENV AWS_ACCESS_KEY_ID=${accessKeyId}
 ENV AWS_SECRET_ACCESS_KEY=${secretAccessKey}
 ENV S3_BUCKET=${bucketName}
 ENV WALG_S3_PREFIX=s3://${bucketName}/yezzey-test-files
+ENV S3_ENDPOINT=${s3endpoint}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
@@ -81,8 +83,11 @@ RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=
 --enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
 RUN make -j8 && make -j8 install
 
+RUN echo ${s3endpoint}
+
 RUN sed -i "s/\$AWS_ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/yproxy.conf \
 && sed -i "s/\$AWS_SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/yproxy.conf \
-&& sed -i "s/\$WALG_S3_PREFIX/s3:\/\/${bucketName}\/yezzey-test-files/g" yezzey_test/yproxy.conf && cp yezzey_test/yproxy.conf /tmp/yproxy.yaml 
+&& sed -i "s/\$AWS_ENDPOINT/${s3endpoint}/g" yezzey_test/yproxy.conf \
+&& sed -i "s/\$WALG_S3_PREFIX/${bucketName}\/yezzey-test-files/g" yezzey_test/yproxy.conf && cp yezzey_test/yproxy.conf /tmp/yproxy.yaml
 
 ENTRYPOINT ["./yezzey_test/run_tests.sh"]
