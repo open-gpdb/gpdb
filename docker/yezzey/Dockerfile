@@ -84,11 +84,11 @@ RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=
 --enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
 RUN make -j8 && make -j8 install
 
-RUN echo ${s3endpoint}
+RUN echo ${s3endpoint} ${accessKeyId} ${secretAccessKey} ${bucketName}
 
-RUN sed -i "s/\$AWS_ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/yproxy.conf \
-&& sed -i "s/\$AWS_SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/yproxy.conf \
-&& sed -i "s/\$AWS_ENDPOINT/${s3endpoint}/g" yezzey_test/yproxy.conf \
-&& sed -i "s/\$WALG_S3_PREFIX/${bucketName}\/yezzey-test-files/g" yezzey_test/yproxy.conf && cp yezzey_test/yproxy.conf /tmp/yproxy.yaml
+RUN sed -i "s/\$AWS_ACCESS_KEY_ID/${accessKeyId}/g" yezzey_test/yproxy.conf && \
+    sed -i "s/\$AWS_SECRET_ACCESS_KEY/${secretAccessKey}/g" yezzey_test/yproxy.conf && \
+    sed -i "s/\$AWS_ENDPOINT/${s3endpoint}/g" yezzey_test/yproxy.conf && \
+    sed -i "s/\$WALG_S3_PREFIX/${bucketName}\/yezzey-test-files/g" yezzey_test/yproxy.conf && cp yezzey_test/yproxy.conf /tmp/yproxy.yaml
 
 ENTRYPOINT ["./yezzey_test/run_tests.sh"]

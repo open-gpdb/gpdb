@@ -1,0 +1,33 @@
+services:
+    minio:
+      image: quay.io/minio/minio
+      expose:
+        - 9000
+        - 9001
+      hostname: s3-gpyezzey
+      environment:
+        MINIO_ROOT_USER: some_key
+        MINIO_ROOT_PASSWORD: some_key
+      command: server /data --console-address ":9001"
+      healthcheck:
+        test: ["CMD", "mc", "ready", "local"]
+        interval: 30s
+        timeout: 5s
+        retries: 10
+      post_start:
+        # - command: mc alias set myminio http://s3-gpyezzey:9000 some_key some_key
+        - command: mc mb myminio/gpyezzey
+    
+    yezzey:
+      build:
+        context: ../..
+        dockerfile: docker/yezzey/Dockerfile
+        args:
+          accessKeyId: some_key
+          secretAccessKey: some_key
+          bucketName: gpyezzey
+          s3endpoint: http:\/\/s3-gpyezzey:9000
+      depends_on:
+        minio:
+          condition: service_healthy
+      
