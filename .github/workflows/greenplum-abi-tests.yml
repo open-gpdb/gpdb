@@ -35,7 +35,7 @@ jobs:
       EXCEPTION_LISTS_COUNT: ${{ steps.check_exception_lists.outputs.EXCEPTION_LISTS_COUNT }}
     steps:
       - name: Fetch source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get Greenplum version variables
         id: vars
@@ -90,7 +90,7 @@ jobs:
           which ctags
 
       - name: Download Greenplum source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ matrix.repo }}
           ref: ${{ matrix.ref }}
@@ -138,19 +138,19 @@ jobs:
     container: gcr.io/data-gpdb-public-images/gpdb6-rocky8-build
     steps:
       - name: Download baseline
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-baseline
           path: build-baseline/
       - name: Download latest
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-latest
           path: build-latest/
 
       - name: Download exception lists
         if: needs.abi-dump-setup.outputs.EXCEPTION_LISTS_COUNT != '0'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: exception_lists
           path: exception_lists/
