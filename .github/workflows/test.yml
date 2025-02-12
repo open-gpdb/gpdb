@@ -14,7 +14,7 @@ jobs:
 
   prepare-test-matrix:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     outputs:
       test-matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -157,7 +157,7 @@ jobs:
   build:
     env:
       JOB_TYPE: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
@@ -191,7 +191,7 @@ jobs:
   test:
     name: ${{ matrix.test }}
     needs: [build, prepare-test-matrix]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     # actionlint-allow matrix[*].pg_settings
     strategy:
@@ -378,7 +378,7 @@ jobs:
     name: Generate GPDB Build Report
     needs: [build, prepare-test-matrix, test]
     if: always()
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Generate Final Report
         run: |
