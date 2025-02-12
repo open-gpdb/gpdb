@@ -44,6 +44,15 @@ struct Instrumentation;                 /* #include "executor/instrument.h" */
 
 // UNDONE: Until we convert TidBitmap to handle AO TIDS, lets raise this the 64k
 // #define MAX_TUPLES_PER_PAGE  MaxHeapTuplesPerPage
+/*
+ * The maximum number of tuples per page is not large (typically 256 with
+ * 8K pages, or 1024 with 32K pages).  Also in-memory tuples have large fake
+ * offsets because of FASTTAB_ITEM_POINTER_BIT. So there's not much point in
+ * making the per-page bitmaps variable size.  We just legislate that the size
+ * is this:
+ */
+// #define MAX_TUPLES_PER_PAGE (FASTTAB_ITEM_POINTER_BIT | MaxHeapTuplesPerPage)
+
 #define MAX_TUPLES_PER_PAGE  65536
 
 /*

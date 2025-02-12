@@ -263,7 +263,9 @@ ExecInitBitmapIndexScan(BitmapIndexScan *node, EState *estate, int eflags)
 	 */
 
 	indexstate->ss.ss_currentRelation = NULL;
-	//indexstate->ss.ss_currentScanDesc = NULL;
+#if 0
+	indexstate->ss.ss_currentScanDesc = NULL;
+#endif
 
 	/*
 	 * If we are just doing EXPLAIN (ie, aren't going to run the plan), stop
