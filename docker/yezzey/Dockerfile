@@ -78,7 +78,7 @@ RUN  git submodule update --init
 RUN rm -fr gpcontrib/yezzey 
 
 # Fetch latest yezzey version
-RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey -b ${YEZZEY_REF} && cd /home/gpadmin 
+RUN git clone https://github.com/open-gpdb/yezzey.git gpcontrib/yezzey && cd gpcontrib/yezzey && git fetch origin $YEZZEY_REF:test_branch && git checkout test_branch && cd /home/gpadmin 
 RUN sed -i '/^trusted/d' gpcontrib/yezzey/yezzey.control 
 RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=/usr/local/gpdb \
 --enable-depend --enable-cassert --enable-debug --without-mdblocales --without-zstd CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
