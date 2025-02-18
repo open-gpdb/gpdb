@@ -26,6 +26,7 @@
 #include "access/appendonlywriter.h"
 #include "cdb/cdblocaldistribxact.h"
 #include "cdb/cdbvars.h"
+#include "cdb/ml_ipc.h"
 #include "commands/async.h"
 #include "miscadmin.h"
 #include "pgstat.h"
@@ -183,7 +184,7 @@ CreateSharedMemoryAndSemaphores(int port)
 
 #ifdef FAULT_INJECTOR
 		size = add_size(size, FaultInjector_ShmemSize());
-#endif			
+#endif
 
 		/* This elog happens before we know the name of the log file we are supposed to use */
 		elog(DEBUG1, "Size not including the buffer pool %lu",
@@ -210,6 +211,8 @@ CreateSharedMemoryAndSemaphores(int port)
 
 		/* size of parallel cursor count */
 		size = add_size(size, ParallelCursorCountSize());
+
+		size = add_size(size, InterconnectShmemSize());
 
 		elog(DEBUG3, "invoking IpcMemoryCreate(size=%zu)", size);
 
@@ -286,7 +289,7 @@ CreateSharedMemoryAndSemaphores(int port)
 		InitAppendOnlyWriter();
 
 	/*
-	 * Set up resource manager 
+	 * Set up resource manager
 	 */
 	ResManagerShmemInit();
 
@@ -303,14 +306,14 @@ CreateSharedMemoryAndSemaphores(int port)
 
 	CreateSharedProcArray();
 	CreateSharedBackendStatus();
-	
+
 	/*
 	 * Set up Shared snapshot slots
 	 *
-	 * TODO: only need to do this if we aren't the QD. for now we are just 
-	 *		 doing it all the time and wasting shemem on the QD.  This is 
+	 * TODO: only need to do this if we aren't the QD. for now we are just
+	 *		 doing it all the time and wasting shemem on the QD.  This is
 	 *		 because this happens at postmaster startup time when we don't
-	 *		 know who we are.  
+	 *		 know who we are.
 	 */
 	CreateSharedSnapshotArray();
 	TwoPhaseShmemInit();
@@ -356,6 +359,8 @@ CreateSharedMemoryAndSemaphores(int port)
 
 	FtsProbeShmemInit();
 
+	InterconnectShmemInit();
+
 #ifdef EXEC_BACKEND
 
 	/*
@@ -375,7 +380,7 @@ CreateSharedMemoryAndSemaphores(int port)
 	/* Initialize shared memory for parallel retrieve cursor */
 	if (!IsUnderPostmaster)
 		EndpointShmemInit();
-	
+
 	if (Gp_role == GP_ROLE_DISPATCH)
 		ParallelCursorCountInit();
 

@@ -28,6 +28,7 @@
 
 #include "access/transam.h"
 #include "access/xact.h"
+#include "funcapi.h"
 #include "nodes/execnodes.h"
 #include "nodes/pg_list.h"
 #include "nodes/print.h"
@@ -38,6 +39,8 @@
 #include "port/pg_crc32c.h"
 #include "postmaster/postmaster.h"
 #include "storage/latch.h"
+#include "storage/lock.h"
+#include "storage/pg_shmem.h"
 #include "storage/pmsignal.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
@@ -634,6 +637,30 @@ typedef struct ICStatistics
 
 /* Statistics for UDP interconnect. */
 static ICStatistics ic_statistics;
+
+/* Same as above but to be accumulated in shared memory across all processes */
+/* Also those numbers are expected to grow big, hence uint64_t */
+typedef struct ICStatisticsShmem
+{
+	uint64		totalRecvQueueSize;
+	uint64		recvQueueSizeCountingTime;
+	uint64		totalCapacity;
+	uint64		capacityCountingTime;
+	uint64		totalBuffers;
+	uint64		bufferCountingTime;
+	uint64		retransmits;
+	uint64		startupCachedPktNum;
+	uint64		mismatchNum;
+	uint64		crcErrors;
+	uint64		sndPktNum;
+	uint64		recvPktNum;
+	uint64		disorderedPktNum;
+	uint64		duplicatedPktNum;
+	uint64		recvAckNum;
+	uint64		statusQueryMsgNum;
+} ICStatisticsShmem;
+
+static ICStatisticsShmem *pICStatisticsShmem = NULL;
 
 /* Cached sockaddr of the listening udp socket */
 static struct sockaddr_storage udp_dummy_packet_sockaddr;
@@ -1405,6 +1432,42 @@ ic_reset_pthread_sigmasks(sigset_t *sigs)
 #endif
 
 	return;
+}
+
+Size
+InterconnectShmemSizeUDPIFC(void) {
+	return sizeof(ICStatisticsShmem);
+}
+
+void
+InterconnectShmemInitUDPIFC(void)
+{
+	bool found;
+	pICStatisticsShmem = ShmemInitStruct("global interconnect statistics",
+                                       sizeof(ICStatisticsShmem), &found);
+    if (pICStatisticsShmem == NULL)
+        ereport(FATAL,
+			(errcode(ERRCODE_OUT_OF_MEMORY),
+			 errmsg("not enough shared memory for global interconnect statistics")));
+	if (!found)
+	{
+		pICStatisticsShmem->totalRecvQueueSize = 0;
+		pICStatisticsShmem->recvQueueSizeCountingTime = 0;
+		pICStatisticsShmem->totalCapacity = 0;
+		pICStatisticsShmem->capacityCountingTime = 0;
+		pICStatisticsShmem->totalBuffers = 0;
+		pICStatisticsShmem->bufferCountingTime = 0;
+		pICStatisticsShmem->retransmits = 0;
+		pICStatisticsShmem->startupCachedPktNum = 0;
+		pICStatisticsShmem->mismatchNum = 0;
+		pICStatisticsShmem->crcErrors = 0;
+		pICStatisticsShmem->sndPktNum = 0;
+		pICStatisticsShmem->recvPktNum = 0;
+		pICStatisticsShmem->disorderedPktNum = 0;
+		pICStatisticsShmem->duplicatedPktNum = 0;
+		pICStatisticsShmem->recvAckNum = 0;
+		pICStatisticsShmem->statusQueryMsgNum = 0;
+	}
 }
 
 /*
@@ -3075,20 +3138,20 @@ SetupUDPIFCInterconnect_Internal(SliceTable *sliceTable)
 
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
-		/* 
+		/*
 		 * Prune the history table if it is too large
-		 * 
+		 *
 		 * We only keep history of constant length so that
 		 * - The history table takes only constant amount of memory.
-		 * - It is long enough so that it is almost impossible to receive 
-		 *   packets from an IC instance that is older than the first one 
+		 * - It is long enough so that it is almost impossible to receive
+		 *   packets from an IC instance that is older than the first one
 		 *   in the history.
 		 */
 		if (rx_control_info.cursorHistoryTable.count > (2 * CURSOR_IC_TABLE_SIZE))
 		{
 			uint32 prune_id = sliceTable->ic_instance_id - CURSOR_IC_TABLE_SIZE;
 
-			/* 
+			/*
 			 * Only prune if we didn't underflow -- also we want the prune id
 			 * to be newer than the limit (hysteresis)
 			 */
@@ -3340,6 +3403,32 @@ chunkTransportStateEntryInitialized(ChunkTransportState *transportStates,
 		return false;
 
 	return true;
+}
+
+/*
+ * updateGlobalInterconnectStats
+ *		Append local interconnect stats to global cummulative stats
+ */
+static void updateGlobalInterconnectStats(void)
+{
+	LWLockAcquire(ICStatisticsLock, LW_EXCLUSIVE);
+	pICStatisticsShmem->totalRecvQueueSize += ic_statistics.totalRecvQueueSize;
+	pICStatisticsShmem->recvQueueSizeCountingTime += ic_statistics.recvQueueSizeCountingTime;
+	pICStatisticsShmem->totalCapacity += ic_statistics.totalCapacity;
+	pICStatisticsShmem->capacityCountingTime += ic_statistics.capacityCountingTime;
+	pICStatisticsShmem->totalBuffers += ic_statistics.totalBuffers;
+	pICStatisticsShmem->bufferCountingTime += ic_statistics.bufferCountingTime;
+	pICStatisticsShmem->retransmits += ic_statistics.retransmits;
+	pICStatisticsShmem->startupCachedPktNum += ic_statistics.startupCachedPktNum;
+	pICStatisticsShmem->mismatchNum += ic_statistics.mismatchNum;
+	pICStatisticsShmem->crcErrors += ic_statistics.crcErrors;
+	pICStatisticsShmem->sndPktNum += ic_statistics.sndPktNum;
+	pICStatisticsShmem->recvPktNum += ic_statistics.recvPktNum;
+	pICStatisticsShmem->disorderedPktNum += ic_statistics.disorderedPktNum;
+	pICStatisticsShmem->duplicatedPktNum += ic_statistics.duplicatedPktNum;
+	pICStatisticsShmem->recvAckNum += ic_statistics.recvAckNum;
+	pICStatisticsShmem->statusQueryMsgNum += ic_statistics.statusQueryMsgNum;
+	LWLockRelease(ICStatisticsLock);
 }
 
 /*
@@ -3645,6 +3734,7 @@ TeardownUDPIFCInterconnect_Internal(ChunkTransportState *transportStates,
 		 (minRtt == ~((uint64) 0) ? 0 : minRtt), (minDev == ~((uint64) 0) ? 0 : minDev), avgRtt, avgDev, maxRtt, maxDev,
 		 snd_control_info.cwnd, ic_statistics.statusQueryMsgNum);
 
+	updateGlobalInterconnectStats();
 	ic_control_info.isSender = false;
 	memset(&ic_statistics, 0, sizeof(ICStatistics));
 
@@ -6493,7 +6583,7 @@ handleMismatch(icpkthdr *pkt, struct sockaddr_storage *peer, int peer_len)
 			{
 				/*
 				 * ic_control_info.ic_instance_id < pkt->icId, from the future
-				 */ 
+				 */
 				if (gp_interconnect_cache_future_packets)
 				{
 					cached = cacheFuturePacket(pkt, peer, peer_len);
@@ -6988,4 +7078,82 @@ uint32
 getActiveMotionConns(void)
 {
 	return ic_statistics.activeConnectionsNum;
+}
+
+Datum
+GpInterconnectGetStatsUDPIFC(PG_FUNCTION_ARGS)
+{
+	/*
+	 * Build a tuple descriptor for our result type
+	 * The number and type of attributes have to match the definition of the
+	 * view gp_interconnect_stats_per_segment
+	 */
+#define NUM_IC_STATS_ELEM 17
+	TupleDesc tupdesc = CreateTemplateTupleDesc(NUM_IC_STATS_ELEM, false);
+
+	TupleDescInitEntry(tupdesc, (AttrNumber) 1, "segid",
+			INT2OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 2, "total_recv_queue_size",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 3, "recv_queue_conting_time",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 4, "total_capacity",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 5, "capacity_counting_time",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 6, "total_buffers",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 7, "buffer_counting_time",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 8, "retransmits",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 9, "startup_cached_pkts",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 10, "mismatches",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 11, "crs_errors",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 12, "snd_pkt_num",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 13, "recv_pkt_num",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 14, "disordered_pkt_num",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 15, "duplicate_pkt_num",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 16, "recv_ack_num",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 17, "status_query_msg_num",
+			INT8OID, -1 /* typmod */, 0 /* attdim */);
+
+	tupdesc =  BlessTupleDesc(tupdesc);
+
+	Datum		values[NUM_IC_STATS_ELEM];
+	bool		nulls[NUM_IC_STATS_ELEM];
+	MemSet(nulls, 0, sizeof(nulls));
+
+	LWLockAcquire(ICStatisticsLock, LW_EXCLUSIVE);
+	values[0] = Int32GetDatum(GpIdentity.segindex);
+	values[1] = Int64GetDatum(pICStatisticsShmem->totalRecvQueueSize);
+	values[2] = Int64GetDatum(pICStatisticsShmem->recvQueueSizeCountingTime);
+	values[3] = Int64GetDatum(pICStatisticsShmem->totalCapacity);
+	values[4] = Int64GetDatum(pICStatisticsShmem->capacityCountingTime);
+	values[5] = Int64GetDatum(pICStatisticsShmem->totalBuffers);
+	values[6] = Int64GetDatum(pICStatisticsShmem->bufferCountingTime);
+	values[7] = Int64GetDatum(pICStatisticsShmem->retransmits);
+	values[8] = Int64GetDatum(pICStatisticsShmem->startupCachedPktNum);
+	values[9] = Int64GetDatum(pICStatisticsShmem->mismatchNum);
+	values[10] = Int64GetDatum(pICStatisticsShmem->crcErrors);
+	values[11] = Int64GetDatum(pICStatisticsShmem->sndPktNum);
+	values[12] = Int64GetDatum(pICStatisticsShmem->recvPktNum);
+	values[13] = Int64GetDatum(pICStatisticsShmem->disorderedPktNum);
+	values[14] = Int64GetDatum(pICStatisticsShmem->duplicatedPktNum);
+	values[15] = Int64GetDatum(pICStatisticsShmem->recvAckNum);
+	values[16] = Int64GetDatum(pICStatisticsShmem->statusQueryMsgNum);
+	LWLockRelease(ICStatisticsLock);
+
+	HeapTuple tuple = heap_form_tuple(tupdesc, values, nulls);
+	Datum result = HeapTupleGetDatum(tuple);
+
+	PG_RETURN_DATUM(result);
 }
