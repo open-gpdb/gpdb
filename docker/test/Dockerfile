@@ -1,4 +1,4 @@
-FROM ubuntu:focal
+FROM ubuntu:jammy
 
 ARG accessKeyId
 ARG secretAccessKey
@@ -11,6 +11,8 @@ ENV YEZZEY_REF=${yezzeyRef:-v1.8_opengpdb}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
+RUN stat -fc %T /sys/fs/cgroup/
+
 RUN useradd -rm -d /home/gpadmin -s /bin/bash -g root -G sudo -u 1001 gpadmin
 
 RUN ln -snf /usr/share/zoneinfo/Europe/London /etc/localtime && echo Europe/London > /etc/timezone \
@@ -18,12 +20,12 @@ RUN ln -snf /usr/share/zoneinfo/Europe/London /etc/localtime && echo Europe/Lond
   build-essential libssl-dev gnupg devscripts \
   openssl libssl-dev debhelper debootstrap \
   make equivs bison ca-certificates-java ca-certificates \
-  cmake curl cgroup-tools flex gcc-8 g++-8 g++-8-multilib \
+  cmake curl cgroup-tools flex gcc-9 g++-9 g++-9-multilib \
   git krb5-multidev libapr1-dev libbz2-dev libcurl4-gnutls-dev \
   libevent-dev libkrb5-dev libldap2-dev libperl-dev libreadline6-dev \
   libssl-dev libxml2-dev libyaml-dev libzstd-dev libaprutil1-dev \
-  libpam0g-dev libpam0g libcgroup1 libyaml-0-2 libldap-2.4-2 libssl1.1 \
-  ninja-build python-dev python-setuptools quilt unzip wget zlib1g-dev libuv1-dev \
+  libpam0g-dev libpam0g libcgroup1 libyaml-0-2 libldap2-dev openssl \
+  ninja-build python2-dev python-setuptools quilt unzip wget zlib1g-dev libuv1-dev \
   libgpgme-dev libgpgme11 sudo iproute2 less software-properties-common \
   openssh-client openssh-server
 
@@ -54,7 +56,7 @@ RUN cd /tmp/ \
 
 COPY . /home/gpadmin
 
-RUN sudo DEBIAN_FRONTEND=noninteractive ./README.ubuntu.bash \
+RUN sudo DEBIAN_FRONTEND=noninteractive ./README.ubuntu22.bash \
 && sudo apt install -y libhyperic-sigar-java libaprutil1-dev libuv1-dev
 
 RUN sudo mkdir /usr/local/gpdb \
@@ -73,4 +75,4 @@ RUN ./configure --with-perl --with-python --with-libxml --disable-orca --prefix=
 --enable-depend --enable-cassert --enable-debug --without-mdblocales --with-zstd --enable-debug-extensions --enable-orca CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
 RUN make -j8 && make -j8 install
 
-ENTRYPOINT ["./docker/regress/run_tests.sh"]
+ENTRYPOINT ["./docker/test/run_tests.sh"]
