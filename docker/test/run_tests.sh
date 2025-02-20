@@ -44,6 +44,19 @@ sudo bash -c 'cat >> /etc/security/limits.conf <<-EOF
 
 EOF'
 
+# CREATE CGROUPS
+if [ "${TEST_CGROUP}" = "true" ]; then
+    stat -fc %T /sys/fs/cgroup/
+    sudo mkdir -p /sys/fs/cgroup/
+    for cgroup_dir in cpu cpuacct cpuset memory
+    do
+        sudo mkdir -p /sys/fs/cgroup/$cgroup_dir/
+        sudo mkdir /sys/fs/cgroup/$cgroup_dir/gpdb/
+        sudo chown -R <user> /sys/fs/cgroup/$cgroup_dir/gpdb/
+    done
+fi
+
+
 export GPHOME=/usr/local/gpdb
 source $GPHOME/greenplum_path.sh
 ulimit -n 65536
@@ -53,10 +66,16 @@ source gpAux/gpdemo/gpdemo-env.sh
 
 gpconfig -c shared_preload_libraries -v yezzey
 
+# ADD CGROUPS
+if [ "${TEST_CGROUP}" = "true" ]; then
+    gpconfig -c gp_resource_manager -v "group"
+fi
+
 gpstop -a -i && gpstart -a
 
 createdb $USER
 
 sed -i  '/mdb-related/,$d' src/test/regress/input/misc.source src/test/regress/output/misc.source src/test/regress/output/misc.source
 
-PGPORT=6000 make installcheck
+cd $TEST_DIR
+PGPORT=6000 make $TEST_TARGET
