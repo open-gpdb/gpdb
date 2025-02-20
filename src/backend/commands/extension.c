@@ -805,37 +805,6 @@ is_begin_state(const Node *stmt)
 }
 
 /*
- * Set up the search path to contain the target schema, then the schemas
- * of any prerequisite extensions, and nothing else.  In particular this
- * makes the target schema be the default creation target namespace.
- *
- * Note: it might look tempting to use PushOverrideSearchPath for this,
- * but we cannot do that.  We have to actually set the search_path GUC in
- * case the extension script examines or changes it.  In any case, the
- * GUC_ACTION_SAVE method is just as convenient.
- */
-static void
-set_serach_path_for_extension(List *requiredSchemas, const char *schemaName)
-{
-	StringInfoData pathbuf;
-	ListCell *lc;
-	initStringInfo(&pathbuf);
-	appendStringInfoString(&pathbuf, quote_identifier(schemaName));
-	foreach(lc, requiredSchemas)
-	{
-		Oid			reqschema = lfirst_oid(lc);
-		char	   *reqname = get_namespace_name(reqschema);
-
-		if (reqname)
-			appendStringInfo(&pathbuf, ", %s", quote_identifier(reqname));
-	}
-
-	(void) set_config_option("search_path", pathbuf.data,
-							 PGC_USERSET, PGC_S_SESSION,
-							 GUC_ACTION_SAVE, true, 0);
-}
-
-/*
  * Policy function: is the given extension trusted for installation by a
  * non-superuser?
  *
