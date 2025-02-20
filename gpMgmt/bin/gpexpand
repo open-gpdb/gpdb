@@ -319,6 +319,7 @@ SELECT
         WHEN '%s' THEN 'Tables Expanded'
         WHEN '%s' THEN 'Tables Left'
         WHEN '%s' THEN 'Tables In Progress'
+        WHEN '%s' THEN 'Tables Missing'
     END AS Name,
     count(*)::text AS Value
 FROM gpexpand.status_detail GROUP BY status
@@ -330,6 +331,7 @@ SELECT
         WHEN '%s' THEN 'Bytes Done'
         WHEN '%s' THEN 'Bytes Left'
         WHEN '%s' THEN 'Bytes In Progress'
+        WHEN '%s' THEN 'Bytes Missing'
     END AS Name,
     SUM(source_bytes)::text AS Value
 FROM gpexpand.status_detail GROUP BY status
@@ -357,8 +359,8 @@ expansion_started > (SELECT updated FROM gpexpand.status WHERE status = '%s' ORD
 updated DESC LIMIT 1)))::text || ' seconds' as interval)::text AS Value
 FROM gpexpand.status_detail
 WHERE status = '%s'
-  OR status = '%s'""" % (done_status, undone_status, start_status,
-                         done_status, undone_status, start_status,
+  OR status = '%s'""" % (done_status, undone_status, start_status, does_not_exist_status,
+                         done_status, undone_status, start_status, does_not_exist_status,
                          done_status,
                          'EXPANSION STARTED',
                          done_status,
