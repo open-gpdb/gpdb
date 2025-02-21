@@ -33,5 +33,8 @@ extern void AtSubCommit_smgr(void);
 extern void AtSubAbort_smgr(void);
 extern void PostPrepare_smgr(void);
 
+/* Hook for yezzey meta-related logic */
+typedef void (*TrackDropObject_hook_type) (Relation);
+extern PGDLLIMPORT TrackDropObject_hook_type TrackDropObject_hook;
 
 #endif   /* STORAGE_H */
