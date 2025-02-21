@@ -1,4 +1,4 @@
-name: Matrix testing
+name: Regression testing
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
 
   prepare-test-matrix:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     outputs:
       test-matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -33,6 +33,7 @@ jobs:
           DEFAULT_ENABLE_CGROUPS=false
           DEFAULT_ENABLE_CORE_CHECK=true
           DEFAULT_PG_SETTINGS_OPTIMIZER=""
+          DEFAULT_RUNS_ON="ubuntu-latest"
 
           # Define base test configurations
           ALL_TESTS='{
@@ -45,25 +46,48 @@ jobs:
                "make_configs":["src/test/regress:installcheck-good"],
                "pg_settings":{"optimizer":"on"}
               },
+              {"test":"ic-expandshrink",
+               "make_configs":["src/test/isolation2:installcheck-expandshrink"]
+              },
               {"test":"ic-resgroup",
                "make_configs":["src/test/isolation2:installcheck-resgroup"],
-               "enable_cgroups":true
+               "enable_cgroups":true,
+               "runs_on":"ubuntu-20.04"
               },
               {"test":"ic-contrib",
-               "make_configs":["contrib/auto_explain:installcheck",
+               "make_configs":["contrib/amcheck:installcheck",
+                               "contrib/auto_explain:installcheck",
                                "contrib/citext:installcheck",
                                "contrib/btree_gin:installcheck",
+                               "contrib/btree_gist:installcheck",
+                               "contrib/citext:installcheck",
+                               "contrib/cube:installcheck",
+                               "contrib/dblink:installcheck",
+                               "contrib/dict_in:installcheck",
+                               "contrib/dict_xsyn:installcheck",
+                               "contrib/earthdistance:installcheck",
+                               "contrib/extprotocol:installcheck",
                                "contrib/file_fdw:installcheck",
                                "contrib/formatter_fixedwidth:installcheck",
-                               "contrib/extprotocol:installcheck",
-                               "contrib/dblink:installcheck",
-                               "contrib/pg_trgm:installcheck",
-                               "contrib/indexscan:installcheck",
+                               "contrib/fuzzystrmatch:installcheck",
                                "contrib/hstore:installcheck",
-                               "contrib/pgcrypto:installcheck",
-                               "contrib/tablefunc:installcheck",
-                               "contrib/passwordcheck:installcheck",
-                               "contrib/sslinfo:installcheck"]
+                               "contrib/indexscan:installcheck"]
+              },
+              {"test":"ic-gpcontrib",
+               "make_configs":["gpcontrib/gp_array_agg:installcheck",
+                               "gpcontrib/gp_debug_numsegments:installcheck",
+                               "gpcontrib/gp_distribution_policy:installcheck",
+                               "gpcontrib/gp_error_handling:installcheck",
+                               "gpcontrib/gp_inject_fault:installcheck",
+                               "gpcontrib/gp_internal_tools:installcheck",
+                               "gpcontrib/gp_legacy_string_agg:installcheck",
+                               "gpcontrib/gp_percentile_agg:installcheck",
+                               "gpcontrib/gp_sparse_vector:installcheck",
+                               "gpcontrib/gp_subtransaction_overflow:installcheck",
+                               "gpcontrib/gpcloud:installcheck",
+                               "gpcontrib/gpmapreduce:installcheck",
+                               "gpcontrib/orafce:installcheck",
+                               "gpcontrib/pgaudit:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
@@ -80,10 +104,12 @@ jobs:
                            --argjson ec  "$DEFAULT_ENABLE_CGROUPS" \
                            --argjson ecc "$DEFAULT_ENABLE_CORE_CHECK" \
                            --arg     opt "$DEFAULT_PG_SETTINGS_OPTIMIZER" \
+                           --arg     ro  "$DEFAULT_RUNS_ON" \
               'def get_defaults:
                 {
                   num_primary_mirror_pairs: ($npm|tonumber),
                   enable_cgroups: $ec,
+                  runs_on: $ro,
                   enable_core_check: $ecc,
                   pg_settings: {
                     optimizer: $opt
@@ -157,7 +183,7 @@ jobs:
   build:
     env:
       JOB_TYPE: build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
@@ -191,7 +217,7 @@ jobs:
   test:
     name: ${{ matrix.test }}
     needs: [build, prepare-test-matrix]
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.runs_on }}
     timeout-minutes: 120
     # actionlint-allow matrix[*].pg_settings
     strategy:
@@ -230,10 +256,7 @@ jobs:
         sudo apt-get autoclean -y >/dev/null 2>&1
         echo "some packages purged"
     - name: Check disk space
-      run: |
-        sudo dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -nr | head
-        df . -h
-        sudo du /usr/ -hx -d 4 --threshold=1G | sort -hr | head
+      run: df . -h
 
     - name: Download artifact
       uses: actions/download-artifact@v4
@@ -269,6 +292,11 @@ jobs:
         TEST_CGROUP=""
         if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
           TEST_CGROUP="true"
+          stat -fc %T /sys/fs/cgroup/
+          docker info | grep Cgroup
+          stat -f /sys/fs/cgroup/unified
+          stat -f /sys/fs/cgroup
+          
         fi
 
         # Read configs into array
@@ -290,14 +318,22 @@ jobs:
 
           config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
 
-          docker run \
-            -e TEST_DIR="${dir}" \
-            -e TEST_TARGET="${target}" \
-            -e PGOPTIONS="${PG_OPTS}" \
-            -e TEST_CGROUP="${TEST_CGROUP}" \
-            --name test_test_container test_test:1234 \
-            --privileged \
-            2>&1 | tee "$config_log"
+          df . -h
+
+          if ! docker run \
+                -e TEST_DIR="${dir}" \
+                -e TEST_TARGET="${target}" \
+                -e PGOPTIONS="${PG_OPTS}" \
+                -e TEST_CGROUP="${TEST_CGROUP}" \
+                --privileged \
+                --cgroupns=private \
+                --name test_test_container test_test:1234 \
+                2>&1 | tee "$config_log"; then
+            echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
+            overall_status=1
+          fi
+
+          df . -h
 
           RESULTS_PATH="build-results/results-${{ matrix.test }}-${dir}"
           mkdir -p $RESULTS_PATH
@@ -327,10 +363,15 @@ jobs:
       if: always()
       run: |
           # Search for regression.diffs recursively
-          found_file=$(find . -type f -name "regression.diffs" | head -n 1)
-          if [[ -n "$found_file" ]]; then
-            echo "Found regression.diffs at: $found_file"
-            cat "$found_file"
+          found_files=$(find . -type f -path "*/regression.diffs")
+          if [[ "x$found_files" != "x" ]]; then
+            for found_file in $found_files
+            do
+              echo "-----------------------------------------------------"
+              echo "Found regression.diffs at: $found_file"
+              echo "-----------------------------------------------------"
+              cat "$found_file"
+            done
           else
             echo "No regression.diffs file found in the hierarchy."
           fi
@@ -360,15 +401,8 @@ jobs:
         path: |
           **/regression.out
           **/regression.diffs
+          **/*.diffs
           **/results/
-          gpAux/gpdemo/datadirs/standby/log/
-          gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
-          gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/
-          gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/log/
-          gpAux/gpdemo/datadirs/dbfast3/demoDataDir2/log/
-          gpAux/gpdemo/datadirs/dbfast_mirror1/demoDataDir0/log/
-          gpAux/gpdemo/datadirs/dbfast_mirror2/demoDataDir1/log/
-          gpAux/gpdemo/datadirs/dbfast_mirror3/demoDataDir2/log/
 
   ## ======================================================================
   ## Job: report
@@ -378,7 +412,7 @@ jobs:
     name: Generate GPDB Build Report
     needs: [build, prepare-test-matrix, test]
     if: always()
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Generate Final Report
         run: |
