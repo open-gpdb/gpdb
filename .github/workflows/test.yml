@@ -340,7 +340,7 @@ jobs:
           RESULTS_PATH="build-results/results-${{ matrix.test }}-${dir}"
           mkdir -p $RESULTS_PATH
 
-          docker cp test_test_container:/home/gpadmin/${dir} $RESULTS_PATH/
+          docker cp -L test_test_container:/home/gpadmin/${dir} $RESULTS_PATH/
 
           docker rm test_test_container
         done
