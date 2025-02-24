@@ -273,6 +273,8 @@ jobs:
       run: |
         set -o pipefail
 
+        shopt -s globstar
+
         # Initialize test status
         overall_status=0
 
