@@ -337,8 +337,14 @@ jobs:
 
           RESULTS_PATH="build-results/results-${{ matrix.test }}-${dir}"
           mkdir -p $RESULTS_PATH
+          mkdir -p $RESULTS_PATH/all
 
-          docker cp test_test_container:/home/gpadmin $RESULTS_PATH
+          docker cp test_test_container:/home/gpadmin $RESULTS_PATH/all
+
+          cp --parents $RESULTS_PATH/all/**/results/*.out $RESULTS_PATH/
+          cp --parents $RESULTS_PATH/all/**/regression.diffs $RESULTS_PATH/
+
+          rm -rf $RESULTS_PATH/all
 
           docker rm test_test_container
         done
