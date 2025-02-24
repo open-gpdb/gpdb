@@ -343,8 +343,8 @@ jobs:
 
           docker cp test_test_container:/home/gpadmin $RESULTS_PATH/all
 
-          cp --parents $RESULTS_PATH/all/**/results/*.out $RESULTS_PATH/
-          cp --parents $RESULTS_PATH/all/**/regression.diffs $RESULTS_PATH/
+          cp --parents $RESULTS_PATH/all/**/results/*.out $RESULTS_PATH/ | true
+          cp --parents $RESULTS_PATH/all/**/regression.diffs $RESULTS_PATH/ | true
 
           rm -rf $RESULTS_PATH/all
 
