@@ -273,6 +273,8 @@ jobs:
       run: |
         set -o pipefail
 
+        shopt -s globstar
+
         # Initialize test status
         overall_status=0
 
@@ -335,10 +337,15 @@ jobs:
 
           df . -h
 
-          RESULTS_PATH="build-results/results-${{ matrix.test }}-${dir}"
+          RESULTS_PATH="build-results/results-${{ matrix.test }}-${i}"
           mkdir -p $RESULTS_PATH
+          mkdir -p /tmp/$RESULTS_PATH
 
-          docker cp test_test_container:/home/gpadmin $RESULTS_PATH
+          docker cp test_test_container:/home/gpadmin/ /tmp/$RESULTS_PATH/
+          ls /tmp/$RESULTS_PATH
+          ls /tmp/$RESULTS_PATH/gpadmin
+          cp -L -r /tmp/$RESULTS_PATH/gpadmin/${dir} $RESULTS_PATH
+          sudo rm -rf /tmp/$RESULTS_PATH/gpadmin
 
           docker rm test_test_container
         done
