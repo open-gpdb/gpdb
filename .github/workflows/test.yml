@@ -86,6 +86,7 @@ jobs:
                                "contrib/test_decoding:installcheck",
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
+                               "contrib/try_convert:installcheck",
                                "contrib/tsearch2:installcheck",
                                "contrib/unaccent:installcheck",
                                "contrib/uuid-ossp:installcheck",
