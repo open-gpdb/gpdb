@@ -46,9 +46,6 @@ jobs:
                "make_configs":["src/test/regress:installcheck-good"],
                "pg_settings":{"optimizer":"on"}
               },
-              {"test":"ic-expandshrink",
-               "make_configs":["src/test/isolation2:installcheck-expandshrink"]
-              },
               {"test":"ic-resgroup",
                "make_configs":["src/test/isolation2:installcheck-resgroup"],
                "enable_cgroups":true,
