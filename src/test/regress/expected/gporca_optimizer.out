@@ -13815,7 +13815,8 @@ and first_id in (select first_id from mat_w);
                      ->  Shared Scan (share slice:id 1:0)  (cost=0.00..431.00 rows=3 width=4)
                            Output: share0_ref2.first_id
  Optimizer: Pivotal Optimizer (GPORCA)
-(30 rows)
+ Settings: optimizer=on
+(31 rows)
 
 with mat_w as (
 select first_id
@@ -13885,7 +13886,8 @@ from mat m1 join mat m2 on m1.j = m2.j;
                            ->  Shared Scan (share slice:id 1:0)  (cost=0.00..431.00 rows=1 width=4)
                                  Output: share0_ref2.i, share0_ref2.j
  Optimizer: Pivotal Optimizer (GPORCA)
-(30 rows)
+ Settings: optimizer=on
+(31 rows)
 
 with mat as(
     select i, j from material_bitmapscan where i = 2 and j = 2
