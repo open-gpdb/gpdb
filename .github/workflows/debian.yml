@@ -46,42 +46,11 @@ jobs:
 
         gpdb/getversion
         git --git-dir=./gpdb/.git rev-list HEAD --count
-        # echo 'deb http://yandex-cloud-jammy-secure.dist.yandex.ru/yandex-cloud-jammy-secure stable/all/' | tee -a /etc/apt/sources.list
         sudo apt-get update && sudo apt-get install -y python3 devscripts debhelper dupload git pbuilder ca-certificates reprepro debsigs
-        # ssh -T -o StrictHostKeyChecking=no -l robot-yc-arcadia yandex-cloud.dupload.dist.yandex.ru || true
-        # ssh -T -o StrictHostKeyChecking=no -l robot-yc-arcadia yandex-cloud-secure.dupload.dist.yandex.ru || true
-        # ssh -T -o StrictHostKeyChecking=no -l robot-yc-arcadia mdb-jammy-secure.dupload.dist.yandex.ru || true
 
         # provision dupload.conf
         cat >~/.dupload.conf <<EOF
         package config;
-
-        \$default_host = "mdb-jammy-secure";
-
-        \$cfg{'yandex-cloud'} = {
-            fqdn => "yandex-cloud.dupload.dist.yandex.ru",
-            method => "scpb",
-            incoming => "/repo/yandex-cloud/mini-dinstall/incoming/",
-            dinstall_runs => 0,
-            login => "${BUILD_USER}",
-        };
-
-        \$cfg{'yandex-cloud-secure'} = {
-            fqdn => "yandex-cloud-secure.dupload.dist.yandex.ru",
-            method => "scpb",
-            incoming => "/repo/yandex-cloud-secure/mini-dinstall/incoming/",
-            dinstall_runs => 0,
-            login => "${BUILD_USER}",
-        };
-
-        \$cfg{'mdb-jammy-secure'} = {
-            fqdn => "mdb-jammy-secure.dupload.dist.yandex.ru",
-            method => "scpb",
-            incoming => "/repo/mdb-jammy-secure/mini-dinstall/incoming/",
-            dinstall_runs => 0,
-            login => "${BUILD_USER}",
-        };
-        EOF
 
         if [ "x${GIT_COMMIT_ID}" != "x" ]; then
           git checkout ${GIT_COMMIT_ID}
@@ -90,14 +59,12 @@ jobs:
     - name: generate debian, Dockerfile, etc.
       run: |
         set -ex
-
-        # cp /etc/yandex/robot-yc-infra/gpg/gpg_private .
         
         cat > changelog.sh <<EOF1
         cat <<EOF
         greenplum-db-6 (\${GPDB_PKG_VERSION}) stable; urgency=low
 
-          * Yandex autobuild
+          * open-gpdb autobuild
         -- ${BUILD_USER} <${BUILD_USER}@$(hostname)>  $(date +'%a, %d %b %Y %H:%M:%S %z')
         EOF
         EOF1
@@ -129,7 +96,6 @@ jobs:
         # gpg --list-secret
 
         [[ -z ${DOCKER_TAG} ]] && DOCKER_TAG=lolkekcheburek
-        # docker load -i ./gpdb/greenplum-build/gp-build-base.tar.gz
         docker build --build-arg POSTGRES_VERSION=${POSTGRES_VERSION}  -f ./gpdb/greenplum-build/Dockerfile . --tag ${DOCKER_TAG}:1.0 --progress=plain && docker run ${DOCKER_TAG}:1.0
         docker cp $(docker ps -a | grep ${DOCKER_TAG}  | awk '{print $1}' | head -1):/root/ ./package-build
         cd package-build
@@ -137,24 +103,6 @@ jobs:
         keyVal=$(gpg --list-keys | head -4 | tail -1)
         echo "$keyVal"
         all_debs=$(ls *deb)
-        # for a_deb in $all_debs
-        # do
-        #   debsigs --sign=origin -v $a_deb
-        # done
-        # all_changes=$(ls *.changes)
-        # for a_changes in $all_changes
-        # do
-        #   changestool $a_changes updatechecksums
-        # done
-
-        # [[ -z ${INNER_FOLDER} ]] || cd ${INNER_FOLDER}
-        # cat debian/changelog
-        # # debsign -k$keyVal
-
-        # for host in $(echo $PUBLISH_TO  | sed "s/,/ /g")
-        # do
-        #     USER=$BUILD_USER debrelease --nomail --configfile ~/.dupload.conf --to ${host}
-        # done
 
     - name: Get Debian Package name
       id: get-package-name
