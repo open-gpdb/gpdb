@@ -62,7 +62,7 @@ jobs:
                                "contrib/citext:installcheck",
                                "contrib/cube:installcheck",
                                "contrib/dblink:installcheck",
-                               "contrib/dict_in:installcheck",
+                               "contrib/dict_int:installcheck",
                                "contrib/dict_xsyn:installcheck",
                                "contrib/earthdistance:installcheck",
                                "contrib/extprotocol:installcheck",
