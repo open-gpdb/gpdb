@@ -884,7 +884,7 @@ BEGIN
 		id INT
 	);
 END $$;",<none>
-ERROR:  schema "bogus" does not exist at character 14
+ERROR:  schema "bogus" does not exist
 --
 -- Test alter table statements
 ALTER TABLE public.test
