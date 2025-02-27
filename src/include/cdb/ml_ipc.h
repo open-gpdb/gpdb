@@ -306,6 +306,11 @@ extern ChunkTransportStateEntry *removeChunkTransportState(ChunkTransportState *
 
 extern TupleChunkListItem RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates);
 
+extern Size InterconnectShmemSize(void);
+extern Size InterconnectShmemSizeUDPIFC(void);
+extern void InterconnectShmemInit(void);
+extern void InterconnectShmemInitUDPIFC(void);
+extern Datum GpInterconnectGetStatsUDPIFC(PG_FUNCTION_ARGS);
 extern void InitMotionTCP(int *listenerSocketFd, uint16 *listenerPort);
 extern void InitMotionUDPIFC(int *listenerSocketFd, uint16 *listenerPort);
 extern void markUDPConnInactiveIFC(MotionConn *conn);

@@ -63,6 +63,9 @@ typedef struct PendingRelDelete
 
 static PendingRelDelete *pendingDeletes = NULL; /* head of linked list */
 
+
+TrackDropObject_hook_type TrackDropObject_hook = NULL;
+
 /*
  * RelationCreateStorage
  *		Create physical storage for a relation.
@@ -167,6 +170,10 @@ RelationDropStorage(Relation rel)
 	pending->nestLevel = GetCurrentTransactionNestLevel();
 	pending->next = pendingDeletes;
 	pendingDeletes = pending;
+
+	/* if yezzey relation, we need to update relation vitrual index */
+	if (TrackDropObject_hook)
+		TrackDropObject_hook(rel);
 
 	/*
 	 * NOTE: if the relation was created in this transaction, it will now be

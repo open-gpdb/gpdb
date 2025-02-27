@@ -13596,7 +13596,8 @@ and first_id in (select first_id from mat_w);
                              Output: material_test_1.first_id
                              Filter: (material_test_1.second_id = ANY ('{1,2,3,4}'::integer[]))
  Optimizer: Postgres query optimizer
-(22 rows)
+ Settings: enable_seqscan=on, optimizer=off
+(23 rows)
 
 with mat_w as (
 select first_id
@@ -13658,7 +13659,8 @@ from mat m1 join mat m2 on m1.j = m2.j;
                            ->  Bitmap Index Scan on material_bitmapscan_idx  (cost=0.00..102.66 rows=334 width=0)
                                  Index Cond: (material_bitmapscan_1.k = 'Thu Jun 03 00:00:00 2021'::timestamp without time zone)
  Optimizer: Postgres query optimizer
-(22 rows)
+ Settings: optimizer=off
+(23 rows)
 
 with mat as(
     select i, j from material_bitmapscan where i = 2 and j = 2

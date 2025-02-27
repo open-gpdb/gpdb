@@ -28,6 +28,8 @@ jobs:
           sleep 2s
           docker exec s3_gpyezzey mc alias set myminio http://localhost:9000 some_key some_key
           docker exec s3_gpyezzey mc mb myminio/gpyezzey
+          docker exec s3_gpyezzey mc mb myminio/gpyezzey2
+          docker exec s3_gpyezzey mc mb myminio/gpyezzey3
 
 
       - name: Build

@@ -249,6 +249,21 @@ InitMotionLayerIPC(void)
 	elog(DEBUG1, "Interconnect listening on tcp port %d udp port %d (0x%x)", tcp_listener, udp_listener, Gp_listener_port);
 }
 
+void
+InterconnectShmemInit(void)
+{
+	if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
+		InterconnectShmemInitUDPIFC();
+}
+
+Size
+InterconnectShmemSize(void)
+{
+	if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
+		return InterconnectShmemSizeUDPIFC();
+	return 0;
+}
+
 /* See ml_ipc.h */
 void
 CleanUpMotionLayerIPC(void)
