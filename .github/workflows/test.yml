@@ -214,6 +214,12 @@ jobs:
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
 
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+
     steps:
     - uses: actions/checkout@v4
 
@@ -225,6 +231,7 @@ jobs:
         context: .
         file: ./docker/build/Dockerfile
         tags: gp_build_jammy:1234
+        load: true
     - name: Build and push
       uses: docker/build-push-action@v2
       with:
