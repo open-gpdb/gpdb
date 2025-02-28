@@ -56,7 +56,7 @@ jobs:
                "runs_on":"ubuntu-20.04"
               },
               {"test":"ic-contrib",
-               "install_target":true
+               "install_target":true,
                "make_configs":["contrib/amcheck:installcheck",
                                "contrib/auto_explain:installcheck",
                                "contrib/btree_gin:installcheck",
