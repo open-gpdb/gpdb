@@ -219,6 +219,12 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         context: .
+        file: ./docker/build/Dockerfile
+        tags: gp_build_jammy:1234
+    - name: Build and push
+      uses: docker/build-push-action@v2
+      with:
+        context: .
         file: ./docker/test/Dockerfile
         tags: test_test:1234
         outputs: type=docker,dest=/tmp/myimage.tar
