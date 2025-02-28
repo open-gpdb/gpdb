@@ -405,6 +405,116 @@ jobs:
             echo "No regression.diffs file found in the hierarchy."
           fi
 
+    - name: "Generate Test Job Summary End: ${{ matrix.test }}"
+      if: always()
+      shell: bash {0}
+      run: |
+        {
+          echo "## Test Results"
+          echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          # Check if job was cancelled
+          if [[ "${{ job.status }}" == "cancelled" ]]; then
+            echo "### Test Status"
+            echo "🚫 Test execution was cancelled"
+            echo ""
+            echo "### Execution Summary"
+            echo "Test run was interrupted and did not complete. No test results are available."
+            exit 0
+          fi
+
+          # Process results for each configuration
+          IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+
+          for ((i=0; i<NUM_CONFIGS; i++)); do
+            config="${configs[$i]}"
+            IFS=':' read -r dir target <<< "$config"
+
+            echo "### Configuration $((i+1)): \`make -C $dir $target\`"
+
+            config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+
+            if [[ ! -f "$config_log" ]]; then
+              echo "⚠️ No log file found for this configuration"
+              continue
+            fi
+
+            cat $config_log | tail -1
+
+            test_pattern="\s+\S+\s+\.\.\."
+
+            TOTAL_TESTS=$(cat $config_log| grep -E "$test_pattern [Foi]" -c)
+            PASSED_TESTS=$(cat $config_log | grep -E "$test_pattern ok" -c)
+            FAILED_TESTS=$(cat $config_log | grep -E "$test_pattern FAILED" -c)
+            IGNORED_TESTS=$(cat $config_log | grep -E "$test_pattern ignored" -c)
+
+            STATUS="failed"
+
+            if cat $config_log | grep --quiet -E "All \d+ tests passed."; then
+              STATUS="passed"
+            fi
+
+            # Rest of the code remains the same...
+            # Display status with emoji
+            echo "#### Status"
+            case "${STATUS:-unknown}" in
+              passed)
+                echo "✅ All tests passed"
+                ;;
+              failed)
+                echo "❌ Some tests failed"
+                ;;
+              parse_error)
+                echo "⚠️ Could not parse test results"
+                ;;
+              unknown_error)
+                echo "⚠️ Unexpected error during test execution/parsing"
+                ;;
+              missing_log)
+                echo "⚠️ Test log file missing"
+                ;;
+              *)
+                echo "⚠️ Unknown status: ${status:-unknown}"
+                ;;
+            esac
+
+            echo ""
+            echo "#### Test Counts"
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Total Tests | ${TOTAL_TESTS:-0} |"
+            echo "| Passed Tests | ${PASSED_TESTS:-0} |"
+            echo "| Failed Tests | ${FAILED_TESTS:-0} |"
+            echo "| Ignored Tests | ${IGNORED_TESTS:-0} |"
+
+            # Add failed tests if any
+            if [[ -n "${FAILED_TEST_NAMES:-}" && "${FAILED_TESTS:-0}" != "0" ]]; then
+              echo ""
+              echo "#### Failed Tests"
+              echo "${FAILED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                if [[ -n "$test" ]]; then
+                  echo "* \`${test}\`"
+                fi
+              done
+            fi
+
+            # Add ignored tests if any
+            if [[ -n "${IGNORED_TEST_NAMES:-}" && "${IGNORED_TESTS:-0}" != "0" ]]; then
+              echo ""
+              echo "#### Ignored Tests"
+              echo "${IGNORED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                if [[ -n "$test" ]]; then
+                  echo "* \`${test}\`"
+                fi
+              done
+            fi
+
+            echo ""
+            echo "---"
+          done
+
+        } >> "$GITHUB_STEP_SUMMARY" || true
+
     - name: Upload test logs
       if: always()
       uses: actions/upload-artifact@v4
@@ -438,7 +548,7 @@ jobs:
   ## ======================================================================
 
   report:
-    name: Generate GPDB Build Report
+    name: Generate Greenplum Build Report
     needs: [build, prepare-test-matrix, test]
     if: always()
     runs-on: ubuntu-latest
@@ -446,7 +556,7 @@ jobs:
       - name: Generate Final Report
         run: |
           {
-            echo "# Apache Cloudberry Build Pipeline Report"
+            echo "# Greenplum Build Pipeline Report"
 
 
             echo "## Job Status"
