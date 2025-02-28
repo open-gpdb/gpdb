@@ -11,12 +11,13 @@ ENV YEZZEY_REF=${yezzeyRef:-v1.8_opengpdb}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
+COPY yezzey_test/generate_ssh_key.sh /home/gpadmin/
+RUN /home/gpadmin/generate_ssh_key.sh
+
 USER gpadmin
 WORKDIR /home/gpadmin
 
 COPY . /home/gpadmin
-
-RUN /home/gpadmin/generate_ssh_key.sh
 
 RUN sudo mkdir /usr/local/gpdb \
 && sudo chown gpadmin:root /usr/local/gpdb
