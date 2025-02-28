@@ -439,24 +439,24 @@ jobs:
               continue
             fi
 
-            cat $config_log | tail -1
+            cat $config_log | tail -4
 
             test_pattern="\s+\S+\s+\.\.\."
 
-            TOTAL_TESTS=$(cat $config_log| grep -E "$test_pattern [Foi]" -c)
+            TOTAL_TESTS=$(cat $config_log | grep -E "$test_pattern [Foi]" -c)
             PASSED_TESTS=$(cat $config_log | grep -E "$test_pattern ok" -c)
             FAILED_TESTS=$(cat $config_log | grep -E "$test_pattern FAILED" -c)
             IGNORED_TESTS=$(cat $config_log | grep -E "$test_pattern ignored" -c)
 
             STATUS="failed"
 
-            if cat $config_log | grep --quiet -E "All \d+ tests passed."; then
+            if cat $config_log | tail -4 | grep --quiet -E "All \d+ tests passed."; then
               STATUS="passed"
             fi
 
             # Rest of the code remains the same...
             # Display status with emoji
-            echo "#### Status"
+            echo "#### Status $STATUS"
             case "${STATUS:-unknown}" in
               passed)
                 echo "✅ All tests passed"
@@ -487,6 +487,8 @@ jobs:
             echo "| Failed Tests | ${FAILED_TESTS:-0} |"
             echo "| Ignored Tests | ${IGNORED_TESTS:-0} |"
 
+            FAILED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern FAILED" | grep -oE "^.... \w+" | grep -oE "\w+$")
+
             # Add failed tests if any
             if [[ -n "${FAILED_TEST_NAMES:-}" && "${FAILED_TESTS:-0}" != "0" ]]; then
               echo ""
@@ -497,6 +499,8 @@ jobs:
                 fi
               done
             fi
+
+            IGNORED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern ignored" | grep -oE "^.... \w+" | grep -oE "\w+$")
 
             # Add ignored tests if any
             if [[ -n "${IGNORED_TEST_NAMES:-}" && "${IGNORED_TESTS:-0}" != "0" ]]; then
