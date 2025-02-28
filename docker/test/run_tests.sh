@@ -83,4 +83,7 @@ createdb $USER
 sed -i  '/mdb-related/,$d' src/test/regress/input/misc.source src/test/regress/output/misc.source src/test/regress/output/misc.source
 
 cd $TEST_DIR
+if [ "${TEST_INSTALL_TARGET}" = "true" ]; then
+    make && make install
+fi
 PGPORT=6000 make $TEST_TARGET
