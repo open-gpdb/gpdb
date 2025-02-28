@@ -225,20 +225,15 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
-    - name: Build and push
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ./docker/build/Dockerfile
-        tags: gp_build_jammy:1234
-        load: true
-    - name: Build and push
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: ./docker/test/Dockerfile
-        tags: test_test:1234
-        outputs: type=docker,dest=/tmp/myimage.tar
+
+    - name: Build Environment Image
+      run: docker build . --file docker/build/Dockerfile --tag gp_build_jammy:1234
+
+    - name: Build Greenplum Image
+      run: docker build . --file docker/test/Dockerfile --tag test_test:1234
+      
+    - name: Save Greenplum Image
+      run: docker save -o /tmp/myimage.tar test_test:1234
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
