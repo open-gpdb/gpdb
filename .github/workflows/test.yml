@@ -32,6 +32,7 @@ jobs:
           DEFAULT_NUM_PRIMARY_MIRROR_PAIRS=3
           DEFAULT_ENABLE_CGROUPS=false
           DEFAULT_ENABLE_CORE_CHECK=true
+          DEFAULT_INSTALL_TARGET=false
           DEFAULT_PG_SETTINGS_OPTIMIZER=""
           DEFAULT_RUNS_ON="ubuntu-latest"
 
@@ -55,6 +56,7 @@ jobs:
                "runs_on":"ubuntu-20.04"
               },
               {"test":"ic-contrib",
+               "install_target":true
                "make_configs":["contrib/amcheck:installcheck",
                                "contrib/auto_explain:installcheck",
                                "contrib/btree_gin:installcheck",
@@ -125,12 +127,14 @@ jobs:
             echo "$1" | jq --arg     npm "$DEFAULT_NUM_PRIMARY_MIRROR_PAIRS" \
                            --argjson ec  "$DEFAULT_ENABLE_CGROUPS" \
                            --argjson ecc "$DEFAULT_ENABLE_CORE_CHECK" \
+                           --argjson emk "$DEFAULT_INSTALL_TARGET" \
                            --arg     opt "$DEFAULT_PG_SETTINGS_OPTIMIZER" \
                            --arg     ro  "$DEFAULT_RUNS_ON" \
               'def get_defaults:
                 {
                   num_primary_mirror_pairs: ($npm|tonumber),
                   enable_cgroups: $ec,
+                  install_target: $emk,
                   runs_on: $ro,
                   enable_core_check: $ecc,
                   pg_settings: {
@@ -349,6 +353,7 @@ jobs:
                 -e TEST_TARGET="${target}" \
                 -e PGOPTIONS="${PG_OPTS}" \
                 -e TEST_CGROUP="${TEST_CGROUP}" \
+                -e TEST_INSTALL_TARGET="${{ matrix.install_target }}" \
                 --privileged \
                 --cgroupns=private \
                 --name test_test_container test_test:1234 \
