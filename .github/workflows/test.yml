@@ -450,7 +450,7 @@ jobs:
 
             STATUS="failed"
 
-            if cat $config_log | tail -4 | grep --quiet -E "All \d+ tests passed."; then
+            if grep -qE "All .+ tests passed." $config_log; then
               STATUS="passed"
             fi
 
