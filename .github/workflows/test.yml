@@ -231,15 +231,24 @@ jobs:
 
     - name: Build Greenplum Image
       run: docker build . --file docker/test/Dockerfile --tag test_test:1234
+
+    - name: Save Environment Image
+      run: docker save -o /tmp/greenplum_image.tar test_test:1234
       
     - name: Save Greenplum Image
-      run: docker save -o /tmp/myimage.tar test_test:1234
+      run: docker save -o /tmp/gp_build_jammy.tar gp_build_jammy:1234
     
-    - name: Upload artifact
+    - name: Upload Greenplum Image artifact
       uses: actions/upload-artifact@v4
       with:
         name: myimage
-        path: /tmp/myimage.tar
+        path: /tmp/greenplum_image.tar
+
+    - name: Upload Environment Image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: myimage
+        path: /tmp/gp_build_jammy.tar
 
 
 
@@ -295,12 +304,12 @@ jobs:
     - name: Download artifact
       uses: actions/download-artifact@v4
       with:
-        name: myimage
+        name: greenplum_image
         path: /tmp
     - name: Load Docker image
       run: |
         docker image ls -a
-        docker load --input /tmp/myimage.tar
+        docker load --input /tmp/greenplum_image.tar
         docker image ls -a
 
     - name: "Run Tests: ${{ matrix.test }}"
