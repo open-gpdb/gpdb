@@ -241,13 +241,13 @@ jobs:
     - name: Upload Greenplum Image artifact
       uses: actions/upload-artifact@v4
       with:
-        name: myimage
+        name: greenplum_image
         path: /tmp/greenplum_image.tar
 
     - name: Upload Environment Image artifact
       uses: actions/upload-artifact@v4
       with:
-        name: myimage
+        name: gp_build_jammy
         path: /tmp/gp_build_jammy.tar
 
 
