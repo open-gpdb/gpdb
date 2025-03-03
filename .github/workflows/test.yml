@@ -231,10 +231,10 @@ jobs:
 
     - name: Push Environment Image
       run: |
-        $IMAGE_NAME="gp_build_jammy"
+        IMAGE_NAME=gp_build_jammy
         IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
         IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-        $VERSION="latest"
+        VERSION=latest
         echo IMAGE_ID=$IMAGE_ID
         echo VERSION=$VERSION
         docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
