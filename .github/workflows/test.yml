@@ -229,6 +229,18 @@ jobs:
     - name: Build Environment Image
       run: docker build . --file docker/build/Dockerfile --tag gp_build_jammy:1234
 
+    - name: Push Environment Image
+      run: |
+        IMAGE_ID=ghcr.io/${{ github.repository_owner }}/gp_build_jammy
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+        [ "$VERSION" == "main" ] && VERSION=latest
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
+
     - name: Build Greenplum Image
       run: docker build . --file docker/test/Dockerfile --tag test_test:1234
 
