@@ -420,15 +420,15 @@ GpPolicyFetch(Oid tbloid)
 		if ((Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE) &&
 			policyform->numsegments > getgpsegmentCount())
 		{
-			// ReleaseSysCache(gp_policy_tuple);
-			// ereport(ERROR,
-			// 		(errcode(ERRCODE_GP_FEATURE_NOT_YET),
-			// 		 errmsg("cannot access table \"%s\" in current transaction",
-			// 				get_rel_name(tbloid)),
-			// 		 errdetail("New segments are concurrently added to the cluster during the execution of current transaction, "
-			// 				   "the table has data on some of the new segments, "
-			// 				   "but these new segments are invisible and inaccessible to current transaction."),
-			// 		 errhint("Re-run the query in a new transaction.")));
+			ReleaseSysCache(gp_policy_tuple);
+			ereport(ERROR,
+					(errcode(ERRCODE_GP_FEATURE_NOT_YET),
+					 errmsg("cannot access table \"%s\" in current transaction",
+							get_rel_name(tbloid)),
+					 errdetail("New segments are concurrently added to the cluster during the execution of current transaction, "
+							   "the table has data on some of the new segments, "
+							   "but these new segments are invisible and inaccessible to current transaction."),
+					 errhint("Re-run the query in a new transaction.")));
 		}
 
 		switch (policyform->policytype)
