@@ -32,6 +32,7 @@ jobs:
           DEFAULT_NUM_PRIMARY_MIRROR_PAIRS=3
           DEFAULT_ENABLE_CGROUPS=false
           DEFAULT_ENABLE_CORE_CHECK=true
+          DEFAULT_INSTALL_TARGET=false
           DEFAULT_PG_SETTINGS_OPTIMIZER=""
           DEFAULT_RUNS_ON="ubuntu-latest"
 
@@ -55,6 +56,7 @@ jobs:
                "runs_on":"ubuntu-20.04"
               },
               {"test":"ic-contrib",
+               "install_target":true,
                "make_configs":["contrib/amcheck:installcheck",
                                "contrib/auto_explain:installcheck",
                                "contrib/btree_gin:installcheck",
@@ -62,7 +64,7 @@ jobs:
                                "contrib/citext:installcheck",
                                "contrib/cube:installcheck",
                                "contrib/dblink:installcheck",
-                               "contrib/dict_in:installcheck",
+                               "contrib/dict_int:installcheck",
                                "contrib/dict_xsyn:installcheck",
                                "contrib/earthdistance:installcheck",
                                "contrib/extprotocol:installcheck",
@@ -125,12 +127,14 @@ jobs:
             echo "$1" | jq --arg     npm "$DEFAULT_NUM_PRIMARY_MIRROR_PAIRS" \
                            --argjson ec  "$DEFAULT_ENABLE_CGROUPS" \
                            --argjson ecc "$DEFAULT_ENABLE_CORE_CHECK" \
+                           --argjson emk "$DEFAULT_INSTALL_TARGET" \
                            --arg     opt "$DEFAULT_PG_SETTINGS_OPTIMIZER" \
                            --arg     ro  "$DEFAULT_RUNS_ON" \
               'def get_defaults:
                 {
                   num_primary_mirror_pairs: ($npm|tonumber),
                   enable_cgroups: $ec,
+                  install_target: $emk,
                   runs_on: $ro,
                   enable_core_check: $ecc,
                   pg_settings: {
@@ -349,6 +353,7 @@ jobs:
                 -e TEST_TARGET="${target}" \
                 -e PGOPTIONS="${PG_OPTS}" \
                 -e TEST_CGROUP="${TEST_CGROUP}" \
+                -e TEST_INSTALL_TARGET="${{ matrix.install_target }}" \
                 --privileged \
                 --cgroupns=private \
                 --name test_test_container test_test:1234 \
@@ -405,6 +410,120 @@ jobs:
             echo "No regression.diffs file found in the hierarchy."
           fi
 
+    - name: "Generate Test Job Summary End: ${{ matrix.test }}"
+      if: always()
+      shell: bash {0}
+      run: |
+        {
+          echo "## Test Results"
+          echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          # Check if job was cancelled
+          if [[ "${{ job.status }}" == "cancelled" ]]; then
+            echo "### Test Status"
+            echo "🚫 Test execution was cancelled"
+            echo ""
+            echo "### Execution Summary"
+            echo "Test run was interrupted and did not complete. No test results are available."
+            exit 0
+          fi
+
+          # Process results for each configuration
+          IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+
+          for ((i=0; i<NUM_CONFIGS; i++)); do
+            config="${configs[$i]}"
+            IFS=':' read -r dir target <<< "$config"
+
+            echo "### Configuration $((i+1)): \`make -C $dir $target\`"
+
+            config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+
+            if [[ ! -f "$config_log" ]]; then
+              echo "⚠️ No log file found for this configuration"
+              continue
+            fi
+
+            cat $config_log | tail -4
+
+            test_pattern="\s+\S+\s+\.\.\."
+
+            TOTAL_TESTS=$(cat $config_log | grep -E "$test_pattern [Foi]" -c)
+            PASSED_TESTS=$(cat $config_log | grep -E "$test_pattern ok" -c)
+            FAILED_TESTS=$(cat $config_log | grep -E "$test_pattern FAILED" -c)
+            IGNORED_TESTS=$(cat $config_log | grep -E "$test_pattern ignored" -c)
+
+            STATUS="failed"
+
+            if grep -qE "All .+ tests passed." $config_log; then
+              STATUS="passed"
+            fi
+
+            # Rest of the code remains the same...
+            # Display status with emoji
+            echo "#### Status $STATUS"
+            case "${STATUS:-unknown}" in
+              passed)
+                echo "✅ All tests passed"
+                ;;
+              failed)
+                echo "❌ Some tests failed"
+                ;;
+              parse_error)
+                echo "⚠️ Could not parse test results"
+                ;;
+              unknown_error)
+                echo "⚠️ Unexpected error during test execution/parsing"
+                ;;
+              missing_log)
+                echo "⚠️ Test log file missing"
+                ;;
+              *)
+                echo "⚠️ Unknown status: ${status:-unknown}"
+                ;;
+            esac
+
+            echo ""
+            echo "#### Test Counts"
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Total Tests | ${TOTAL_TESTS:-0} |"
+            echo "| Passed Tests | ${PASSED_TESTS:-0} |"
+            echo "| Failed Tests | ${FAILED_TESTS:-0} |"
+            echo "| Ignored Tests | ${IGNORED_TESTS:-0} |"
+
+            FAILED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern FAILED" | grep -oE "^.... \w+" | grep -oE "\w+$")
+
+            # Add failed tests if any
+            if [[ -n "${FAILED_TEST_NAMES:-}" && "${FAILED_TESTS:-0}" != "0" ]]; then
+              echo ""
+              echo "#### Failed Tests"
+              echo "${FAILED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                if [[ -n "$test" ]]; then
+                  echo "* \`${test}\`"
+                fi
+              done
+            fi
+
+            IGNORED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern ignored" | grep -oE "^.... \w+" | grep -oE "\w+$")
+
+            # Add ignored tests if any
+            if [[ -n "${IGNORED_TEST_NAMES:-}" && "${IGNORED_TESTS:-0}" != "0" ]]; then
+              echo ""
+              echo "#### Ignored Tests"
+              echo "${IGNORED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                if [[ -n "$test" ]]; then
+                  echo "* \`${test}\`"
+                fi
+              done
+            fi
+
+            echo ""
+            echo "---"
+          done
+
+        } >> "$GITHUB_STEP_SUMMARY" || true
+
     - name: Upload test logs
       if: always()
       uses: actions/upload-artifact@v4
@@ -438,7 +557,7 @@ jobs:
   ## ======================================================================
 
   report:
-    name: Generate GPDB Build Report
+    name: Generate Greenplum Build Report
     needs: [build, prepare-test-matrix, test]
     if: always()
     runs-on: ubuntu-latest
@@ -446,7 +565,7 @@ jobs:
       - name: Generate Final Report
         run: |
           {
-            echo "# Apache Cloudberry Build Pipeline Report"
+            echo "# Greenplum Build Pipeline Report"
 
 
             echo "## Job Status"
