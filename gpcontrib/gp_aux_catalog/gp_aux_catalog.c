@@ -100,58 +100,57 @@ gpdb_binary_upgrade_insert_pro_tup(
 	heap_freetuple(tuple);
 }
 
-// static void
-// gpdb_binary_upgrade_insert_pro_tup(
-// 	Relation rel,
-// 	TupleDesc tupDesc
-// )
-// {
-//     bool		nulls[Natts_pg_am];
-// 	Datum		values[Natts_pg_am];
-//     HeapTuple tuple;
+static void
+gpdb_binary_upgrade_insert_am_tup(
+	Relation rel,
+	TupleDesc tupDesc
+)
+{
+    bool		nulls[Natts_pg_am];
+	Datum		values[Natts_pg_am];
+    HeapTuple tuple;
 
-// 	memset(values, 0, sizeof(values));
-// 	memset(nulls, false, sizeof(nulls));
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
 
-// 	values[Anum_pg_am_amname - 1] = NameGetDatum("bloom");
-// 	values[Anum_pg_am_amstrategies - 1] = NameGetDatum("bloom");
-	
-// #define Anum_pg_am_amstrategies			2
-// #define Anum_pg_am_amsupport			3
-// #define Anum_pg_am_amcanorder			4
-// #define Anum_pg_am_amcanorderbyop		5
-// #define Anum_pg_am_amcanbackward		6
-// #define Anum_pg_am_amcanunique			7
-// #define Anum_pg_am_amcanmulticol		8
-// #define Anum_pg_am_amoptionalkey		9
-// #define Anum_pg_am_amsearcharray		10
-// #define Anum_pg_am_amsearchnulls		11
-// #define Anum_pg_am_amstorage			12
-// #define Anum_pg_am_amclusterable		13
-// #define Anum_pg_am_ampredlocks			14
-// #define Anum_pg_am_amkeytype			15
-// #define Anum_pg_am_aminsert				16
-// #define Anum_pg_am_ambeginscan			17
-// #define Anum_pg_am_amgettuple			18
-// #define Anum_pg_am_amgetbitmap			19
-// #define Anum_pg_am_amrescan				20
-// #define Anum_pg_am_amendscan			21
-// #define Anum_pg_am_ammarkpos			22
-// #define Anum_pg_am_amrestrpos			23
-// #define Anum_pg_am_ambuild				24
-// #define Anum_pg_am_ambuildempty			25
-// #define Anum_pg_am_ambulkdelete			26
-// #define Anum_pg_am_amvacuumcleanup		27
-// #define Anum_pg_am_amcanreturn			28
-// #define Anum_pg_am_amcostestimate		29
-// #define Anum_pg_am_amoptions			30
+	values[Anum_pg_am_amname - 1] = NameGetDatum("bloom");
+	values[Anum_pg_am_amstrategies - 1] = Int16GetDatum(0);
+	values[Anum_pg_am_amsupport - 1] = Int16GetDatum(0);
+	values[Anum_pg_am_amcanorder - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amcanorderbyop - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amcanbackward - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amcanunique - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amcanmulticol - 1] = BoolGetDatum(true);
+	values[Anum_pg_am_amoptionalkey - 1] = BoolGetDatum(true);
+	values[Anum_pg_am_amsearcharray - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amsearchnulls - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amstorage - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amclusterable - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_ampredlocks - 1] = BoolGetDatum(false);
+	values[Anum_pg_am_amkeytype - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_am_aminsert - 1] = ObjectIdGetDatum(F_BLINSERT);
+	values[Anum_pg_am_ambeginscan - 1] = ObjectIdGetDatum(F_BLBEGINSCAN);
+	values[Anum_pg_am_amgettuple - 1] = ObjectIdGetDatum(F_BLGETTUPLE);;
+	values[Anum_pg_am_amgetbitmap - 1] = ObjectIdGetDatum(F_BLGETBITMAP);
+	values[Anum_pg_am_amrescan - 1] = ObjectIdGetDatum(F_BLRESCAN);
+	values[Anum_pg_am_amendscan - 1] = ObjectIdGetDatum(F_BLENDSCAN);
+	values[Anum_pg_am_ammarkpos - 1] = ObjectIdGetDatum(F_BLMARKPOS);
+	values[Anum_pg_am_amrestrpos - 1] = ObjectIdGetDatum(F_BLRESTRPOS);
+	values[Anum_pg_am_ambuild - 1] = ObjectIdGetDatum(F_BLBUILD);
+	values[Anum_pg_am_ambuildempty - 1] = ObjectIdGetDatum(F_BLBUILDEMPTY);
+	values[Anum_pg_am_ambulkdelete - 1] = ObjectIdGetDatum(F_BLBULKDELETE);
+	values[Anum_pg_am_amvacuumcleanup - 1] = ObjectIdGetDatum(F_BLVACUUMCLEANUP);
+	values[Anum_pg_am_amcanreturn - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_am_amcostestimate - 1] = ObjectIdGetDatum(F_BLCOSTESTIMATE);
+	values[Anum_pg_am_amoptions - 1] = ObjectIdGetDatum(F_BLOPTIONS);
 
-// 	tuple = heap_form_tuple(tupDesc, values, nulls);
-// 	simple_heap_insert(rel, tuple);
 
-// 	CatalogUpdateIndexes(rel, tuple);
-// 	heap_freetuple(tuple);
-// }
+	tuple = heap_form_tuple(tupDesc, values, nulls);
+	simple_heap_insert(rel, tuple);
+
+	CatalogUpdateIndexes(rel, tuple);
+	heap_freetuple(tuple);
+}
 
 /*
 *
@@ -179,7 +178,7 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
     TupleDesc tupDesc;
 	
 	pgprocrel = relation_open(ProcedureRelationId, RowExclusiveLock);
-	pgamrel = relation_open(ProcedureRelationId, RowExclusiveLock);
+	pgamrel = relation_open(AccessMethodRelationId, RowExclusiveLock);
 
 	tupDesc = RelationGetDescr(pgprocrel);
 
@@ -253,6 +252,20 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 
 		parameterTypes = buildoidvector(procArgTypes, BLGETTUPLE_NARGS);
 		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_BLGETTUPLE, tupDesc, proname, BOOLOID, BLGETTUPLE_NARGS, parameterTypes);
+	}
+
+		{
+#define BLGETBITMAP_NARGS 2
+		Oid			procArgTypes[BLGETBITMAP_NARGS];
+		oidvector	*parameterTypes;
+
+		char proname[NAMEDATALEN] = "blgetbitmap";
+	
+		for (int i = 0; i  < BLGETBITMAP_NARGS; ++i) 
+			procArgTypes[i] = INTERNALOID;
+
+		parameterTypes = buildoidvector(procArgTypes, BLGETBITMAP_NARGS);
+		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_BLGETBITMAP, tupDesc, proname, BOOLOID, BLGETBITMAP_NARGS, parameterTypes);
 	}
 
 	{
@@ -355,7 +368,21 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_BLOPTIONS, tupDesc, proname, BYTEAOID, BLOPTIONS_NARGS, parameterTypes);
 	}
 
+	{
+#define BLCOSTESTIMATE_NARGS 7
+		Oid			procArgTypes[BLCOSTESTIMATE_NARGS];
+		oidvector	*parameterTypes;
 
+		char proname[NAMEDATALEN] = "blcostestimate";
+
+		for (int i = 0; i  < BLCOSTESTIMATE_NARGS; ++i) 
+			procArgTypes[i] = INTERNALOID;
+
+		parameterTypes = buildoidvector(procArgTypes, BLCOSTESTIMATE_NARGS);
+		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_BLCOSTESTIMATE, tupDesc, proname, VOIDOID, BLCOSTESTIMATE_NARGS, parameterTypes);
+	}
+
+	gpdb_binary_upgrade_insert_am_tup(pgamrel, RelationGetDescr(pgamrel));
 
     relation_close(pgprocrel, RowExclusiveLock);
     relation_close(pgamrel, RowExclusiveLock);
