@@ -20,6 +20,7 @@
 #include "storage/smgr.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
+#include "access/heapam_xlog.h"
 
 #include "bloom.h"
 

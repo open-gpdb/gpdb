@@ -203,6 +203,7 @@ extern Datum gistcostestimate(PG_FUNCTION_ARGS);
 extern Datum spgcostestimate(PG_FUNCTION_ARGS);
 extern Datum gincostestimate(PG_FUNCTION_ARGS);
 extern Datum bmcostestimate(PG_FUNCTION_ARGS);
+extern Datum blcostestimate(PG_FUNCTION_ARGS);
 
 /* Functions in array_selfuncs.c */
 

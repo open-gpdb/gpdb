@@ -7845,4 +7845,6 @@ blcostestimate(PG_FUNCTION_ARGS)
 	*indexTotalCost = costs.indexTotalCost;
 	*indexSelectivity = costs.indexSelectivity;
 	*indexCorrelation = costs.indexCorrelation;
+
+	PG_RETURN_VOID();
 }
