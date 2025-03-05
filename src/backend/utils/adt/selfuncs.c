@@ -7815,3 +7815,34 @@ bmcostestimate(PG_FUNCTION_ARGS)
 
 	PG_RETURN_VOID();
 }
+
+
+/*
+ * Estimate cost of bloom index scan.
+ */
+Datum
+blcostestimate(PG_FUNCTION_ARGS)
+{
+	PlannerInfo *root = (PlannerInfo *) PG_GETARG_POINTER(0);
+	IndexPath  *path = (IndexPath *) PG_GETARG_POINTER(1);
+	double		loop_count = PG_GETARG_FLOAT8(2);
+	Cost	   *indexStartupCost = (Cost *) PG_GETARG_POINTER(3);
+	Cost	   *indexTotalCost = (Cost *) PG_GETARG_POINTER(4);
+	Selectivity *indexSelectivity = (Selectivity *) PG_GETARG_POINTER(5);
+	double	   *indexCorrelation = (double *) PG_GETARG_POINTER(6);
+	IndexOptInfo *index = path->indexinfo;
+	GenericCosts costs;
+
+	MemSet(&costs, 0, sizeof(costs));
+
+	/* We have to visit all index tuples anyway */
+	costs.numIndexTuples = index->tuples;
+
+	/* Use generic estimate */
+	genericcostestimate(root, path, loop_count, &costs);
+
+	*indexStartupCost = costs.indexStartupCost;
+	*indexTotalCost = costs.indexTotalCost;
+	*indexSelectivity = costs.indexSelectivity;
+	*indexCorrelation = costs.indexCorrelation;
+}
