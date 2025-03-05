@@ -374,7 +374,7 @@ DESCR("bitmap(internal)");
 
 /* bmoptions(_text, bool) => bytea */
 DATA(insert OID = 7197 ( bmoptions  PGNSP PGUID 12 1 0 0 0 f f f f t f s 2 0 17 "1009 16" _null_ _null_ _null_ _null_ bmoptions _null_ _null_ _null_ n a ));
-DESCR("btree(internal)");
+DESCR("bitmap(internal)");
 
 
 /* AOCS functions. */

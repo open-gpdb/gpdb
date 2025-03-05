@@ -183,8 +183,6 @@ extern BloomTuple *BloomFormTuple(BloomState *state, ItemPointer iptr, Datum *va
 extern bool BloomPageAddItem(BloomState *state, Page page, BloomTuple *tuple);
 
 /* blvalidate.c */
-extern bool blvalidate(Oid opclassoid);
-
 /* index access method interface functions */
 extern Datum blbuild(PG_FUNCTION_ARGS);
 extern Datum blbuildempty(PG_FUNCTION_ARGS);
