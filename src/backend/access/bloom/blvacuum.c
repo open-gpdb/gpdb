@@ -30,10 +30,15 @@
  *
  * Result: a palloc'd struct containing statistical info for VACUUM displays.
  */
-IndexBulkDeleteResult *
-blbulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
-			 IndexBulkDeleteCallback callback, void *callback_state)
+
+Datum
+blbulkdelete(PG_FUNCTION_ARGS)
 {
+	IndexVacuumInfo *info = (IndexVacuumInfo *) PG_GETARG_POINTER(0);
+	IndexBulkDeleteResult* volatile result =
+		(IndexBulkDeleteResult *) PG_GETARG_POINTER(1);
+	IndexBulkDeleteCallback callback = (IndexBulkDeleteCallback) PG_GETARG_POINTER(2);
+	void	   *callback_state = (void *) PG_GETARG_POINTER(3);
 	Relation	index = info->index;
 	BlockNumber blkno,
 				npages;
@@ -44,8 +49,10 @@ blbulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
 	Page		page;
 	BloomMetaPageData *metaData;
 
+#if 0
 	if (stats == NULL)
 		stats = (IndexBulkDeleteResult *) palloc0(sizeof(IndexBulkDeleteResult));
+#endif
 
 	initBloomState(&state, index);
 
@@ -89,7 +96,9 @@ blbulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
 			{
 				/* Yes; adjust count of tuples that will be left on page */
 				BloomPageGetOpaque(page)->maxoff--;
+#if 0
 				stats->tuples_removed += 1;
+#endif
 			}
 			else
 			{
@@ -154,7 +163,7 @@ blbulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
 
 	UnlockReleaseBuffer(buffer);
 
-	return stats;
+	PG_RETURN_POINTER(result);
 }
 
 /*
@@ -162,15 +171,18 @@ blbulkdelete(IndexVacuumInfo *info, IndexBulkDeleteResult *stats,
  *
  * Result: a palloc'd struct containing statistical info for VACUUM displays.
  */
-IndexBulkDeleteResult *
-blvacuumcleanup(IndexVacuumInfo *info, IndexBulkDeleteResult *stats)
+Datum
+blvacuumcleanup(PG_FUNCTION_ARGS)
 {
+	IndexVacuumInfo *info = (IndexVacuumInfo *) PG_GETARG_POINTER(0);
+	IndexBulkDeleteResult *stats = 
+			(IndexBulkDeleteResult *) PG_GETARG_POINTER(1);
 	Relation	index = info->index;
 	BlockNumber npages,
 				blkno;
 
 	if (info->analyze_only)
-		return stats;
+		PG_RETURN_POINTER(stats);
 
 	if (stats == NULL)
 		stats = (IndexBulkDeleteResult *) palloc0(sizeof(IndexBulkDeleteResult));
@@ -210,5 +222,5 @@ blvacuumcleanup(IndexVacuumInfo *info, IndexBulkDeleteResult *stats)
 
 	IndexFreeSpaceMapVacuum(info->index);
 
-	return stats;
+	PG_RETURN_POINTER(stats);
 }

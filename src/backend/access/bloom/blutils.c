@@ -13,8 +13,6 @@
  */
 #include "postgres.h"
 
-#include "access/amapi.h"
-#include "access/generic_xlog.h"
 #include "catalog/index.h"
 #include "storage/lmgr.h"
 #include "miscadmin.h"
@@ -417,9 +415,11 @@ BloomInitMetapage(Relation index)
 /*
  * Parse reloptions for bloom index, producing a BloomOptions struct.
  */
-bytea *
-bloptions(Datum reloptions, bool validate)
+Datum
+bloptions(PG_FUNCTION_ARGS)
 {
+	Datum		reloptions = PG_GETARG_DATUM(0);
+	bool		validate = PG_GETARG_BOOL(1);
 	relopt_value *options;
 	int			numoptions;
 	BloomOptions *rdopts;
@@ -433,5 +433,7 @@ bloptions(Datum reloptions, bool validate)
 	/* Convert signature length from # of bits to # to words, rounding up */
 	rdopts->bloomLength = (rdopts->bloomLength + SIGNWORDBITS - 1) / SIGNWORDBITS;
 
-	return (bytea *) rdopts;
+	if (rdopts)
+		PG_RETURN_BYTEA_P((bytea *) rdopts);
+	PG_RETURN_NULL();
 }

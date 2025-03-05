@@ -24,8 +24,6 @@
 
 #include "bloom.h"
 
-PG_MODULE_MAGIC;
-
 /*
  * State of bloom index build.  We accumulate one page data here before
  * flushing it to buffer manager.
@@ -144,7 +142,7 @@ blbuild(PG_FUNCTION_ARGS)
 	initCachedPage(&buildstate);
 
 	/* Do the heap scan */
-	reltuples = IndexBuildHeapScan(heap, index, indexInfo, true,
+	reltuples = IndexBuildScan(heap, index, indexInfo, true,
 								   bloomBuildCallback, (void *) &buildstate);
 
 	/* Flush last page if needed (it will be, unless heap was empty) */
