@@ -366,12 +366,14 @@ jobs:
 
           RESULTS_PATH="build-results/results-${{ matrix.test }}-${i}"
           mkdir -p $RESULTS_PATH
+          mkdir -p $RESULTS_PATH/gpAux
           mkdir -p /tmp/$RESULTS_PATH
 
           docker cp test_test_container:/home/gpadmin/ /tmp/$RESULTS_PATH/
           ls /tmp/$RESULTS_PATH
           ls /tmp/$RESULTS_PATH/gpadmin
           cp -L -r /tmp/$RESULTS_PATH/gpadmin/${dir} $RESULTS_PATH
+          cp -L -r /tmp/$RESULTS_PATH/gpadmin/gpAux $RESULTS_PATH/gpAux
           sudo rm -rf /tmp/$RESULTS_PATH/gpadmin
 
           docker rm test_test_container
@@ -540,6 +542,8 @@ jobs:
           **/regression.out
           **/regression.diffs
           **/results/
+          **/*.log
+          **/gpdemo/datadirs/**/**/pg_log/**
 
     - name: Upload test regression logs
       if: failure() || cancelled()
@@ -551,6 +555,9 @@ jobs:
           **/regression.diffs
           **/*.diffs
           **/results/
+          **/*.log
+          **/gpdemo/datadirs/**/**/pg_log/**
+          
 
   ## ======================================================================
   ## Job: report
