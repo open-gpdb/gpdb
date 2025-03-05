@@ -116,12 +116,16 @@ bloomBuildCallback(Relation index, HeapTuple htup, Datum *values,
 /*
  * Build a new bloom index.
  */
-IndexBuildResult *
-blbuild(Relation heap, Relation index, IndexInfo *indexInfo)
+Datum
+blbuild(PG_FUNCTION_ARGS)
 {
 	IndexBuildResult *result;
 	double		reltuples;
 	BloomBuildState buildstate;
+
+	Relation    heap = (Relation) PG_GETARG_POINTER(0);
+	Relation    index = (Relation) PG_GETARG_POINTER(1);
+	IndexInfo  *indexInfo = (IndexInfo *) PG_GETARG_POINTER(2);
 
 	if (RelationGetNumberOfBlocks(index) != 0)
 		elog(ERROR, "index \"%s\" already contains data",
@@ -152,14 +156,14 @@ blbuild(Relation heap, Relation index, IndexInfo *indexInfo)
 	result->heap_tuples = reltuples;
 	result->index_tuples = buildstate.indtuples;
 
-	return result;
+	PG_RETURN_POINTER(result);
 }
 
 /*
  * Build an empty bloom index in the initialization fork.
  */
 
-void
+Datum
 blbuildempty(PG_FUNCTION_ARGS)
 {
 	Page		metapage;
@@ -195,7 +199,7 @@ blbuildempty(PG_FUNCTION_ARGS)
 /*
  * Insert new tuple to the bloom index.
  */
-bool
+Datum
 blinsert(PG_FUNCTION_ARGS)
 {
 	BloomState	blstate;

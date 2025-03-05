@@ -186,26 +186,18 @@ extern bool BloomPageAddItem(BloomState *state, Page page, BloomTuple *tuple);
 extern bool blvalidate(Oid opclassoid);
 
 /* index access method interface functions */
-extern bool blinsert(Relation index, Datum *values, bool *isnull,
-		 ItemPointer ht_ctid, Relation heapRel,
-		 IndexUniqueCheck checkUnique);
-extern IndexScanDesc blbeginscan(Relation r, int nkeys, int norderbys);
-extern int64 blgetbitmap(IndexScanDesc scan, TIDBitmap *tbm);
-extern void blrescan(IndexScanDesc scan, ScanKey scankey, int nscankeys,
-		 ScanKey orderbys, int norderbys);
-extern void blendscan(IndexScanDesc scan);
-extern IndexBuildResult *blbuild(Relation heap, Relation index,
-		struct IndexInfo *indexInfo);
-extern void blbuildempty(Relation index);
-extern IndexBulkDeleteResult *blbulkdelete(IndexVacuumInfo *info,
-			 IndexBulkDeleteResult *stats, IndexBulkDeleteCallback callback,
-			 void *callback_state);
-extern IndexBulkDeleteResult *blvacuumcleanup(IndexVacuumInfo *info,
-				IndexBulkDeleteResult *stats);
-extern bytea *bloptions(Datum reloptions, bool validate);
-extern void blcostestimate(PlannerInfo *root, IndexPath *path,
-			   double loop_count, Cost *indexStartupCost,
-			   Cost *indexTotalCost, Selectivity *indexSelectivity,
-			   double *indexCorrelation);
+extern Datum blbuild(PG_FUNCTION_ARGS);
+extern Datum blbuildempty(PG_FUNCTION_ARGS);
+extern Datum blinsert(PG_FUNCTION_ARGS);
+extern Datum blbeginscan(PG_FUNCTION_ARGS);
+extern Datum blgettuple(PG_FUNCTION_ARGS);
+extern Datum blgetbitmap(PG_FUNCTION_ARGS);
+extern Datum blrescan(PG_FUNCTION_ARGS);
+extern Datum blendscan(PG_FUNCTION_ARGS);
+extern Datum blmarkpos(PG_FUNCTION_ARGS);
+extern Datum blrestrpos(PG_FUNCTION_ARGS);
+extern Datum blbulkdelete(PG_FUNCTION_ARGS);
+extern Datum blvacuumcleanup(PG_FUNCTION_ARGS);
+extern Datum bloptions(PG_FUNCTION_ARGS);
 
 #endif

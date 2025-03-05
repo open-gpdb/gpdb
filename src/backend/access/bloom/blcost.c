@@ -21,13 +21,19 @@
 /*
  * Estimate cost of bloom index scan.
  */
-void
-blcostestimate(PlannerInfo *root, IndexPath *path, double loop_count,
-			   Cost *indexStartupCost, Cost *indexTotalCost,
-			   Selectivity *indexSelectivity, double *indexCorrelation)
+Datum
+blcostestimate(PG_FUNCTION_ARGS)
 {
+	PlannerInfo *root = (PlannerInfo *) PG_GETARG_POINTER(0);
+	IndexPath  *path = (IndexPath *) PG_GETARG_POINTER(1);
+	double		loop_count = PG_GETARG_FLOAT8(2);
+	Cost	   *indexStartupCost = (Cost *) PG_GETARG_POINTER(3);
+	Cost	   *indexTotalCost = (Cost *) PG_GETARG_POINTER(4);
+	Selectivity *indexSelectivity = (Selectivity *) PG_GETARG_POINTER(5);
+	double	   *indexCorrelation = (double *) PG_GETARG_POINTER(6);
 	IndexOptInfo *index = path->indexinfo;
 	List	   *qinfos;
+	GenericCosts costs;
 
 	/* Do preliminary analysis of indexquals */
 	qinfos = deconstruct_indexquals(path);
