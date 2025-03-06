@@ -13,9 +13,12 @@ jobs:
     strategy:
       fail-fast: false 
       matrix:
-        patch: ["", "namedatalen-128.patch"]
+        include:
+          - name: "default"
+          - name : "namedatalen-128"
+            patch: "namedatalen-128.patch"
 
-    name: Build Debian Package (${{ matrix.patch }})
+    name: Build Debian Package (${{ matrix.name }})
 
     outputs:
       package_name: ${{ steps.get-package-name.outputs.package_name }}
@@ -89,7 +92,7 @@ jobs:
         chmod +x make_deb.sh
 
     - name: apply patches
-      if: matrix.patch != ''
+      if: matrix.patch
       run: |
         set -ex
 
@@ -131,7 +134,7 @@ jobs:
     - name: Upload Debian Package
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.get-package-name.outputs.package_name }}-${{ matrix.patch }}
+        name: ${{ matrix.name }}-${{ steps.get-package-name.outputs.package_name }}
         path: |
           package-build/${{ steps.get-package-name.outputs.package_name }}
 
