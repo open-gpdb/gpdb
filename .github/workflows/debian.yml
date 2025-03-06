@@ -193,7 +193,7 @@ jobs:
     - name: Download Debian Package
       uses: actions/download-artifact@v4
       with:
-        name: ${{ matrix.name }}-${{needs.build_debian.outputs.package_name}}
+        name: ${{ matrix.name }}-${{ needs.build-debian.outputs.package_name }}
 
     - name: Get Debian Package name
       id: get-package-name
@@ -202,9 +202,9 @@ jobs:
 
         ls -l
 
-        echo "deb1 - ${{needs.build_debian.outputs.package_name}}"
+        echo "deb1 - ${{needs.build-debian.outputs.package_name}}"
 
-        DEB_FILE="${{needs.build_debian.outputs.package_name}}"
+        DEB_FILE="${{needs.build-debian.outputs.package_name}}"
 
         echo "deb2 - $DEB_FILE"
 
@@ -216,7 +216,7 @@ jobs:
     name: Upload Debian Package (${{ matrix.name }})
 
     runs-on: ubuntu-latest
-    
+
     needs: [prepare-build-matrix, build-debian, test_debian]
 
     strategy:
@@ -227,12 +227,12 @@ jobs:
     - name: Download Debian Package
       uses: actions/download-artifact@v4
       with:
-        name: ${{ matrix.name }}-${{needs.build_debian.outputs.package_name}}
+        name: ${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{ matrix.name }}-${{needs.build_debian.outputs.package_name}}
+        files: ${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}
   
 
 
