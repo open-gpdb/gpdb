@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false 
       matrix:
         patch: ["", "namedatalen-128.patch"]
 
@@ -93,7 +94,7 @@ jobs:
         set -ex
 
         cd gpdb
-        git apply ./patches/${{ matrix.patch }}.patch
+        git apply ./patches/${{ matrix.patch }}
 
     - name: build and sign
       run: |
