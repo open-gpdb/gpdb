@@ -538,11 +538,7 @@ jobs:
       with:
         name: results-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
         path: |
-          **/regression.out
-          **/regression.diffs
-          **/results/
-          **/gpAdminLogs.tar
-          **/gpdemo/datadirs/**/**/pg_log/**
+          build-results/
 
     - name: Upload test regression logs
       if: failure() || cancelled()
@@ -550,12 +546,7 @@ jobs:
       with:
         name: regression-logs-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
         path: |
-          **/regression.out
-          **/regression.diffs
-          **/*.diffs
-          **/results/
-          **/gpAdminLogs.tar
-          **/gpdemo/datadirs/**/**/pg_log/**
+          build-results/
           
 
   ## ======================================================================
