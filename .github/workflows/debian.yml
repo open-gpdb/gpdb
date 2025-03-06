@@ -6,19 +6,55 @@ on:
 
 jobs:
 
-  build_debian:
+  prepare-build-matrix:
+
+    name: Prepare Build Variations
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      build-matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - id: set-matrix
+        run: |
+          echo "=== Matrix Preparation ==="
+
+          # Build result JSON with defaults applied
+          RESULT='{"include":[
+            {
+              "name": "default"
+              },
+            {
+              "name": "namedatalen-128",
+              "patch": "namedatalen-128.patch"
+            }
+          ]}'
+
+          # Output the matrix for GitHub Actions
+          echo "Final matrix configuration:"
+          echo "$RESULT" | jq .
+
+          # Fix: Use block redirection
+          {
+            echo "matrix<<EOF"
+            echo "$RESULT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "=== Matrix Preparation Complete ==="
+
+  build-debian:
+
+    name: Build Debian Package (${{ matrix.name }})
+
+    needs: [prepare-build-matrix]
 
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: false 
-      matrix:
-        include:
-          - name: "default"
-          - name : "namedatalen-128"
-            patch: "namedatalen-128.patch"
-
-    name: Build Debian Package (${{ matrix.name }})
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
 
     outputs:
       package_name: ${{ steps.get-package-name.outputs.package_name }}
@@ -139,9 +175,17 @@ jobs:
           package-build/${{ steps.get-package-name.outputs.package_name }}
 
   test_debian:
+
+    name: Test Debian Package (${{ matrix.name }})
+
     runs-on: ubuntu-latest
-    name: Test Debian Package
-    needs: [build_debian]
+    
+    needs: [prepare-build-matrix, build-debian]
+    
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
+
     steps:
 
     - uses: actions/checkout@v4
@@ -149,7 +193,7 @@ jobs:
     - name: Download Debian Package
       uses: actions/download-artifact@v4
       with:
-        name: ${{needs.build_debian.outputs.package_name}}
+        name: ${{ matrix.name }}-${{needs.build_debian.outputs.package_name}}
 
     - name: Get Debian Package name
       id: get-package-name
@@ -169,19 +213,26 @@ jobs:
         docker run -e DEB_FILE=$DEB_FILE ${DOCKER_TAG}:1.0
 
   upload_debian:
+    name: Upload Debian Package (${{ matrix.name }})
+
     runs-on: ubuntu-latest
-    name: Upload Debian Package
-    needs: [build_debian, test_debian]
+    
+    needs: [prepare-build-matrix, build-debian, test_debian]
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
+
     steps:
     - name: Download Debian Package
       uses: actions/download-artifact@v4
       with:
-        name: ${{needs.build_debian.outputs.package_name}}
+        name: ${{ matrix.name }}-${{needs.build_debian.outputs.package_name}}
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{needs.build_debian.outputs.package_name}}
+        files: ${{ matrix.name }}-${{needs.build_debian.outputs.package_name}}
   
 
 
