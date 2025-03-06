@@ -12,6 +12,10 @@ jobs:
 
     name: Build Debian Package
 
+    strategy:
+      matrix:
+        patch: ["", "namedatalen-128.patch"]
+
     outputs:
       package_name: ${{ steps.get-package-name.outputs.package_name }}
 
@@ -83,6 +87,14 @@ jobs:
         EOF
         chmod +x make_deb.sh
 
+    - name: apply patches
+      if: matrix.patch != ''
+      run: |
+        set -ex
+
+        cd gpdb
+        git apply ../patches/${{ matrix.patch }}.patch
+
     - name: build and sign
       run: |
         set -ex
@@ -118,14 +130,7 @@ jobs:
     - name: Upload Debian Package
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.get-package-name.outputs.package_name }}
-        path: |
-          package-build/${{ steps.get-package-name.outputs.package_name }}
-
-    - name: Upload Everything
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.get-package-name.outputs.package_name }}-evr
+        name: ${{ steps.get-package-name.outputs.package_name }}-${{ matrix.patch }}
         path: |
           package-build/${{ steps.get-package-name.outputs.package_name }}
 
