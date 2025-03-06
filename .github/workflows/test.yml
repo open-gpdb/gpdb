@@ -366,14 +366,15 @@ jobs:
 
           RESULTS_PATH="build-results/results-${{ matrix.test }}-${i}"
           mkdir -p $RESULTS_PATH
-          mkdir -p $RESULTS_PATH/gpAux
+          mkdir -p $RESULTS_PATH/logs
           mkdir -p /tmp/$RESULTS_PATH
 
           docker cp test_test_container:/home/gpadmin/ /tmp/$RESULTS_PATH/
           ls /tmp/$RESULTS_PATH
           ls /tmp/$RESULTS_PATH/gpadmin
           cp -L -r /tmp/$RESULTS_PATH/gpadmin/${dir} $RESULTS_PATH
-          cp -L -r /tmp/$RESULTS_PATH/gpadmin/gpAux $RESULTS_PATH/gpAux
+          cp -L -r /tmp/$RESULTS_PATH/gpadmin/gpAux/gpdemo/datadirs/**/**/pg_log/ $RESULTS_PATH/logs
+          tar -cvf $RESULTS_PATH/gpAdminLogs.tar /tmp/$RESULTS_PATH/gpadmin/gpAux/gpdemo/datadirs/gpAdminLogs/
           sudo rm -rf /tmp/$RESULTS_PATH/gpadmin
 
           docker rm test_test_container
@@ -542,7 +543,7 @@ jobs:
           **/regression.out
           **/regression.diffs
           **/results/
-          **/*.log
+          **/gpAdminLogs.tar
           **/gpdemo/datadirs/**/**/pg_log/**
 
     - name: Upload test regression logs
@@ -555,7 +556,7 @@ jobs:
           **/regression.diffs
           **/*.diffs
           **/results/
-          **/*.log
+          **/gpAdminLogs.tar
           **/gpdemo/datadirs/**/**/pg_log/**
           
 
