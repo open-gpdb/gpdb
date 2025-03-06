@@ -10,11 +10,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    name: Build Debian Package
-
     strategy:
       matrix:
         patch: ["", "namedatalen-128.patch"]
+
+    name: Build Debian Package (${{ matrix.patch }})
 
     outputs:
       package_name: ${{ steps.get-package-name.outputs.package_name }}
@@ -93,7 +93,7 @@ jobs:
         set -ex
 
         cd gpdb
-        git apply ../patches/${{ matrix.patch }}.patch
+        git apply ./patches/${{ matrix.patch }}.patch
 
     - name: build and sign
       run: |
