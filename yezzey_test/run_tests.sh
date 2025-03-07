@@ -63,5 +63,8 @@ createdb $USER
 #run yproxy in daemon mode
 /usr/bin/yproxy -c /tmp/yproxy.yaml -ldebug > yproxy.log 2>&1 &
 
+i=0
+while (! [ -S /tmp/yproxy.sock ]) && [ $i -lt 20 ]; do sleep 1; i=$(($i+1)) ; done
+
 cd gpcontrib/yezzey
-make installcheck || (cat /home/gpadmin/gpcontrib/yezzey/regression.diffs && exit 1)
+make installcheck || (echo Yproxy logs; cat ../../yproxy.log; cat /home/gpadmin/gpcontrib/yezzey/regression.diffs && exit 1) 
