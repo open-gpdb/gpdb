@@ -13,7 +13,11 @@
  * This should be at least as much as NAMEDATALEN of the database the
  * applications run against.
  */
+#ifdef USE_EXTENDED_NAMEDATALEN
+#define NAMEDATALEN 128
+#else
 #define NAMEDATALEN 64
+#endif
 
 struct sqlname
 {

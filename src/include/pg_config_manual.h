@@ -20,7 +20,11 @@
  *
  * Changing this requires an initdb.
  */
+#ifdef USE_EXTENDED_NAMEDATALEN
+#define NAMEDATALEN 128
+#else
 #define NAMEDATALEN 64
+#endif
 
 /*
  * Maximum number of arguments to a function.
