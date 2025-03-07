@@ -12,6 +12,7 @@
 #include "catalog/pg_opfamily.h"
 #include "catalog/pg_language.h"
 #include "catalog/pg_type.h"
+#include "catalog/pg_amproc.h"
 #include "access/htup_details.h"
 
 /* XXX: fix this */
@@ -239,6 +240,31 @@ gpdb_binary_upgrade_insert_opclass_tup(Relation rel, const char * opcname)
 	heap_freetuple(tup);
 }
 
+
+static void
+gpdb_binary_upgrade_insert_amproc_tup(Relation rel) {
+	HeapTuple	tup;
+	Datum		values[Natts_pg_opclass];
+	bool		nulls[Natts_pg_opclass];
+	/* Create the pg_amproc entry */
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
+
+	values[Anum_pg_amproc_amprocfamily - 1] = ObjectIdGetDatum(F_BLOPFAMILYOID);
+	values[Anum_pg_amproc_amproclefttype - 1] = ObjectIdGetDatum(INT4OID);
+	values[Anum_pg_amproc_amprocrighttype - 1] = ObjectIdGetDatum(INT4OID);
+	values[Anum_pg_amproc_amprocnum - 1] = Int16GetDatum(1);
+	values[Anum_pg_amproc_amproc - 1] = ObjectIdGetDatum(F_BTINT4CMP);
+
+	tup = heap_form_tuple(rel->rd_att, values, nulls);
+
+	(void) simple_heap_insert(rel, tup);
+
+	CatalogUpdateIndexes(rel, tup);
+
+	heap_freetuple(tup);
+}
+
 /*
 *
 *	extern Datum blbuild(PG_FUNCTION_ARGS);
@@ -264,6 +290,7 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
     Relation pgamrel;
 	Relation pgopcrel;
 	Relation pgopfrel;
+	Relation pgamprocrel;
 
     TupleDesc tupDesc;
 	
@@ -271,6 +298,7 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	pgamrel = relation_open(AccessMethodRelationId, RowExclusiveLock);
 	pgopcrel = relation_open(OperatorClassRelationId, RowExclusiveLock);
 	pgopfrel = relation_open(OperatorFamilyRelationId, RowExclusiveLock);
+	pgamprocrel = relation_open(AccessMethodProcedureRelationId, RowExclusiveLock);
 
 	tupDesc = RelationGetDescr(pgprocrel);
 
@@ -477,11 +505,13 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	gpdb_binary_upgrade_insert_am_tup(pgamrel, RelationGetDescr(pgamrel));
 	gpdb_binary_upgrade_insert_opfamily_tup(pgopfrel, "int4_ops");
 	gpdb_binary_upgrade_insert_opclass_tup(pgopcrel, "int4_ops");
+	gpdb_binary_upgrade_insert_amproc_tup(pgamprocrel);
 
 	relation_close(pgopcrel, RowExclusiveLock);
 	relation_close(pgopfrel, RowExclusiveLock);
     relation_close(pgprocrel, RowExclusiveLock);
     relation_close(pgamrel, RowExclusiveLock);
+	relation_close(pgamprocrel, RowExclusiveLock);
 
     PG_RETURN_VOID();
 }
