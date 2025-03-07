@@ -718,8 +718,8 @@ with_gnu_ld
 LD
 LDFLAGS_SL
 LDFLAGS_EX
-with_mdblocales
 with_extended_namedatalen
+with_mdblocales
 ELF_SYS
 EGREP
 GREP
@@ -1616,8 +1616,8 @@ Optional Packages:
   --with-apr-config=PATH  path to apr-1-config utility
   --with-apu-config=PATH  path to apu-1-config utility
   --without-mdblocales    build without MDB locales
-  --with-extended-namedatalen
-                          build with extended NAMEDATALEN=128
+  --without-extended-namedatalen
+                          build with build with extended NAMEDATALEN=128
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
 
 Some influential environment variables:
@@ -9768,13 +9768,14 @@ fi
 
 
 
+
 #
 # Extended NAMEDATALEN
 #
 
 
 
-# Check whether --with-extended_namedatalen was given.
+# Check whether --with-extended-namedatalen was given.
 if test "${with_extended_namedatalen+set}" = set; then :
   withval=$with_extended_namedatalen;
   case $withval in
@@ -9787,7 +9788,7 @@ $as_echo "#define USE_EXTENDED_NAMEDATALEN 1" >>confdefs.h
       :
       ;;
     *)
-      as_fn_error $? "no argument expected for --with-extended_namedatalen option" "$LINENO" 5
+      as_fn_error $? "no argument expected for --with-extended-namedatalen option" "$LINENO" 5
       ;;
   esac
 
@@ -9797,6 +9798,7 @@ else
 $as_echo "#define USE_EXTENDED_NAMEDATALEN 1" >>confdefs.h
 
 fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: checking whether to build with extended NAMEDATALEN... $with_extended_namedatalen" >&5
 $as_echo "checking whether to build with extended NAMEDATALEN... $with_extended_namedatalen" >&6; }
