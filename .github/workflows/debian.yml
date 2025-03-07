@@ -235,12 +235,15 @@ jobs:
 
         if [[ "${{ matrix.name }}" != "default" ]]; then
           mv ${package_name} "${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}"
+          package_name="${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}"
         fi
+
+        
 
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: *.deb
+        files: ${package_name}
 
 
 
