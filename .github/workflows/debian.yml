@@ -27,7 +27,7 @@ jobs:
               },
             {
               "name": "namedatalen-128",
-              "patch": "namedatalen-128.patch"
+              "extra_configure_flags": "--with-extended-namedatalen"
             }
           ]}'
 
@@ -70,7 +70,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: open-gpdb/gpdb_deb
-        ref: 6_jammy_github
+        ref: 6_jammy_rachkin
         path: gpdb/greenplum-build
 
     - name: prepare environment
@@ -120,20 +120,16 @@ jobs:
         export GPDB_PKG_VERSION=\${GPDB_FULL_VERSION}-${BUILD_NUMBER}-yandex.\$(git --git-dir=./gpdb/.git rev-list HEAD --count).\$(git --git-dir=./gpdb/.git rev-parse --short HEAD)
         echo "##teamcity[buildNumber '%build.counter%: \${GPDB_PKG_VERSION}']"
 
+        export GPDB_EXTRA_CONFIGURE_FLAGS=${{ matrix.extra_configure_flags }}
+
+        echo ${GPDB_EXTRA_CONFIGURE_FLAGS}
+
         ./changelog.sh > gpdb/debian/changelog
         cd gpdb && cat debian/changelog
         mk-build-deps  --build-dep --install --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
         dpkg-buildpackage -us -uc
         EOF
         chmod +x make_deb.sh
-
-    - name: apply patches
-      if: matrix.patch
-      run: |
-        set -ex
-
-        cd gpdb
-        git apply ./patches/${{ matrix.patch }}
 
     - name: build and sign
       run: |
