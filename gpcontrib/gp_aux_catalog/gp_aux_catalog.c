@@ -206,6 +206,7 @@ gpdb_binary_upgrade_insert_opfamily_tup(Relation rel, const char * opfname)
 	heap_freetuple(tup);
 } 
 
+#define F_BLOPCLASSINT4OID 7216
 
 static void
 gpdb_binary_upgrade_insert_opclass_tup(Relation rel, const char * opcname)
@@ -233,6 +234,7 @@ gpdb_binary_upgrade_insert_opclass_tup(Relation rel, const char * opcname)
 
 	tup = heap_form_tuple(rel->rd_att, values, nulls);
 
+	HeapTupleSetOid(tup, F_BLOPCLASSINT4OID);
 	(void)simple_heap_insert(rel, tup);
 
 	CatalogUpdateIndexes(rel, tup);
@@ -240,6 +242,8 @@ gpdb_binary_upgrade_insert_opclass_tup(Relation rel, const char * opcname)
 	heap_freetuple(tup);
 }
 
+
+#define F_BLAMPROCINT4OID 7217
 
 static void
 gpdb_binary_upgrade_insert_amproc_tup(Relation rel) {
@@ -258,6 +262,7 @@ gpdb_binary_upgrade_insert_amproc_tup(Relation rel) {
 
 	tup = heap_form_tuple(rel->rd_att, values, nulls);
 
+	HeapTupleSetOid(tup, F_BLAMPROCINT4OID);
 	(void) simple_heap_insert(rel, tup);
 
 	CatalogUpdateIndexes(rel, tup);
