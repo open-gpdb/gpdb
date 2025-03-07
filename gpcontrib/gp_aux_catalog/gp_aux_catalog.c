@@ -13,6 +13,7 @@
 #include "catalog/pg_language.h"
 #include "catalog/pg_type.h"
 #include "catalog/pg_amproc.h"
+#include "catalog/pg_amop.h"
 #include "access/htup_details.h"
 
 /* XXX: fix this */
@@ -248,8 +249,8 @@ gpdb_binary_upgrade_insert_opclass_tup(Relation rel, const char * opcname)
 static void
 gpdb_binary_upgrade_insert_amproc_tup(Relation rel) {
 	HeapTuple	tup;
-	Datum		values[Natts_pg_opclass];
-	bool		nulls[Natts_pg_opclass];
+	Datum		values[Natts_pg_amproc];
+	bool		nulls[Natts_pg_amproc];
 	/* Create the pg_amproc entry */
 	memset(values, 0, sizeof(values));
 	memset(nulls, false, sizeof(nulls));
@@ -263,6 +264,39 @@ gpdb_binary_upgrade_insert_amproc_tup(Relation rel) {
 	tup = heap_form_tuple(rel->rd_att, values, nulls);
 
 	HeapTupleSetOid(tup, F_BLAMPROCINT4OID);
+	(void) simple_heap_insert(rel, tup);
+
+	CatalogUpdateIndexes(rel, tup);
+
+	heap_freetuple(tup);
+}
+
+
+#define F_BLINT4EQOPOID 96
+#define F_BLAMOPINT4OID 7218 
+
+static void
+gpdb_binary_upgrade_insert_amop_tup(Relation rel) {
+	HeapTuple	tup;
+	Datum		values[Natts_pg_amop];
+	bool		nulls[Natts_pg_amop];
+	/* Create the pg_amproc entry */
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
+
+
+	values[Anum_pg_amop_amopfamily - 1] = ObjectIdGetDatum(F_BLOPFAMILYOID);
+	values[Anum_pg_amop_amoplefttype - 1] = ObjectIdGetDatum(INT4OID);
+	values[Anum_pg_amop_amoprighttype - 1] = ObjectIdGetDatum(INT4OID);
+	values[Anum_pg_amop_amopstrategy - 1] = Int16GetDatum(BLOOM_NPROC);
+	values[Anum_pg_amop_amoppurpose - 1] = CharGetDatum(AMOP_SEARCH);
+	values[Anum_pg_amop_amopopr - 1] = ObjectIdGetDatum(F_BLINT4EQOPOID);
+	values[Anum_pg_amop_amopmethod - 1] = ObjectIdGetDatum(F_BLOOMAMOID);
+	values[Anum_pg_amop_amopsortfamily - 1] = ObjectIdGetDatum(InvalidOid);
+
+	tup = heap_form_tuple(rel->rd_att, values, nulls);
+
+	HeapTupleSetOid(tup, F_BLAMOPINT4OID);
 	(void) simple_heap_insert(rel, tup);
 
 	CatalogUpdateIndexes(rel, tup);
@@ -296,6 +330,7 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	Relation pgopcrel;
 	Relation pgopfrel;
 	Relation pgamprocrel;
+	Relation pgamoprel;
 
     TupleDesc tupDesc;
 	
@@ -304,6 +339,7 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	pgopcrel = relation_open(OperatorClassRelationId, RowExclusiveLock);
 	pgopfrel = relation_open(OperatorFamilyRelationId, RowExclusiveLock);
 	pgamprocrel = relation_open(AccessMethodProcedureRelationId, RowExclusiveLock);
+	pgamoprel = relation_open(AccessMethodOperatorRelationId, RowExclusiveLock);
 
 	tupDesc = RelationGetDescr(pgprocrel);
 
@@ -511,12 +547,14 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	gpdb_binary_upgrade_insert_opfamily_tup(pgopfrel, "int4_ops");
 	gpdb_binary_upgrade_insert_opclass_tup(pgopcrel, "int4_ops");
 	gpdb_binary_upgrade_insert_amproc_tup(pgamprocrel);
+	gpdb_binary_upgrade_insert_amop_tup(pgamoprel);
 
 	relation_close(pgopcrel, RowExclusiveLock);
 	relation_close(pgopfrel, RowExclusiveLock);
     relation_close(pgprocrel, RowExclusiveLock);
     relation_close(pgamrel, RowExclusiveLock);
 	relation_close(pgamprocrel, RowExclusiveLock);
+	relation_close(pgamoprel, RowExclusiveLock);
 
     PG_RETURN_VOID();
 }
