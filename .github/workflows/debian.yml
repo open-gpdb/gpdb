@@ -225,11 +225,22 @@ jobs:
       with:
         name: ${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}
 
+    - name: Rename Package
+      run: |
+        set -ex
+
+        ls -l
+
+        package_name=${{needs.build-debian.outputs.package_name}}
+
+        if [[ "${{ matrix.name }}" != "default" ]]; then
+          mv ${package_name} "${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}"
+        fi
+
     - name: Upload Release Asset
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{ matrix.name }}-${{needs.build-debian.outputs.package_name}}
-  
+        files: *.deb
 
 
 

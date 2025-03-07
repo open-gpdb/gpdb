@@ -1617,7 +1617,7 @@ Optional Packages:
   --with-apu-config=PATH  path to apu-1-config utility
   --without-mdblocales    build without MDB locales
   --with-extended-namedatalen
-                          build with build with extended NAMEDATALEN=128
+                          build with extended NAMEDATALEN=128
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
 
 Some influential environment variables:
