@@ -1399,9 +1399,9 @@ LookupOpclassInfo(Oid operatorClassOid,
 	 * this happens only once per opclass per backend.
 	 */
 #if defined(CLOBBER_CACHE_ALWAYS)
-	opcentry->valid = false;
 #endif
 
+	opcentry->valid = false;
 	if (opcentry->valid)
 		return opcentry;
 

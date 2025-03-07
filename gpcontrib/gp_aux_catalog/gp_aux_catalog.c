@@ -8,9 +8,15 @@
 #include "catalog/pg_proc.h"
 #include "catalog/pg_namespace.h"
 #include "catalog/pg_authid.h"
+#include "catalog/pg_opclass.h"
+#include "catalog/pg_opfamily.h"
 #include "catalog/pg_language.h"
 #include "catalog/pg_type.h"
 #include "access/htup_details.h"
+
+/* XXX: fix this */
+#define BLOOM_NPROC			1
+/* #include "access/bloom/bloom.h" */
 
 PG_MODULE_MAGIC;
 void _PG_init(void);
@@ -100,6 +106,8 @@ gpdb_binary_upgrade_insert_pro_tup(
 	heap_freetuple(tuple);
 }
 
+#define F_BLOOMAMOID 7214
+
 static void
 gpdb_binary_upgrade_insert_am_tup(
 	Relation rel,
@@ -115,7 +123,7 @@ gpdb_binary_upgrade_insert_am_tup(
 
 	values[Anum_pg_am_amname - 1] = NameGetDatum("bloom");
 	values[Anum_pg_am_amstrategies - 1] = Int16GetDatum(0);
-	values[Anum_pg_am_amsupport - 1] = Int16GetDatum(0);
+	values[Anum_pg_am_amsupport - 1] = Int16GetDatum(BLOOM_NPROC);
 	values[Anum_pg_am_amcanorder - 1] = BoolGetDatum(false);
 	values[Anum_pg_am_amcanorderbyop - 1] = BoolGetDatum(false);
 	values[Anum_pg_am_amcanbackward - 1] = BoolGetDatum(false);
@@ -146,10 +154,89 @@ gpdb_binary_upgrade_insert_am_tup(
 
 
 	tuple = heap_form_tuple(tupDesc, values, nulls);
+
+
+	if (tupDesc->tdhasoid)
+		HeapTupleSetOid(tuple, F_BLOOMAMOID);
+	else
+		elog(ERROR, "failed to upgrade");
+
 	simple_heap_insert(rel, tuple);
 
 	CatalogUpdateIndexes(rel, tuple);
 	heap_freetuple(tuple);
+}
+
+
+#define F_BLOPFAMILYOID 7215
+
+static void
+gpdb_binary_upgrade_insert_opfamily_tup(Relation rel, const char * opfname)
+{
+	HeapTuple	tup;
+	Datum		values[Natts_pg_opfamily];
+	bool		nulls[Natts_pg_opfamily];
+	NameData	opfName;
+	Oid			opfamilyoid;
+
+	/*
+	 * Okay, let's create the pg_opfamily entry.
+	 */
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
+
+	values[Anum_pg_opfamily_opfmethod - 1] = ObjectIdGetDatum(F_BLOOMAMOID);
+	namestrcpy(&opfName, opfname);
+	values[Anum_pg_opfamily_opfname - 1] = NameGetDatum(&opfName);
+	values[Anum_pg_opfamily_opfnamespace - 1] = ObjectIdGetDatum(PG_CATALOG_NAMESPACE);
+	values[Anum_pg_opfamily_opfowner - 1] = ObjectIdGetDatum(BOOTSTRAP_SUPERUSERID);
+
+	tup = heap_form_tuple(rel->rd_att, values, nulls);
+
+	if (rel->rd_att->tdhasoid)
+		HeapTupleSetOid(tup, F_BLOPFAMILYOID);
+	else
+		elog(ERROR, "failed to upgrade");
+
+	opfamilyoid = simple_heap_insert(rel, tup);
+
+	CatalogUpdateIndexes(rel, tup);
+
+	heap_freetuple(tup);
+} 
+
+
+static void
+gpdb_binary_upgrade_insert_opclass_tup(Relation rel, const char * opcname)
+{
+	HeapTuple	tup;
+	Datum		values[Natts_pg_opclass];
+	bool		nulls[Natts_pg_opclass];
+	NameData	opcName;
+
+	/*
+	 * Okay, let's create the pg_opfamily entry.
+	 */
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
+
+	values[Anum_pg_opclass_opcmethod - 1] = ObjectIdGetDatum(F_BLOOMAMOID);
+	namestrcpy(&opcName, opcname);
+	values[Anum_pg_opclass_opcname - 1] = NameGetDatum(&opcName);
+	values[Anum_pg_opclass_opcnamespace - 1] = ObjectIdGetDatum(PG_CATALOG_NAMESPACE);
+	values[Anum_pg_opclass_opcowner - 1] = ObjectIdGetDatum(BOOTSTRAP_SUPERUSERID);
+	values[Anum_pg_opclass_opcfamily - 1] = ObjectIdGetDatum(F_BLOPFAMILYOID);
+	values[Anum_pg_opclass_opcintype - 1] = ObjectIdGetDatum(INT4OID);
+	values[Anum_pg_opclass_opcdefault - 1] = BoolGetDatum(true);
+	values[Anum_pg_opclass_opckeytype - 1] = ObjectIdGetDatum(InvalidOid);
+
+	tup = heap_form_tuple(rel->rd_att, values, nulls);
+
+	(void)simple_heap_insert(rel, tup);
+
+	CatalogUpdateIndexes(rel, tup);
+
+	heap_freetuple(tup);
 }
 
 /*
@@ -169,16 +256,21 @@ gpdb_binary_upgrade_insert_am_tup(
 *	extern Datum bloptions(PG_FUNCTION_ARGS);
 */
 
+
 Datum
 gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 {
     Relation pgprocrel;
     Relation pgamrel;
+	Relation pgopcrel;
+	Relation pgopfrel;
 
     TupleDesc tupDesc;
 	
 	pgprocrel = relation_open(ProcedureRelationId, RowExclusiveLock);
 	pgamrel = relation_open(AccessMethodRelationId, RowExclusiveLock);
+	pgopcrel = relation_open(OperatorClassRelationId, RowExclusiveLock);
+	pgopfrel = relation_open(OperatorFamilyRelationId, RowExclusiveLock);
 
 	tupDesc = RelationGetDescr(pgprocrel);
 
@@ -383,7 +475,11 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	}
 
 	gpdb_binary_upgrade_insert_am_tup(pgamrel, RelationGetDescr(pgamrel));
+	gpdb_binary_upgrade_insert_opfamily_tup(pgopfrel, "int4_ops");
+	gpdb_binary_upgrade_insert_opclass_tup(pgopcrel, "int4_ops");
 
+	relation_close(pgopcrel, RowExclusiveLock);
+	relation_close(pgopfrel, RowExclusiveLock);
     relation_close(pgprocrel, RowExclusiveLock);
     relation_close(pgamrel, RowExclusiveLock);
 
