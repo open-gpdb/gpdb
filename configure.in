@@ -1240,7 +1240,7 @@ AC_SUBST(with_mdblocales)
 #
 # Extended NAMEDATALEN
 #
-PGAC_ARG_BOOL(with, extended-namedatalen, yes, [build with build with extended NAMEDATALEN=128],
+PGAC_ARG_BOOL(with, extended-namedatalen, no, [build with extended NAMEDATALEN=128],
               [AC_DEFINE([USE_EXTENDED_NAMEDATALEN], 1,
                          [Define to 1 to build with extended NAMEDATALEN. (--with-extended-namedatalen)])])
 AC_MSG_RESULT([checking whether to build with extended NAMEDATALEN... $with_extended_namedatalen])
