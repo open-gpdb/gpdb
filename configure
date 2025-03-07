@@ -9798,6 +9798,8 @@ $as_echo "#define USE_EXTENDED_NAMEDATALEN 1" >>confdefs.h
 
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: checking whether to build with extended NAMEDATALEN... $with_extended_namedatalen" >&5
+$as_echo "checking whether to build with extended NAMEDATALEN... $with_extended_namedatalen" >&6; }
 
 
 #
