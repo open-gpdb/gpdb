@@ -164,9 +164,10 @@ blgetbitmap(PG_FUNCTION_ARGS)
 
 		LockBuffer(buffer, BUFFER_LOCK_SHARE);
 		page = BufferGetPage(buffer);
-#if 0
+
 		/* thats a check for snapshot too old feature
 		 https://git.postgresql.org/gitweb/?p=postgresql.git;a=commit;h=848ef42bb8c7909c9d7baa38178d4a209906e7c1 */
+#if 0
 		TestForOldSnapshot(scan->xs_snapshot, scan->indexRelation, page);
 #endif
 

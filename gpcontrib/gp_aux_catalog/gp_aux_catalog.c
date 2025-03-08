@@ -140,7 +140,7 @@ gpdb_binary_upgrade_insert_am_tup(
 	values[Anum_pg_am_amkeytype - 1] = ObjectIdGetDatum(InvalidOid);
 	values[Anum_pg_am_aminsert - 1] = ObjectIdGetDatum(F_BLINSERT);
 	values[Anum_pg_am_ambeginscan - 1] = ObjectIdGetDatum(F_BLBEGINSCAN);
-	values[Anum_pg_am_amgettuple - 1] = ObjectIdGetDatum(F_BLGETTUPLE);;
+	values[Anum_pg_am_amgettuple - 1] = ObjectIdGetDatum(InvalidOid); /* F_BLGETTUPLE ? */
 	values[Anum_pg_am_amgetbitmap - 1] = ObjectIdGetDatum(F_BLGETBITMAP);
 	values[Anum_pg_am_amrescan - 1] = ObjectIdGetDatum(F_BLRESCAN);
 	values[Anum_pg_am_amendscan - 1] = ObjectIdGetDatum(F_BLENDSCAN);
