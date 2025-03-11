@@ -274,27 +274,7 @@ jobs:
           set -ex pipefail
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
-          if ! time su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh"; then
-            echo "::error::Build script failed"
-            exit 1
-          fi
-
-      - name: Generate Build Job Summary End
-        if: always()
-        run: |
-          {
-            echo "## Build Results"
-            echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Run Greenplum build script
-        env:
-          SRC_DIR: ${{ github.workspace }}
-        run: |
-          set -ex pipefail
-
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
-          if ! time su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops-release/build_automation/gpdb/scripts/build-gpdb.sh"; then
+          if ! cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
             echo "::error::Build script failed"
             exit 1
           fi
