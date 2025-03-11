@@ -225,7 +225,7 @@ jobs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
 
     container:
-      image: ghcr.io/open-gpdb/gpdb:gpdb-build-jammy-latest
+      image: ghcr.io/open-gpdb/gpdb-env:gpdb-build-jammy-latest
 
     steps:
       - name: Set build timestamp
@@ -256,38 +256,6 @@ jobs:
             exit 1
           fi
 
-      - name: Cloudberry Environment Initialization
-        env:
-          LOGS_DIR: build-logs
-        run: |
-          set -ex pipefail
-          if ! su - gpadmin -c "/tmp/init_system.sh"; then
-            echo "::error::Container initialization failed"
-            exit 1
-          fi
-
-          mkdir -p "${LOGS_DIR}/details"
-          chown -R gpadmin:gpadmin .
-          chmod -R 755 .
-          chmod 777 "${LOGS_DIR}"
-
-          df -kh /
-          rm -rf /__t/*
-          df -kh /
-
-          df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
-          free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
-
-          {
-            echo "=== Environment Information ==="
-            uname -a
-            df -h
-            free -h
-            env
-          } | tee -a "${LOGS_DIR}/details/environment.log"
-
-          echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
-
       - name: Generate Build Job Summary Start
         run: |
           {
@@ -299,16 +267,25 @@ jobs:
             echo "- GCC Version: $(gcc --version | head -n1)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run Greenplum configure script
+      - name: Run Greenplum debian package build script
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
           set -ex pipefail
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/scripts/gpdb/configure-gpdb.sh
-          if ! time su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/scripts/gpdb/configure-gpdb.sh"; then
-            echo "::error::Configure script failed"
+
+          chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
+          if ! time su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh"; then
+            echo "::error::Build script failed"
             exit 1
           fi
+
+      - name: Generate Build Job Summary End
+        if: always()
+        run: |
+          {
+            echo "## Build Results"
+            echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run Greenplum build script
         env:
@@ -329,6 +306,13 @@ jobs:
             echo "## Build Results"
             echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Debian Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-packages-${{ env.BUILD_TIMESTAMP }}
+          path: |
+            **/*.deb
 
       - name: Upload build logs
         uses: actions/upload-artifact@v4
