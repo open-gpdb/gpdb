@@ -1,5 +1,8 @@
 name: Create debian package
 
+permissions:
+  contents: write
+
 on:
   release:
     types: [published]
