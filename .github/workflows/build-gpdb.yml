@@ -271,7 +271,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -eo pipefail
+          set -ex pipefail
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
           cd ${SRC_DIR}
           if ! SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh; then
@@ -283,7 +283,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -eo pipefail
+          set -ex pipefail
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           cd ${SRC_DIR}
           if ! SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh; then
