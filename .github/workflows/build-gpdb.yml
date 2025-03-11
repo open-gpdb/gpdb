@@ -225,7 +225,7 @@ jobs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
 
     container:
-      image: ubuntu:jammy
+      image: ghcr.io/open-gpdb/gpdb:gpdb-build-jammy-latest
 
     steps:
       - name: Set build timestamp
