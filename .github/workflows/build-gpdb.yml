@@ -207,6 +207,12 @@ jobs:
           echo "=== Matrix Preparation Complete ==="
 
   ## ======================================================================
+  ## Job: init-docker-env
+  ## ======================================================================
+
+
+
+  ## ======================================================================
   ## Job: build
   ## ======================================================================
 
@@ -218,11 +224,8 @@ jobs:
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
 
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
+    container:
+      image: ubuntu:jammy
 
     steps:
       - name: Set build timestamp
@@ -240,7 +243,7 @@ jobs:
       - name: Checkout CI Build/Test Scripts
         uses: actions/checkout@v4
         with:
-          repository: opengpdb/gpdb_devops
+          repository: open-gpdb/gpdb_devops
           ref: main
           path: gpdb_devops
           fetch-depth: 1
