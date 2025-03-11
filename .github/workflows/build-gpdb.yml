@@ -243,9 +243,9 @@ jobs:
       - name: Checkout CI Build/Test Scripts
         uses: actions/checkout@v4
         with:
-          repository: open-gpdb/gpdb_devops
+          repository: open-gpdb/gpdb-devops
           ref: main
-          path: gpdb_devops
+          path: gpdb-devops
           fetch-depth: 1
       
       - name: Move gpdb-devops directory
