@@ -263,7 +263,7 @@ jobs:
             echo "## Environment"
             echo "- Start Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
             echo "- ENABLE_DEBUG: ${{ env.ENABLE_DEBUG }}"
-            echo "- OS Version: $(cat /etc/redhat-release)"
+            echo "- OS Version: $(lsb_release -sd)"
             echo "- GCC Version: $(gcc --version | head -n1)"
           } >> "$GITHUB_STEP_SUMMARY"
 
