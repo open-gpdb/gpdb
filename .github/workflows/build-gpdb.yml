@@ -235,7 +235,7 @@ jobs:
           echo "timestamp=$timestamp" | tee -a "$GITHUB_OUTPUT"  # Use GITHUB_OUTPUT for job outputs
           echo "BUILD_TIMESTAMP=$timestamp" | tee -a "$GITHUB_ENV" # Also set as environment variable
 
-      - name: Checkout Apache Cloudberry
+      - name: Checkout Greenplum
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -250,7 +250,7 @@ jobs:
       
       - name: Move gpdb-devops directory
         run: |
-          set -eo pipefail
+          set -ex pipefail
           if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
             echo "::error::Container initialization failed"
             exit 1
@@ -260,7 +260,7 @@ jobs:
         env:
           LOGS_DIR: build-logs
         run: |
-          set -eo pipefail
+          set -ex pipefail
           if ! su - gpadmin -c "/tmp/init_system.sh"; then
             echo "::error::Container initialization failed"
             exit 1
@@ -303,7 +303,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -eo pipefail
+          set -ex pipefail
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/scripts/gpdb/configure-gpdb.sh
           if ! time su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/scripts/gpdb/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
@@ -314,7 +314,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -eo pipefail
+          set -ex pipefail
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           if ! time su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops-release/build_automation/gpdb/scripts/build-gpdb.sh"; then
