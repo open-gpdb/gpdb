@@ -944,6 +944,9 @@
 /* Define to 1 to build with debug_ntuplestore. (--enable-ntuplestore) */
 #undef USE_DEBUG_NTUPLESTORE
 
+/* Define to 1 to build with extended NAMEDATALEN. (--with-extended-namedatalen) */
+#undef USE_EXTENDED_NAMEDATALEN
+
 /* Define to 1 if you want float4 values to be passed by value. (Always
    defined in GPDB) */
 #undef USE_FLOAT4_BYVAL
