@@ -1056,7 +1056,13 @@ BufFileStartCompression(BufFile *file)
 	CurrentResourceOwner = file->resowner;
 
 	file->zstd_context = zstd_alloc_context();
-	file->zstd_context->cctx = ZSTD_createCStream_advanced(customMem);
+	if (gp_correct_zstd_memory_counting)
+	{
+		file->zstd_context->cctx = ZSTD_createCStream_advanced(customMem);
+	}else{
+		file->zstd_context->cctx = ZSTD_createCStream();
+	}
+	
 	if (!file->zstd_context->cctx)
 		elog(ERROR, "out of memory");
 	ret = ZSTD_initCStream(file->zstd_context->cctx, BUFFILE_ZSTD_COMPRESSION_LEVEL);
@@ -1144,7 +1150,11 @@ BufFileEndCompression(BufFile *file)
 		 file->uncompressed_bytes, file->maxoffset);
 
 	/* Done writing. Initialize for reading */
-	file->zstd_context->dctx = ZSTD_createDStream_advanced(customMem);
+	if (gp_correct_zstd_memory_counting){
+		file->zstd_context->dctx = ZSTD_createDStream_advanced(customMem);
+	}else{
+		file->zstd_context->dctx = ZSTD_createDStream();
+	}
 	if (!file->zstd_context->dctx)
 		elog(ERROR, "out of memory");
 	ret = ZSTD_initDStream(file->zstd_context->dctx);
