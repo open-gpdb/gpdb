@@ -1056,7 +1056,7 @@ BufFileStartCompression(BufFile *file)
 	CurrentResourceOwner = file->resowner;
 
 	file->zstd_context = zstd_alloc_context();
-	if (gp_correct_zstd_memory_counting)
+	if (gp_resgroup_enable_zstd_counting)
 	{
 		file->zstd_context->cctx = ZSTD_createCStream_advanced(customMem);
 	}else{
@@ -1150,7 +1150,7 @@ BufFileEndCompression(BufFile *file)
 		 file->uncompressed_bytes, file->maxoffset);
 
 	/* Done writing. Initialize for reading */
-	if (gp_correct_zstd_memory_counting){
+	if (gp_resgroup_enable_zstd_counting){
 		file->zstd_context->dctx = ZSTD_createDStream_advanced(customMem);
 	}else{
 		file->zstd_context->dctx = ZSTD_createDStream();
