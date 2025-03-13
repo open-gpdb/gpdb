@@ -77,7 +77,7 @@
 #include "utils/faultinjector.h"
 #include "utils/memutils.h"
 #include "utils/workfile_mgr.h"
-
+#include "utils/guc.h"
 /*
  * This data structure represents a buffered file that consists of one
  * physical file (accessed through a virtual file descriptor
