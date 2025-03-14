@@ -27,7 +27,7 @@ RUN ln -snf /usr/share/zoneinfo/Europe/London /etc/localtime && echo Europe/Lond
   libpam0g-dev libpam0g libcgroup1 libyaml-0-2 libldap2-dev openssl \
   ninja-build python2-dev python-setuptools quilt unzip wget zlib1g-dev libuv1-dev \
   libgpgme-dev libgpgme11 sudo iproute2 less software-properties-common \
-  openssh-client openssh-server zstd
+  openssh-client openssh-server
 
 RUN apt-get install -y locales \
 && locale-gen "en_US.UTF-8" \
