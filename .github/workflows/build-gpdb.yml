@@ -261,7 +261,7 @@ jobs:
         env:
           LOGS_DIR: build-logs
         run: |
-          set -eo pipefail
+          set -e
 
           export LOGS_DIR=/tmp/logs
 
