@@ -7341,6 +7341,9 @@ ATWrongRelkindError(Relation rel, int allowed_targets)
 		case ATT_FOREIGN_TABLE:
 			msg = _("\"%s\" is not a foreign table");
 			break;
+		case ATT_TABLE | ATT_MATVIEW | ATT_FOREIGN_TABLE:
+			msg = _("\"%s\" is not a table, materialized view, or foreign table");
+			break;
 		default:
 			/* shouldn't get here, add all necessary cases above */
 			msg = _("\"%s\" is of the wrong type");
