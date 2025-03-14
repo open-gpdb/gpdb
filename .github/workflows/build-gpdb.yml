@@ -256,6 +256,37 @@ jobs:
             exit 1
           fi
 
+      - name: Environment Initialization
+        if: needs.check-skip.outputs.should_skip != 'true'
+        env:
+          LOGS_DIR: build-logs
+        run: |
+          set -eo pipefail
+
+          export LOGS_DIR=/tmp/logs
+
+          mkdir -p "${LOGS_DIR}/details"
+          chown -R gpadmin:gpadmin .
+          chmod -R 755 .
+          chmod 777 "${LOGS_DIR}"
+
+          df -kh /
+          rm -rf /__t/*
+          df -kh /
+
+          df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
+          free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
+
+          {
+            echo "=== Environment Information ==="
+            uname -a
+            df -h
+            free -h
+            env
+          } | tee -a "${LOGS_DIR}/details/environment.log"
+
+          echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
+
       - name: Generate Build Job Summary Start
         run: |
           {
