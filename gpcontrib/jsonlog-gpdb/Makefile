@@ -15,6 +15,3 @@ include $(top_srcdir)/contrib/contrib-global.mk
 endif
 
 MODULES = jsonlog-gpdb
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
-include $(PGXS)
