@@ -86,7 +86,7 @@ jobs:
         run: |
           wget 'https://github.com/universal-ctags/ctags-nightly-build/releases/download/2023.07.05%2Bafdae39c0c2e508d113cbc570f4635b96159840c/uctags-2023.07.05-linux-x86_64.tar.xz'
           tar -xf uctags-2023.07.05-linux-x86_64.tar.xz
-          cp uctags-2023.07.05-linux-x86_64/bin/* /usr/bin/
+          sudo cp uctags-2023.07.05-linux-x86_64/bin/* /usr/bin/
           which ctags
 
       - name: Download Greenplum source code
@@ -100,8 +100,8 @@ jobs:
 
       - name: Install abi-dumper
         run: |
-          yum install -y epel-release
-          yum install -y abi-dumper
+          sudo apt install -y epel-release
+          sudo apt install -y abi-dumper
 
       - name: Build Greenplum
         run: |
@@ -157,9 +157,9 @@ jobs:
 
       - name: Install abi-compliance-checker and report viewer (lynx)
         run: |
-          yum install -y epel-release
-          yum install -y abi-compliance-checker
-          yum install -y --enablerepo=powertools lynx
+          sudo apt install -y epel-release
+          sudo apt install -y abi-compliance-checker
+          sudo apt install -y --enablerepo=powertools lynx
 
       - name: Compare ABI
         run: |
