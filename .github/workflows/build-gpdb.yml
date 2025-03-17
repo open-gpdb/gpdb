@@ -264,7 +264,7 @@ jobs:
         run: |
           set -ex pipefail
 
-          export LOGS_DIR=/tmp/logs
+          export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
           sudo chmod -R 755 .
@@ -362,7 +362,7 @@ jobs:
             fi
 
             echo "All build artifacts verified successfully"
-          } 2>&1 | tee -a build-logs/details/build-verification.log
+          } 2>&1 | tee -a ${LOGS_DIR}/details/build-verification.log
 
       - name: Run Greenplum debian package build script
         env:
@@ -379,6 +379,8 @@ jobs:
             ln -s "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian "${HOME}"/debian
 
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
+            ls -l /usr/local/lib
 
             chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
             if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
@@ -413,7 +415,7 @@ jobs:
 
             echo "Artifacts created and verified successfully"
 
-          } 2>&1 | tee -a build-logs/details/artifact-creation.log
+          } 2>&1 | tee -a ${LOGS_DIR}/details/artifact-creation.log
 
       - name: Generate Build Job Summary End
         if: always()
