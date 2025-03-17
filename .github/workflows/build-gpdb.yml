@@ -299,7 +299,12 @@ jobs:
           SRC_DIR: ${{ github.workspace }}
         run: |
           set -ex pipefail
+
+          # set env for debian build
+          export BUILD_DESTINATION=debian/build
+
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
+
           cd ${SRC_DIR}
           if ! SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh; then
             echo "::error::Configure script failed"
@@ -311,10 +316,25 @@ jobs:
           SRC_DIR: ${{ github.workspace }}
         run: |
           set -ex pipefail
+
+          # set env for debian build
+          export BUILD_DESTINATION=debian/build
+
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           cd ${SRC_DIR}
           if ! SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh; then
             echo "::error::Build script failed"
+            exit 1
+          fi
+
+          # copy sugar and xerces shared libraries
+          if ! cp /usr/local/lib/libsigar.so ${BUILD_DESTINATION}/lib; then
+            echo "::error::Copy libsigar.so failed"
+            exit 1
+          fi 
+
+          if ! cp /usr/local/lib/libxerces* ${BUILD_DESTINATION}/lib; then
+            echo "::error::Copy libxerces failed"
             exit 1
           fi
 
@@ -323,12 +343,14 @@ jobs:
         run: |
           set -ex pipefail
 
+          export BUILD_DESTINATION=debian/build
+
           echo "Verifying build artifacts..."
           {
             echo "=== Build Artifacts Verification ==="
             echo "Timestamp: $(date -u)"
 
-            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
             if [ ! -d "/opt/greenplum-db-6" ]; then
               echo "::error::Build artifacts directory not found"
@@ -356,11 +378,11 @@ jobs:
             echo "Testing binary execution..."
             if ! /opt/greenplum-db-6/bin/postgres --version; then
               echo "::error::postgres binary verification failed"
-              # exit 1
+              exit 1
             fi
             if ! /opt/greenplum-db-6/bin/psql --version; then
               echo "::error::psql binary verification failed"
-              # exit 1
+              exit 1
             fi
 
             echo "All build artifacts verified successfully"
@@ -377,9 +399,10 @@ jobs:
           echo "=== Artifact Creation Log ==="
           echo "Timestamp: $(date -u)"
 
-          ln -s "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian debian
+          cp -r "${SRC_DIR}"/gpdb-devops/packaging/deb/jammy/debian/* debian/
 
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+          export BUILD_DESTINATION=debian/build
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
           if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
