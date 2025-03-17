@@ -330,8 +330,6 @@ jobs:
 
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
-            ls -l /usr/local/lib/
-
             if [ ! -d "/opt/greenplum-db-6" ]; then
               echo "::error::Build artifacts directory not found"
               exit 1
@@ -376,50 +374,45 @@ jobs:
 
           echo "Creating DEB package..."
 
-          {
-            echo "=== Artifact Creation Log ==="
-            echo "Timestamp: $(date -u)"
+          echo "=== Artifact Creation Log ==="
+          echo "Timestamp: $(date -u)"
 
-            ln -s "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian "${HOME}"/debian
+          ln -s "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian debian
 
-            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
 
-            ls -l /usr/local/lib
+          chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
+          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
+            echo "::error::Build script failed"
+            exit 1
+          fi
 
-            chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
-            if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
-              echo "::error::Build script failed"
+          # Get OS version and move DEB
+          os_version=$(grep -oP '(?<=^VERSION_ID=")[0-9]' /etc/os-release)
+          DEB_FILE="${HOME}"/greenplum-db-"${CBDB_VERSION}"-"${BUILD_NUMBER}""${DEBUG_IDENTIFIER}""${os_version}".x86_64
+          echo "${DEB_FILE}"
+          ls -l ../
+          cp "${DEB_FILE}".* "${SRC_DIR}"
+
+          # Get package information
+          echo "Package Information:"
+          dpkg --info "${DEB_FILE}".deb
+          dpkg --contents "${DEB_FILE}".deb
+
+          # Verify critical files in DEB
+          echo "Verifying critical files in DEB..."
+          for binary in "bin/postgres" "bin/psql"; do
+            if ! dpkg --contents "${DEB_FILE}".deb | grep -q "${binary}$"; then
+              echo "::error::Critical binary '${binary}' not found in DEB"
               exit 1
             fi
+          done
 
-            # Get OS version and move DEB
-            os_version=$(grep -oP '(?<=^VERSION_ID=")[0-9]' /etc/os-release)
-            DEB_FILE="${HOME}"/greenplum-db-"${CBDB_VERSION}"-"${BUILD_NUMBER}""${DEBUG_IDENTIFIER}""${os_version}".x86_64
-            echo "${DEB_FILE}"
-            ls -l ../
-            cp "${DEB_FILE}".* "${SRC_DIR}"
+          # Record checksums
+          echo "Calculating checksums..."
+          sha256sum "${DEB_FILE}".deb | tee -a build-logs/details/checksums.log
 
-            # Get package information
-            echo "Package Information:"
-            dpkg --info "${DEB_FILE}".deb
-            dpkg --contents "${DEB_FILE}".deb
-
-            # Verify critical files in DEB
-            echo "Verifying critical files in DEB..."
-            for binary in "bin/postgres" "bin/psql"; do
-              if ! dpkg --contents "${DEB_FILE}".deb | grep -q "${binary}$"; then
-                echo "::error::Critical binary '${binary}' not found in DEB"
-                exit 1
-              fi
-            done
-
-            # Record checksums
-            echo "Calculating checksums..."
-            sha256sum "${DEB_FILE}".deb | tee -a build-logs/details/checksums.log
-
-            echo "Artifacts created and verified successfully"
-
-          } 2>&1 | tee -a build-logs/details/artifact-creation.log
+          echo "Artifacts created and verified successfully"
 
       - name: Generate Build Job Summary End
         if: always()
