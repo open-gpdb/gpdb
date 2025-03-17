@@ -36,6 +36,7 @@
 #include "access/twophase.h"
 #include "access/twophase_rmgr.h"
 #include "cdb/cdbvars.h"
+#include "cdb/cdbutil.h"
 #include "miscadmin.h"
 #include "pg_trace.h"
 #include "pgstat.h"
@@ -837,7 +838,7 @@ LockAcquireExtended(const LOCKTAG *locktag,
 	
 	if (lockmethodid == DEFAULT_LOCKMETHOD && locktag->locktag_type != LOCKTAG_TRANSACTION)
 	{
-		if (Gp_role == GP_ROLE_EXECUTE && !Gp_is_writer)
+		if (Gp_role == GP_ROLE_EXECUTE && !Gp_is_writer && !gp_dispatch_on_mirrors)
 		{	
 			if (lockHolderProcPtr == NULL || lockHolderProcPtr == MyProc)
 			{
@@ -857,7 +858,7 @@ LockAcquireExtended(const LOCKTAG *locktag,
 					lockHolderProcPtr = proc;
 				}
 				else
-					ereport(FATAL,
+					ereport(WARNING,
 							(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
 							 errmsg(WRITER_IS_MISSING_MSG),
 							 errdetail("lock [%u,%u] %s %d. "

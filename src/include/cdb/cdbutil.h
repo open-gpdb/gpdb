@@ -206,6 +206,7 @@ extern int16 contentid_get_dbid(int16 contentid, char role, bool getPreferredRol
 extern int numsegmentsFromQD;
 
 extern bool gp_count_host_segments_using_address;
+extern bool gp_dispatch_on_mirrors;
 
 /*
  * Returns the number of segments

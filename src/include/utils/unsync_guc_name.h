@@ -160,6 +160,7 @@
 		"gp_dispatch_keepalives_idle",
 		"gp_dispatch_keepalives_interval",
 		"gp_dispatch_keepalives_count",
+		"gp_dispatch_on_mirrors",
 		"gp_distinct_grouping_sets_threshold",
 		"gp_dtx_recovery_interval",
 		"gp_dtx_recovery_prepared_period",

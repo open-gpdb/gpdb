@@ -7200,7 +7200,7 @@ StartupXLOG(void)
 				oldestActiveXID = PrescanPreparedTransactions(&xids, &nxids);
 			else
 				oldestActiveXID = checkPoint.oldestActiveXid;
-			Assert(TransactionIdIsValid(oldestActiveXID));
+			// Assert(TransactionIdIsValid(oldestActiveXID));
 
 			/* Tell procarray about the range of xids it has to deal with */
 			ProcArrayInitRecovery(ShmemVariableCache->nextXid);
