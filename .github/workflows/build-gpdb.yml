@@ -301,7 +301,7 @@ jobs:
           set -ex pipefail
 
           # set env for debian build
-          export BUILD_DESTINATION=debian/build
+          export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
 
@@ -318,7 +318,7 @@ jobs:
           set -ex pipefail
 
           # set env for debian build
-          export BUILD_DESTINATION=debian/build
+          export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           cd ${SRC_DIR}
@@ -343,7 +343,7 @@ jobs:
         run: |
           set -ex pipefail
 
-          export BUILD_DESTINATION=debian/build
+          export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
           echo "Verifying build artifacts..."
           {
@@ -401,7 +401,7 @@ jobs:
 
           cp -r "${SRC_DIR}"/gpdb-devops/packaging/deb/jammy/debian/* debian/
 
-          export BUILD_DESTINATION=debian/build
+          export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
