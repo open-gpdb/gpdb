@@ -13,6 +13,44 @@ on:
 jobs:
 
   ## ======================================================================
+  ## Job: prepare-build-matrix
+  ## ======================================================================
+
+  prepare-build-matrix:
+
+    name: Prepare Build Variations
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      build-matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - id: set-matrix
+        run: |
+          echo "=== Matrix Preparation ==="
+          # Build result JSON with defaults applied
+          RESULT='{"include":[
+            {
+              "name": "default"
+              },
+            {
+              "name": "namedatalen-128",
+              "extra_configure_flags": "--with-extended-namedatalen"
+            }
+          ]}'
+          # Output the matrix for GitHub Actions
+          echo "Final matrix configuration:"
+          echo "$RESULT" | jq .
+          # Fix: Use block redirection
+          {
+            echo "matrix<<EOF"
+            echo "$RESULT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "=== Matrix Preparation Complete ==="
+
+  ## ======================================================================
   ## Job: prepare-test-matrix
   ## ======================================================================
 
@@ -212,12 +250,21 @@ jobs:
   ## ======================================================================
 
   build:
+
+    name: Build (${{ matrix.name }})
+
+    needs: [prepare-build-matrix]
+
     env:
       JOB_TYPE: build
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
 
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
@@ -271,7 +318,9 @@ jobs:
         run: |
           set -ex pipefail
 
-          ./configure --with-perl --with-python --with-libxml --prefix=/usr/local/gpdb --enable-orafce --enable-depend --enable-cassert --without-mdblocales --with-zstd --enable-debug-extensions --enable-orca CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
+          GPDB_EXTRA_CONFIGURE_FLAGS=${{ matrix.extra_configure_flags }}
+
+          ./configure --with-perl --with-python --with-libxml --prefix=/usr/local/gpdb --enable-orafce --enable-depend --enable-cassert --without-mdblocales --with-zstd --enable-debug-extensions --enable-orca $GPDB_EXTRA_CONFIGURE_FLAGS CFLAGS='-fno-omit-frame-pointer -Wno-implicit-fallthrough -O3 -pthread' 
 
       - name: Run Greenplum build script
         env:
