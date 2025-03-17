@@ -352,13 +352,13 @@ jobs:
 
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
-            if [ ! -d "/opt/greenplum-db-6" ]; then
+            if [ ! -d "${BUILD_DESTINATION}" ]; then
               echo "::error::Build artifacts directory not found"
               exit 1
             fi
 
             # Verify critical binaries
-            critical_binaries="/opt/greenplum-db-6/bin/postgres /opt/greenplum-db-6/bin/psql"
+            critical_binaries="${BUILD_DESTINATION}/bin/postgres ${BUILD_DESTINATION}/bin/psql"
 
             echo "Checking critical binaries..."
             for binary in ${critical_binaries}; do
@@ -376,11 +376,11 @@ jobs:
 
             # Test binary execution
             echo "Testing binary execution..."
-            if ! /opt/greenplum-db-6/bin/postgres --version; then
+            if ! ${BUILD_DESTINATION}/bin/postgres --version; then
               echo "::error::postgres binary verification failed"
               exit 1
             fi
-            if ! /opt/greenplum-db-6/bin/psql --version; then
+            if ! ${BUILD_DESTINATION}/bin/psql --version; then
               echo "::error::psql binary verification failed"
               exit 1
             fi
@@ -399,7 +399,7 @@ jobs:
           echo "=== Artifact Creation Log ==="
           echo "Timestamp: $(date -u)"
 
-          cp -r "${SRC_DIR}"/gpdb-devops/packaging/deb/jammy/debian/* debian/
+          cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
 
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
