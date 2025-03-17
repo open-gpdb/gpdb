@@ -65,7 +65,7 @@ jobs:
   abi-dump:
     needs: abi-dump-setup
     runs-on: ubuntu-latest
-    container: gcr.io/data-gpdb-public-images/gpdb6-rocky8-build
+    container: ghcr.io/open-gpdb/gpdb-env:jammy-latest
     strategy:
       matrix:
         name:
@@ -135,7 +135,7 @@ jobs:
       - abi-dump-setup
       - abi-dump
     runs-on: ubuntu-latest
-    container: gcr.io/data-gpdb-public-images/gpdb6-rocky8-build
+    container: ghcr.io/open-gpdb/gpdb-env:jammy-latest
     steps:
       - name: Download baseline
         uses: actions/download-artifact@v4
