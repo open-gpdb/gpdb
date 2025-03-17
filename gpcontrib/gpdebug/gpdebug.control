@@ -1,0 +1,5 @@
+# gpdebug extension
+comment = 'provides debug functionality'
+default_version = '1.0'
+module_pathname = '$libdir/gpdebug'
+relocatable = true

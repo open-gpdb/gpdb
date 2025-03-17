@@ -347,6 +347,8 @@ if [ "${ENABLE_COPY}" == "true" ]; then
 		ycmdb.yc_allow_copy_to_program=on
 		ycmdb.yc_allow_copy_from_file=on
 		ycmdb.yc_allow_copy_to_file=on
+		wal_level=hot_standby
+		hot_standby=on
 
 	EOF
 fi
