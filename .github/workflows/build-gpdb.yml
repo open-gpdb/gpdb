@@ -206,11 +206,6 @@ jobs:
 
           echo "=== Matrix Preparation Complete ==="
 
-  ## ======================================================================
-  ## Job: init-docker-env
-  ## ======================================================================
-
-
 
   ## ======================================================================
   ## Job: build
@@ -325,5 +320,340 @@ jobs:
           path: |
             build-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
+
+  ## ======================================================================
+  ## Job: test
+  ## ======================================================================
+
+  test:
+    needs: [build, prepare-test-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-test-matrix.outputs.test-matrix) }}
+
+    container:
+      image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --privileged
+        --cgroupns=private
+
+    steps:
+      - name: Use timestamp from previous job
+        run: |
+          echo "Timestamp from output: ${{ needs.build.outputs.build_timestamp }}"
+
+      - name: "Generate Test Job Summary Start: ${{ matrix.test }}"
+        if: always()
+        run: |
+          {
+            echo "# Test Job Summary: ${{ matrix.test }}"
+            echo "## Environment"
+            echo "- Start Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+            if [[ "${{ needs.check-skip.outputs.should_skip }}" == "true" ]]; then
+              echo "## Skip Status"
+              echo "✓ Test execution skipped via CI skip flag"
+            else
+              echo "- OS Version: $(cat /etc/redhat-release)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create Greenplum demo cluster
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -eo pipefail
+
+          {
+            chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh
+            if ! cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh; then
+              echo "::error::Demo cluster creation failed"
+              exit 1
+            fi
+
+          } 2>&1 | tee -a build-logs/details/create-gpdb-demo-cluster.log
+
+      - name: "Run Tests: ${{ matrix.test }}"
+        run: |
+          set -o pipefail
+          shopt -s globstar
+          # Initialize test status
+          overall_status=0
+          # Create logs directory structure
+          mkdir -p build-logs/details
+          # Create results directory structure
+          mkdir -p build-results
+
+          # WARNING: PostgreSQL Settings
+          # When adding new pg_settings key/value pairs:
+          # 1. Add a new check below for the setting
+          # 2. Follow the same pattern as optimizer
+          # 3. Update matrix entries to include the new setting
+          
+          # Set PostgreSQL options if defined
+          PG_OPTS=""
+          if [[ "${{ matrix.pg_settings.optimizer != '' }}" == "true" ]]; then
+            PG_OPTS="$PG_OPTS -c optimizer=${{ matrix.pg_settings.optimizer }}"
+          fi
+
+          # Read configs into array
+          IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+          echo "=== Starting test execution for ${{ matrix.test }} ==="
+          echo "Number of configurations to execute: ${#configs[@]}"
+          echo ""
+
+          # Execute each config separately
+          for ((i=0; i<${#configs[@]}; i++)); do
+            config="${configs[$i]}"
+            IFS=':' read -r dir target <<< "$config"
+
+            echo "=== Executing configuration $((i+1))/${#configs[@]} ==="
+            echo "Make command: make -C $dir $target"
+            echo "Environment:"
+            echo "- PGOPTIONS: ${PG_OPTS}"
+            
+            # Create unique log file for this configuration
+            config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+            
+            if ! cd ${SRC_DIR} && \
+                 MAKE_NAME='${{ matrix.test }}-config$i' \
+                 MAKE_TARGET='$target' \
+                 MAKE_DIRECTORY='-C $dir' \
+                 PGOPTIONS='${PG_OPTS}' \
+                 SRC_DIR='${SRC_DIR}' \
+                 ${SRC_DIR}/../gpdb-devops-release/build_automation/gpdb/scripts/test-gpdb.sh" \
+                 2>&1 | tee "$config_log";then
+              echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
+              overall_status=1
+            fi
+            
+            # Check for results directory
+            results_dir="${dir}/results"
+
+            if [[ -d "$results_dir" ]]; then
+              echo "-----------------------------------------" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+              echo "Found results directory: $results_dir" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+              echo "Contents of results directory:" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+
+              find "$results_dir" -type f -ls >> "$log_file" 2>&1 | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+              echo "-----------------------------------------" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+            else
+              echo "-----------------------------------------"
+              echo "Results directory $results_dir does not exit"
+              echo "-----------------------------------------"
+            fi
+
+            echo "Log file: $config_log"
+            echo "=== End configuration $((i+1)) execution ==="
+            echo ""
+          done
+
+          echo "=== Test execution completed ==="
+          echo "Log files:"
+          ls -l build-logs/details/
+
+          # Store number of configurations for parsing step
+          echo "NUM_CONFIGS=${#configs[@]}" >> "$GITHUB_ENV"
+
+          # Report overall status
+          if [ $overall_status -eq 0 ]; then
+            echo "All test executions completed successfully"
+          else
+            echo "::warning::Some test executions failed, check individual logs for details"
+          fi
+
+          exit $overall_status
+
+      - name: Check and Display Diffs
+        if: always()
+        run: |
+            # Search for regression.diffs recursively
+            found_files=$(find . -type f -path "*/regression.diffs")
+            if [[ "x$found_files" != "x" ]]; then
+              for found_file in $found_files
+              do
+                echo "-----------------------------------------------------"
+                echo "Found regression.diffs at: $found_file"
+                echo "-----------------------------------------------------"
+                cat "$found_file"
+              done
+            else
+              echo "No regression.diffs file found in the hierarchy."
+            fi
+
+      - name: "Generate Test Job Summary End: ${{ matrix.test }}"
+        if: always()
+        shell: bash {0}
+        run: |
+          {
+            echo "## Test Results"
+            echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            # Check if job was cancelled
+            if [[ "${{ job.status }}" == "cancelled" ]]; then
+              echo "### Test Status"
+              echo "🚫 Test execution was cancelled"
+              echo ""
+              echo "### Execution Summary"
+              echo "Test run was interrupted and did not complete. No test results are available."
+              exit 0
+            fi
+            # Process results for each configuration
+            IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+            for ((i=0; i<NUM_CONFIGS; i++)); do
+              config="${configs[$i]}"
+              IFS=':' read -r dir target <<< "$config"
+              echo "### Configuration $((i+1)): \`make -C $dir $target\`"
+              config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+              if [[ ! -f "$config_log" ]]; then
+                echo "⚠️ No log file found for this configuration"
+                continue
+              fi
+              cat $config_log | tail -4
+              test_pattern="\s+\S+\s+\.\.\."
+              TOTAL_TESTS=$(cat $config_log | grep -E "$test_pattern [Foi]" -c)
+              PASSED_TESTS=$(cat $config_log | grep -E "$test_pattern ok" -c)
+              FAILED_TESTS=$(cat $config_log | grep -E "$test_pattern FAILED" -c)
+              IGNORED_TESTS=$(cat $config_log | grep -E "$test_pattern ignored" -c)
+              STATUS="failed"
+              if grep -qE "All .+ tests passed." $config_log; then
+                STATUS="passed"
+              fi
+              # Rest of the code remains the same...
+              # Display status with emoji
+              echo "#### Status $STATUS"
+              case "${STATUS:-unknown}" in
+                passed)
+                  echo "✅ All tests passed"
+                  ;;
+                failed)
+                  echo "❌ Some tests failed"
+                  ;;
+                parse_error)
+                  echo "⚠️ Could not parse test results"
+                  ;;
+                unknown_error)
+                  echo "⚠️ Unexpected error during test execution/parsing"
+                  ;;
+                missing_log)
+                  echo "⚠️ Test log file missing"
+                  ;;
+                *)
+                  echo "⚠️ Unknown status: ${status:-unknown}"
+                  ;;
+              esac
+              echo ""
+              echo "#### Test Counts"
+              echo "| Metric | Count |"
+              echo "|--------|-------|"
+              echo "| Total Tests | ${TOTAL_TESTS:-0} |"
+              echo "| Passed Tests | ${PASSED_TESTS:-0} |"
+              echo "| Failed Tests | ${FAILED_TESTS:-0} |"
+              echo "| Ignored Tests | ${IGNORED_TESTS:-0} |"
+              FAILED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern FAILED" | grep -oE "^.... \w+" | grep -oE "\w+$")
+              # Add failed tests if any
+              if [[ -n "${FAILED_TEST_NAMES:-}" && "${FAILED_TESTS:-0}" != "0" ]]; then
+                echo ""
+                echo "#### Failed Tests"
+                echo "${FAILED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                  if [[ -n "$test" ]]; then
+                    echo "* \`${test}\`"
+                  fi
+                done
+              fi
+              IGNORED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern ignored" | grep -oE "^.... \w+" | grep -oE "\w+$")
+              # Add ignored tests if any
+              if [[ -n "${IGNORED_TEST_NAMES:-}" && "${IGNORED_TESTS:-0}" != "0" ]]; then
+                echo ""
+                echo "#### Ignored Tests"
+                echo "${IGNORED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                  if [[ -n "$test" ]]; then
+                    echo "* \`${test}\`"
+                  fi
+                done
+              fi
+              echo ""
+              echo "---"
+            done
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            build-logs/
+
+      - name: Upload test results files
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            **/regression.out
+            **/regression.diffs
+            **/results/
+
+      - name: Upload test regression logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-logs-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            **/regression.out
+            **/regression.diffs
+            **/results/
+            gpAux/gpdemo/datadirs/standby/log/
+            gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
+            gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/
+            gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/log/
+            gpAux/gpdemo/datadirs/dbfast3/demoDataDir2/log/
+            gpAux/gpdemo/datadirs/dbfast_mirror1/demoDataDir0/log/
+            gpAux/gpdemo/datadirs/dbfast_mirror2/demoDataDir1/log/
+            gpAux/gpdemo/datadirs/dbfast_mirror3/demoDataDir2/log/
+
+  ## ======================================================================
+  ## Job: report
+  ## ======================================================================
+
+  report:
+    name: Generate Greenplum Build Report
+    needs: [build, prepare-test-matrix, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Final Report
+        run: |
+          {
+            echo "# Greenplum Build Pipeline Report"
+            echo "## Job Status"
+            echo "- Build Job: ${{ needs.build.result }}"
+            echo "- Test Job: ${{ needs.test.result }}"
+            echo "- Completion Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
+              echo "✅ Pipeline completed successfully"
+            else
+              echo "⚠️ Pipeline completed with failures"
+              if [[ "${{ needs.build.result }}" != "success" ]]; then
+                echo "### Build Job Failure"
+                echo "Check build logs for details"
+              fi
+              if [[ "${{ needs.test.result }}" != "success" ]]; then
+                echo "### Test Job Failure"
+                echo "Check test logs and regression files for details"
+              fi
+            fi
+            
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Notify on failure
+        if: |
+          (needs.build.result != 'success' || needs.test.result != 'success')
+        run: |
+          echo "::error::Build/Test pipeline failed! Check job summaries and logs for details"
+          echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "Build Result: ${{ needs.build.result }}"
+          echo "Test Result: ${{ needs.test.result }}"
 
 
