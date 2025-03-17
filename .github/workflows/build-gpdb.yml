@@ -1,0 +1,329 @@
+# --------------------------------------------------------------------
+# GitHub Actions Workflow: Greenplum Build Pipeline
+# --------------------------------------------------------------------
+
+name: Greenplum Build
+
+on:
+  push:
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+  pull_request:
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+
+jobs:
+
+  ## ======================================================================
+  ## Job: prepare-test-matrix
+  ## ======================================================================
+
+  prepare-test-matrix:
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      test-matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - id: set-matrix
+        run: |
+          echo "=== Matrix Preparation Diagnostics ==="
+          echo "Event type: ${{ github.event_name }}"
+          echo "Test selection input: '${{ github.event.inputs.test_selection }}'"
+
+          stat -fc %T /sys/fs/cgroup/
+
+          # Define defaults
+          DEFAULT_NUM_PRIMARY_MIRROR_PAIRS=3
+          DEFAULT_ENABLE_CGROUPS=false
+          DEFAULT_ENABLE_CORE_CHECK=true
+          DEFAULT_INSTALL_TARGET=false
+          DEFAULT_PG_SETTINGS_OPTIMIZER=""
+          DEFAULT_RUNS_ON="ubuntu-latest"
+
+          # Define base test configurations
+          ALL_TESTS='{
+            "include": [
+              {"test":"ic-good-opt-off",
+               "make_configs":["src/test/regress:installcheck-good"],
+               "pg_settings":{"optimizer":"off"}
+              },
+              {"test":"ic-good-opt-on",
+               "make_configs":["src/test/regress:installcheck-good"],
+               "pg_settings":{"optimizer":"on"}
+              },
+              {"test":"ic-expandshrink",
+               "make_configs":["src/test/isolation2:installcheck-expandshrink"]
+              },
+              {"test":"ic-resgroup",
+               "make_configs":["src/test/isolation2:installcheck-resgroup"],
+               "enable_cgroups":true,
+               "runs_on":"ubuntu-20.04"
+              },
+              {"test":"ic-contrib",
+               "install_target":true,
+               "make_configs":["contrib/amcheck:installcheck",
+                               "contrib/auto_explain:installcheck",
+                               "contrib/btree_gin:installcheck",
+                               "contrib/btree_gist:installcheck",
+                               "contrib/citext:installcheck",
+                               "contrib/cube:installcheck",
+                               "contrib/dblink:installcheck",
+                               "contrib/dict_int:installcheck",
+                               "contrib/dict_xsyn:installcheck",
+                               "contrib/earthdistance:installcheck",
+                               "contrib/extprotocol:installcheck",
+                               "contrib/file_fdw:installcheck",
+                               "contrib/formatter_fixedwidth:installcheck",
+                               "contrib/fuzzystrmatch:installcheck",
+                               "contrib/hstore:installcheck",
+                               "contrib/indexscan:installcheck",
+                               "contrib/intarray:installcheck",
+                               "contrib/isn:installcheck",
+                               "contrib/ltree:installcheck",
+                               "contrib/passwordcheck:installcheck",
+                               "contrib/pg_trgm:installcheck",
+                               "contrib/pgcrypto:installcheck",
+                               "contrib/pgstattuple:installcheck",
+                               "contrib/postgres_fdw:installcheck",
+                               "contrib/sasdemo:installcheck",
+                               "contrib/sepgsql:installcheck",
+                               "contrib/sslinfo:installcheck",
+                               "contrib/tablefunc:installcheck",
+                               "contrib/test_decoding:installcheck",
+                               "contrib/test_parser:installcheck",
+                               "contrib/test_shm_mq:installcheck",
+                               "contrib/try_convert:installcheck",
+                               "contrib/tsearch2:installcheck",
+                               "contrib/unaccent:installcheck",
+                               "contrib/uuid-ossp:installcheck",
+                               "contrib/xml2:installcheck"]
+              },
+              {"test":"ic-gpcontrib",
+               "make_configs":["gpcontrib/gp_array_agg:installcheck",
+                               "gpcontrib/gp_debug_numsegments:installcheck",
+                               "gpcontrib/gp_distribution_policy:installcheck",
+                               "gpcontrib/gp_error_handling:installcheck",
+                               "gpcontrib/gp_inject_fault:installcheck",
+                               "gpcontrib/gp_internal_tools:installcheck",
+                               "gpcontrib/gp_legacy_string_agg:installcheck",
+                               "gpcontrib/gp_percentile_agg:installcheck",
+                               "gpcontrib/gp_sparse_vector:installcheck",
+                               "gpcontrib/gp_subtransaction_overflow:installcheck",
+                               "gpcontrib/gpcloud:installcheck",
+                               "gpcontrib/gpmapreduce:installcheck",
+                               "gpcontrib/orafce:installcheck",
+                               "gpcontrib/pgaudit:installcheck",
+                               "gpcontrib/quicklz:installcheck",
+                               "gpcontrib/sr_plan",
+                               "gpcontrib/zstd"]
+              },
+              {"test":"ic-parallel-retrieve-cursor",
+               "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
+              },
+              {"test":"ic-mirrorless",
+               "make_configs":["src/test/isolation2:installcheck-mirrorless"]
+              }
+            ]
+          }'
+
+          # Function to apply defaults
+          apply_defaults() {
+            echo "$1" | jq --arg     npm "$DEFAULT_NUM_PRIMARY_MIRROR_PAIRS" \
+                           --argjson ec  "$DEFAULT_ENABLE_CGROUPS" \
+                           --argjson ecc "$DEFAULT_ENABLE_CORE_CHECK" \
+                           --argjson emk "$DEFAULT_INSTALL_TARGET" \
+                           --arg     opt "$DEFAULT_PG_SETTINGS_OPTIMIZER" \
+                           --arg     ro  "$DEFAULT_RUNS_ON" \
+              'def get_defaults:
+                {
+                  num_primary_mirror_pairs: ($npm|tonumber),
+                  enable_cgroups: $ec,
+                  install_target: $emk,
+                  runs_on: $ro,
+                  enable_core_check: $ecc,
+                  pg_settings: {
+                    optimizer: $opt
+                  }
+                };
+               get_defaults * .'
+          }
+
+          # Extract all valid test names from ALL_TESTS
+          VALID_TESTS=$(echo "$ALL_TESTS" | jq -r '.include[].test')
+
+          # Parse input test selection
+          IFS=',' read -ra SELECTED_TESTS <<< "${{ github.event.inputs.test_selection }}"
+
+          # Default to all tests if selection is empty or 'all'
+          if [[ "${SELECTED_TESTS[*]}" == "all" || -z "${SELECTED_TESTS[*]}" ]]; then
+            mapfile -t SELECTED_TESTS <<< "$VALID_TESTS"
+          fi
+
+          # Validate and filter selected tests
+          INVALID_TESTS=()
+          FILTERED_TESTS=()
+          for TEST in "${SELECTED_TESTS[@]}"; do
+            TEST=$(echo "$TEST" | tr -d '[:space:]') # Trim whitespace
+            if echo "$VALID_TESTS" | grep -qw "$TEST"; then
+              FILTERED_TESTS+=("$TEST")
+            else
+              INVALID_TESTS+=("$TEST")
+            fi
+          done
+
+          # Handle invalid tests
+          if [[ ${#INVALID_TESTS[@]} -gt 0 ]]; then
+            echo "::error::Invalid test(s) selected: ${INVALID_TESTS[*]}"
+            echo "Valid tests are: $(echo "$VALID_TESTS" | tr '\n' ', ')"
+            exit 1
+          fi
+
+          # Build result JSON with defaults applied
+          RESULT='{"include":['
+          FIRST=true
+          for TEST in "${FILTERED_TESTS[@]}"; do
+            CONFIG=$(jq -c --arg test "$TEST" '.include[] | select(.test == $test)' <<< "$ALL_TESTS")
+            FILTERED_WITH_DEFAULTS=$(apply_defaults "$CONFIG")
+            if [[ "$FIRST" == true ]]; then
+              FIRST=false
+            else
+              RESULT="${RESULT},"
+            fi
+            RESULT="${RESULT}${FILTERED_WITH_DEFAULTS}"
+          done
+          RESULT="${RESULT}]}"
+
+          # Output the matrix for GitHub Actions
+          echo "Final matrix configuration:"
+          echo "$RESULT" | jq .
+
+          # Fix: Use block redirection
+          {
+            echo "matrix<<EOF"
+            echo "$RESULT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "=== Matrix Preparation Complete ==="
+
+  ## ======================================================================
+  ## Job: init-docker-env
+  ## ======================================================================
+
+
+
+  ## ======================================================================
+  ## Job: build
+  ## ======================================================================
+
+  build:
+    env:
+      JOB_TYPE: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
+
+    container:
+      image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+
+    steps:
+      - name: Set build timestamp
+        id: set_timestamp  # Add an ID to reference this step
+        run: |
+          timestamp=$(date +'%Y%m%d_%H%M%S')
+          echo "timestamp=$timestamp" | tee -a "$GITHUB_OUTPUT"  # Use GITHUB_OUTPUT for job outputs
+          echo "BUILD_TIMESTAMP=$timestamp" | tee -a "$GITHUB_ENV" # Also set as environment variable
+
+      - name: Checkout Greenplum
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout CI Build/Test Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: open-gpdb/gpdb-devops
+          ref: main
+          path: gpdb-devops
+          fetch-depth: 1
+      
+      - name: Move gpdb-devops directory
+        run: |
+          set -ex pipefail
+          if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
+
+      - name: Generate Build Job Summary Start
+        run: |
+          {
+            echo "# Build Job Summary"
+            echo "## Environment"
+            echo "- Start Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            echo "- ENABLE_DEBUG: ${{ env.ENABLE_DEBUG }}"
+            echo "- OS Version: $(lsb_release -sd)"
+            echo "- GCC Version: $(gcc --version | head -n1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Greenplum configure script
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
+          cd ${SRC_DIR}
+          if ! SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh; then
+            echo "::error::Configure script failed"
+            exit 1
+          fi
+
+      - name: Run Greenplum build script
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
+          cd ${SRC_DIR}
+          if ! SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh; then
+            echo "::error::Build script failed"
+            exit 1
+          fi
+
+      - name: Run Greenplum debian package build script
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+
+          chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
+          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
+            echo "::error::Build script failed"
+            exit 1
+          fi
+
+      - name: Generate Build Job Summary End
+        if: always()
+        run: |
+          {
+            echo "## Build Results"
+            echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Debian Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-packages-${{ env.BUILD_TIMESTAMP }}
+          path: |
+            **/*.deb
+
+      - name: Upload build logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ env.BUILD_TIMESTAMP }}
+          path: |
+            build-logs/
+          retention-days: ${{ env.LOG_RETENTION_DAYS }}
+
+
