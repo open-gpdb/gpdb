@@ -399,7 +399,8 @@ jobs:
           echo "=== Artifact Creation Log ==="
           echo "Timestamp: $(date -u)"
 
-          cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
+          sudo cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
+          sudo chown -R "$(whoami)" debian
 
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
