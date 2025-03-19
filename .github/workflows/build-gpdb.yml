@@ -390,6 +390,8 @@ jobs:
 
       - name: Run Greenplum debian package build script
         env:
+          GPDB_VERSION: 99.0.0
+          BUILD_NUMBER: 1
           SRC_DIR: ${{ github.workspace }}
         run: |
           set -ex pipefail
@@ -399,28 +401,28 @@ jobs:
           echo "=== Artifact Creation Log ==="
           echo "Timestamp: $(date -u)"
 
-          cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
+          sudo cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
+          sudo chown -R "$(whoami)" debian
 
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
-          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
+          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh $GPDB_VERSION; then
             echo "::error::Build script failed"
             exit 1
           fi
 
-          # Get OS version and move DEB
-          os_version=$(grep -oP '(?<=^VERSION_ID=")[0-9]' /etc/os-release)
-          DEB_FILE="${HOME}"/greenplum-db-"${CBDB_VERSION}"-"${BUILD_NUMBER}""${DEBUG_IDENTIFIER}""${os_version}".x86_64
-          echo "${DEB_FILE}"
+
+          GPDB_PKG_VERSION=${GPDB_VERSION}-${BUILD_NUMBER}-yandex.$(git --git-dir=.git rev-list HEAD --count).$(git --git-dir=.git rev-parse --short HEAD)
+          echo "${GPDB_PKG_VERSION}"
           ls -l ../
-          cp "${DEB_FILE}".* "${SRC_DIR}"
+          cp "${GPDB_PKG_VERSION}".* "${SRC_DIR}"
 
           # Get package information
           echo "Package Information:"
-          dpkg --info "${DEB_FILE}".deb
-          dpkg --contents "${DEB_FILE}".deb
+          dpkg --info "${GPDB_PKG_VERSION}".deb
+          dpkg --contents "${GPDB_PKG_VERSION}".deb
 
           # Verify critical files in DEB
           echo "Verifying critical files in DEB..."
@@ -451,6 +453,8 @@ jobs:
           name: debian-packages-${{ env.BUILD_TIMESTAMP }}
           path: |
             *.deb
+            *.ddeb
+            *.changes
 
       - name: Upload build logs
         uses: actions/upload-artifact@v4
