@@ -321,7 +321,7 @@ jobs:
           set -ex pipefail
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
-          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
             exit 1
           fi
