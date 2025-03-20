@@ -289,7 +289,7 @@ jobs:
           } | tee -a "${LOGS_DIR}/details/environment.log"
 
           echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
-          echo "BUILD_DESTINATION=debian/build" | tee -a "$GITHUB_ENV"
+          echo "BUILD_DESTINATION=${GITHUB_WORKSPACE}/build" | tee -a "$GITHUB_ENV"
 
       - name: Generate Build Job Summary Start
         run: |
