@@ -404,6 +404,9 @@ jobs:
           sudo cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
           sudo chown -R "$(whoami)" debian
 
+          # replace not supported symbols in version
+          GPDB_VERSION=${GPDB_VERSION////_}
+          echo "We will built ${GPDB_VERSION}"
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
