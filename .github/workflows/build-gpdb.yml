@@ -309,7 +309,7 @@ jobs:
           set -ex pipefail
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
           cd ${SRC_DIR}
-          if ! SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -321,7 +321,7 @@ jobs:
           set -ex pipefail
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           cd ${SRC_DIR}
-          if ! SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
             exit 1
           fi
@@ -333,7 +333,7 @@ jobs:
           set -ex pipefail
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
-          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh"; then
             echo "::error::Build script failed"
             exit 1
           fi
