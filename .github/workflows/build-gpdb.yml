@@ -226,6 +226,8 @@ jobs:
 
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --user root
 
     steps:
       - name: Set build timestamp
