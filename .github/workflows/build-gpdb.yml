@@ -486,7 +486,7 @@ jobs:
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
 
 
-## ======================================================================
+  ## ======================================================================
   ## Job: deb-install-test
   ## ======================================================================
 
@@ -502,12 +502,11 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-${{ env.BUILD_TIMESTAMP }}
+          name: debian-packages-${{ needs.build.outputs.build_timestamp }}
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
       - name: Verify DEB artifacts
-        if: needs.check-skip.outputs.should_skip != 'true'
         id: verify-artifacts
         run: |
           set -eo pipefail1'
@@ -616,6 +615,7 @@ jobs:
   ## ======================================================================
 
   test:
+    name: ${{ matrix.test }}
     needs: [build, prepare-test-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: 120
