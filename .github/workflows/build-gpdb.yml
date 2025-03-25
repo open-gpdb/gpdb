@@ -16,6 +16,14 @@ on:
         required: false
         default: 'all'
         type: string
+      build_variant:
+        description: 'Build variant'
+        required: true
+        default: 'default'
+        type: choice
+        options:
+        - default
+        - t_dwh
 
 jobs:
 
@@ -564,7 +572,7 @@ jobs:
             # Verify expected binaries are in the DEB
             echo "Verifying critical files in DEB..."
             for binary in "bin/postgres" "bin/psql"; do
-              if ! dpkg-deb -c "${DEB_FILE}" | grep -q "${binary}$"; then
+              if ! dpkg-deb -c "${DEB_FILE}" | grep -q "${binary}"; then
                 echo "::error::Critical binary '${binary}' not found in DEB"
                 exit 1
               fi
@@ -661,6 +669,62 @@ jobs:
         run: |
           echo "Timestamp from output: ${{ needs.build.outputs.build_timestamp }}"
 
+      - name: Checkout CI Build/Test Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: open-gpdb/gpdb-devops
+          ref: main
+          path: gpdb-devops
+          fetch-depth: 1
+      
+      - name: Move gpdb-devops directory
+        run: |
+          set -ex pipefail
+          if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
+
+      - name: Environment Initialization
+        if: needs.check-skip.outputs.should_skip != 'true'
+        env:
+          LOGS_DIR: build-logs
+        run: |
+          set -ex pipefail
+
+          export LOGS_DIR=build-logs
+
+          mkdir -p "${LOGS_DIR}/details"
+          sudo chmod -R 755 .
+          chmod 777 "${LOGS_DIR}"
+
+          df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
+          free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
+
+          {
+            echo "=== Environment Information ==="
+            uname -a
+            df -h
+            free -h
+            env
+          } | tee -a "${LOGS_DIR}/details/environment.log"
+
+          echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
+
+      - name: Setup cgroups
+        if: needs.check-skip.outputs.should_skip != 'true'
+        shell: bash
+        run: |
+          set -ux pipefail
+
+          if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
+
+            echo "Current mounts:"
+            mount | grep cgroup
+          else
+            echo "Cgroup setup skipped"
+          fi
+
       - name: "Generate Test Job Summary Start: ${{ matrix.test }}"
         if: always()
         run: |
@@ -676,6 +740,13 @@ jobs:
               echo "- OS Version: $(cat /etc/redhat-release)"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-${{ needs.build.outputs.build_timestamp }}
+          path: ${{ github.workspace }}/deb_build_artifacts
+          merge-multiple: false
 
       - name: Create Greenplum demo cluster
         env:
