@@ -19,6 +19,7 @@
 #include "postgres.h"
 
 #include "cdb/cdbvarblock.h"
+#include "access/aobloomfilter.h"
 
 static VarBlockByteLen VarBlockGetItemLen(
 				   VarBlockReader *varBlockReader,
@@ -53,7 +54,8 @@ VarBlockMakerInit(
 				  uint8 *buffer,
 				  VarBlockByteLen maxBufferLen,
 				  uint8 *tempScratchSpace,
-				  int tempScratchSpaceLen)
+				  int tempScratchSpaceLen, 
+				  int64 largeWritePosition)
 {
 	Assert(varBlockMaker != NULL);
 	Assert(buffer != NULL);
@@ -83,6 +85,9 @@ VarBlockMakerInit(
 	memset(buffer, 0, VARBLOCK_HEADER_LEN);
 	VarBlockSet_version(varBlockMaker->header, InitialVersion);
 	VarBlockSet_offsetsAreSmall(varBlockMaker->header, true);
+
+	varBlockMaker->blf = bloom_create_nbytes(AOBLF_SIZE, 4 /* default */, random() % PG_INT32_MAX);
+	varBlockMaker->largeWritePosition = largeWritePosition;
 }
 
 /*

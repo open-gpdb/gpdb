@@ -223,11 +223,12 @@ BufferedReadIo(
 								   bufferedRead->largeReadLen)));
 
 		elogif(Debug_appendonly_print_read_block, LOG,
-			   "Append-Only storage read: table \"%s\", segment file \"%s\", read position " INT64_FORMAT " (small offset %d), "
+			   "Append-Only storage read: table \"%s\", segment file \"%s\", read position " INT64_FORMAT ", buffer offset (%d) (small offset %d), "
 			   "actual read length %d (equals large read length %d is %s)",
 			   bufferedRead->relationName,
 			   bufferedRead->filePathName,
 			   bufferedRead->largeReadPosition,
+			   bufferedRead->bufferOffset,
 			   offset,
 			   actualLen,
 			   bufferedRead->largeReadLen,

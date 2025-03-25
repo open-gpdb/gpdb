@@ -38,18 +38,6 @@
 #include "access/hash.h"
 #include "lib/bloomfilter.h"
 
-#define MAX_HASH_FUNCS		10
-
-struct bloom_filter
-{
-	/* K hash functions are used, seeded by caller's seed */
-	int			k_hash_funcs;
-	uint64		seed;
-	/* m is bitset size, in bits.  Must be a power of two <= 2^32.  */
-	uint64		m;
-	unsigned char bitset[FLEXIBLE_ARRAY_MEMBER];
-};
-
 static int	my_bloom_power(uint64 target_bitset_bits);
 static int	optimal_k(uint64 bitset_bits, int64 total_elems);
 static void k_hashes(bloom_filter *filter, uint32 *hashes, unsigned char *elem,
@@ -115,6 +103,21 @@ bloom_create(int64 total_elems, int bloom_work_mem, uint64 seed)
 	filter->k_hash_funcs = optimal_k(bitset_bits, total_elems);
 	filter->seed = seed;
 	filter->m = bitset_bits;
+
+	return filter;
+}
+
+bloom_filter *
+bloom_create_nbytes(int64 nbytes, int k_hash_funcs, uint64 seed)
+{
+	bloom_filter *filter;
+
+	/* Allocate bloom filter with unset bitset */
+	filter = palloc0(offsetof(bloom_filter, bitset) +
+					 sizeof(unsigned char) * nbytes);
+	filter->k_hash_funcs = k_hash_funcs;
+	filter->seed = seed;
+	filter->m = nbytes;
 
 	return filter;
 }

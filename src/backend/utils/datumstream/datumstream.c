@@ -818,8 +818,16 @@ destroy_datumstreamread(DatumStreamRead * ds)
 
 
 void
-datumstreamwrite_open_file(DatumStreamWrite *ds, char *fn, int64 eof, int64 eofUncompressed, int64 modcount,
-						   RelFileNodeBackend *relFileNode, int32 segmentFileNum, int version)
+datumstreamwrite_open_file(
+	DatumStreamWrite *ds,
+	char *fn,
+	int64 eof,
+	int64 eofUncompressed,
+	int64 varblockcount,
+	int64 modcount,
+	RelFileNodeBackend *relFileNode,
+	int32 segmentFileNum,
+	int version)
 {
 	ds->eof = eof;
 	ds->eofUncompress = eofUncompressed;
@@ -847,6 +855,7 @@ datumstreamwrite_open_file(DatumStreamWrite *ds, char *fn, int64 eof, int64 eofU
 									version,
 									eof,
 									eofUncompressed,
+									varblockcount,
 									modcount,
 									relFileNode,
 									segmentFileNum);

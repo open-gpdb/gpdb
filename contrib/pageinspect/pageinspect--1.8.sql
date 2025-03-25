@@ -178,6 +178,7 @@ RETURNS TABLE (
     "first row number" BIGINT,
     "large read position" BIGINT,
     "buffer offset" INTEGER,
+    "total varblock count" BIGINT,
     "block kind" TEXT,
     "header kind" TEXT,
     "current item count" INTEGER,
@@ -203,5 +204,16 @@ RETURNS TABLE (
     "row count" INTEGER
 )
 AS 'MODULE_PATHNAME', 'get_aocs_headers_info'
+    LANGUAGE C STRICT
+EXECUTE ON ALL SEGMENTS;
+
+
+CREATE FUNCTION check_bloom_filter(
+    reloid OID,
+    varblocknum BIGINT,
+    d INT
+)
+RETURNS BOOLEAN
+AS 'MODULE_PATHNAME', 'check_bloom_filter'
     LANGUAGE C STRICT
 EXECUTE ON ALL SEGMENTS;

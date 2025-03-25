@@ -47,6 +47,7 @@ typedef struct BufferedAppend
 							 */
 	
 	int64				 largeWritePosition;
+	int64				 largeWriteVarBlock;
     int32                largeWriteLen;
 							/*
 							 * The position within the current file for the next write
@@ -113,7 +114,8 @@ extern void BufferedAppendSetFile(
 	int32				 segmentFileNum,
     char				 *filePathName,
     int64				 eof,
-    int64				 eof_uncompressed);
+    int64				 eof_uncompressed,
+	int64				 varblockcount);
 
 /*
  * Return the position of the current write buffer in bytes.

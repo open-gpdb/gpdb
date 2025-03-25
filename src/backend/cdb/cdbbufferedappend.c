@@ -114,7 +114,8 @@ BufferedAppendSetFile(BufferedAppend *bufferedAppend,
 					  int32 segmentFileNum,
 					  char *filePathName,
 					  int64 eof,
-					  int64 eof_uncompressed)
+					  int64 eof_uncompressed,
+					  int64 varblock)
 {
 	Assert(bufferedAppend != NULL);
 	Assert(bufferedAppend->largeWritePosition == 0);
@@ -128,6 +129,7 @@ BufferedAppendSetFile(BufferedAppend *bufferedAppend,
 	Assert(eof >= 0);
 
 	bufferedAppend->largeWritePosition = eof;
+	bufferedAppend->largeWriteVarBlock = varblock;
 	bufferedAppend->file = file;
 	bufferedAppend->relFileNode = relFileNode;
 	bufferedAppend->segmentFileNum = segmentFileNum;

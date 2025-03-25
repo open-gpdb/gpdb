@@ -90,6 +90,8 @@
 #ifndef CDBVARBLOCK_H
 #define CDBVARBLOCK_H
 
+#include "lib/bloomfilter.h"
+
 typedef int32 VarBlockByteLen;
 typedef int32 VarBlockByteOffset;
 
@@ -224,6 +226,8 @@ typedef struct VarBlockMaker
 							/* The maximum number of items for the VarBlock.
 							 * Based on the length of the scratch area.
 							 */
+	bloom_filter *		blf;
+	int64				largeWritePosition;
 } VarBlockMaker;
 
 // ----------------------------------------------------------
@@ -282,7 +286,8 @@ extern void VarBlockMakerInit(
     uint8                *buffer,
     VarBlockByteLen      maxBufferLen,
     uint8                *tempScratchSpace,
-    int                  tempScratchSpaceLen);
+    int                  tempScratchSpaceLen,
+	int64				largeWritePos);
 
 /*
  * Get a pointer to the next variable-length item so it can

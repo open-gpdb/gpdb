@@ -315,6 +315,7 @@ AppendOnlyStorageWrite_OpenFile(AppendOnlyStorageWrite *storageWrite,
 								int version,
 								int64 logicalEof,
 								int64 fileLen_uncompressed,
+								int64 varblockcount,
 								int64 modcount,
 								RelFileNodeBackend *relFileNode,
 								int32 segmentFileNum)
@@ -407,7 +408,8 @@ AppendOnlyStorageWrite_OpenFile(AppendOnlyStorageWrite *storageWrite,
 						  storageWrite->segmentFileNum,
 						  storageWrite->segmentFileName,
 						  logicalEof,
-						  fileLen_uncompressed);
+						  fileLen_uncompressed,
+						  varblockcount);
 }
 
 /*
