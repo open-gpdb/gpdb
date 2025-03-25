@@ -129,4 +129,4 @@
 		"gp_resgroup_debug_wait_queue",
 		"gp_log_resqueue_priority_sleep_time",
 		"yc_allow_copy_to_program",
-		"gp_resgroup_enable_zstd_counting",
+		"gp_enable_zstd_memory_accounting",

@@ -159,7 +159,7 @@ bool		gp_enable_exchange_default_partition = false;
 int			dtx_phase2_retry_count = 0;
 bool		gp_log_suboverflow_statement = false;
 bool        gp_use_synchronize_seqscans_catalog_vacuum_full = false;
-bool 		gp_resgroup_enable_zstd_counting = true;
+bool 		gp_enable_zstd_memory_accounting = true;
 bool		log_dispatch_stats = false;
 
 int			explain_memory_verbosity = 0;
@@ -3299,11 +3299,11 @@ struct config_bool ConfigureNamesBool_gp[] =
 	},
 
 	{
-		{"gp_resgroup_enable_zstd_counting", PGC_USERSET, COMPAT_OPTIONS_PREVIOUS,
+		{"gp_enable_zstd_memory_accounting", PGC_USERSET, COMPAT_OPTIONS_PREVIOUS,
 		 gettext_noop("Enables normal memory counting in zstd (not using malloc)"),
 		 NULL
 		},
-		&gp_resgroup_enable_zstd_counting,
+		&gp_enable_zstd_memory_accounting,
 		false,
 		NULL, NULL, NULL
 	},
