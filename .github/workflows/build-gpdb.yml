@@ -9,6 +9,13 @@ on:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   pull_request:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+  workflow_dispatch:
+    inputs:
+      test_selection:
+        description: 'Select tests to run (comma-separated). Examples: ic-good-opt-off,ic-contrib'
+        required: false
+        default: 'all'
+        type: string
 
 jobs:
 
