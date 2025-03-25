@@ -535,7 +535,7 @@ jobs:
       - name: Verify DEB artifacts
         id: verify-artifacts
         run: |
-          set -eo pipefail
+          set -ex pipefail
 
           DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
           if [ ! -f "${DEB_FILE}" ]; then
@@ -586,7 +586,7 @@ jobs:
           DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
           DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
         run: |
-          set -eo pipefail
+          set -ex pipefail
 
           if [ -z "${DEB_FILE}" ]; then
             echo "::error::DEB_FILE environment variable is not set"
