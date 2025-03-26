@@ -943,7 +943,7 @@ jobs:
                  MAKE_DIRECTORY='-C $dir' \
                  PGOPTIONS='${PG_OPTS}' \
                  SRC_DIR='${SRC_DIR}' \
-                 ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh" \
+                 ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh \
                  2>&1 | tee "$config_log";then
               echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
               overall_status=1
