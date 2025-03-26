@@ -858,7 +858,7 @@ jobs:
           SRC_TARBALL_FILE: ${{ steps.verify-artifacts.outputs.src_tarball_file }}
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -eo pipefail
+          set -ex pipefail
 
           {
             echo "=== Source Extraction Log ==="
@@ -895,9 +895,8 @@ jobs:
       - name: "Run Tests: ${{ matrix.test }}"
         env:
           SRC_DIR: ${{ github.workspace }}
-        shell: bash {0}
         run: |
-          set -o pipefail
+          set -x pipefail
           shopt -s globstar
           # Initialize test status
           overall_status=0
