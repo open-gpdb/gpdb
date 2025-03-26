@@ -895,6 +895,7 @@ jobs:
       - name: "Run Tests: ${{ matrix.test }}"
         env:
           SRC_DIR: ${{ github.workspace }}
+        shell: bash {0}
         run: |
           set -x pipefail
 
