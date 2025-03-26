@@ -673,7 +673,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: open-gpdb/gpdb-devops
-          ref: main
+          ref: create-cluster
           path: gpdb-devops
           fetch-depth: 1
       
@@ -747,6 +747,135 @@ jobs:
           name: debian-packages-${{ needs.build.outputs.build_timestamp }}
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
+
+      - name: Verify downloaded artifacts
+        id: verify-artifacts
+        run: |
+          set -ex pipefail
+
+          SRC_TARBALL_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.tar.xz)
+          if [ ! -f "${SRC_TARBALL_FILE}" ]; then
+            echo "::error::SRC TARBALL file not found"
+            exit 1
+          fi
+
+          echo "src_tarball_file=${SRC_TARBALL_FILE}" >> "$GITHUB_OUTPUT"
+
+          echo "Verifying SRC TARBALL artifacts..."
+          {
+            echo "=== SRC TARBALL Verification Summary ==="
+            echo "Timestamp: $(date -u)"
+            echo "SRC TARBALL File: ${SRC_TARBALL_FILE}"
+
+            # Calculate and store checksum
+            echo "Checksum:"
+            sha256sum "${SRC_TARBALL_FILE}"
+
+          } 2>&1 | tee -a build-logs/details/src-tarball-verification.log
+
+          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          if [ ! -f "${DEB_FILE}" ]; then
+            echo "::error::DEB file not found"
+            exit 1
+          fi
+
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+
+          echo "Verifying DEB artifacts..."
+          {
+            echo "=== DEB Verification Summary ==="
+            echo "Timestamp: $(date -u)"
+            echo "DEB File: ${DEB_FILE}"
+
+            # Get DEB metadata and verify contents
+            echo "Package Information:"
+            dpkg-deb -f "${DEB_FILE}"
+
+            # Get key DEB attributes for verification
+            DEB_VERSION=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 1)
+            DEB_RELEASE=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 3)
+            echo "version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release=${DEB_RELEASE}" >> "$GITHUB_OUTPUT"
+
+            # Verify expected binaries are in the DEB
+            echo "Verifying critical files in DEB..."
+            for binary in "bin/postgres" "bin/psql"; do
+              if ! dpkg-deb -c "${DEB_FILE}" | grep "${binary}" > /dev/null; then
+                echo "::error::Critical binary '${binary}' not found in DEB"
+                exit 1
+              fi
+            done
+
+            echo "DEB Details:"
+            echo "- Version: ${DEB_VERSION}"
+            echo "- Release: ${DEB_RELEASE}"
+
+            # Calculate and store checksum
+            echo "Checksum:"
+            sha256sum "${DEB_FILE}"
+
+          } 2>&1 | tee -a build-logs/details/deb-verification.log
+
+      - name: Install Cloudberry DEB
+        env:
+          DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
+          DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
+          DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
+        run: |
+          set -ex pipefail
+
+          if [ -z "${DEB_FILE}" ]; then
+            echo "::error::DEB_FILE environment variable is not set"
+            exit 1
+          fi
+
+          {
+            echo "=== DEB Installation Log ==="
+            echo "Timestamp: $(date -u)"
+            echo "DEB File: ${DEB_FILE}"
+            echo "Version: ${DEB_VERSION}"
+            echo "Release: ${DEB_RELEASE}"
+
+            # Clean install location
+            rm -rf /usr/local/cloudberry-db
+
+            # Install DEB
+            echo "Starting installation..."
+            if ! dpkg -i "${DEB_FILE}"; then
+              echo "::error::DEB installation failed"
+              exit 1
+            fi
+
+            echo "Installation completed successfully"
+            dpkg-query -s greenplum-db-6
+            echo "Installed files:"
+            dpkg-query -L greenplum-db-6
+          } 2>&1 | tee -a build-logs/details/deb-installation.log
+
+      - name: Extract source tarball
+        if: success() && needs.check-skip.outputs.should_skip != 'true'
+        env:
+          SRC_TARBALL_FILE: ${{ steps.verify-artifacts.outputs.src_tarball_file }}
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -eo pipefail
+
+          {
+            echo "=== Source Extraction Log ==="
+            echo "Timestamp: $(date -u)"
+
+            echo "Starting extraction..."
+            if ! time tar zxf "${SRC_TARBALL_FILE}" -C "${SRC_DIR}"/.. ; then
+              echo "::error::Source extraction failed"
+              exit 1
+            fi
+
+            echo "Extraction completed successfully"
+            echo "Extracted contents:"
+            ls -la "${SRC_DIR}/../gpdb"
+            echo "Directory size:"
+            du -sh "${SRC_DIR}/../gpdb"
+          } 2>&1 | tee -a build-logs/details/source-extraction.log
 
       - name: Create Greenplum demo cluster
         env:
