@@ -275,11 +275,11 @@ jobs:
       - name: Environment Initialization
         if: needs.check-skip.outputs.should_skip != 'true'
         env:
-          LOGS_DIR: build-logs
+          LOGS_DIR: install-logs
         run: |
           set -ex pipefail
 
-          export LOGS_DIR=build-logs
+          export LOGS_DIR=install-logs
 
           mkdir -p "${LOGS_DIR}/details"
           sudo chmod -R 755 .
