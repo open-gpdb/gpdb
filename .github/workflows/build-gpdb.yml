@@ -613,7 +613,7 @@ jobs:
 
             # Install DEB
             echo "Starting installation..."
-            if ! sudo dpkg -i "${DEB_FILE}"; then
+            if ! sudo apt install "${DEB_FILE}"; then
               echo "::error::DEB installation failed"
               exit 1
             fi
@@ -841,7 +841,7 @@ jobs:
 
             # Install DEB
             echo "Starting installation..."
-            if ! sudo dpkg -i "${DEB_FILE}"; then
+            if ! sudo apt install "${DEB_FILE}"; then
               echo "::error::DEB installation failed"
               exit 1
             fi
