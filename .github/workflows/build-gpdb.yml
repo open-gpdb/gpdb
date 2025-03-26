@@ -764,6 +764,9 @@ jobs:
           } 2>&1 | tee -a build-logs/details/create-gpdb-demo-cluster.log
 
       - name: "Run Tests: ${{ matrix.test }}"
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        shell: bash {0}
         run: |
           set -o pipefail
           shopt -s globstar
@@ -811,7 +814,7 @@ jobs:
                  MAKE_DIRECTORY='-C $dir' \
                  PGOPTIONS='${PG_OPTS}' \
                  SRC_DIR='${SRC_DIR}' \
-                 ${SRC_DIR}/../gpdb-devops-release/build_automation/gpdb/scripts/test-gpdb.sh" \
+                 ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh" \
                  2>&1 | tee "$config_log";then
               echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
               overall_status=1
@@ -851,6 +854,123 @@ jobs:
           else
             echo "::warning::Some test executions failed, check individual logs for details"
           fi
+
+          exit $overall_status
+
+      - name: "Parse Test Results: ${{ matrix.test }}"
+        id: test-results
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        shell: bash {0}
+        run: |
+          set -o pipefail
+
+          overall_status=0
+
+          # Get configs array to create context for results
+          IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+
+          echo "=== Starting results parsing for ${{ matrix.test }} ==="
+          echo "Number of configurations to parse: ${#configs[@]}"
+          echo ""
+
+          # Parse each configuration's results independently
+          for ((i=0; i<NUM_CONFIGS; i++)); do
+            config="${configs[$i]}"
+            IFS=':' read -r dir target <<< "$config"
+
+            config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+
+            echo "=== Parsing results for configuration $((i+1))/${NUM_CONFIGS} ==="
+            echo "Make command: make -C $dir $target"
+            echo "Log file: $config_log"
+
+            if [ ! -f "$config_log" ]; then
+              echo "::error::Log file not found: $config_log"
+              {
+                echo "MAKE_COMMAND=make -C $dir $target"
+                echo "STATUS=missing_log"
+                echo "TOTAL_TESTS=0"
+                echo "FAILED_TESTS=0"
+                echo "PASSED_TESTS=0"
+                echo "IGNORED_TESTS=0"
+              } > "test_results.$i.txt"
+              overall_status=1
+              continue
+            fi
+
+            # Parse this configuration's results
+
+            MAKE_NAME="${{ matrix.test }}-config$i" \
+            "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/parse-test-results.sh "$config_log"
+            status_code=$?
+
+            {
+                echo "SUITE_NAME=${{ matrix.test }}"
+                echo "DIR=${dir}"
+                echo "TARGET=${target}"
+            } >> test_results.txt
+
+            # Process return code
+            case $status_code in
+              0)  # All tests passed
+                  echo "All tests passed successfully"
+                  if [ -f test_results.txt ]; then
+                    (echo "MAKE_COMMAND=\"make -C $dir $target\""; cat test_results.txt) | tee "test_results.${{ matrix.test }}.$i.txt"
+                    rm test_results.txt
+                  fi
+                  ;;
+              1)  # Tests failed but parsed successfully
+                  echo "Test failures detected but properly parsed"
+                  if [ -f test_results.txt ]; then
+                    (echo "MAKE_COMMAND=\"make -C $dir $target\""; cat test_results.txt) | tee "test_results.${{ matrix.test }}.$i.txt"
+                    rm test_results.txt
+                  fi
+                  overall_status=1
+                  ;;
+              2)  # Parse error or missing file
+                  echo "::warning::Could not parse test results properly for configuration $((i+1))"
+                  {
+                    echo "MAKE_COMMAND=\"make -C $dir $target\""
+                    echo "STATUS=parse_error"
+                    echo "TOTAL_TESTS=0"
+                    echo "FAILED_TESTS=0"
+                    echo "PASSED_TESTS=0"
+                    echo "IGNORED_TESTS=0"
+                  } | tee "test_results.${{ matrix.test }}.$i.txt"
+                  overall_status=1
+                  ;;
+              *)  # Unexpected error
+                  echo "::warning::Unexpected error during test results parsing for configuration $((i+1))"
+                  {
+                    echo "MAKE_COMMAND=\"make -C $dir $target\""
+                    echo "STATUS=unknown_error"
+                    echo "TOTAL_TESTS=0"
+                    echo "FAILED_TESTS=0"
+                    echo "PASSED_TESTS=0"
+                    echo "IGNORED_TESTS=0"
+                  } | tee "test_results.${{ matrix.test }}.$i.txt"
+                  overall_status=1
+                  ;;
+            esac
+
+            echo "Results stored in test_results.$i.txt"
+            echo "=== End parsing for configuration $((i+1)) ==="
+            echo ""
+          done
+
+          # Report status of results files
+          echo "=== Results file status ==="
+          echo "Generated results files:"
+          for ((i=0; i<NUM_CONFIGS; i++)); do
+            if [ -f "test_results.${{ matrix.test }}.$i.txt" ]; then
+              echo "- test_results.${{ matrix.test }}.$i.txt exists"
+              echo ""
+            else
+              echo "::error::Missing results file: test_results.${{ matrix.test }}.$i.txt"
+              overall_status=1
+            fi
+          done
 
           exit $overall_status
 
