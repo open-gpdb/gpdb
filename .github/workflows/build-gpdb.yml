@@ -885,7 +885,8 @@ jobs:
 
           {
             chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh
-            if ! cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh; then
+            cd ${SRC_DIR}
+            if ! NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh; then
               echo "::error::Demo cluster creation failed"
               exit 1
             fi
@@ -936,8 +937,9 @@ jobs:
             
             # Create unique log file for this configuration
             config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
-            
-            if ! cd ${SRC_DIR} && \
+
+            cd ${SRC_DIR}
+            if ! \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
                  MAKE_TARGET='$target' \
                  MAKE_DIRECTORY='-C $dir' \
