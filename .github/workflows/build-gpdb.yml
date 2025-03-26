@@ -897,7 +897,7 @@ jobs:
           SRC_DIR: ${{ github.workspace }}
         run: |
           set -x pipefail
-          shopt -s globstar
+
           # Initialize test status
           overall_status=0
           # Create logs directory structure
