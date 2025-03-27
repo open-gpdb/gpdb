@@ -433,7 +433,7 @@ jobs:
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
-          if ! su - gpadmin -c "cd ${SRC_DIR} && ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION"; then
+          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION; then
             echo "::error::Build script failed"
             exit 1
           fi
