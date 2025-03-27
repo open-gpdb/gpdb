@@ -288,6 +288,7 @@ jobs:
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
+          chown -R gpadmin:gpadmin .
           chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
@@ -536,6 +537,7 @@ jobs:
           export LOGS_DIR=install-logs
 
           mkdir -p "${LOGS_DIR}/details"
+          chown -R gpadmin:gpadmin .
           chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
@@ -712,6 +714,7 @@ jobs:
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
+          chown -R gpadmin:gpadmin .
           chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
