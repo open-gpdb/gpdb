@@ -865,7 +865,7 @@ jobs:
             echo "Timestamp: $(date -u)"
 
             echo "Starting extraction..."
-            if ! time tar zxf "${SRC_TARBALL_FILE}" -C "${SRC_DIR}"/.. ; then
+            if ! tar zxf "${SRC_TARBALL_FILE}" -C "${SRC_DIR}"/.. ; then
               echo "::error::Source extraction failed"
               exit 1
             fi
