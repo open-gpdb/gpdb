@@ -288,7 +288,7 @@ jobs:
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
-          sudo chmod -R 755 .
+          chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
           df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
@@ -422,8 +422,8 @@ jobs:
           echo "=== Artifact Creation Log ==="
           echo "Timestamp: $(date -u)"
 
-          sudo cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
-          sudo chown -R "$(whoami)" debian
+          cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
+          chown -R "$(whoami)" debian
 
           # replace not supported symbols in version
           GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/\//./g")
@@ -536,7 +536,7 @@ jobs:
           export LOGS_DIR=install-logs
 
           mkdir -p "${LOGS_DIR}/details"
-          sudo chmod -R 755 .
+          chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
           df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
@@ -625,7 +625,7 @@ jobs:
 
             # Install DEB
             echo "Starting installation..."
-            if ! sudo apt -y install "${DEB_FILE}"; then
+            if ! apt -y install "${DEB_FILE}"; then
               echo "::error::DEB installation failed"
               exit 1
             fi
@@ -712,7 +712,7 @@ jobs:
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
-          sudo chmod -R 755 .
+          chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
           df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
@@ -858,7 +858,7 @@ jobs:
 
             # Install DEB
             echo "Starting installation..."
-            if ! sudo apt -y install "${DEB_FILE}"; then
+            if ! apt -y install "${DEB_FILE}"; then
               echo "::error::DEB installation failed"
               exit 1
             fi
