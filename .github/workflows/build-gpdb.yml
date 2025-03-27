@@ -889,6 +889,8 @@ jobs:
               exit 1
             fi
 
+            chown -R gpadmin:gpadmin "${SRC_DIR}/../gpdb"
+
             echo "Extraction completed successfully"
             echo "Extracted contents:"
             ls -la "${SRC_DIR}/../gpdb"
