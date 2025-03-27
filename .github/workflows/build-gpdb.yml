@@ -853,7 +853,6 @@ jobs:
           } 2>&1 | tee -a build-logs/details/deb-installation.log
 
       - name: Extract source tarball
-        if: success() && needs.check-skip.outputs.should_skip != 'true'
         env:
           SRC_TARBALL_FILE: ${{ steps.verify-artifacts.outputs.src_tarball_file }}
           SRC_DIR: ${{ github.workspace }}
@@ -865,7 +864,7 @@ jobs:
             echo "Timestamp: $(date -u)"
 
             echo "Starting extraction..."
-            if ! tar zxf "${SRC_TARBALL_FILE}" -C "${SRC_DIR}"/.. ; then
+            if ! tar xJf "${SRC_TARBALL_FILE}" -C "${SRC_DIR}"/.. ; then
               echo "::error::Source extraction failed"
               exit 1
             fi
