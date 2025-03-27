@@ -321,7 +321,7 @@ jobs:
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
 
           cd ${SRC_DIR}
-          if ! SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -337,7 +337,7 @@ jobs:
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           cd ${SRC_DIR}
-          if ! SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
             exit 1
           fi
@@ -426,7 +426,7 @@ jobs:
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
           chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
-          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION"; then
             echo "::error::Build script failed"
             exit 1
           fi
@@ -885,7 +885,7 @@ jobs:
           {
             chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh
             cd ${SRC_DIR}
-            if ! NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh; then
+            if ! su - gpadmin -c "cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh"; then
               echo "::error::Demo cluster creation failed"
               exit 1
             fi
@@ -938,13 +938,13 @@ jobs:
             config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
 
             cd ${SRC_DIR}
-            if ! \
+            if ! su - gpadmin -c "cd ${SRC_DIR} && \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
                  MAKE_TARGET='$target' \
                  MAKE_DIRECTORY='-C $dir' \
                  PGOPTIONS='${PG_OPTS}' \
                  SRC_DIR='${SRC_DIR}' \
-                 ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh \
+                 ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh" \
                  2>&1 | tee "$config_log";then
               echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
               overall_status=1
