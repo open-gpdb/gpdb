@@ -241,6 +241,8 @@ jobs:
 
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --user root
 
     steps:
       - name: Set build timestamp
@@ -278,6 +280,10 @@ jobs:
           LOGS_DIR: build-logs
         run: |
           set -ex pipefail
+          if ! su - gpadmin -c "/tmp/init_system.sh"; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
 
           export LOGS_DIR=build-logs
 
@@ -505,6 +511,8 @@ jobs:
 
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --user root
 
     steps:
       - name: Download Greenplum debian build artifacts
@@ -520,6 +528,10 @@ jobs:
           LOGS_DIR: install-logs
         run: |
           set -ex pipefail
+          if ! su - gpadmin -c "/tmp/init_system.sh"; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
 
           export LOGS_DIR=install-logs
 
@@ -662,6 +674,7 @@ jobs:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
       options: >-
         --privileged
+        --user root
         --cgroupns=private
 
     steps:
@@ -691,6 +704,10 @@ jobs:
           LOGS_DIR: build-logs
         run: |
           set -ex pipefail
+          if ! su - gpadmin -c "/tmp/init_system.sh"; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
 
           export LOGS_DIR=build-logs
 
