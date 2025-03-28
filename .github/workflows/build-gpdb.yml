@@ -28,6 +28,44 @@ on:
 jobs:
 
   ## ======================================================================
+  ## Job: prepare-build-matrix
+  ## ======================================================================
+
+  prepare-build-matrix:
+
+    name: Prepare Build Variations
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      build-matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - id: set-matrix
+        run: |
+          echo "=== Matrix Preparation ==="
+          # Build result JSON with defaults applied
+          RESULT='{"include":[
+            {
+              "name": "build"
+            },
+            {
+              "name": "test",
+              "extra_configure_flags": "--enable-debug-extensions"
+            }
+          ]}'
+          # Output the matrix for GitHub Actions
+          echo "Final matrix configuration:"
+          echo "$RESULT" | jq .
+          # Fix: Use block redirection
+          {
+            echo "matrix<<EOF"
+            echo "$RESULT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "=== Matrix Preparation Complete ==="
+
+  ## ======================================================================
   ## Job: prepare-test-matrix
   ## ======================================================================
 
@@ -239,6 +277,10 @@ jobs:
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
 
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
+
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
       options: >-
@@ -339,7 +381,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           
-          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} GPDB_EXTRA_CONFIGURE_FLAGS=${{ matrix.extra_configure_flags }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
             exit 1
           fi
@@ -479,7 +521,7 @@ jobs:
       - name: Upload Debian Packages
         uses: actions/upload-artifact@v4
         with:
-          name: debian-packages-${{ env.BUILD_TIMESTAMP }}
+          name: debian-packages-${{ env.BUILD_TIMESTAMP }}-${{ matrix.name }}
           path: |
             *.deb
             *.ddeb
@@ -489,7 +531,7 @@ jobs:
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ env.BUILD_TIMESTAMP }}
+          name: build-logs-${{ env.BUILD_TIMESTAMP }}-${{ matrix.name }}
           path: |
             build-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
@@ -513,7 +555,7 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-${{ needs.build.outputs.build_timestamp }}
+          name: debian-packages-${{ needs.build.outputs.build_timestamp }}-build
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
@@ -774,7 +816,7 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-${{ needs.build.outputs.build_timestamp }}
+          name: debian-packages-${{ needs.build.outputs.build_timestamp }}-test
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
