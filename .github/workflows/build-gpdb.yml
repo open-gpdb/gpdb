@@ -339,8 +339,6 @@ jobs:
           df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
           free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
 
-          apt install -y tzdata
-
           {
             echo "=== Environment Information ==="
             uname -a
