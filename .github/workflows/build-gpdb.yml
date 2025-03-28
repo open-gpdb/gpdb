@@ -523,7 +523,7 @@ jobs:
       - name: Upload Debian Packages
         uses: actions/upload-artifact@v4
         with:
-          name: debian-packages-${{ env.BUILD_TIMESTAMP }}-${{ matrix.name }}
+          name: debian-packages-${{ matrix.name }}
           path: |
             *.deb
             *.ddeb
@@ -544,9 +544,14 @@ jobs:
   ## ======================================================================
 
   deb-install-test:
+    name: Deb install test (${{ matrix.name }})
     needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 120
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
 
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
@@ -557,7 +562,7 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-${{ needs.build.outputs.build_timestamp }}-build
+          name: debian-packages-${{ matrix.name }}
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
@@ -818,7 +823,7 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-${{ needs.build.outputs.build_timestamp }}-test
+          name: debian-packages-test
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
