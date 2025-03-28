@@ -270,6 +270,8 @@ jobs:
   ## ======================================================================
 
   build:
+    name: Build (${{ matrix.name }})
+    needs: [prepare-build-matrix]
     env:
       JOB_TYPE: build
     runs-on: ubuntu-latest
