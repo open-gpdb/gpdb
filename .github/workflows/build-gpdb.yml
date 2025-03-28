@@ -645,7 +645,7 @@ jobs:
 
           } 2>&1 | tee -a install-logs/details/deb-verification.log
 
-      - name: Install Cloudberry DEB
+      - name: Install Greenplum DEB
         env:
           DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
           DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
@@ -666,7 +666,7 @@ jobs:
             echo "Release: ${DEB_RELEASE}"
 
             # Clean install location
-            rm -rf /usr/local/cloudberry-db
+            rm -rf /opt/greenplum-db-6
 
             # Install DEB
             echo "Starting installation..."
@@ -895,7 +895,7 @@ jobs:
 
           } 2>&1 | tee -a build-logs/details/deb-verification.log
 
-      - name: Install Cloudberry DEB
+      - name: Install Greenplum DEB
         env:
           DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
           DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
@@ -916,7 +916,7 @@ jobs:
             echo "Release: ${DEB_RELEASE}"
 
             # Clean install location
-            rm -rf /usr/local/cloudberry-db
+            rm -rf /opt/greenplum-db-6
 
             # Install DEB
             echo "Starting installation..."
