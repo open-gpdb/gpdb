@@ -11488,11 +11488,10 @@ AnalyzeStmt:
 					n->va_cols = $5;
 					$$ = (Node *)n;
 				}
-			| analyze_keyword '(' analyze_option_list ')' opt_vacuum_relation_list
+			| analyze_keyword '(' analyze_option_list ')'
 				{
 					VacuumStmt *n = makeNode(VacuumStmt);
 					n->options = VACOPT_ANALYZE | $3;
-					n->rels = $5;
 					$$ = (Node *) n;
 				}
 		;
