@@ -741,12 +741,12 @@ jobs:
 
             for cgroup_dir in cpu cpuacct cpuset memory
             do
-                sudo chmod -R 777 /sys/fs/cgroup/$cgroup_dir
-                sudo chown -R gpadmin /sys/fs/cgroup/$cgroup_dir
+                chmod -R 777 /sys/fs/cgroup/$cgroup_dir
+                chown -R gpadmin /sys/fs/cgroup/$cgroup_dir
 
-                sudo mkdir -p /sys/fs/cgroup/$cgroup_dir/gpdb/
-                sudo chmod -R 777 /sys/fs/cgroup/$cgroup_dir/gpdb/
-                sudo chown -R gpadmin /sys/fs/cgroup/$cgroup_dir/gpdb/
+                mkdir -p /sys/fs/cgroup/$cgroup_dir/gpdb/
+                chmod -R 777 /sys/fs/cgroup/$cgroup_dir/gpdb/
+                chown -R gpadmin /sys/fs/cgroup/$cgroup_dir/gpdb/
                 ls -l /sys/fs/cgroup/$cgroup_dir/gpdb/
             done
 
