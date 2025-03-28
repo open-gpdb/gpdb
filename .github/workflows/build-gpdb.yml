@@ -325,8 +325,6 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
-
           if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
@@ -340,8 +338,6 @@ jobs:
 
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
-
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
           
           if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
@@ -431,7 +427,6 @@ jobs:
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
-          chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
           if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION; then
             echo "::error::Build script failed"
             exit 1
@@ -904,9 +899,7 @@ jobs:
         run: |
           set -ex pipefail
 
-          {
-            chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh
-            
+          {            
             if ! su - gpadmin -c "cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh"; then
               echo "::error::Demo cluster creation failed"
               exit 1
@@ -945,8 +938,6 @@ jobs:
           echo "=== Starting test execution for ${{ matrix.test }} ==="
           echo "Number of configurations to execute: ${#configs[@]}"
           echo ""
-
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh
 
           # Execute each config separately
           for ((i=0; i<${#configs[@]}; i++)); do
