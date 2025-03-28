@@ -306,7 +306,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: open-gpdb/gpdb-devops
-          ref: create-cluster
+          ref: main
           path: gpdb-devops
           fetch-depth: 1
       
@@ -726,7 +726,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: open-gpdb/gpdb-devops
-          ref: create-cluster
+          ref: main
           path: gpdb-devops
           fetch-depth: 1
       
