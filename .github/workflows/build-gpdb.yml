@@ -659,7 +659,7 @@ jobs:
   test:
     name: ${{ matrix.test }}
     needs: [build, prepare-test-matrix]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs_on }}
     timeout-minutes: 120
 
     strategy:
@@ -735,6 +735,22 @@ jobs:
 
             echo "Current mounts:"
             mount | grep cgroup
+
+            stat -fc %T /sys/fs/cgroup/
+            ls -l /sys/fs/cgroup/
+
+            for cgroup_dir in cpu cpuacct cpuset memory
+            do
+                sudo chmod -R 777 /sys/fs/cgroup/$cgroup_dir
+                sudo chown -R gpadmin /sys/fs/cgroup/$cgroup_dir
+
+                sudo mkdir -p /sys/fs/cgroup/$cgroup_dir/gpdb/
+                sudo chmod -R 777 /sys/fs/cgroup/$cgroup_dir/gpdb/
+                sudo chown -R gpadmin /sys/fs/cgroup/$cgroup_dir/gpdb/
+                ls -l /sys/fs/cgroup/$cgroup_dir/gpdb/
+            done
+
+            ls -l /sys/fs/cgroup/
           else
             echo "Cgroup setup skipped"
           fi
