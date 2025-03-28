@@ -231,6 +231,34 @@ typedef struct AppendOnlyScanDescData
 	 */ 
 	AppendOnlyVisimap visibilityMap;
 
+	/*
+	 * used by `analyze`
+	 */
+
+	/*
+	 * targrow: the output of the Row-based sampler (Algorithm S), denotes a
+	 * rownumber in the flattened row number space that is the target of a sample,
+	 * which starts from 0.
+	 * In other words, if we have seg0 rownums: [1, 100], seg1 rownums: [1, 200]
+	 * If targrow = 150, then we are referring to seg1's rownum=51.
+	 */
+	int64				targrow;
+
+	/*
+	 * segfirstrow: pointing to the next starting row which is used to check
+	 * the distance to `targrow`
+	 */
+	int64				segfirstrow;
+
+	/*
+	 * segrowsprocessed: track the rows processed under the current segfile.
+	 * Don't miss updating it accordingly when "segfirstrow" is updated.
+	 */
+	int64				segrowsprocessed;
+
+	AOBlkDirScan		blkdirscan;
+
+
 }	AppendOnlyScanDescData;
 
 typedef AppendOnlyScanDescData *AppendOnlyScanDesc;

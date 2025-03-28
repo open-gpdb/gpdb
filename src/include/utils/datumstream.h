@@ -323,8 +323,9 @@ extern bool datumstreamread_find_block(DatumStreamRead * datumStream,
 extern void *datumstreamread_get_upgrade_space(DatumStreamRead *datumStream,
 											   size_t len);
 
+extern bool datumstreamread_block_info(DatumStreamRead * acc);
 /*
- * MPP-17061: make sure datumstream_read_block_info was called first for the CO block
+ * MPP-17061: make sure datumstreamread_block_info was called first for the CO block
  * before calling datumstreamread_block_content.
  */
 extern void datumstreamread_block_content(DatumStreamRead * acc);
