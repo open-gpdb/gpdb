@@ -268,7 +268,7 @@ jobs:
       
       - name: Move gpdb-devops directory
         run: |
-          set -ex pipefail
+          set -eo pipefail
           if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
             echo "::error::Container initialization failed"
             exit 1
@@ -279,7 +279,7 @@ jobs:
         env:
           LOGS_DIR: build-logs
         run: |
-          set -ex pipefail
+          set -eo pipefail
           if ! su - gpadmin -c "/tmp/init_system.sh"; then
             echo "::error::Container initialization failed"
             exit 1
@@ -320,7 +320,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
@@ -334,7 +334,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
@@ -358,7 +358,7 @@ jobs:
       - name: Verify build artifacts
         if: needs.check-skip.outputs.should_skip != 'true'
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
@@ -411,7 +411,7 @@ jobs:
           BUILD_NUMBER: 1
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           echo "Creating DEB package..."
 
@@ -522,7 +522,7 @@ jobs:
         env:
           LOGS_DIR: install-logs
         run: |
-          set -ex pipefail
+          set -eo pipefail
           if ! su - gpadmin -c "/tmp/init_system.sh"; then
             echo "::error::Container initialization failed"
             exit 1
@@ -551,7 +551,7 @@ jobs:
       - name: Verify DEB artifacts
         id: verify-artifacts
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
           if [ ! -f "${DEB_FILE}" ]; then
@@ -602,7 +602,7 @@ jobs:
           DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
           DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           if [ -z "${DEB_FILE}" ]; then
             echo "::error::DEB_FILE environment variable is not set"
@@ -688,7 +688,7 @@ jobs:
       
       - name: Move gpdb-devops directory
         run: |
-          set -ex pipefail
+          set -eo pipefail
           if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
             echo "::error::Container initialization failed"
             exit 1
@@ -699,7 +699,7 @@ jobs:
         env:
           LOGS_DIR: build-logs
         run: |
-          set -ex pipefail
+          set -eo pipefail
           if ! su - gpadmin -c "/tmp/init_system.sh"; then
             echo "::error::Container initialization failed"
             exit 1
@@ -781,7 +781,7 @@ jobs:
       - name: Verify downloaded artifacts
         id: verify-artifacts
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           SRC_TARBALL_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.tar.xz)
           if [ ! -f "${SRC_TARBALL_FILE}" ]; then
@@ -852,7 +852,7 @@ jobs:
           DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
           DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           if [ -z "${DEB_FILE}" ]; then
             echo "::error::DEB_FILE environment variable is not set"
@@ -887,7 +887,7 @@ jobs:
           SRC_TARBALL_FILE: ${{ steps.verify-artifacts.outputs.src_tarball_file }}
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           {
             echo "=== Source Extraction Log ==="
@@ -913,7 +913,7 @@ jobs:
         env:
           SRC_DIR: ${{ github.workspace }}
         run: |
-          set -ex pipefail
+          set -eo pipefail
 
           {            
             if ! su - gpadmin -c "cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh"; then
@@ -928,7 +928,7 @@ jobs:
           SRC_DIR: ${{ github.workspace }}
         shell: bash {0}
         run: |
-          set -x pipefail
+          set -o pipefail
 
           # Initialize test status
           overall_status=0
