@@ -999,11 +999,14 @@ BufFilePledgeSequential(BufFile *buffile)
 #ifdef HAVE_LIBZSTD
 
 #define BUFFILE_ZSTD_COMPRESSION_LEVEL 1
+struct{
+	MemoryContext context;
+} zstd_memory_context;
 
 void *
 customAlloc(void *opaque, size_t size)
 {
-	return MemoryContextAlloc(TopMemoryContext, size);
+	return MemoryContextAlloc(zstd_memory_context.context, size);
 }
 
 void
@@ -1027,6 +1030,7 @@ BufFileStartCompression(BufFile *file)
 	ResourceOwner oldowner;
 	size_t ret;
 	ZSTD_customMem customMem;
+	zstd_memory_context.context = AllocSetContextCreate(TopMemoryContext,"zstd_context", ALLOCSET_DEFAULT_SIZES);
 
 	customMem.customAlloc = customAlloc;
 	customMem.customFree = customFree;
@@ -1044,7 +1048,7 @@ BufFileStartCompression(BufFile *file)
 	}
 
 	if (compression_buffer == NULL)
-		compression_buffer = MemoryContextAlloc(TopMemoryContext, BLCKSZ);
+		compression_buffer = MemoryContextAlloc(zstd_memory_context.context, BLCKSZ);
 
 	/*
 	 * Make sure the zstd handle is kept in the same resource owner as
