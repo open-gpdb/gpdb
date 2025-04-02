@@ -123,6 +123,7 @@ struct BufFile
 
 	/* ZStandard compression support */
 #ifdef HAVE_LIBZSTD
+	MemoryContext pg_zstd_context;
 	zstd_context *zstd_context;	/* ZStandard library handles. */
 
 	/*
@@ -366,6 +367,8 @@ BufFileClose(BufFile *file)
 #ifdef HAVE_LIBZSTD
 	if (file->zstd_context)
 		zstd_free_context(file->zstd_context);
+	if (file->pg_zstd_context)
+		MemoryContextDelete(file->pg_zstd_context);
 #endif
 
 	pfree(file);
@@ -999,11 +1002,10 @@ BufFilePledgeSequential(BufFile *buffile)
 #ifdef HAVE_LIBZSTD
 
 #define BUFFILE_ZSTD_COMPRESSION_LEVEL 1
-MemoryContext zstd_memory_context;
 void *
 customAlloc(void *opaque, size_t size)
 {
-	return MemoryContextAlloc(zstd_memory_context, size);
+	return MemoryContextAlloc((MemoryContext)opaque, size);
 }
 
 void
@@ -1027,11 +1029,13 @@ BufFileStartCompression(BufFile *file)
 	ResourceOwner oldowner;
 	size_t ret;
 	ZSTD_customMem customMem;
-	zstd_memory_context = AllocSetContextCreate(TopMemoryContext,"zstd_context", ALLOCSET_DEFAULT_SIZES);
+	#ifdef HAVE_LIBZSTD
+	file->pg_zstd_context = AllocSetContextCreate(TopMemoryContext,"zstd_context", ALLOCSET_DEFAULT_SIZES);
+	#endif
 
 	customMem.customAlloc = customAlloc;
 	customMem.customFree = customFree;
-
+	customMem.opaque = file->pg_zstd_context;
 	/*
 	 * When working with compressed files, we rely on libzstd's buffer,
 	 * and the BufFile's own buffer is unused. It's a bit silly that we
@@ -1045,7 +1049,7 @@ BufFileStartCompression(BufFile *file)
 	}
 
 	if (compression_buffer == NULL)
-		compression_buffer = MemoryContextAlloc(zstd_memory_context, BLCKSZ);
+		compression_buffer = MemoryContextAlloc(file->pg_zstd_context, BLCKSZ);
 
 	/*
 	 * Make sure the zstd handle is kept in the same resource owner as
