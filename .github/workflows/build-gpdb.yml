@@ -755,7 +755,7 @@ jobs:
           fi
 
           apt install -y tzdata
-          pip install yaml
+          pip2 install pyyaml
 
           export LOGS_DIR=build-logs
 
