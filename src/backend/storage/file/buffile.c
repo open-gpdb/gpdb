@@ -1029,9 +1029,7 @@ BufFileStartCompression(BufFile *file)
 	ResourceOwner oldowner;
 	size_t ret;
 	ZSTD_customMem customMem;
-	#ifdef HAVE_LIBZSTD
 	file->pg_zstd_context = AllocSetContextCreate(TopMemoryContext,"zstd_context", ALLOCSET_DEFAULT_SIZES);
-	#endif
 
 	customMem.customAlloc = customAlloc;
 	customMem.customFree = customFree;
