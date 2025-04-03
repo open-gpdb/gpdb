@@ -755,6 +755,7 @@ jobs:
           fi
 
           apt install -y tzdata
+          pip install yaml
 
           export LOGS_DIR=build-logs
 
