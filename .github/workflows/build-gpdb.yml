@@ -1188,6 +1188,7 @@ jobs:
 
       - name: Check and Display Diffs
         if: always()
+        shell: bash
         run: |
             # Search for regression.diffs recursively
             found_file=$(find . -type f -name "regression.diffs" | head -n 1)
