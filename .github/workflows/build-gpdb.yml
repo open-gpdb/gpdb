@@ -1192,10 +1192,15 @@ jobs:
         shell: bash
         run: |
             # Search for regression.diffs recursively
-            found_file=$(find . -type f -name "regression.diffs" | head -n 1)
-            if [[ -n "$found_file" ]]; then
-              echo "Found regression.diffs at: $found_file"
-              cat "$found_file"
+            found_files=$(find . -type f -name "regression.diffs" | head -n 1)
+            if [[ -n "$found_files" ]]; then
+              for found_file in $found_files
+               do
+                 echo "-----------------------------------------------------"
+                 echo "Found regression.diffs at: $found_file"
+                 echo "-----------------------------------------------------"
+                 cat "$found_file"
+               done
             else
               echo "No regression.diffs file found in the hierarchy."
             fi
