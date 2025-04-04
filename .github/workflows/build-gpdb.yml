@@ -990,6 +990,8 @@ jobs:
           # Create results directory structure
           mkdir -p build-results
 
+          su - gpadmin -c "ulimit -n 65536"
+
           # WARNING: PostgreSQL Settings
           # When adding new pg_settings key/value pairs:
           # 1. Add a new check below for the setting
