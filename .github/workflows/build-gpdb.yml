@@ -976,7 +976,7 @@ jobs:
 
             # ENABLE CGROUPS ON CLUSTER
             if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
-                if ! su - gpadmin -c "source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh || exit 1 && \
+                if ! su - gpadmin -c "source /opt/greenplum-db-6/greenplum_path.sh || exit 1 && \
                      gpconfig -c gp_resource_manager -v 'group' && 
                      gpstop -a -i && 
                      gpstart -a"; then
