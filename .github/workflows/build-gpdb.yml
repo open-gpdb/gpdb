@@ -974,6 +974,14 @@ jobs:
               exit 1
             fi
 
+            # ENABLE CGROUPS ON CLUSTER
+            if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
+                if ! su - gpadmin -c "gpconfig -c gp_resource_manager -v 'group' && gpstop -a -i && gpstart -a";
+                  echo "::error::cgroups enable failed"
+                  exit 1
+                fi
+            fi
+
           } 2>&1 | tee -a build-logs/details/create-gpdb-demo-cluster.log
 
       - name: "Run Tests: ${{ matrix.test }}"
