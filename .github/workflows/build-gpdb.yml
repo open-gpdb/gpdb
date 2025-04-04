@@ -1003,6 +1003,7 @@ jobs:
           mkdir -p build-results
 
           su - gpadmin -c "ulimit -n 65536"
+          su - gpadmin -c "ulimit -n"
 
           # WARNING: PostgreSQL Settings
           # When adding new pg_settings key/value pairs:
@@ -1037,6 +1038,7 @@ jobs:
 
             cd ${SRC_DIR}
             if ! su - gpadmin -c "cd ${SRC_DIR} && \
+                 ulimit -n 65536 && \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
                  MAKE_TARGET='$target' \
                  MAKE_DIRECTORY='-C $dir' \
