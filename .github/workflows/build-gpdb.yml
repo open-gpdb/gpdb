@@ -976,7 +976,10 @@ jobs:
 
             # ENABLE CGROUPS ON CLUSTER
             if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
-                if ! su - gpadmin -c "gpconfig -c gp_resource_manager -v 'group' && gpstop -a -i && gpstart -a"; then
+                if ! su - gpadmin -c "source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh || exit 1 && \
+                     gpconfig -c gp_resource_manager -v 'group' && 
+                     gpstop -a -i && 
+                     gpstart -a"; then
                   echo "::error::cgroups enable failed"
                   exit 1
                 fi
