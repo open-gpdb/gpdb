@@ -731,7 +731,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: open-gpdb/gpdb-devops
-          ref: create-cluster-ulimit--n-65536
+          ref: main
           path: gpdb-devops
           fetch-depth: 1
       
