@@ -731,7 +731,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: open-gpdb/gpdb-devops
-          ref: main
+          ref: create-cluster-ulimit--n-65536
           path: gpdb-devops
           fetch-depth: 1
       
@@ -1002,9 +1002,6 @@ jobs:
           # Create results directory structure
           mkdir -p build-results
 
-          su - gpadmin -c "ulimit -n 65536"
-          su - gpadmin -c "ulimit -n"
-
           # WARNING: PostgreSQL Settings
           # When adding new pg_settings key/value pairs:
           # 1. Add a new check below for the setting
@@ -1038,7 +1035,6 @@ jobs:
 
             cd ${SRC_DIR}
             if ! su - gpadmin -c "cd ${SRC_DIR} && \
-                 ulimit -n 65536 && \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
                  MAKE_TARGET='$target' \
                  MAKE_DIRECTORY='-C $dir' \
