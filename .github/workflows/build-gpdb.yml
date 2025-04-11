@@ -329,6 +329,12 @@ jobs:
             exit 1
           fi
 
+          apt install -y tzdata
+          pip2 install pyyaml
+
+          date
+          TZ='Asia/Manila' date
+
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
@@ -756,6 +762,9 @@ jobs:
 
           apt install -y tzdata
           pip2 install pyyaml
+
+          date
+          TZ='Asia/Manila' date
 
           export LOGS_DIR=build-logs
 
