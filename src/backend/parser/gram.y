@@ -753,6 +753,8 @@ static Node *makeIsNotDistinctFromNode(Node *expr, int position);
 
 	YEZZEY
 
+	SKIP_LOCKED
+
 
 /*
  * The grammar thinks these are keywords, but they are not in the kwlist.h
@@ -11430,6 +11432,7 @@ vacuum_option_elem:
 			| FREEZE			{ $$ = VACOPT_FREEZE; }
 			| FULL				{ $$ = VACOPT_FULL; }
 			| YEZZEY			{ $$ = VACOPT_YEZZEY; }
+			| SKIP_LOCKED       { $$ = VACOPT_NOWAIT; }
 		;
 
 AnalyzeStmt:
@@ -16003,6 +16006,7 @@ unreserved_keyword:
 			| SHOW
 			| SHRINK
 			| SIMPLE
+			| SKIP_LOCKED
 			| SNAPSHOT
 			| SPLIT
 			| SQL
