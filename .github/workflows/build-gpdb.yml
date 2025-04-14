@@ -768,6 +768,19 @@ jobs:
           df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
           free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
 
+          # Remove unused packages and dependencies
+          sudo apt-get autoremove -y
+          sudo apt-get clean -y
+
+          # Remove cached files
+          sudo rm -rf /var/lib/apt/lists/*
+
+          # Clean up temporary files
+          sudo rm -rf /tmp/*
+
+          # Optionally, check disk usage
+          df -h
+
           {
             echo "=== Environment Information ==="
             uname -a
