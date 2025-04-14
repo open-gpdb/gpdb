@@ -755,7 +755,7 @@ jobs:
           fi
 
           apt update -y
-          apt install -y tzdata dnsutils 
+          apt install -y tzdata
           pip2 install pyyaml
 
           export LOGS_DIR=build-logs
