@@ -762,7 +762,6 @@ jobs:
           df -h
 
       - name: Environment Initialization
-        if: needs.check-skip.outputs.should_skip != 'true'
         env:
           LOGS_DIR: build-logs
         run: |
@@ -797,7 +796,6 @@ jobs:
           echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
 
       - name: Setup cgroups
-        if: needs.check-skip.outputs.should_skip != 'true'
         shell: bash
         run: |
           set -ux pipefail
