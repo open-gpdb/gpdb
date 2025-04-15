@@ -749,23 +749,16 @@ jobs:
         run: |
           set -ex pipefail
 
+          # Check disk usage
+          df -h
+
           # Remove some host directories
           rm -rf \
             /host_volume/usr/share/dotnet /host_volume/usr/local/lib/android /host_volume/opt/ghc \
             /host_volume/usr/local/share/powershell /host_volume/usr/share/swift /host_volume/usr/local/.ghcup \
             /host_volume/usr/lib/jvm || true
 
-          # Remove unused packages and dependencies
-          apt-get autoremove -y
-          apt-get clean -y
-
-          # Remove cached files
-          rm -rf /var/lib/apt/lists/*
-
-          # Clean up temporary files
-          rm -rf /tmp/*
-
-          # Optionally, check disk usage
+          # Check disk usage
           df -h
 
       - name: Environment Initialization
