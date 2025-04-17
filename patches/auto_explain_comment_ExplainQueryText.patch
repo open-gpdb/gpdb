@@ -1,0 +1,13 @@
+diff --git a/contrib/auto_explain/auto_explain.c b/contrib/auto_explain/auto_explain.c
+index f7094a9beee..185a111f545 100644
+--- a/contrib/auto_explain/auto_explain.c
++++ b/contrib/auto_explain/auto_explain.c
+@@ -342,7 +342,7 @@ explain_ExecutorEnd(QueryDesc *queryDesc)
+ 			es.format = auto_explain_log_format;
+ 
+ 			ExplainBeginOutput(&es);
+-			ExplainQueryText(&es, queryDesc);
++			//ExplainQueryText(&es, queryDesc);
+ 			ExplainPrintPlan(&es, queryDesc);
+ 			if (es.analyze && auto_explain_log_triggers)
+ 				ExplainPrintTriggers(&es, queryDesc);

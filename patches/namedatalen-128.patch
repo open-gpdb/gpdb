@@ -1,0 +1,26 @@
+diff --git a/src/include/pg_config_manual.h b/src/include/pg_config_manual.h
+index 6869eca28af..77c142590f9 100644
+--- a/src/include/pg_config_manual.h
++++ b/src/include/pg_config_manual.h
+@@ -20,7 +20,7 @@
+  *
+  * Changing this requires an initdb.
+  */
+-#define NAMEDATALEN 64
++#define NAMEDATALEN 128
+ 
+ /*
+  * Maximum number of arguments to a function.
+diff --git a/src/interfaces/ecpg/include/sqlda-native.h b/src/interfaces/ecpg/include/sqlda-native.h
+index acb314cd172..14656419dac 100644
+--- a/src/interfaces/ecpg/include/sqlda-native.h
++++ b/src/interfaces/ecpg/include/sqlda-native.h
+@@ -13,7 +13,7 @@
+  * This should be at least as much as NAMEDATALEN of the database the
+  * applications run against.
+  */
+-#define NAMEDATALEN 64
++#define NAMEDATALEN 128
+ 
+ struct sqlname
+ {

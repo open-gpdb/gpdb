@@ -9,23 +9,91 @@ on:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   pull_request:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
-      test_selection:
-        description: 'Select tests to run (comma-separated). Examples: ic-good-opt-off,ic-contrib'
+      ref:
+        description: 'Ref to build, leave empty to build on current branch'
         required: false
-        default: 'all'
+        default: ''
         type: string
       build_variant:
         description: 'Build variant'
         required: true
-        default: 'default'
+        default: 'standard'
         type: choice
         options:
-        - default
-        - t_dwh
+        - standard
+        - dwh
+        - dwh-patch
+
+run-name: "Greenplum Build: (${{ github.event.inputs.ref }} / ${{ github.event.inputs.build_variant }})"
 
 jobs:
+
+  ## ======================================================================
+  ## Job: prepare-paramenters
+  ## ======================================================================
+
+  prepare-parameters:
+
+    name: Prepare Parameters
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      CURRENT_BUILD: ${{ steps.set-parameters.outputs.CURRENT_BUILD }}
+      CURRENT_REF: ${{ steps.set-parameters.outputs.CURRENT_REF }}
+      CURRENT_RELEASE: ${{ steps.set-parameters.outputs.CURRENT_RELEASE }}
+
+    steps:
+      - id: set-parameters
+        run: |
+          echo "=== Parameters Preparation ==="
+
+          # Extract current build
+          export CURRENT_BUILD="standard"
+          if [[ -n "${{ github.event.inputs.build_variant }}" ]]; then
+            export CURRENT_BUILD="${{ github.event.inputs.build_variant }}"
+          fi
+
+          export CURRENT_RELEASE=""
+
+          # Extract current ref
+          export CURRENT_REF="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          if [[ -n "${{ github.event.inputs.ref }}" ]]; then
+            export CURRENT_REF="${{ github.event.inputs.ref }}"
+            export CURRENT_RELEASE=$(gh api repos/open-gpdb/gpdb/git/refs/tags/$CURRENT_REF -q '.ref')
+          fi
+
+          # Output the current build for GitHub Actions
+          echo "Current build configuration:"
+          echo "$CURRENT_BUILD"
+
+          # Output ref for GitHub Actions
+          echo "Current ref configuration:"
+          echo "$CURRENT_REF"
+
+          # Output release for GitHub Actions
+          echo "Current release configuration:"
+          echo "$CURRENT_RELEASE"
+          # Fix: Use block redirection
+          {
+            echo "CURRENT_BUILD<<EOF"
+            echo "$CURRENT_BUILD"
+            echo "EOF"
+
+            echo "CURRENT_REF<<EOF"
+            echo "$CURRENT_REF"
+            echo "EOF"
+
+            echo "CURRENT_RELEASE<<EOF"
+            echo "$CURRENT_RELEASE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "=== Parameters Preparation Complete ==="
+
 
   ## ======================================================================
   ## Job: prepare-build-matrix
@@ -33,27 +101,114 @@ jobs:
 
   prepare-build-matrix:
 
+    needs: [prepare-parameters]
     name: Prepare Build Variations
-
     runs-on: ubuntu-latest
-
     outputs:
       build-matrix: ${{ steps.set-matrix.outputs.matrix }}
+    env:
+      CURRENT_BUILD: ${{ needs.prepare-parameters.outputs.CURRENT_BUILD }}
 
     steps:
       - id: set-matrix
         run: |
           echo "=== Matrix Preparation ==="
           # Build result JSON with defaults applied
-          RESULT='{"include":[
+          ALL_BUILDS='{"include":[
             {
-              "name": "build"
+              "build": "standard"
             },
             {
-              "name": "test",
+              "build": "standard-test",
               "extra_configure_flags": "--enable-debug-extensions"
+            },
+            {
+              "build": "dwh",
+              "extra_configure_flags": "--with-extended-namedatalen",
+              "custom_name": "dwh-greenplum-db-6",
+              "patches": [
+                "auto_explain_comment_ExplainQueryText.patch"
+              ]
+            },
+            {
+              "build": "dwh-test",
+              "extra_configure_flags": "--with-extended-namedatalen --enable-debug-extensions",
+              "custom_name": "dwh-greenplum-db-6",
+              "patches": [
+                "auto_explain_comment_ExplainQueryText.patch"
+              ]
+            },
+            {
+              "build": "dwh-patch",
+              "custom_name": "dwh-greenplum-db-6",
+              "new-patches": true,
+              "patches": [
+                "auto_explain_comment_ExplainQueryText.patch",
+                "namedatalen-128.patch"
+              ]
+            },
+            {
+              "build": "dwh-patch-test",
+              "extra_configure_flags": "--enable-debug-extensions",
+              "custom_name": "dwh-greenplum-db-6",
+              "new-patches": true,
+              "patches": [
+                "auto_explain_comment_ExplainQueryText.patch",
+                "namedatalen-128.patch"
+              ]
             }
           ]}'
+
+          apply_defaults() {
+            echo "$1"
+          }
+
+          # Extract all valid build names from ALL_BUILDS
+          VALID_BUILDS=$(echo "$ALL_BUILDS" | jq -r '.include[].build')
+
+          # Parse input build selection
+          IFS=',' read -ra SELECTED_BUILDS <<< "${{ env.CURRENT_BUILD }},${{ env.CURRENT_BUILD }}-test"
+
+          # Default to all builds if selection is empty or 'all'
+          if [[ "${SELECTED_BUILDS[*]}" == "all" || -z "${SELECTED_BUILDS[*]}" ]]; then
+            mapfile -t SELECTED_BUILDS <<< "$VALID_BUILDS"
+          fi
+
+          # Validate and filter selected builds
+          INVALID_BUILDS=()
+          FILTERED_BUILDS=()
+          for BUILD in "${SELECTED_BUILDS[@]}"; do
+            BUILD=$(echo "$BUILD" | tr -d '[:space:]') # Trim whitespace
+            if echo "$VALID_BUILDS" | grep -qw "$BUILD"; then
+              FILTERED_BUILDS+=("$BUILD")
+            else
+              INVALID_BUILDS+=("$BUILD")
+            fi
+          done
+
+          # Handle invalid builds
+          if [[ ${#INVALID_BUILDS[@]} -gt 0 ]]; then
+            echo "::error::Invalid build(s) selected: ${INVALID_BUILDS[*]}"
+            echo "Valid builds are: $(echo "$VALID_BUILDS" | tr '\n' ', ')"
+            exit 1
+          fi
+
+          # Build result JSON with defaults applied
+          RESULT='{"include":['
+          FIRST=true
+          for BUILD in "${FILTERED_BUILDS[@]}"; do
+            CONFIG=$(jq -c --arg build "$BUILD" '.include[] | select(.build == $build)' <<< "$ALL_BUILDS")
+            FILTERED_WITH_DEFAULTS=$(apply_defaults "$CONFIG")
+            if [[ "$FIRST" == true ]]; then
+              FIRST=false
+            else
+              RESULT="${RESULT},"
+            fi
+            RESULT="${RESULT}${FILTERED_WITH_DEFAULTS}"
+          done
+          RESULT="${RESULT}]}"
+
+
           # Output the matrix for GitHub Actions
           echo "Final matrix configuration:"
           echo "$RESULT" | jq .
@@ -270,10 +425,11 @@ jobs:
   ## ======================================================================
 
   build:
-    name: Build (${{ matrix.name }})
-    needs: [prepare-build-matrix]
+    name: Build (${{ matrix.build }})
+    needs: [prepare-parameters, prepare-build-matrix]
     env:
       JOB_TYPE: build
+      CURRENT_REF: ${{ needs.prepare-parameters.outputs.CURRENT_REF }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
@@ -299,6 +455,7 @@ jobs:
       - name: Checkout Greenplum
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.CURRENT_REF }}
           fetch-depth: 0
           submodules: true
 
@@ -317,6 +474,33 @@ jobs:
             echo "::error::Container initialization failed"
             exit 1
           fi
+
+      - name: Checkout Greenplum Patches
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: 'patches/*'
+          path: new-patches
+          fetch-depth: 0
+
+      - name: Apply patches
+        if: matrix.patches
+        shell: bash
+        run: |
+          set -ex pipefail
+          
+          IFS=' ' read -r -a patches <<< "${{ join(matrix.patches, ' ') }}"
+
+          patch_dir="${GITHUB_WORKSPACE}/patches"
+          if [[ "${{ matrix.new-patches != '' }}" == "true" ]]; then
+            patch_dir="${GITHUB_WORKSPACE}/new-patches/patches"
+          fi
+
+          for patch in "${patches[@]}"; do
+            if ! cat "${patch_dir}/${patch}" | patch -p1; then
+              echo "::error::Patch application failed"
+              exit 1
+            fi
+          done
 
       - name: Environment Initialization
         if: needs.check-skip.outputs.should_skip != 'true'
@@ -369,7 +553,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS=${{ matrix.extra_configure_flags }} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS='${{ matrix.extra_configure_flags }}' BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -451,7 +635,7 @@ jobs:
 
       - name: Run Greenplum debian package build script
         env:
-          GPDB_VERSION: ${{ github.ref_name }}
+          GPDB_VERSION: ${{ env.CURRENT_REF }}
           BUILD_NUMBER: 1
           SRC_DIR: ${{ github.workspace }}
         run: |
@@ -465,13 +649,27 @@ jobs:
           cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
           chown -R "$(whoami)" debian
 
+
+          GPDB_PACKAGE="greenplum-db-6"
+
+          # check custom package name
+          if [ -n "${{ matrix.custom_name }}" ]; then
+            GPDB_PACKAGE="${{ matrix.custom_name }}"
+            EXTRA_DEB_FLAGS="--custom-name ${{ matrix.custom_name }}"
+          fi
+
           # replace not supported symbols in version
           GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/\//./g")
+          GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/_/-/g")
+          if ! echo "$GPDB_VERSION" | grep -qE '^[0-9]'; then
+              GPDB_VERSION="6.$GPDB_VERSION"
+          fi
+
           echo "We will built ${GPDB_VERSION}"
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
-          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION; then
+          if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION ${EXTRA_DEB_FLAGS}; then
             echo "::error::Build script failed"
             exit 1
           fi
@@ -483,10 +681,10 @@ jobs:
           ls -l ../
 
           echo "Copy artifacts to current directory"
-          DEB_FILE="greenplum-db-6_${GPDB_PKG_VERSION}"_"${ARCH}".deb
-          DBG_DEB_FILE="greenplum-db-6-dbgsym_${GPDB_PKG_VERSION}"_"${ARCH}".ddeb
-          CHANGES_FILE="greenplum-db-6_${GPDB_PKG_VERSION}"_"${ARCH}".changes
-          SOURCE_FILE="greenplum-db-6_${GPDB_PKG_VERSION}".tar.xz
+          DEB_FILE="${GPDB_PACKAGE}_${GPDB_PKG_VERSION}"_"${ARCH}".deb
+          DBG_DEB_FILE="${GPDB_PACKAGE}-dbgsym_${GPDB_PKG_VERSION}"_"${ARCH}".ddeb
+          CHANGES_FILE="${GPDB_PACKAGE}_${GPDB_PKG_VERSION}"_"${ARCH}".changes
+          SOURCE_FILE="${GPDB_PACKAGE}_${GPDB_PKG_VERSION}".tar.xz
           cp ../"${DEB_FILE}" "${SRC_DIR}"
           cp ../"${DBG_DEB_FILE}" "${SRC_DIR}"
           cp ../"${CHANGES_FILE}" "${SRC_DIR}"
@@ -523,7 +721,7 @@ jobs:
       - name: Upload Debian Packages
         uses: actions/upload-artifact@v4
         with:
-          name: debian-packages-${{ matrix.name }}
+          name: debian-packages-${{ matrix.build }}
           path: |
             *.deb
             *.ddeb
@@ -533,7 +731,7 @@ jobs:
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ env.BUILD_TIMESTAMP }}-${{ matrix.name }}
+          name: build-logs-${{ env.BUILD_TIMESTAMP }}-${{ matrix.build }}
           path: |
             build-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
@@ -544,8 +742,8 @@ jobs:
   ## ======================================================================
 
   deb-install-test:
-    name: Deb install test (${{ matrix.name }})
-    needs: [build]
+    name: Deb install test (${{ matrix.build }})
+    needs: [prepare-build-matrix, build]
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -562,7 +760,7 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-${{ matrix.name }}
+          name: debian-packages-${{ matrix.build }}
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
@@ -621,6 +819,7 @@ jobs:
             dpkg-deb -f "${DEB_FILE}"
 
             # Get key DEB attributes for verification
+            DEB_PACKAGE=$(dpkg-deb -f "${DEB_FILE}" Package)
             DEB_VERSION=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 1)
             DEB_RELEASE=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 3)
             echo "version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
@@ -662,11 +861,12 @@ jobs:
             echo "=== DEB Installation Log ==="
             echo "Timestamp: $(date -u)"
             echo "DEB File: ${DEB_FILE}"
+            echo "Package: ${DEB_PACKAGE}"
             echo "Version: ${DEB_VERSION}"
             echo "Release: ${DEB_RELEASE}"
 
             # Clean install location
-            rm -rf /opt/greenplum-db-6
+            rm -rf /opt/${DEB_PACKAGE}
 
             # Install DEB
             echo "Starting installation..."
@@ -676,15 +876,15 @@ jobs:
             fi
 
             echo "Installation completed successfully"
-            dpkg-query -s greenplum-db-6
+            dpkg-query -s ${DEB_PACKAGE}
             echo "Installed files:"
-            dpkg-query -L greenplum-db-6
+            dpkg-query -L ${DEB_PACKAGE}
           } 2>&1 | tee -a install-logs/details/deb-installation.log
 
       - name: Upload install logs
         uses: actions/upload-artifact@v4
         with:
-          name: install-logs-${{ needs.build.outputs.build_timestamp }}
+          name: install-logs-${{ matrix.build }}-${{ needs.build.outputs.build_timestamp }}
           path: |
             install-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
@@ -697,7 +897,7 @@ jobs:
             echo "# Installed Package Summary"
             echo "\`\`\`"
 
-            dpkg-query -s greenplum-db-6
+            dpkg-query -s ${DEB_PACKAGE}
             echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY" || true
 
@@ -707,9 +907,11 @@ jobs:
 
   test:
     name: ${{ matrix.test }}
-    needs: [build, prepare-test-matrix]
+    needs: [prepare-parameters, prepare-build-matrix, prepare-test-matrix, build]
     runs-on: ${{ matrix.runs_on }}
     timeout-minutes: 120
+    env:
+      CURRENT_BUILD: ${{ needs.prepare-parameters.outputs.CURRENT_BUILD }}
 
     strategy:
       fail-fast: false  # Continue with other tests if one fails
@@ -843,7 +1045,7 @@ jobs:
       - name: Download Greenplum debian build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: debian-packages-test
+          name: debian-packages-${{ env.CURRENT_BUILD }}-test
           path: ${{ github.workspace }}/deb_build_artifacts
           merge-multiple: false
 
@@ -891,6 +1093,7 @@ jobs:
             dpkg-deb -f "${DEB_FILE}"
 
             # Get key DEB attributes for verification
+            DEB_PACKAGE=$(dpkg-deb -f "${DEB_FILE}" Package)
             DEB_VERSION=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 1)
             DEB_RELEASE=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 3)
             echo "version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
@@ -932,11 +1135,12 @@ jobs:
             echo "=== DEB Installation Log ==="
             echo "Timestamp: $(date -u)"
             echo "DEB File: ${DEB_FILE}"
+            echo "Package: ${DEB_PACKAGE}"
             echo "Version: ${DEB_VERSION}"
             echo "Release: ${DEB_RELEASE}"
 
             # Clean install location
-            rm -rf /opt/greenplum-db-6
+            rm -rf /opt/${DEB_PACKAGE}
 
             # Install DEB
             echo "Starting installation..."
@@ -946,9 +1150,9 @@ jobs:
             fi
 
             echo "Installation completed successfully"
-            dpkg-query -s greenplum-db-6
+            dpkg-query -s ${DEB_PACKAGE}
             echo "Installed files:"
-            dpkg-query -L greenplum-db-6
+            dpkg-query -L ${DEB_PACKAGE}
           } 2>&1 | tee -a build-logs/details/deb-installation.log
 
       - name: Extract source tarball
@@ -1405,3 +1609,45 @@ jobs:
           echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           echo "Build Result: ${{ needs.build.result }}"
           echo "Test Result: ${{ needs.test.result }}"
+
+  ## ======================================================================
+  ## Job: upload_debian
+  ## ======================================================================
+
+  upload_debian:
+    env:
+      CURRENT_BUILD: ${{ needs.prepare-parameters.outputs.CURRENT_BUILD }}
+      CURRENT_REF: ${{ needs.prepare-parameters.outputs.CURRENT_REF }}
+    if: startsWith(needs.prepare-parameters.outputs.CURRENT_RELEASE , 'refs/tags/')
+    runs-on: ubuntu-latest
+    name: Upload Debian Package
+    needs: [prepare-parameters, build, deb-install-test]
+    permissions:
+      contents: write
+    steps:
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-${{ env.CURRENT_BUILD }}
+          path: ${{ github.workspace }}/deb_build_artifacts
+          merge-multiple: false
+
+      - name: Verify DEB artifacts
+        id: verify-artifacts
+        run: |
+          set -ex pipefail
+
+          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          if [ ! -f "${DEB_FILE}" ]; then
+            echo "::error::DEB file not found"
+            exit 1
+          fi
+
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: ${{ env.CURRENT_REF }}
+          files: ${{ steps.verify-artifacts.outputs.deb_file }}

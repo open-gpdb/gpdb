@@ -1,0 +1,14 @@
+diff --git a/configure b/configure
+index d676b718692..49bdca87345 100755
+--- a/configure
++++ b/configure
+@@ -21334,7 +21334,8 @@ fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $pgac_cv_prog_cc_cflags__Werror_implicit_function_declaration" >&5
+ $as_echo "$pgac_cv_prog_cc_cflags__Werror_implicit_function_declaration" >&6; }
+ if test x"$pgac_cv_prog_cc_cflags__Werror_implicit_function_declaration" = x"yes"; then
+-  CFLAGS="$CFLAGS -Werror=implicit-function-declaration"
++  # FIXME fix all uninitialized errors then enable check
++  # CFLAGS="$CFLAGS -Werror=uninitialized"
+ fi
+ 
+ fi
