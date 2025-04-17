@@ -1047,7 +1047,7 @@ BufFileStartCompression(BufFile *file)
 	}
 
 	if (compression_buffer == NULL)
-		compression_buffer = MemoryContextAlloc(file->pg_zstd_context, BLCKSZ);
+		compression_buffer = MemoryContextAlloc(TopMemoryContext, BLCKSZ);
 
 	/*
 	 * Make sure the zstd handle is kept in the same resource owner as
