@@ -1128,6 +1128,7 @@ BufFileEndCompression(BufFile *file)
 
 	customMem.customAlloc = customAlloc;
 	customMem.customFree = customFree;
+	customMem.opaque = file->pg_zstd_context;
 
 	Assert(file->state == BFS_COMPRESSED_WRITING);
 
