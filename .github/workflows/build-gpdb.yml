@@ -162,7 +162,7 @@ jobs:
                                "gpcontrib/gp_percentile_agg:installcheck",
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
-                               "gpcontrib/gpcloud:installcheck",
+                               "gpcontrib/gpcloud/regress:installcheck",
                                "gpcontrib/gpmapreduce:installcheck",
                                "gpcontrib/orafce:installcheck",
                                "gpcontrib/pgaudit:installcheck",
