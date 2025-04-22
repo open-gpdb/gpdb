@@ -138,7 +138,7 @@ jobs:
                                "contrib/pgcrypto:installcheck",
                                "contrib/pgstattuple:installcheck",
                                "contrib/postgres_fdw:installcheck",
-                               "contrib/sasdemo:installcheck",
+                               "contrib/sasdemo/test:all",
                                "contrib/sepgsql:installcheck",
                                "contrib/sslinfo:installcheck",
                                "contrib/tablefunc:installcheck",
