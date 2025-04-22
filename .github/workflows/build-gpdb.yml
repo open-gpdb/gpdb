@@ -167,8 +167,8 @@ jobs:
                                "gpcontrib/orafce:installcheck",
                                "gpcontrib/pgaudit:installcheck",
                                "gpcontrib/quicklz:installcheck",
-                               "gpcontrib/sr_plan",
-                               "gpcontrib/zstd"]
+                               "gpcontrib/sr_plan:installcheck",
+                               "gpcontrib/zstd:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
