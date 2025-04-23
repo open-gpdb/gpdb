@@ -236,4 +236,7 @@ extern int acquire_inherited_sample_rows(Relation onerel, int elevel,
 extern Datum gp_acquire_sample_rows(PG_FUNCTION_ARGS);
 extern Oid gp_acquire_sample_rows_col_type(Oid typid);
 
+
+extern bool gp_use_fastanalyze;
+
 #endif   /* VACUUM_H */

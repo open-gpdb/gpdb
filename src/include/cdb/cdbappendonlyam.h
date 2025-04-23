@@ -141,6 +141,7 @@ typedef struct AppendOnlyExecutorReadBlock
 	int				segmentFileNum;
 
 	int64			totalRowsScannned;
+	int64			blockRowsProcessed;
 
 	int64			blockFirstRowNum;
 	int64			headerOffsetInFile;
@@ -163,6 +164,67 @@ typedef struct AppendOnlyExecutorReadBlock
 	uint8			*singleRow;
 	int32			singleRowLen;
 } AppendOnlyExecutorReadBlock;
+
+
+
+/*
+ * Used for fetch individual tuples from specified by TID of append only relations 
+ * using the AO Block Directory, BufferedRead and VarBlocks
+ */
+typedef struct AppendOnlyFetchDescData
+{
+	Relation		relation;
+	Snapshot		appendOnlyMetaDataSnapshot;
+
+	/*
+	 * Snapshot to use for non-metadata operations.
+	 * Usually snapshot = appendOnlyMetaDataSnapshot, but they
+	 * differ e.g. if gp_select_invisible is set.
+	 */ 
+	Snapshot    snapshot;
+
+	MemoryContext	initContext;
+
+	AppendOnlyStorageAttributes	storageAttributes;
+	AppendOnlyStorageRead		storageRead;
+
+	char						*title;
+				/*
+				 * A phrase that better describes the purpose of the this open.
+				 *
+				 * We manage the storage for this.
+				 */
+
+
+	int				totalSegfiles;
+	FileSegInfo 	**segmentFileInfo;
+
+	char			*segmentFileName;
+	int				segmentFileNameMaxLen;
+
+	int32			usableBlockSize;
+
+	AppendOnlyBlockDirectory	blockDirectory;
+
+	AppendOnlyExecutorReadBlock executorReadBlock;
+
+	CurrentSegmentFile currentSegmentFile;
+	
+	int64		scanNextFileOffset;
+	int64		scanNextRowNum;
+
+	int64		scanAfterFileOffset;
+	int64		scanLastRowNum;
+
+	CurrentBlock currentBlock;
+
+	int64	skipBlockCount;
+
+	AppendOnlyVisimap visibilityMap;
+
+}	AppendOnlyFetchDescData;
+
+typedef AppendOnlyFetchDescData *AppendOnlyFetchDesc;
 
 /*
  * used for scan of append only relations using BufferedRead and VarBlocks
@@ -258,6 +320,13 @@ typedef struct AppendOnlyScanDescData
 
 	AOBlkDirScan		blkdirscan;
 
+	/*
+	* The total number of bytes read, compressed, across all segment files, so
+	* far. This is used for scan progress reporting.
+	*/
+	int64           totalBytesRead;
+
+	AppendOnlyFetchDesc	aofetch;
 
 }	AppendOnlyScanDescData;
 
@@ -295,65 +364,6 @@ typedef struct AppendOnlyFetchDetail
 } AppendOnlyFetchDetail;
 
 
-/*
- * Used for fetch individual tuples from specified by TID of append only relations 
- * using the AO Block Directory, BufferedRead and VarBlocks
- */
-typedef struct AppendOnlyFetchDescData
-{
-	Relation		relation;
-	Snapshot		appendOnlyMetaDataSnapshot;
-
-	/*
-	 * Snapshot to use for non-metadata operations.
-	 * Usually snapshot = appendOnlyMetaDataSnapshot, but they
-	 * differ e.g. if gp_select_invisible is set.
-	 */ 
-	Snapshot    snapshot;
-
-	MemoryContext	initContext;
-
-	AppendOnlyStorageAttributes	storageAttributes;
-	AppendOnlyStorageRead		storageRead;
-
-	char						*title;
-				/*
-				 * A phrase that better describes the purpose of the this open.
-				 *
-				 * We manage the storage for this.
-				 */
-
-
-	int				totalSegfiles;
-	FileSegInfo 	**segmentFileInfo;
-
-	char			*segmentFileName;
-	int				segmentFileNameMaxLen;
-
-	int32			usableBlockSize;
-
-	AppendOnlyBlockDirectory	blockDirectory;
-
-	AppendOnlyExecutorReadBlock executorReadBlock;
-
-	CurrentSegmentFile currentSegmentFile;
-	
-	int64		scanNextFileOffset;
-	int64		scanNextRowNum;
-
-	int64		scanAfterFileOffset;
-	int64		scanLastRowNum;
-
-	CurrentBlock currentBlock;
-
-	int64	skipBlockCount;
-
-	AppendOnlyVisimap visibilityMap;
-
-}	AppendOnlyFetchDescData;
-
-typedef AppendOnlyFetchDescData *AppendOnlyFetchDesc;
-
 typedef struct AppendOnlyUpdateDescData *AppendOnlyUpdateDesc;
 typedef struct AppendOnlyDeleteDescData *AppendOnlyDeleteDesc;
 
@@ -379,6 +389,9 @@ extern void appendonly_endscan(AppendOnlyScanDesc scan);
 extern bool appendonly_getnext(AppendOnlyScanDesc scan,
 							   ScanDirection direction,
 							   TupleTableSlot *slot);
+extern bool appendonly_get_target_tuple(AppendOnlyScanDesc aoscan,
+										int64 targrow,
+										TupleTableSlot *slot);
 extern AppendOnlyFetchDesc appendonly_fetch_init(
 	Relation 	relation,
 	Snapshot    snapshot,
@@ -426,6 +439,22 @@ extern bool AppendOnlyExecutorReadBlock_ScanNextTuple(AppendOnlyExecutorReadBloc
 
 extern void AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorReadBlock);
 
+/*
+ * Update total bytes read for the entire scan. If the block was compressed,
+ * update it with the compressed length. If the block was not compressed, update
+ * it with the uncompressed length.
+ */
+static inline void
+AppendOnlyScanDesc_UpdateTotalBytesRead(AppendOnlyScanDesc scan)
+{
+	Assert(scan->storageRead.isActive);
+
+	if (scan->storageRead.current.isCompressed)
+		scan->totalBytesRead += scan->storageRead.current.compressedLen;
+	else
+		scan->totalBytesRead += scan->storageRead.current.uncompressedLen;
+}
+
 
 static inline int64
 AppendOnlyScanDesc_TotalTupCount(AppendOnlyScanDesc scan)
@@ -443,5 +472,9 @@ AppendOnlyScanDesc_TotalTupCount(AppendOnlyScanDesc scan)
 
     return totalrows;
 }
+
+int
+appendonly_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
+							   int targrows, double *totalrows, double *totaldeadrows);
 
 #endif   /* CDBAPPENDONLYAM_H */

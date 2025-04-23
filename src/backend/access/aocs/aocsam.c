@@ -50,8 +50,8 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "catalog/pg_namespace.h"
-#include "utils/syscache.h"
 #include "utils/sampling.h"
+#include "utils/syscache.h"
 
 
 bool

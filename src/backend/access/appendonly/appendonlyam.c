@@ -45,6 +45,7 @@
 #include "catalog/pg_appendonly.h"
 #include "catalog/pg_appendonly_fn.h"
 #include "catalog/pg_attribute_encoding.h"
+#include "commands/vacuum.h"
 #include "cdb/cdbappendonlyam.h"
 #include "cdb/cdbappendonlystorage.h"
 #include "cdb/cdbappendonlystorageformat.h"
@@ -60,6 +61,7 @@
 #include "utils/memutils.h"
 #include "utils/snapmgr.h"
 #include "catalog/pg_namespace.h"
+#include "utils/sampling.h"
 #include "utils/syscache.h"
 
 /*
@@ -1296,6 +1298,344 @@ getNextBlock(AppendOnlyScanDesc scan)
 
 	AppendOnlyExecutorReadBlock_GetContents(
 											&scan->executorReadBlock);
+
+	return true;
+}
+
+
+
+static int
+appendonly_locate_target_segment(AppendOnlyScanDesc scan, int64 targrow)
+{
+	int64 rowcount;
+
+	for (int i = scan->aos_segfiles_processed - 1; i < scan->aos_total_segfiles; i++)
+	{
+		if (i < 0)
+			continue;
+
+		rowcount = scan->aos_segfile_arr[i]->total_tupcount;
+		if (rowcount <= 0)
+			continue;
+
+		if (scan->segfirstrow + rowcount - 1 >= targrow)
+		{
+			/* found the target segment */
+			return i;
+		}
+
+		/* continue next segment */
+		scan->segfirstrow += rowcount;
+		scan->segrowsprocessed = 0;
+	}
+
+	/* row is beyond the total number of rows in the relation */
+	return -1;
+}
+
+
+/*
+ * returns the segfile number in which `targrow` locates
+ */
+static int
+appendonly_getsegment(AppendOnlyScanDesc scan, int64 targrow)
+{
+	int segidx, segno;
+
+	/* locate the target segment */
+	segidx = appendonly_locate_target_segment(scan, targrow);
+	if (segidx < 0)
+	{
+		CloseScannedFileSeg(scan);
+
+		/* done reading all segfiles */
+		Assert(scan->aos_done_all_segfiles);
+
+		return -1;
+	}
+
+	if (segidx + 1 > scan->aos_segfiles_processed)
+	{
+		/* done current segfile */
+		CloseScannedFileSeg(scan);
+		/*
+		 * Adjust aos_segfiles_processed to guide
+		 * SetNextFileSegForRead() opening next
+		 * right segfile.
+		 */
+		scan->aos_segfiles_processed = segidx;
+	}
+
+	segno = scan->aos_segfile_arr[segidx]->segno;
+	Assert(segno > InvalidFileSegNumber && segno <= AOTupleId_MaxSegmentFileNum);
+
+	if (scan->aos_need_new_segfile)
+	{
+		if (SetNextFileSegForRead(scan))
+		{
+			Assert(scan->segrowsprocessed == 0);
+			scan->needNextBuffer = true;
+		}
+		else
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Unexpected behavior, failed to open segno %d during scanning AO table %s",
+							segno, RelationGetRelationName(scan->aos_rd))));
+		}
+	}
+
+	return segno;
+}
+
+
+static inline int64
+appendonly_block_remaining_rows(AppendOnlyScanDesc scan)
+{
+	return (scan->executorReadBlock.rowCount - scan->executorReadBlock.blockRowsProcessed);
+}
+
+/*
+ * locates the block in which `targrow` exists
+ */
+static void
+appendonly_getblock(AppendOnlyScanDesc scan, int64 targrow, int64 *startrow)
+{
+	AppendOnlyExecutorReadBlock *varblock = &scan->executorReadBlock;
+	int64 rowcount = InvalidAORowNum;
+
+	if (!scan->needNextBuffer)
+	{
+		/* we have a current block */
+		rowcount = appendonly_block_remaining_rows(scan);
+		Assert(rowcount >= 0);
+
+		if (*startrow + rowcount - 1 >= targrow)
+		{
+			/* row lies in current block, nothing to do */
+			return;
+		}
+		else
+		{
+			/* skip scanning remaining rows */
+			*startrow += rowcount;
+			scan->needNextBuffer = true;
+		}
+	}
+
+	/*
+	 * Keep reading block headers until we find the block containing
+	 * the target row.
+	 */
+	while (true)
+	{
+		elogif(Debug_appendonly_print_scan, LOG,
+			   "appendonly_getblock(): [targrow: %ld, currow: %ld, diff: %ld, "
+			   "startrow: %ld, rowcount: %ld, segfirstrow: %ld, segrowsprocessed: %ld, "
+			   "blockRowsProcessed: %ld, blockRowCount: %d]", targrow, *startrow + rowcount - 1,
+			   *startrow + rowcount - 1 - targrow, *startrow, rowcount, scan->segfirstrow,
+			   scan->segrowsprocessed, varblock->blockRowsProcessed,
+			   varblock->rowCount);
+
+		if (AppendOnlyExecutorReadBlock_GetBlockInfo(&scan->storageRead, varblock))
+		{
+			/* new block, reset blockRowsProcessed */
+			varblock->blockRowsProcessed = 0;
+			rowcount = appendonly_block_remaining_rows(scan);
+			Assert(rowcount > 0);
+			if (*startrow + rowcount - 1 >= targrow)
+			{
+				int64 blocksRead;
+
+				AppendOnlyExecutorReadBlock_GetContents(varblock);
+
+				AppendOnlyScanDesc_UpdateTotalBytesRead(scan);
+				blocksRead = RelationGuessNumberOfBlocks(scan->totalBytesRead);
+/* XXX-OPENGP_MERGE: fixme*/
+#if 0  
+				pgstat_count_buffer_read(scan->aos_rd,
+											blocksRead);
+#endif
+
+				/* got a new buffer to consume */
+				scan->needNextBuffer = false;
+				return;
+			}
+
+			*startrow += rowcount;
+			AppendOnlyExecutionReadBlock_FinishedScanBlock(varblock);
+			AppendOnlyStorageRead_SkipCurrentBlock(&scan->storageRead);
+			/* continue next block */
+		}
+		else
+			/*
+			 * Fatal and raise message for unexpected code path here.
+			 * We didn't use PANIC as having a read-only backend crash
+			 * the whole instance is a little overkill.
+			 */
+			ereport(FATAL,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Unexpected result was returned when getting AO block info for table '%s', targrow %ld",
+							AppendOnlyStorageRead_RelationName(&scan->storageRead), targrow)));
+	}
+}
+
+
+/*
+ * block directory based get_target_tuple()
+ */
+static bool
+appendonly_blkdirscan_get_target_tuple(AppendOnlyScanDesc scan, int64 targrow, TupleTableSlot *slot)
+{
+	int segno, segidx;
+	int64 rownum, rowsprocessed;
+	AOTupleId aotid;
+	AppendOnlyBlockDirectory *blkdir = scan->blockDirectory;
+
+	Assert(scan->blkdirscan != NULL);
+
+	/* locate the target segment */
+	segidx = appendonly_locate_target_segment(scan, targrow);
+	if (segidx < 0)
+		return false;
+
+	scan->aos_segfiles_processed = segidx + 1;
+
+	segno = scan->aos_segfile_arr[segidx]->segno;
+	Assert(segno > InvalidFileSegNumber && segno <= AOTupleId_MaxSegmentFileNum);
+
+	/*
+	 * Note: It is safe to assume that the scan's segfile array and the
+	 * blockdir's segfile array are identical. Otherwise, we should stop
+	 * processing and throw an exception to make the error visible.
+	 */
+	if (blkdir->segmentFileInfo[segidx]->segno != segno)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("segfile array contents in both scan descriptor "
+				 		"and block directory are not identical on "
+						"append-optimized relation '%s'",
+						RelationGetRelationName(blkdir->aoRel))));
+	}
+
+	/* Set the current segfile info to the target one. */
+	blkdir->currentSegmentFileNum = blkdir->segmentFileInfo[segidx]->segno;
+	blkdir->currentSegmentFileInfo = blkdir->segmentFileInfo[segidx];
+
+	/*
+	 * "segfirstrow" should be always pointing to the first row of
+	 * a new segfile in blkdir based ANALYZE, only locate_target_segment
+	 * could update its value.
+	 *
+	 * "segrowsprocessed" is used for tracking the position of
+	 * processed rows in the current segfile.
+	 */
+	rowsprocessed = scan->segfirstrow + scan->segrowsprocessed;
+	/* locate the target row by seqscan block directory */
+	rownum = AOBlkDirScan_GetRowNum(scan->blkdirscan,
+									segno,
+									0,
+									targrow,
+									&rowsprocessed);
+
+	elogif(Debug_appendonly_print_scan, LOG,
+		   "AOBlkDirScan_GetRowNum(segno: %d, col: %d, targrow: %ld): "
+		   "[segfirstrow: %ld, segrowsprocessed: %ld, rownum: %ld, cached_entry_no: %d]",
+		   segno, 0, targrow, scan->segfirstrow, scan->segrowsprocessed, rownum,
+#if 0
+		   blkdir->minipages[0].cached_entry_no);
+#else
+		   -1);
+#endif
+
+	if (rownum < 0)
+		return false;
+
+	scan->segrowsprocessed = rowsprocessed - scan->segfirstrow;
+
+	/* form the target tuple TID */
+	AOTupleIdInit(&aotid, segno, rownum);
+
+	/* ensure the target minipage entry was stored in fetch descriptor */
+	Assert(scan->blkdirscan->blkdir->cached_mpentry_num != InvalidEntryNum);
+	Assert(blkdir->minipages == &blkdir->minipages[0]);
+
+	/*
+	 * Update cached_entry_no to the entry obtained from
+	 * AOBlkDirScan_GetRowNum(), then we can reuse it directly
+	 * during fetch below.
+	 * See cached_entry_no in find_minipage_entry().
+	 */
+	// blkdir->minipages[0].cached_entry_no = scan->blkdirscan->blkdir->cached_mpentry_num;
+
+	/* fetch the target tuple */
+	if(!appendonly_fetch(scan->aofetch, &aotid, slot))
+		return false;
+
+	/* OK to return this tuple */
+	pgstat_count_heap_fetch(scan->aos_rd);
+
+	return true;
+}
+
+
+/*
+ * Given a specific target row number 'targrow' (in the space of all row numbers
+ * physically present in the table, i.e. across all segfiles), scan and return
+ * the corresponding tuple in 'slot'.
+ *
+ * If the tuple is visible, return true. Otherwise, return false.
+ *
+ * Note: for the duration of the scan, we expect targrow to be monotonically
+ * increasing in between successive calls.
+ */
+bool
+appendonly_get_target_tuple(AppendOnlyScanDesc aoscan, int64 targrow, TupleTableSlot *slot)
+{
+	AppendOnlyExecutorReadBlock *varblock = &aoscan->executorReadBlock;
+	bool visible;
+	int64 rowsprocessed, rownum;
+	int segno;
+	AOTupleId aotid;
+
+	if (aoscan->blkdirscan != NULL)
+		return appendonly_blkdirscan_get_target_tuple(aoscan, targrow, slot);
+
+	segno = appendonly_getsegment(aoscan, targrow);
+	if (segno < 0)
+		return false;
+
+	rowsprocessed = aoscan->segfirstrow + aoscan->segrowsprocessed;
+
+	appendonly_getblock(aoscan, targrow, &rowsprocessed);
+
+	aoscan->segrowsprocessed = rowsprocessed - aoscan->segfirstrow;
+
+	Assert(rowsprocessed + varblock->rowCount - 1 >= targrow);
+	rownum = varblock->blockFirstRowNum + (targrow - rowsprocessed);
+
+	elogif(Debug_appendonly_print_scan, LOG,
+		   "appendonly_getblock() returns: [segno: %d, rownum: %ld]", segno, rownum);
+
+	/* form the target tuple TID */
+	AOTupleIdInit(&aotid, segno, rownum);
+
+	visible = (aoscan->snapshot == SnapshotAny ||
+			   AppendOnlyVisimap_IsVisible(&aoscan->visibilityMap, &aotid));
+
+	if (visible && AppendOnlyExecutorReadBlock_FetchTuple(varblock, rownum, 0, NULL, slot))
+	{
+		/* OK to return this tuple */
+		pgstat_count_heap_fetch(aoscan->aos_rd);
+	}
+	else
+	{
+		if (slot != NULL)
+			ExecClearTuple(slot);
+
+		return false;
+	}
 
 	return true;
 }
@@ -3192,4 +3532,112 @@ RelationGuessNumberOfBlocks(double totalbytes)
 {
 	/* for now it's very simple */
 	return (BlockNumber) ceil(totalbytes / BLCKSZ);
+}
+
+/*
+ * Implementation of relation_acquire_sample_rows().
+ *
+ * As opposed to upstream's method of 2-stage sampling, here we can simply use
+ * Knuth's S algorithm (TAOCP Part 2 Section 3.4.2) as we clearly know N - the
+ * population size up front (i.e the total number of rows in the relation)
+ *
+ * Although an estimate is demanded for the total live rows and total dead rows
+ * in the table, we can actually return their exact values from aux table metadata.
+ *
+ * We intrinsically return rows in physical order, since the rows sampled by
+ * Algorithm S are in physical order.
+ */
+int
+appendonly_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
+							   int targrows, double *totalrows, double *totaldeadrows)
+{
+	FileSegTotals	*fileSegTotals;
+	BlockNumber		totalBlocks;
+	BlockNumber     blksdone = 0;
+	int		numrows = 0;	/* # number of rows sampled */
+	double	liverows = 0;	/* # live rows seen */
+	double	deadrows = 0;	/* # dead rows seen */
+
+	Snapshot	appendOnlyMetaDataSnapshot;
+	Assert(targrows > 0);
+	int			i;
+
+	appendOnlyMetaDataSnapshot = GetTransactionSnapshot();
+
+	Assert(RelationIsAoRows(onerel));
+									
+    TupleTableSlot *slot = MakeSingleTupleTableSlot(RelationGetDescr(onerel));
+	AppendOnlyScanDesc aoscan =  appendonly_beginscan(onerel,
+									  SnapshotSelf,
+									  appendOnlyMetaDataSnapshot,
+									  0, NULL);
+
+	aoscan->aofetch = appendonly_fetch_init(onerel, SnapshotSelf, appendOnlyMetaDataSnapshot);
+
+	int64 totaltupcount = AppendOnlyScanDesc_TotalTupCount(aoscan);
+	int64 totaldeadtupcount = 0;
+	if (aoscan->aos_total_segfiles > 0 )
+		totaldeadtupcount = AppendOnlyVisimap_GetRelationHiddenTupleCount(&aoscan->visibilityMap);
+
+	/*
+	 * Get the total number of blocks for the table
+	 */
+	fileSegTotals = GetSegFilesTotals(onerel,
+										   aoscan->appendOnlyMetaDataSnapshot);
+	totalBlocks = RelationGuessNumberOfBlocks(fileSegTotals->totalbytes);
+	/*
+     * The conversion from int64 to double (53 significant bits) is safe as the
+	 * AOTupleId is 48bits, the max value of totalrows is never greater than
+	 * AOTupleId_MaxSegmentFileNum * AOTupleId_MaxRowNum (< 48 significant bits).
+	 */
+	*totalrows = (double) (totaltupcount - totaldeadtupcount);
+	*totaldeadrows = (double) totaldeadtupcount;
+
+	/* Prepare for sampling row numbers */
+	RowSamplerData rs;
+	RowSampler_Init(&rs, totaltupcount, targrows, random());
+
+	while (RowSampler_HasMore(&rs) && (liverows < *totalrows))
+	{
+		aoscan->targrow = RowSampler_Next(&rs);
+
+		vacuum_delay_point();
+
+		if (appendonly_get_target_tuple(aoscan, aoscan->targrow, slot))
+		{
+			rows[numrows++] = ExecCopySlotHeapTuple(slot);
+			liverows++;
+		}
+		else
+			deadrows++;
+
+		/*
+		 * Even though we now do row based sampling,
+		 * we can still report in terms of blocks processed using ratio of
+		 * rows scanned / target rows on totalblocks in the table.
+		 * For e.g., if we have 1000 blocks in the table and we are sampling 100 rows,
+		 * and if 10 rows are done, we can say that 100 blocks are done.
+		 */
+		SIMPLE_FAULT_INJECTOR("analyze_block");
+
+		ExecClearTuple(slot);
+	}
+
+	ExecDropSingleTupleTableSlot(slot);
+	appendonly_fetch_finish(aoscan->aofetch);
+	appendonly_endscan(aoscan);
+
+	/*
+	 * Emit some interesting relation info
+	 */
+	ereport(elevel,
+			(errmsg("\"%s\": scanned " INT64_FORMAT " rows, "
+					"containing %.0f live rows and %.0f dead rows; "
+					"%d rows in sample, %.0f total live rows, "
+					"%.f total dead rows",
+					RelationGetRelationName(onerel),
+					rs.m, liverows, deadrows, numrows,
+					*totalrows, *totaldeadrows)));
+
+	return numrows;
 }

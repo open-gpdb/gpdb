@@ -3190,6 +3190,15 @@ struct config_bool ConfigureNamesBool_gp[] =
 	},
 
 	{
+		{"gp_use_fastanalyze", PGC_USERSET, RESOURCES,
+		   gettext_noop("use fast analyze on AO and AOCS relations"),
+		   gettext_noop("If false, count statistic old-way (Algorithm Z)")
+		},
+		&gp_use_fastanalyze,
+		false, NULL, NULL
+	},
+
+	{
 		{"stats_queue_level", PGC_SUSET, STATS_COLLECTOR,
 			gettext_noop("Collects resource queue-level statistics on database activity."),
 			NULL

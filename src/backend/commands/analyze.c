@@ -191,6 +191,8 @@ static void analyze_rel_internal(Oid relid, VacuumStmt *vacstmt,
 			bool in_outer_xact, BufferAccessStrategy bstrategy);
 static void acquire_hll_by_query(Relation onerel, int nattrs, VacAttrStats **attrstats, int elevel);
 
+bool gp_use_fastanalyze;
+
 /*
  *	analyze_rel() -- analyze one relation
  */
@@ -1628,6 +1630,10 @@ acquire_sample_rows_ao(Relation onerel, int elevel,
 	int			numrows = 0;	/* # rows now in reservoir */
 	double		samplerows = 0; /* total # rows collected */
 	double		rowstoskip = -1;	/* -1 means not set yet */
+
+	if (RelationIsAoRows(onerel) && gp_use_fastanalyze) {
+		return appendonly_acquire_sample_rows(onerel, elevel, rows, targrows, totalrows, totaldeadrows);
+	}
 
 	/*
 	 * the append-only meta data should never be fetched with
