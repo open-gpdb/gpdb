@@ -2623,12 +2623,26 @@ aoco_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
 	int		numrows = 0;	/* # rows now in reservoir */
 	double	liverows = 0;	/* # live rows seen */
 	double	deadrows = 0;	/* # dead rows seen */
+	Snapshot	appendOnlyMetaDataSnapshot;
 
 	Assert(targrows > 0);
 
-	TableScanDesc scan = table_beginscan_analyze(onerel);
+	int			natts = RelationGetNumberOfAttributes(onerel);
+	bool	   *proj = (bool *) palloc(natts * sizeof(bool));
+	int			i;
+
+	appendOnlyMetaDataSnapshot = GetTransactionSnapshot();
+
+	for(i = 0; i < natts; i++)
+		proj[i] = true;
+
+	Assert(RelationIsAoCols(onerel));
+									
     TupleTableSlot *slot = MakeSingleTupleTableSlot(RelationGetDescr(onerel));
-	AOCSScanDesc aocoscan = (AOCSScanDesc) scan;
+	AOCSScanDesc aocoscan =  aocs_beginscan(onerel,
+									  SnapshotSelf,
+									  appendOnlyMetaDataSnapshot,
+									  RelationGetDescr(onerel), proj);
 
 	int64 totaltupcount = AOCSScanDesc_TotalTupCount(aocoscan);
 	int64 totaldeadtupcount = 0;
@@ -2664,7 +2678,7 @@ aoco_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
 	}
 
 	ExecDropSingleTupleTableSlot(slot);
-	systable_endscan(scan);
+	aocs_endscan(aocoscan);
 
 	/*
 	 * Emit some interesting relation info
