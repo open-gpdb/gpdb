@@ -151,6 +151,8 @@ typedef struct AOCSScanDescData
 
 	/* synthetic system attributes */
 	ItemPointerData cdb_fake_ctid;
+	int64 total_row;
+	int64 cur_seg_row;
 
 	/*
 	 * used by `analyze`

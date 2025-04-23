@@ -54,6 +54,9 @@
 #include "utils/sampling.h"
 
 
+bool
+aocs_get_target_tuple(AOCSScanDesc aoscan, int64 targrow, TupleTableSlot *slot);
+
 static AOCSScanDesc aocs_beginscan_internal(Relation relation,
 						AOCSFileSegInfo **seginfo,
 						int total_seg,
@@ -900,7 +903,7 @@ aocs_block_remaining_rows(DatumStreamRead *ds)
 static bool
 aocs_gettuple_column(AOCSScanDesc scan, AttrNumber attno, int64 startrow, int64 endrow, bool chkvisimap, TupleTableSlot *slot)
 {
-	bool isSnapshotAny = (scan->aos_rel. == SnapshotAny);
+	bool isSnapshotAny = (scan->snapshot == SnapshotAny);
 	DatumStreamRead *ds = scan->ds[attno];
 	int segno = scan->seginfo[scan->cur_seg]->segno;
 	AOTupleId aotid;

@@ -80,6 +80,9 @@ typedef struct MinipagePerColumnGroup
 #define NUM_MINIPAGE_ENTRIES (((MaxHeapTupleSize)/8 - sizeof(HeapTupleHeaderData) - 64 * 3)\
 							  / sizeof(MinipageEntry))
 
+
+#define InvalidEntryNum (-1)
+
 /*
  * Define a structure for the append-only relation block directory.
  */
