@@ -202,7 +202,7 @@ get_ao_headers_info(PG_FUNCTION_ARGS)
             if (found)
                 continue;
             
-            scan->bufferDone = true;
+            scan->needNextBuffer = true;
             break;
         }
 
