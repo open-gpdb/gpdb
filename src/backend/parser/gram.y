@@ -16023,6 +16023,7 @@ unreserved_keyword:
 			| SHOW
 			| SHRINK
 			| SIMPLE
+			| SKIP_LOCKED	
 			| SNAPSHOT
 			| SPLIT
 			| SQL
