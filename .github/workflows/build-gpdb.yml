@@ -721,6 +721,8 @@ jobs:
         --privileged
         --user root
         --cgroupns=private
+      volumes:
+        - /:/host_volume
 
     steps:
       - name: Use timestamp from previous job
@@ -743,8 +745,23 @@ jobs:
             exit 1
           fi
 
+      - name: Free disk space
+        run: |
+          set -ex pipefail
+
+          # Check disk usage
+          df -h
+
+          # Remove some host directories
+          rm -rf \
+            /host_volume/usr/share/dotnet /host_volume/usr/local/lib/android /host_volume/opt/ghc \
+            /host_volume/usr/local/share/powershell /host_volume/usr/share/swift /host_volume/usr/local/.ghcup \
+            /host_volume/usr/lib/jvm || true
+
+          # Check disk usage
+          df -h
+
       - name: Environment Initialization
-        if: needs.check-skip.outputs.should_skip != 'true'
         env:
           LOGS_DIR: build-logs
         run: |
@@ -754,6 +771,7 @@ jobs:
             exit 1
           fi
 
+          apt update -y
           apt install -y tzdata
           pip2 install pyyaml
 
@@ -778,7 +796,6 @@ jobs:
           echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
 
       - name: Setup cgroups
-        if: needs.check-skip.outputs.should_skip != 'true'
         shell: bash
         run: |
           set -ux pipefail
@@ -971,6 +988,18 @@ jobs:
             if ! su - gpadmin -c "cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh"; then
               echo "::error::Demo cluster creation failed"
               exit 1
+            fi
+
+            # ENABLE CGROUPS ON CLUSTER
+            if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
+                if ! su - gpadmin -c "source /opt/greenplum-db-6/greenplum_path.sh && \
+                     source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
+                     gpconfig -c gp_resource_manager -v 'group' && \
+                     gpstop -a -i && \
+                     gpstart -a"; then
+                  echo "::error::cgroups enable failed"
+                  exit 1
+                fi
             fi
 
           } 2>&1 | tee -a build-logs/details/create-gpdb-demo-cluster.log
@@ -1192,10 +1221,15 @@ jobs:
         shell: bash
         run: |
             # Search for regression.diffs recursively
-            found_file=$(find . -type f -name "regression.diffs" | head -n 1)
-            if [[ -n "$found_file" ]]; then
-              echo "Found regression.diffs at: $found_file"
-              cat "$found_file"
+            found_files=$(find . -type f -name "regression.diffs")
+            if [[ -n "$found_files" ]]; then
+              for found_file in $found_files
+               do
+                 echo "-----------------------------------------------------"
+                 echo "Found regression.diffs at: $found_file"
+                 echo "-----------------------------------------------------"
+                 cat "$found_file"
+               done
             else
               echo "No regression.diffs file found in the hierarchy."
             fi
