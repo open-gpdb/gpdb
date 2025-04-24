@@ -467,6 +467,11 @@ jobs:
 
           # replace not supported symbols in version
           GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/\//./g")
+          GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/_/-/g")
+          if ! echo "$GPDB_VERSION" | grep -qE '^[0-9]'; then
+              GPDB_VERSION="6.$GPDB_VERSION"
+          fi
+          
           echo "We will built ${GPDB_VERSION}"
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
