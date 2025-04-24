@@ -705,6 +705,7 @@ jobs:
         --privileged
         --user root
         --cgroupns=private
+        --dns 8.8.8.8
       volumes:
         - /:/host_volume
 
