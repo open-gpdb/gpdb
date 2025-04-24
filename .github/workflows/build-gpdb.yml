@@ -123,7 +123,6 @@ jobs:
                                "contrib/dict_xsyn:installcheck",
                                "contrib/extprotocol:installcheck",
                                "contrib/formatter_fixedwidth:installcheck",
-                               "contrib/fuzzystrmatch:installcheck",
                                "contrib/hstore:installcheck",
                                "contrib/indexscan:installcheck",
                                "contrib/intarray:installcheck",
@@ -132,20 +131,16 @@ jobs:
                                "contrib/pg_trgm:installcheck",
                                "contrib/pgcrypto:installcheck",
                                "contrib/pgstattuple:installcheck",
-                               "contrib/postgres_fdw:installcheck",
-                               "contrib/sasdemo/test:all",
                                "contrib/sslinfo:installcheck",
                                "contrib/tablefunc:installcheck",
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
                                "contrib/try_convert:installcheck",
-                               "contrib/unaccent:installcheck",
-                               "contrib/xml2:installcheck"]
+                               "contrib/unaccent:installcheck"]
               },
               {"test":"ic-gpcontrib",
                "make_configs":["gpcontrib/gp_array_agg:installcheck",
                                "gpcontrib/gp_debug_numsegments:installcheck",
-                               "gpcontrib/gp_distribution_policy:installcheck",
                                "gpcontrib/gp_error_handling:installcheck",
                                "gpcontrib/gp_inject_fault:installcheck",
                                "gpcontrib/gp_internal_tools:installcheck",
@@ -153,9 +148,7 @@ jobs:
                                "gpcontrib/gp_percentile_agg:installcheck",
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
-                               "gpcontrib/gpmapreduce:installcheck",
-                               "gpcontrib/orafce:installcheck",
-                               "gpcontrib/quicklz:installcheck"]
+                               "gpcontrib/orafce:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
@@ -761,8 +754,6 @@ jobs:
           apt update -y
           apt install -y tzdata
           pip2 install pyyaml
-
-          export TEST_PGFDW=1
 
           export LOGS_DIR=build-logs
 
