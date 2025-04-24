@@ -110,7 +110,7 @@ jobs:
               {"test":"ic-resgroup",
                "make_configs":["src/test/isolation2:installcheck-resgroup"],
                "enable_cgroups":true,
-               "runs_on":"ubuntu-20.04"
+               "runs_on":"self-hosted"
               },
               {"test":"ic-contrib",
                "install_target":true,
