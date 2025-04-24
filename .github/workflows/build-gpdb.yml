@@ -143,7 +143,6 @@ jobs:
                                "gpcontrib/gp_debug_numsegments:installcheck",
                                "gpcontrib/gp_error_handling:installcheck",
                                "gpcontrib/gp_inject_fault:installcheck",
-                               "gpcontrib/gp_internal_tools:installcheck",
                                "gpcontrib/gp_legacy_string_agg:installcheck",
                                "gpcontrib/gp_percentile_agg:installcheck",
                                "gpcontrib/gp_sparse_vector:installcheck",
