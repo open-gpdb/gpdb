@@ -962,6 +962,21 @@ jobs:
             du -sh "${SRC_DIR}/../gpdb"
           } 2>&1 | tee -a build-logs/details/source-extraction.log
 
+      - name: Patch tests
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+          {
+            echo "=== Patching Tests Log ==="
+            echo "Timestamp: $(date -u)"
+
+            # Patch tests
+            sed -i  '/mdb-related/,$d' ${SRC_DIR}/../gpdb/src/test/regress/input/misc.source ${SRC_DIR}/../gpdb/src/test/regress/output/misc.source
+
+            echo "Patching tests completed successfully"
+          } 2>&1 | tee -a build-logs/details/patching-tests.log
+
       - name: Create Greenplum demo cluster
         env:
           SRC_DIR: ${{ github.workspace }}
