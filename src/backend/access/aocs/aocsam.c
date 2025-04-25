@@ -28,6 +28,7 @@
 #include "catalog/namespace.h"
 #include "catalog/pg_appendonly_fn.h"
 #include "catalog/pg_attribute_encoding.h"
+#include "commands/vacuum.h"
 #include "cdb/cdbaocsam.h"
 #include "cdb/cdbappendonlyam.h"
 #include "cdb/cdbappendonlyblockdirectory.h"
@@ -50,7 +51,11 @@
 #include "utils/syscache.h"
 #include "catalog/pg_namespace.h"
 #include "utils/syscache.h"
+#include "utils/sampling.h"
 
+
+bool
+aocs_get_target_tuple(AOCSScanDesc aoscan, int64 targrow, TupleTableSlot *slot);
 
 static AOCSScanDesc aocs_beginscan_internal(Relation relation,
 						AOCSFileSegInfo **seginfo,
@@ -694,6 +699,406 @@ static void upgrade_datum_fetch(AOCSFetchDesc fetch, int attno, Datum values[],
 	upgrade_datum_impl(fetch->datumStreamFetchDesc[attno]->datumStream, attno,
 					   values, isnull, formatversion);
 }
+
+static int
+aocs_locate_target_segment(AOCSScanDesc scan, int64 targrow)
+{
+	int64 rowcount;
+
+	for (int i = scan->cur_seg; i < scan->total_seg; i++)
+	{
+		if (i < 0)
+			continue;
+
+		rowcount = scan->seginfo[i]->total_tupcount;
+		if (rowcount <= 0)
+			continue;
+
+		if (scan->segfirstrow + rowcount - 1 >= targrow)
+		{
+			/* found the target segment */
+			return i;
+		}
+
+		/* continue next segment */
+		scan->segfirstrow += rowcount;
+		scan->segrowsprocessed = 0;
+	}
+
+	/* row is beyond the total number of rows in the relation */
+	return -1;
+}
+
+/*
+ * block directory based get_target_tuple()
+ */
+static bool
+aocs_blkdirscan_get_target_tuple(AOCSScanDesc scan, int64 targrow, TupleTableSlot *slot)
+{
+	int segno, segidx;
+	int64 rownum = -1;
+	int64 rowsprocessed;
+	AOTupleId aotid;
+	int ncols = scan->aos_rel->rd_att->natts;
+	
+	AppendOnlyBlockDirectory *blkdir = &scan->aocsfetch->blockDirectory;
+	Assert(scan->blkdirscan != NULL);
+
+	/* locate the target segment */
+	segidx = aocs_locate_target_segment(scan, targrow);
+
+	if (segidx < 0)
+		return false;
+
+	/* next starting position in locating segfile */
+	scan->cur_seg = segidx;
+	segno = scan->seginfo[segidx]->segno;
+	Assert(segno > InvalidFileSegNumber && segno <= AOTupleId_MaxSegmentFileNum);
+
+	/*
+	 * Note: It is safe to assume that the scan's segfile array and the
+	 * blockdir's segfile array are identical. Otherwise, we should stop
+	 * processing and throw an exception to make the error visible.
+	 */
+	if (blkdir->segmentFileInfo[segidx]->segno != segno)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_INTERNAL_ERROR),
+				 errmsg("segfile array contents in both scan descriptor "
+				 		"and block directory are not identical on "
+						"append-optimized relation '%s'",
+						RelationGetRelationName(blkdir->aoRel))));
+	}
+
+	/*
+	 * Unlike ao_row, we set currentSegmentFileNum for ao_column here
+	 * just for passing the assertion in extract_minipage() called by
+	 * AOBlkDirScan_GetRowNum().
+	 * Since we don't invoke AppendOnlyBlockDirectory_GetCachedEntry()
+	 * for ao_column, it shoule be restored back to the original value
+	 * for AppendOnlyBlockDirectory_GetEntry() working properly.
+	 */
+	int currentSegmentFileNum = blkdir->currentSegmentFileNum;
+	blkdir->currentSegmentFileNum = blkdir->segmentFileInfo[segidx]->segno;
+
+	/* locate the target row by seqscan block directory */
+
+	for (int col = 0; col < ncols; col++)
+	{
+		/*
+		 * "segfirstrow" should be always pointing to the first row of
+		 * a new segfile, only locate_target_segment could update
+		 * its value.
+		 * 
+		 * "segrowsprocessed" is used for tracking the position of
+		 * processed rows in the current segfile.
+		 */
+
+		rowsprocessed = scan->segfirstrow + scan->segrowsprocessed;
+
+		if (scan->aos_rel->rd_att->attrs[col]->attisdropped)
+			continue;
+
+		rownum = AOBlkDirScan_GetRowNum(scan->blkdirscan,
+										segno,
+										col,
+										targrow,
+										&rowsprocessed);
+
+		elog(DEBUG2, "AOBlkDirScan_GetRowNum(segno: %d, col: %d, targrow: %ld): "
+			 "[segfirstrow: %ld, segrowsprocessed: %ld, rownum: %ld, cached_mpentry_num: %d]",
+			 segno, col, targrow, scan->segfirstrow, scan->segrowsprocessed, rownum,
+			 blkdir->cached_mpentry_num);
+
+		if (rownum < 0)
+			continue;
+
+		scan->segrowsprocessed = rowsprocessed - scan->segfirstrow;
+
+		/*
+		 * Found a column represented in the block directory.
+		 * Here we just look for the 1st such column, no need
+		 * to read other columns within the same row.
+		 */
+		break;
+	}
+
+	/* restore to the original value as above mentioned */
+	blkdir->currentSegmentFileNum = currentSegmentFileNum;
+
+	if (rownum < 0)
+		return false;
+
+	/* form the target tuple TID */
+	AOTupleIdInit(&aotid, segno, rownum);
+	ExecClearTuple(slot);
+
+	/* fetch the target tuple */
+	if(!aocs_fetch(scan->aocsfetch, &aotid, slot))
+		return false;
+
+	/* OK to return this tuple */
+
+
+	ExecStoreVirtualTuple(slot);
+	pgstat_count_heap_fetch(scan->aos_rel);
+	return true;
+}
+
+
+/*
+ * returns the segfile number in which `targrow` locates  
+ */
+static int
+aocs_getsegment(AOCSScanDesc scan, int64 targrow)
+{
+	int segno, segidx;
+
+	/* locate the target segment */
+	segidx = aocs_locate_target_segment(scan, targrow);
+
+	if (segidx < 0)
+	{
+		/* done reading all segments */
+		close_cur_scan_seg(scan);
+		scan->cur_seg = -1;
+		return -1;
+	}
+
+	segno = scan->seginfo[segidx]->segno;
+	Assert(segno > InvalidFileSegNumber && segno <= AOTupleId_MaxSegmentFileNum);
+
+	if (segidx > scan->cur_seg)
+	{
+		close_cur_scan_seg(scan);
+		/* adjust cur_seg to fit for open_next_scan_seg() */
+		scan->cur_seg = segidx - 1;
+
+		if (open_next_scan_seg(scan) >= 0)
+		{
+			/* new segment, make sure segrowsprocessed was reset */
+			Assert(scan->segrowsprocessed == 0);
+		}
+		else
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("Unexpected behavior, failed to open segno %d during scanning AOCO table %s",
+							segno, RelationGetRelationName(scan->aos_rel))));
+		}
+	}
+
+	return segno;
+}
+
+static inline int
+aocs_block_remaining_rows(DatumStreamRead *ds)
+{
+	return (ds->blockRowCount - ds->blockRowsProcessed);
+}
+
+/*
+ * fetches a single column value corresponding to `endrow` (equals to `targrow`)
+ */
+static bool
+aocs_gettuple_column(AOCSScanDesc scan, AttrNumber attno, int64 startrow, int64 endrow, bool chkvisimap, TupleTableSlot *slot)
+{
+	bool isSnapshotAny = (scan->snapshot == SnapshotAny);
+	DatumStreamRead *ds = scan->ds[attno];
+	int segno = scan->seginfo[scan->cur_seg]->segno;
+	AOTupleId aotid;
+	bool ret = true;
+	int64 rowstoprocess, nrows, rownum;
+	Datum *values;
+	bool *nulls;
+
+	if (ds->blockFirstRowNum <= 0)
+		elog(ERROR, "AOCO varblock->blockFirstRowNum should be greater than zero.");
+
+
+	Assert(segno > InvalidFileSegNumber && segno <= AOTupleId_MaxSegmentFileNum);
+	Assert(startrow <= endrow);
+
+	rowstoprocess = endrow - startrow + 1;
+	nrows = ds->blockRowsProcessed + rowstoprocess;
+	rownum = ds->blockFirstRowNum + nrows - 1;
+
+	/* form the target tuple TID */
+	AOTupleIdInit(&aotid, segno, rownum);
+
+	if (chkvisimap && !isSnapshotAny && !AppendOnlyVisimap_IsVisible(&scan->visibilityMap, &aotid))
+	{
+		if (slot != NULL)
+			ExecClearTuple(slot);
+		
+		ret = false;
+
+		/* must update tracking vars before return */
+		goto out;
+	}
+
+	/* rowNumInBlock = rowNum - blockFirstRowNum */
+	datumstreamread_find(ds, rownum - ds->blockFirstRowNum);
+
+	values = slot_get_values(slot);
+	nulls = slot_get_isnull(slot);
+	datumstreamread_get(ds, &(values[attno]), &(nulls[attno]));
+
+out:
+	/* update rows processed */
+	ds->blockRowsProcessed += rowstoprocess;
+	return ret;
+}
+
+/*
+ * fetches all columns of the target tuple corresponding to `targrow`
+ */
+static bool
+aocs_gettuple(AOCSScanDesc scan, int64 targrow, TupleTableSlot *slot)
+{
+	bool ret = true;
+	int64 rowcount = -1;
+	int64 rowstoprocess;
+	bool chkvisimap = true;
+
+	Assert(scan->cur_seg >= 0);
+	Assert(slot != NULL);
+
+	ExecClearTuple(slot);
+	rowstoprocess = targrow - scan->segfirstrow + 1;
+
+	/* read from scan->cur_seg */
+	for (AttrNumber i = 0; i < scan->num_proj_atts; i++)
+	{
+		AttrNumber attno = scan->proj_atts[i];
+		DatumStreamRead *ds = scan->ds[attno];
+		int64 startrow = scan->segfirstrow + scan->segrowsprocessed;
+
+		if (ds->blockRowCount <= 0)
+			; /* haven't read block */
+		else
+		{
+			/* block was read */
+			rowcount = aocs_block_remaining_rows(ds);
+			Assert(rowcount >= 0);
+
+			if (startrow + rowcount - 1 >= targrow)
+			{
+				if (!aocs_gettuple_column(scan, attno, startrow, targrow, chkvisimap, slot))
+				{
+					ret = false;
+					/* must update tracking vars before return */
+
+					goto out;
+				}
+
+				chkvisimap = false;
+
+				/* haven't finished scanning on current block */
+				continue;
+			}
+			else
+				startrow += rowcount; /* skip scanning remaining rows */
+		}
+
+		/*
+		 * Keep reading block headers until we find the block containing
+		 * the target row.
+		 */
+
+		while (true)
+		{
+			elog(DEBUG2, "aocs_gettuple(): [targrow: %ld, currow: %ld, diff: %ld, "
+				 "startrow: %ld, rowcount: %ld, segfirstrow: %ld, segrowsprocessed: %ld, nth: %d, "
+				 "blockRowCount: %d, blockRowsProcessed: %d]", targrow, startrow + rowcount - 1,
+				 startrow + rowcount - 1 - targrow, startrow, rowcount, scan->segfirstrow,
+				 scan->segrowsprocessed, datumstreamread_nth(ds), ds->blockRowCount,
+				 ds->blockRowsProcessed);
+
+
+			if (datumstreamread_block_info(ds))
+			{
+				rowcount = ds->blockRowCount;
+				Assert(rowcount > 0);
+
+				/* new block, reset blockRowsProcessed */
+				ds->blockRowsProcessed = 0;
+
+				if (startrow + rowcount - 1 >= targrow)
+				{
+					/* read a new buffer to consume */
+					datumstreamread_block_content(ds);
+
+					if (!aocs_gettuple_column(scan, attno, startrow, targrow, chkvisimap, slot))
+					{
+						ret = false;
+
+						/* must update tracking vars before return */
+						goto out;
+					}
+
+					chkvisimap = false;
+					/* done this column */
+					break;
+				}
+
+				startrow += rowcount;
+
+				AppendOnlyStorageRead_SkipCurrentBlock(&ds->ao_read);
+
+				/* continue next block */
+			}
+			else
+				pg_unreachable(); /* unreachable code */
+		}
+	}
+
+out:
+	/* update rows processed */
+	scan->segrowsprocessed = rowstoprocess;
+
+	if (ret)
+	{
+		ExecStoreVirtualTuple(slot);
+		pgstat_count_heap_getnext(scan->aos_rel);
+	}
+
+	return ret;
+}
+
+
+/*
+ * Given a specific target row number 'targrow' (in the space of all row numbers
+ * physically present in the table, i.e. across all segfiles), scan and return
+ * the corresponding tuple in 'slot'.
+ *
+ * If the tuple is visible, return true. Otherwise, return false.
+ */
+
+bool
+aocs_get_target_tuple(AOCSScanDesc aoscan, int64 targrow, TupleTableSlot *slot)
+{
+	if (aoscan->blkdirscan != NULL)
+		return aocs_blkdirscan_get_target_tuple(aoscan, targrow, slot);
+
+
+	if (aocs_getsegment(aoscan, targrow) < 0)
+	{
+		/* all done */
+
+		ExecClearTuple(slot);
+		return false;
+	}
+
+	/*
+	 * Unlike AO_ROW, AO_COLUMN may have different varblocks
+	 * for different columns, so we get per-column tuple directly
+	 * on the way of walking per-column varblock.
+	 */
+
+	return aocs_gettuple(aoscan, targrow, slot);
+}
+
 
 bool
 aocs_getnext(AOCSScanDesc scan, ScanDirection direction, TupleTableSlot *slot)
@@ -2211,4 +2616,84 @@ aocs_addcol_emptyvpe(Relation rel,
 								  num_newcols, true /* empty VPEntry */ );
 		}
 	}
+}
+
+
+static int
+aoco_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
+						 int targrows, double *totalrows, double *totaldeadrows)
+{
+	int		numrows = 0;	/* # rows now in reservoir */
+	double	liverows = 0;	/* # live rows seen */
+	double	deadrows = 0;	/* # dead rows seen */
+	Snapshot	appendOnlyMetaDataSnapshot;
+
+	Assert(targrows > 0);
+
+	int			natts = RelationGetNumberOfAttributes(onerel);
+	bool	   *proj = (bool *) palloc(natts * sizeof(bool));
+	int			i;
+
+	appendOnlyMetaDataSnapshot = GetTransactionSnapshot();
+
+	for(i = 0; i < natts; i++)
+		proj[i] = true;
+
+	Assert(RelationIsAoCols(onerel));
+									
+    TupleTableSlot *slot = MakeSingleTupleTableSlot(RelationGetDescr(onerel));
+	AOCSScanDesc aocoscan =  aocs_beginscan(onerel,
+									  SnapshotSelf,
+									  appendOnlyMetaDataSnapshot,
+									  RelationGetDescr(onerel), proj);
+
+	int64 totaltupcount = AOCSScanDesc_TotalTupCount(aocoscan);
+	int64 totaldeadtupcount = 0;
+	if (aocoscan->total_seg > 0 )
+		totaldeadtupcount = AppendOnlyVisimap_GetRelationHiddenTupleCount(&aocoscan->visibilityMap);
+	/*
+     * The conversion from int64 to double (53 significant bits) is safe as the
+	 * AOTupleId is 48bits, the max value of totalrows is never greater than
+	 * AOTupleId_MaxSegmentFileNum * AOTupleId_MaxRowNum (< 48 significant bits).
+	 */
+	*totalrows = (double) (totaltupcount - totaldeadtupcount);
+	*totaldeadrows = (double) totaldeadtupcount;
+
+	/* Prepare for sampling tuple numbers */
+	RowSamplerData rs;
+	RowSampler_Init(&rs, *totalrows, targrows, random());
+
+	while (RowSampler_HasMore(&rs))
+	{
+		aocoscan->targrow = RowSampler_Next(&rs);
+
+		vacuum_delay_point();
+
+		if (aocs_get_target_tuple(aocoscan, aocoscan->targrow, slot))
+		{
+			rows[numrows++] = ExecCopySlotHeapTuple(slot);
+			liverows++;
+		}
+		else
+			deadrows++;
+		
+		ExecClearTuple(slot);
+	}
+
+	ExecDropSingleTupleTableSlot(slot);
+	aocs_endscan(aocoscan);
+
+	/*
+	 * Emit some interesting relation info
+	 */
+	ereport(elevel,
+			(errmsg("\"%s\": scanned " INT64_FORMAT " rows, "
+					"containing %.0f live rows and %.0f dead rows; "
+					"%d rows in sample, %.0f accurate total live rows, "
+					"%.f accurate total dead rows",
+					RelationGetRelationName(onerel),
+					rs.m, liverows, deadrows, numrows,
+					*totalrows, *totaldeadrows)));
+
+	return numrows;
 }

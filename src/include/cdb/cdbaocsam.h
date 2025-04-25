@@ -72,6 +72,44 @@ typedef struct AOCSInsertDescData
 
 typedef AOCSInsertDescData *AOCSInsertDesc;
 
+
+/*
+ * Used for fetch individual tuples from specified by TID of append only relations
+ * using the AO Block Directory.
+ */
+typedef struct AOCSFetchDescData
+{
+	Relation		relation;
+	Snapshot		appendOnlyMetaDataSnapshot;
+
+	/*
+	 * Snapshot to use for non-metadata operations.
+	 * Usually snapshot = appendOnlyMetaDataSnapshot, but they
+	 * differ e.g. if gp_select_invisible is set.
+	 */ 
+	Snapshot    snapshot;
+
+	MemoryContext	initContext;
+
+	int				totalSegfiles;
+	struct AOCSFileSegInfo **segmentFileInfo;
+
+	char			*segmentFileName;
+	int				segmentFileNameMaxLen;
+	char            *basepath;
+
+	AppendOnlyBlockDirectory	blockDirectory;
+
+	DatumStreamFetchDesc *datumStreamFetchDesc;
+
+	int64	skipBlockCount;
+
+	AppendOnlyVisimap visibilityMap;
+
+} AOCSFetchDescData;
+
+typedef AOCSFetchDescData *AOCSFetchDesc;
+
 /*
  * used for scan of append only relations using BufferedRead and VarBlocks
  */
@@ -117,6 +155,35 @@ typedef struct AOCSScanDescData
 	int64 cur_seg_row;
 
 	/*
+	 * used by `analyze`
+	 */
+
+	/*
+	 * targrow: the output of the Row-based sampler (Alogrithm S), denotes a
+	 * rownumber in the flattened row number space that is the target of a sample,
+	 * which starts from 0.
+	 * In other words, if we have seg0 rownums: [1, 100], seg1 rownums: [1, 200]
+	 * If targrow = 150, then we are referring to seg1's rownum=51.
+	 */
+	int64			targrow;
+
+	/*
+	 * segfirstrow: pointing to the next starting row which is used to check
+	 * the distance to `targrow`
+	 */
+	int64			segfirstrow;
+
+	/*
+	 * segrowsprocessed: track the rows processed under the current segfile.
+	 * Don't miss updating it accordingly when "segfirstrow" is updated.
+	 */
+	int64			segrowsprocessed;
+
+	AOBlkDirScan	blkdirscan;
+	AOCSFetchDesc	aocsfetch;
+	bool 			*proj;
+
+	/*
 	 * The block directory info.
 	 *
 	 * For CO tables the block directory is built during the first index
@@ -130,43 +197,6 @@ typedef struct AOCSScanDescData
 }	AOCSScanDescData;
 
 typedef AOCSScanDescData *AOCSScanDesc;
-
-/*
- * Used for fetch individual tuples from specified by TID of append only relations
- * using the AO Block Directory.
- */
-typedef struct AOCSFetchDescData
-{
-	Relation		relation;
-	Snapshot		appendOnlyMetaDataSnapshot;
-
-	/*
-	 * Snapshot to use for non-metadata operations.
-	 * Usually snapshot = appendOnlyMetaDataSnapshot, but they
-	 * differ e.g. if gp_select_invisible is set.
-	 */ 
-	Snapshot    snapshot;
-
-	MemoryContext	initContext;
-
-	int				totalSegfiles;
-	struct AOCSFileSegInfo **segmentFileInfo;
-
-	char			*segmentFileName;
-	int				segmentFileNameMaxLen;
-	char            *basepath;
-
-	AppendOnlyBlockDirectory	blockDirectory;
-
-	DatumStreamFetchDesc *datumStreamFetchDesc;
-
-	int64	skipBlockCount;
-
-	AppendOnlyVisimap visibilityMap;
-
-} AOCSFetchDescData;
-
-typedef AOCSFetchDescData *AOCSFetchDesc;
 
 typedef struct AOCSUpdateDescData *AOCSUpdateDesc;
 typedef struct AOCSDeleteDescData *AOCSDeleteDesc;
@@ -271,5 +301,22 @@ extern void aocs_addcol_setfirstrownum(AOCSAddColumnDesc desc,
 
 extern int open_next_scan_seg(AOCSScanDesc scan);
 extern void close_cur_scan_seg(AOCSScanDesc scan);
+
+static inline int64
+AOCSScanDesc_TotalTupCount(AOCSScanDesc scan)
+{
+	Assert(scan != NULL);
+
+	int64 totalrows = 0;
+	AOCSFileSegInfo **seginfo = scan->seginfo;
+
+    for (int i = 0; i < scan->total_seg; i++)
+    {
+	    if (seginfo[i]->state != AOSEG_STATE_AWAITING_DROP)
+		    totalrows += seginfo[i]->total_tupcount;
+    }
+
+    return totalrows;
+}
 
 #endif   /* AOCSAM_H */
