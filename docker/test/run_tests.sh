@@ -75,7 +75,6 @@ gpconfig -c shared_preload_libraries -v yezzey
 if [ "${TEST_CGROUP}" = "true" ]; then
     gpconfig -c gp_resource_manager -v "group"
 fi
-
 gpstop -a -i && gpstart -a
 
 createdb $USER
