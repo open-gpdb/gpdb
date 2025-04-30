@@ -15,27 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup S3
-        run: |
-          docker network create -d bridge yezzey_test_network
-          docker run -p 9000:9000 \
-                      -p 9001:9001 \
-                      --name s3_gpyezzey \
-                      --network yezzey_test_network \
-                      -d -e "MINIO_ROOT_USER=some_key" \
-                      -e "MINIO_ROOT_PASSWORD=some_key" \
-                      quay.io/minio/minio server /data
-          sleep 2s
-          docker exec s3_gpyezzey mc alias set myminio http://localhost:9000 some_key some_key
-          docker exec s3_gpyezzey mc mb myminio/gpyezzey
-          docker exec s3_gpyezzey mc mb myminio/gpyezzey2
-          docker exec s3_gpyezzey mc mb myminio/gpyezzey3
-
-
-      - name: Build
-        run: docker build . --file docker/yezzey/Dockerfile --tag yezzey_test:1234 --build-arg accessKeyId=some_key --build-arg secretAccessKey=some_key --build-arg bucketName=gpyezzey --build-arg s3endpoint=http:\\/\\/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' s3_gpyezzey):9000
-
       - name: Test Yezzey
-        run: docker run --network yezzey_test_network yezzey_test:1234
+        run: docker compose -f docker/yezzey/docker-compose.yaml run --build --remove-orphans yezzey
       
       

@@ -2089,7 +2089,7 @@ SELECT make_timestamptz(2014, 12, 10, 0, 0, 0, 'Europe/Prague') AT TIME ZONE 'UT
 SELECT make_timestamptz(1846, 12, 10, 0, 0, 0, 'Asia/Manila') AT TIME ZONE 'UTC';
          timezone         
 --------------------------
- Wed Dec 09 15:56:00 1846
+ Wed Dec 09 15:56:08 1846
 (1 row)
 
 SELECT make_timestamptz(1881, 12, 10, 0, 0, 0, 'Europe/Paris') AT TIME ZONE 'UTC';

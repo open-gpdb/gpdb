@@ -1307,3 +1307,143 @@ AppendOnlyBlockDirectory_End_addCol(
 
 	MemoryContextDelete(blockDirectory->memoryContext);
 }
+
+
+
+/*
+ * AOBlkDirScan_GetRowNum
+ * 
+ * Given a target logical row number,
+ * returns the corresponding physical rowNum,
+ * or -1 if not found.
+ * 
+ * targrow: 0-based target logical row number
+ * startrow: pointer of the start point stepping to targrow
+ * targsegno: the segfile number in which targrow locates
+ * colgroupno: current coloumn group number, always 0 for ao_row
+ */
+
+int64
+AOBlkDirScan_GetRowNum(AOBlkDirScan blkdirscan,
+					   int targsegno,
+					   int colgroupno,
+					   int64 targrow,
+					   int64 *startrow)
+{
+	HeapTuple tuple;
+	TupleDesc tupdesc;
+
+
+	AppendOnlyBlockDirectory *blkdir = blkdirscan->blkdir;
+	int mpentryi;
+	MinipagePerColumnGroup *mpinfo;
+	int64 rownum = -1;
+
+	Assert(targsegno >= 0);
+	Assert(blkdir != NULL);
+
+	if (blkdirscan->segno != targsegno || blkdirscan->colgroupno != colgroupno)
+	{
+		if (blkdirscan->sysscan != NULL)
+			systable_endscan_ordered(blkdirscan->sysscan);
+
+		ScanKeyData	scankeys[2];
+
+		ScanKeyInit(&scankeys[0],
+					Anum_pg_aoblkdir_segno,
+					BTEqualStrategyNumber,
+					F_INT4EQ,
+					Int32GetDatum(targsegno));
+
+
+		ScanKeyInit(&scankeys[1],
+					Anum_pg_aoblkdir_columngroupno,
+					BTEqualStrategyNumber,
+					F_INT4EQ,
+					Int32GetDatum(colgroupno));
+
+
+		blkdirscan->sysscan = systable_beginscan_ordered(blkdir->blkdirRel,
+														 blkdir->blkdirIdx,
+														 blkdir->appendOnlyMetaDataSnapshot,
+														 2, /* nkeys */
+														 scankeys);
+
+		blkdirscan->segno = targsegno;
+
+		blkdirscan->colgroupno = colgroupno;
+		/* reset to InvalidEntryNum for new Minipage entry array */
+
+		blkdir->cached_mpentry_num = InvalidEntryNum;
+	}
+
+	mpentryi = blkdir->cached_mpentry_num;
+	mpinfo = &blkdir->minipages[colgroupno];
+
+	while (true)
+	{
+		if (mpentryi == InvalidEntryNum)
+		{
+			tuple = systable_getnext_ordered(blkdirscan->sysscan, ForwardScanDirection);
+
+			if (HeapTupleIsValid(tuple))
+			{
+				tupdesc = RelationGetDescr(blkdir->blkdirRel);
+
+				extract_minipage(blkdir, tuple, tupdesc, colgroupno);
+				/* new minipage */
+				mpentryi = 0;
+
+				mpinfo = &blkdir->minipages[colgroupno];
+			}
+			else
+			{	
+				/* done this < segno, colgroupno > */
+				systable_endscan_ordered(blkdirscan->sysscan);
+
+				blkdirscan->sysscan = NULL;
+				blkdirscan->segno = -1;
+				blkdirscan->colgroupno = 0;
+
+				/* always set both vars in pairs for safe */
+				mpentryi = InvalidEntryNum;
+				mpinfo = NULL;
+
+				goto out;
+			}
+		}
+
+		Assert(mpentryi != InvalidEntryNum);
+		Assert(mpinfo != NULL);
+
+
+		for (int i = mpentryi; i < mpinfo->numMinipageEntries; i++)
+		{
+			Minipage *mp = mpinfo->minipage;
+			MinipageEntry *entry = &(mp->entry[i]);
+
+			Assert(entry->firstRowNum > 0);
+			Assert(entry->rowCount > 0);
+
+
+			if (*startrow + entry->rowCount - 1 >= targrow)
+			{
+				rownum = entry->firstRowNum + (targrow - *startrow);
+				mpentryi = i;
+				goto out;
+			}
+
+			*startrow += entry->rowCount;
+		}
+
+		/* done this minipage */
+		mpentryi = InvalidEntryNum;
+		mpinfo = NULL;
+	}
+
+out:
+	/* set the result of minipage entry lookup */
+	blkdir->cached_mpentry_num = mpentryi;
+
+	return rownum;
+}

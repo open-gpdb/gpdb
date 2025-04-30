@@ -3895,7 +3895,7 @@ CopyStmt:	COPY opt_binary qualified_name opt_column_list opt_oids
 					n->is_from = $6;
 					n->is_program = $7;
 					n->filename = $8;
-					n->sreh = $12;
+					n->sreh = (Node *)$12;
 					n->partitions = NULL;
 					n->ao_segnos = NIL;
 
