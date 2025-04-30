@@ -2619,7 +2619,7 @@ aocs_addcol_emptyvpe(Relation rel,
 }
 
 
-static int
+int
 aoco_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
 						 int targrows, double *totalrows, double *totaldeadrows)
 {

@@ -319,4 +319,8 @@ AOCSScanDesc_TotalTupCount(AOCSScanDesc scan)
     return totalrows;
 }
 
+extern int
+aoco_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
+						 int targrows, double *totalrows, double *totaldeadrows);
+
 #endif   /* AOCSAM_H */

@@ -1631,9 +1631,11 @@ acquire_sample_rows_ao(Relation onerel, int elevel,
 	double		samplerows = 0; /* total # rows collected */
 	double		rowstoskip = -1;	/* -1 means not set yet */
 
-	if (RelationIsAoRows(onerel) && gp_use_fastanalyze) {
+	if (RelationIsAoRows(onerel) && gp_use_fastanalyze)
 		return appendonly_acquire_sample_rows(onerel, elevel, rows, targrows, totalrows, totaldeadrows);
-	}
+	
+	if (RelationIsAoCols(onerel) && gp_use_fastanalyze)
+		return aoco_acquire_sample_rows(onerel, elevel, rows, targrows, totalrows, totaldeadrows);
 
 	/*
 	 * the append-only meta data should never be fetched with
