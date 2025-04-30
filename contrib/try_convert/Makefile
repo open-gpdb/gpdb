@@ -25,8 +25,6 @@ generate-tests:
 	mkdir -p output
 	python3 scripts/generate_test.py
 
-all: generate-tests
-
 .PHONY: verify
-verify:
+verify: generate-tests
 	python3 scripts/verify.py
