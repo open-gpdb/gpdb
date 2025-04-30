@@ -300,6 +300,7 @@ extern bool gp_enable_exchange_default_partition;
 extern int  dtx_phase2_retry_count;
 extern bool gp_log_suboverflow_statement;
 extern bool gp_use_synchronize_seqscans_catalog_vacuum_full;
+extern bool gp_enable_zstd_memory_accounting;
 
 /* WAL replication debug gucs */
 extern bool debug_walrepl_snd;
