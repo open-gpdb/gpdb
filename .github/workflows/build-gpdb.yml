@@ -135,7 +135,7 @@ jobs:
                                "contrib/tablefunc:installcheck",
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
-                               "contrib/try_convert:installcheck",
+                               "contrib/try_convert:generate-tests,installcheck",
                                "contrib/unaccent:installcheck"]
               },
               {"test":"ic-gpcontrib",
@@ -1040,6 +1040,8 @@ jobs:
           for ((i=0; i<${#configs[@]}; i++)); do
             config="${configs[$i]}"
             IFS=':' read -r dir target <<< "$config"
+            # Change seporator for multiple targets
+            target=${target//,/ }
 
             echo "=== Executing configuration $((i+1))/${#configs[@]} ==="
             echo "Make command: make -C $dir $target"
