@@ -725,6 +725,9 @@ jobs:
       - name: Move gpdb-devops directory
         run: |
           set -ex pipefail
+
+          rm -rf "${GITHUB_WORKSPACE}"/../gpdb-devops
+
           if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
             echo "::error::Container initialization failed"
             exit 1
