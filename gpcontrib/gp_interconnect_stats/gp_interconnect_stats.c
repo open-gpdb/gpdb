@@ -8,7 +8,7 @@
 #include "postgres.h"
 
 #include "cdb/cdbvars.h"
-#include "cdb/ml_ipc.h"
+#include "cdb/ic_udpifc.h"
 #include "fmgr.h"
 
 PG_MODULE_MAGIC;

@@ -25,6 +25,7 @@
 #include "cdb/ml_ipc.h"
 #include "cdb/cdbvars.h"
 #include "cdb/cdbdisp.h"
+#include "cdb/ic_udpifc.h"
 
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -57,6 +58,8 @@ int			UDP_listenerFd;
 
 static interconnect_handle_t *open_interconnect_handles;
 static bool interconnect_resowner_callback_registered;
+
+ic_teardown_hook_type ic_teardown_hook = NULL;
 
 /*=========================================================================
  * FUNCTIONS PROTOTYPES
@@ -575,6 +578,9 @@ void
 TeardownInterconnect(ChunkTransportState *transportStates, bool hasErrors)
 {
 	interconnect_handle_t *h = find_interconnect_handle(transportStates);
+
+	if (ic_teardown_hook)
+		ic_teardown_hook(transportStates, hasErrors);
 
 	if (Gp_interconnect_type == INTERCONNECT_TYPE_UDPIFC)
 	{

@@ -53,6 +53,7 @@
 #include "cdb/cdbdisp.h"
 #include "cdb/cdbdispatchresult.h"
 #include "cdb/cdbicudpfaultinjection.h"
+#include "cdb/ic_udpifc.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -585,52 +586,6 @@ typedef struct AckSendParam
 	struct sockaddr_storage peer;
 	socklen_t	peer_len;
 } AckSendParam;
-
-/*
- * ICStatistics
- *
- * A structure keeping various statistics about interconnect internal.
- *
- * Note that the statistics for ic are not accurate for multiple cursor case on QD.
- *
- * totalRecvQueueSize        - receive queue size sum when main thread is trying to get a packet.
- * recvQueueSizeCountingTime - counting times when computing totalRecvQueueSize.
- * totalCapacity             - the capacity sum when packets are tried to be sent.
- * capacityCountingTime      - counting times used to compute totalCapacity.
- * totalBuffers              - total buffers available when sending packets.
- * bufferCountingTime        - counting times when compute totalBuffers.
- * activeConnectionsNum      - the number of active connections.
- * retransmits               - the number of packet retransmits.
- * mismatchNum               - the number of mismatched packets received.
- * crcErrors                 - the number of crc errors.
- * sndPktNum                 - the number of packets sent by sender.
- * recvPktNum                - the number of packets received by receiver.
- * disorderedPktNum          - disordered packet number.
- * duplicatedPktNum          - duplicate packet number.
- * recvAckNum                - the number of Acks received.
- * statusQueryMsgNum         - the number of status query messages sent.
- *
- */
-typedef struct ICStatistics
-{
-	uint64		totalRecvQueueSize;
-	uint64		recvQueueSizeCountingTime;
-	uint64		totalCapacity;
-	uint64		capacityCountingTime;
-	uint64		totalBuffers;
-	uint64		bufferCountingTime;
-	uint32		activeConnectionsNum;
-	int32		retransmits;
-	int32		startupCachedPktNum;
-	int32		mismatchNum;
-	int32		crcErrors;
-	int32		sndPktNum;
-	int32		recvPktNum;
-	int32		disorderedPktNum;
-	int32		duplicatedPktNum;
-	int32		recvAckNum;
-	int32		statusQueryMsgNum;
-} ICStatistics;
 
 /* Statistics for UDP interconnect. */
 static ICStatistics ic_statistics;
@@ -7123,6 +7078,15 @@ uint32
 getActiveMotionConns(void)
 {
 	return ic_statistics.activeConnectionsNum;
+}
+
+ICStatistics
+UDPIFCGetICStats(void)
+{
+	pthread_mutex_lock(&ic_control_info.lock);
+	ICStatistics stats = ic_statistics;
+	pthread_mutex_unlock(&ic_control_info.lock);
+	return stats;
 }
 
 Datum
