@@ -343,3 +343,5 @@ test: copy_insert_utility_mode_hierarchies
 test: free_remapper_fatal
 
 test: spilling_hashagg
+
+test: skiplocked_vacuum_analyze

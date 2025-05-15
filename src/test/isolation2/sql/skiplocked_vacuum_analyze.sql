@@ -1,0 +1,13 @@
+-- Scenario to test SKIPLOCKED usage
+
+1: create table tp(id integer) 
+DISTRIBUTED by (id)
+PARTITION by RANGE (id)
+(START (1) END (1000) EVERY (100), DEFAULT PARTITION extra);
+1: insert into tp (select generate_series(1,1000));
+1: analyze tp;
+1: insert into tp (select generate_series(1,1000));
+1: begin;
+1: lock table tp_1_prt_3;
+2: analyze SKIPLOCKED tp;
+1: rollback;
