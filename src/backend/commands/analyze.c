@@ -678,7 +678,7 @@ do_analyze_rel(Relation onerel, VacuumStmt *vacstmt,
 	}
 
 	sample_needed = needs_sample(vacattrstats, attr_cnt);
-	if (sample_needed)
+	if (sample_needed && (!(vacstmt->options&VACOPT_NOWAIT) || (rel_part_status(RelationGetRelid(onerel)) == PART_STATUS_LEAF)))
 	{
 		rows = (HeapTuple *) palloc(targrows * sizeof(HeapTuple));
 
@@ -692,7 +692,7 @@ do_analyze_rel(Relation onerel, VacuumStmt *vacstmt,
 		if (inh)
 			numrows = acquire_inherited_sample_rows(onerel, elevel,
 													rows, targrows,
-													&totalrows, &totaldeadrows);
+													&totalrows, &totaldeadrows,vacstmt->options);
 		else
 			numrows = (*acquirefunc) (onerel, elevel,
 									  rows, targrows,
@@ -1815,7 +1815,7 @@ compare_rows(const void *a, const void *b)
 int
 acquire_inherited_sample_rows(Relation onerel, int elevel,
 							  HeapTuple *rows, int targrows,
-							  double *totalrows, double *totaldeadrows)
+							  double *totalrows, double *totaldeadrows,int vacopts)
 {
 	List	   *tableOIDs;
 	Relation   *rels;
@@ -1830,8 +1830,9 @@ acquire_inherited_sample_rows(Relation onerel, int elevel,
 	 * Find all members of inheritance set.  We only need AccessShareLock on
 	 * the children.
 	 */
+	LOCKMODE lock_mode = (vacopts & VACOPT_NOWAIT) ? NoLock : AccessShareLock;
 	tableOIDs =
-		find_all_inheritors(RelationGetRelid(onerel), AccessShareLock, NULL);
+		find_all_inheritors(RelationGetRelid(onerel), lock_mode, NULL);
 
 	/*
 	 * Check that there's at least one descendant, else fail.  This could

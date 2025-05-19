@@ -230,7 +230,7 @@ extern int acquire_sample_rows(Relation onerel, int elevel,
 							   double *totalrows, double *totaldeadrows);
 extern int acquire_inherited_sample_rows(Relation onerel, int elevel,
 							  HeapTuple *rows, int targrows,
-							  double *totalrows, double *totaldeadrows);
+							  double *totalrows, double *totaldeadrows,int vacopts);
 
 /* in commands/analyzefuncs.c */
 extern Datum gp_acquire_sample_rows(PG_FUNCTION_ARGS);
