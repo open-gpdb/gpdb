@@ -1,4 +1,4 @@
--- Scenario to test SKIPLOCKED usage
+-- Scenario to test SKIP_LOCKED usage
 
 1: create table tp(id integer) DISTRIBUTED by (id) PARTITION by RANGE (id) (START (1) END (1000) EVERY (100), DEFAULT PARTITION extra);
 CREATE
@@ -12,6 +12,6 @@ INSERT 1000
 BEGIN
 1: lock table tp_1_prt_3;
 LOCK
-2: analyze SKIPLOCKED tp;
+2: analyze SKIP_LOCKED tp;
 ANALYZE
 1: rollback;

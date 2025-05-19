@@ -344,4 +344,4 @@ test: free_remapper_fatal
 
 test: spilling_hashagg
 
-test: skiplocked_vacuum_analyze
+test: skip_locked_vacuum_analyze

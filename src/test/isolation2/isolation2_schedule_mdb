@@ -1,1 +1,1 @@
-test: skiplocked_vacuum_analyze
+test: skip_locked_vacuum_analyze

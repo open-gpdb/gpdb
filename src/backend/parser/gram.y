@@ -428,7 +428,7 @@ static Node *makeIsNotDistinctFromNode(Node *expr, int position);
 %type <node>	overlay_placing substr_from substr_for
 
 %type <boolean> opt_instead
-%type <boolean> opt_unique opt_concurrently opt_verbose opt_full opt_skiplocked
+%type <boolean> opt_unique opt_concurrently opt_verbose opt_full opt_skip_locked
 %type <boolean> opt_freeze opt_default opt_ordered opt_recheck
 %type <boolean> opt_rootonly_all
 %type <boolean> opt_dxl
@@ -753,7 +753,7 @@ static Node *makeIsNotDistinctFromNode(Node *expr, int position);
 
 	YEZZEY
 
-	SKIPLOCKED
+	SKIP_LOCKED
 
 
 /*
@@ -1113,7 +1113,7 @@ static Node *makeIsNotDistinctFromNode(Node *expr, int position);
 			%nonassoc VERBOSE
 			%nonassoc UNKNOWN
 			%nonassoc ZONE
-			%nonassoc SKIPLOCKED
+			%nonassoc SKIP_LOCKED
 			
 
 
@@ -11436,7 +11436,7 @@ vacuum_option_elem:
 		;
 
 AnalyzeStmt:
-			analyze_keyword opt_verbose opt_skiplocked opt_rootonly_all
+			analyze_keyword opt_verbose opt_skip_locked opt_rootonly_all
 				{
 					VacuumStmt *n = makeNode(VacuumStmt);
 					n->options = VACOPT_ANALYZE;
@@ -11454,7 +11454,7 @@ AnalyzeStmt:
 					n->va_cols = NIL;
 					$$ = (Node *)n;
 				}
-			| analyze_keyword opt_verbose opt_skiplocked qualified_name opt_name_list
+			| analyze_keyword opt_verbose opt_skip_locked qualified_name opt_name_list
 				{
 					VacuumStmt *n = makeNode(VacuumStmt);
 					n->options = VACOPT_ANALYZE;
@@ -11470,7 +11470,7 @@ AnalyzeStmt:
 					n->va_cols = $5;
 					$$ = (Node *)n;
 				}
-			| analyze_keyword opt_verbose opt_skiplocked FULLSCAN qualified_name opt_name_list
+			| analyze_keyword opt_verbose opt_skip_locked FULLSCAN qualified_name opt_name_list
 				{
 					VacuumStmt *n = makeNode(VacuumStmt);
 					n->options = VACOPT_ANALYZE;
@@ -11484,7 +11484,7 @@ AnalyzeStmt:
 					n->va_cols = $6;
 					$$ = (Node *)n;
 				}
-			| analyze_keyword opt_verbose opt_skiplocked ROOTPARTITION qualified_name opt_name_list
+			| analyze_keyword opt_verbose opt_skip_locked ROOTPARTITION qualified_name opt_name_list
 				{
 					VacuumStmt *n = makeNode(VacuumStmt);
 					n->options = VACOPT_ANALYZE;
@@ -11523,7 +11523,7 @@ opt_freeze: FREEZE									{ $$ = TRUE; }
 			| /*EMPTY*/								{ $$ = FALSE; }
 		;
 
-opt_skiplocked: SKIPLOCKED						{ $$ = TRUE; }
+opt_skip_locked: SKIP_LOCKED						{ $$ = TRUE; }
 			| /*EMPTY*/								{ $$ = FALSE; }
 		;
 opt_name_list:
