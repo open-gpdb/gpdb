@@ -668,7 +668,7 @@ jobs:
       - name: Upload install logs
         uses: actions/upload-artifact@v4
         with:
-          name: install-logs-${{ needs.build.outputs.build_timestamp }}
+          name: install-logs-${{ matrix.name }}-${{ needs.build.outputs.build_timestamp }}
           path: |
             install-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
