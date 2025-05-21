@@ -28,6 +28,9 @@ ANALYZE
 1: rollback;
 ROLLBACK
 
+1: analyze SKIP_LOCKED ROOTPARTITION tp;
+ERROR:  ROOTPARTITION option cannot be used together with SKIP_LOCKED
+
 1:drop table tp;
 DROP
 1:drop table tp1;

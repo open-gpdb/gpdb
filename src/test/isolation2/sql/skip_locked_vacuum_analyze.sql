@@ -22,5 +22,7 @@ PARTITION by RANGE (id)
 2: analyze SKIP_LOCKED tp;
 1: rollback;
 
+1: analyze SKIP_LOCKED ROOTPARTITION tp;
+
 1:drop table tp;
 1:drop table tp1;
