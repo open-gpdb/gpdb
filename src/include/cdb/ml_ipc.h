@@ -307,16 +307,12 @@ extern ChunkTransportStateEntry *removeChunkTransportState(ChunkTransportState *
 extern TupleChunkListItem RecvTupleChunk(MotionConn *conn, ChunkTransportState *transportStates);
 
 extern Size InterconnectShmemSize(void);
-extern Size InterconnectShmemSizeUDPIFC(void);
 extern void InterconnectShmemInit(void);
-extern void InterconnectShmemInitUDPIFC(void);
-extern Datum GpInterconnectGetStatsUDPIFC(PG_FUNCTION_ARGS);
 extern void InitMotionTCP(int *listenerSocketFd, uint16 *listenerPort);
 extern void InitMotionUDPIFC(int *listenerSocketFd, uint16 *listenerPort);
 extern void markUDPConnInactiveIFC(MotionConn *conn);
 extern void CleanupMotionTCP(void);
 extern void CleanupMotionUDPIFC(void);
-extern void WaitInterconnectQuitUDPIFC(void);
 extern void SetupTCPInterconnect(EState *estate);
 extern void SetupUDPIFCInterconnect(EState *estate);
 extern void TeardownTCPInterconnect(ChunkTransportState *transportStates,
@@ -327,5 +323,9 @@ extern void TeardownUDPIFCInterconnect(ChunkTransportState *transportStates,
 extern uint32 getActiveMotionConns(void);
 
 extern char *format_sockaddr(struct sockaddr_storage *sa, char *buf, size_t len);
+
+#define IC_TEARDOWN_HOOK
+typedef void (*ic_teardown_hook_type)(ChunkTransportState *, bool);
+extern PGDLLIMPORT ic_teardown_hook_type ic_teardown_hook;
 
 #endif   /* ML_IPC_H */

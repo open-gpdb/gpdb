@@ -80,6 +80,9 @@ typedef struct MinipagePerColumnGroup
 #define NUM_MINIPAGE_ENTRIES (((MaxHeapTupleSize)/8 - sizeof(HeapTupleHeaderData) - 64 * 3)\
 							  / sizeof(MinipageEntry))
 
+
+#define InvalidEntryNum (-1)
+
 /*
  * Define a structure for the append-only relation block directory.
  */
@@ -119,8 +122,28 @@ typedef struct AppendOnlyBlockDirectory
 	ScanKey scanKeys;
 	StrategyNumber *strategyNumbers;
 
+	/*
+	 * Minipage entry number, for caching purpose.
+	 *
+	 * XXX: scenarios which call AppendOnlyBlockDirectory_GetEntry()
+	 * may need to consider using this cache.
+	 */
+
+	int cached_mpentry_num;
+
 }	AppendOnlyBlockDirectory;
 
+/*
+ * Tracks block directory scan state for block-directory based ANALYZE.
+ */
+
+typedef struct AOBlkDirScanData
+{
+	AppendOnlyBlockDirectory	*blkdir;
+	SysScanDesc					sysscan;
+	int							segno;
+	int							colgroupno;
+} AOBlkDirScanData, *AOBlkDirScan;
 
 typedef struct CurrentBlock
 {
@@ -150,6 +173,12 @@ typedef struct CurrentSegmentFile
 	int64 logicalEof;
 } CurrentSegmentFile;
 
+extern int64 AOBlkDirScan_GetRowNum(
+	AOBlkDirScan					blkdirscan,
+	int								targsegno,
+	int								colgroupno,
+	int64							targrow,
+	int64							*startrow);
 extern void AppendOnlyBlockDirectoryEntry_GetBeginRange(
 	AppendOnlyBlockDirectoryEntry	*directoryEntry,
 	int64							*fileOffset,
@@ -223,4 +252,42 @@ extern void AppendOnlyBlockDirectory_DeleteSegmentFile(
 		Snapshot snapshot,
 		int segno,
 		int columnGroupNo);
+
+extern void AppendOnlyBlockDirectory_End_forSearch_InSequence(
+	AOBlkDirScan seqscan);
+
+
+static inline void
+AOBlkDirScan_Init(AOBlkDirScan blkdirscan,
+				  AppendOnlyBlockDirectory *blkdir)
+{
+	blkdirscan->blkdir = blkdir;
+	blkdirscan->sysscan = NULL;
+	blkdirscan->segno = -1;
+	blkdirscan->colgroupno = 0;
+}
+
+/* should be called before fetch_finish() */
+static inline void
+AOBlkDirScan_Finish(AOBlkDirScan blkdirscan)
+{
+	/*
+	 * Make sure blkdir hasn't been destroyed by fetch_finish(),
+	 * or systable_endscan_ordered() will be crashed for sysscan
+	 * is holding blkdir relation which is freed.
+	 */
+
+	Assert(blkdirscan->blkdir != NULL);
+
+
+	if (blkdirscan->sysscan != NULL)
+	{
+		systable_endscan_ordered(blkdirscan->sysscan);
+		blkdirscan->sysscan = NULL;
+	}
+	blkdirscan->segno = -1;
+	blkdirscan->colgroupno = 0;
+	blkdirscan->blkdir = NULL;
+}
+
 #endif

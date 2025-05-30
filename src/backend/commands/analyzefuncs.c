@@ -211,7 +211,7 @@ gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 			num_sample_rows =
 				acquire_inherited_sample_rows(onerel, DEBUG1,
 											  sample_rows, targrows,
-											  &totalrows, &totaldeadrows);
+											  &totalrows, &totaldeadrows,0);
 		}
 		else
 		{

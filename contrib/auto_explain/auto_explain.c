@@ -30,6 +30,7 @@ static bool auto_explain_log_verbose = false;
 static bool auto_explain_log_buffers = false;
 static bool auto_explain_log_triggers = false;
 static bool auto_explain_log_timing = true;
+static bool auto_explain_log_query_text = false;
 static int	auto_explain_log_format = EXPLAIN_FORMAT_TEXT;
 static bool auto_explain_log_nested_statements = false;
 
@@ -179,6 +180,17 @@ _PG_init(void)
 							 NULL,
 							 NULL,
 							 NULL);
+
+	DefineCustomBoolVariable("auto_explain.log_query_text",
+							"Collect query text.",
+							NULL,
+							&auto_explain_log_query_text,
+							false,
+							PGC_SUSET,
+							0,
+							NULL,
+							NULL,
+							NULL);
 
 	EmitWarningsOnPlaceholders("auto_explain");
 
@@ -342,7 +354,9 @@ explain_ExecutorEnd(QueryDesc *queryDesc)
 			es.format = auto_explain_log_format;
 
 			ExplainBeginOutput(&es);
-			ExplainQueryText(&es, queryDesc);
+			if (auto_explain_log_query_text) {
+				ExplainQueryText(&es, queryDesc);
+			}
 			ExplainPrintPlan(&es, queryDesc);
 			if (es.analyze && auto_explain_log_triggers)
 				ExplainPrintTriggers(&es, queryDesc);

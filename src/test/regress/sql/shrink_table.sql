@@ -1,7 +1,6 @@
 drop schema if exists test_shrink_table cascade;
 create schema test_shrink_table;
 set search_path=test_shrink_table,public;
-set default_table_access_method='heap';
 set allow_system_table_mods=true;
 
 -- Hash distributed tables

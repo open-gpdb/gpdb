@@ -187,6 +187,14 @@ vacuum(VacuumStmt *vacstmt, Oid relid, bool do_toast,
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
 				 errmsg("ROOTPARTITION option cannot be used together with VACUUM, try ANALYZE ROOTPARTITION")));
+
+	if ((vacstmt->options & VACOPT_ROOTONLY) &&
+	    (vacstmt->options & VACOPT_NOWAIT))
+		ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("ROOTPARTITION option cannot be used together with SKIP_LOCKED")));
+	
+	
 	static bool in_vacuum = false;
 
 	/* sanity checks on options */

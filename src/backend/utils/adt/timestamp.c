@@ -72,7 +72,6 @@ static TimeOffset time2t(const int hour, const int min, const int sec, const fse
 static Timestamp dt2local(Timestamp dt, int timezone);
 static bool AdjustTimestampForTypmodSafe(Timestamp *time, int32 typmod, Node *escontext);
 static bool AdjustIntervalForTypmodSafe(Interval *interval, int32 typmod, Node *escontext);
-static TimestampTz timestamp2timestamptz(Timestamp timestamp);
 static bool timestamp2timestamptz_safe(Timestamp timestamp, Timestamp *result, Node *escontext);
 static inline bool timestamp_offset_internal_safe(Timestamp timestamp,
 						Interval *span, Timestamp *result, Node* escontext);
@@ -92,14 +91,6 @@ static const Interval	IntervalZero = {0, 0, 0};
 /* common code for timestamptypmodin and timestamptztypmodin */
 static bool
 anytimestamp_typmodin_safe(bool istz, ArrayType *ta, int32 *result, Node *escontext);
-
-static int32
-anytimestamp_typmodin(bool istz, ArrayType *ta)
-{
-	int32 result;
-	(void) anytimestamp_typmodin_safe(istz, ta, &result, NULL);
-	return result;
-}
 
 static bool
 anytimestamp_typmodin_safe(bool istz, ArrayType *ta, int32 *result, Node *escontext)
@@ -346,15 +337,6 @@ static bool
 timestamp_interval_bound_common_safe(Timestamp val, Interval *width,
 								int32 shift, Timestamp reg, Timestamp *result, Node *escontext);
 
-static Timestamp
-timestamp_interval_bound_common(Timestamp val, Interval *width,
-								int32 shift, Timestamp reg)
-{
-	Timestamp result;
-	(void) timestamp_interval_bound_common_safe(val, width, shift, reg, &result, NULL);
-	return result;
-}
-
 static bool
 timestamp_interval_bound_common_safe(Timestamp val, Interval *width,
 								int32 shift, Timestamp reg, Timestamp *result, Node *escontext)
@@ -540,15 +522,6 @@ timestamp_interval_bound_shift_reg(PG_FUNCTION_ARGS)
 static bool
 timestamptz_interval_bound_common_safe(TimestampTz val, Interval *width,
 								  int32 shift, TimestampTz reg, TimestampTz *result, Node *escontext);
-
-static TimestampTz
-timestamptz_interval_bound_common(TimestampTz val, Interval *width,
-								  int32 shift, TimestampTz reg)
-{
-	TimestampTz result;
-	(void) timestamptz_interval_bound_common_safe(val, width, shift, reg, &result, NULL);
-	return result;
-}
 
 static bool
 timestamptz_interval_bound_common_safe(TimestampTz val, Interval *width,
@@ -755,12 +728,6 @@ timestamp_scale(PG_FUNCTION_ARGS)
 	PG_RETURN_TIMESTAMP(result);
 }
 
-static void
-AdjustTimestampForTypmod(Timestamp *time, int32 typmod)
-{
-	(void) AdjustTimestampForTypmodSafe(time, typmod, NULL);
-}
-
 static bool
 AdjustTimestampForTypmodSafe(Timestamp *time, int32 typmod, Node *escontext)
 {
@@ -912,14 +879,6 @@ timestamptz_in(PG_FUNCTION_ARGS)
 static bool
 parse_sane_timezone_safe(struct pg_tm * tm, text *zone, int *result, Node *escontext);
 
-static int
-parse_sane_timezone(struct pg_tm * tm, text *zone)
-{
-	int result;
-	(void) parse_sane_timezone_safe(tm, zone, &result, NULL);
-	return result;
-}
-
 static bool
 parse_sane_timezone_safe(struct pg_tm * tm, text *zone, int *result, Node *escontext)
 {
@@ -1008,15 +967,6 @@ parse_sane_timezone_safe(struct pg_tm * tm, text *zone, int *result, Node *escon
 static bool
 make_timestamp_internal_safe(int year, int month, int day,
 						int hour, int min, double sec, Timestamp *res, Node *escontext);
-
-static Timestamp
-make_timestamp_internal(int year, int month, int day,
-						int hour, int min, double sec)
-{
-	Timestamp result;
-	(void) make_timestamp_internal_safe(year, month, day, hour, min, sec, &result, NULL);
-	return result;
-}
 
 static bool
 make_timestamp_internal_safe(int year, int month, int day,
@@ -1763,11 +1713,6 @@ interval_scale(PG_FUNCTION_ARGS)
  *	Adjust interval for specified precision, in both YEAR to SECOND
  *	range and sub-second precision.
  */
-static void
-AdjustIntervalForTypmod(Interval *interval, int32 typmod)
-{
-	(void) AdjustIntervalForTypmodSafe(interval, typmod, NULL);
-}
 
 static bool
 AdjustIntervalForTypmodSafe(Interval *interval, int32 typmod, Node* escontext)
@@ -4680,7 +4625,6 @@ timestamp_li_value(float8 f, Timestamp y0, Timestamp y1)
 bool
 timestamp_li_value_safe(float8 f, Timestamp y0, Timestamp y1, Timestamp *result, Node *escontext)
 {
-	Timestamp y;
 	Interval diffy;
 	Interval *offset;
 	
@@ -6008,14 +5952,6 @@ timestamp_timestamptz(PG_FUNCTION_ARGS)
 
 static bool
 timestamp2timestamptz_safe(Timestamp timestamp, TimestampTz *res, Node *escontext);
-
-static TimestampTz
-timestamp2timestamptz(Timestamp timestamp)
-{
-	TimestampTz result;
-	(void) timestamp2timestamptz_safe(timestamp, &result, NULL);
-	return result;
-}
 
 static bool
 timestamp2timestamptz_safe(Timestamp timestamp, TimestampTz *res, Node *escontext)

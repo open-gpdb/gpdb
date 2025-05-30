@@ -2,7 +2,6 @@ drop schema if exists test_shrink_table cascade;
 NOTICE:  schema "test_shrink_table" does not exist, skipping
 create schema test_shrink_table;
 set search_path=test_shrink_table,public;
-set default_table_access_method='heap';
 set allow_system_table_mods=true;
 -- Hash distributed tables
 Create table t1(a int, b int, c int) distributed by (a);
@@ -146,8 +145,6 @@ drop table t1;
 Create table t1(a int, b int, c int) distributed by (a) partition by list(b) (partition t1_1 values(1), partition t1_2 values(2), default partition other);
 insert into t1 select i,i,0 from generate_series(1,100) I;
 Select gp_segment_id, count(*) from t1 group by gp_segment_id;
-NOTICE:  One or more columns in the following table(s) do not have statistics: t1
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
  gp_segment_id | count 
 ---------------+-------
              0 |    38
@@ -166,8 +163,6 @@ Select gp_segment_id, count(*) from t1 group by gp_segment_id;
 
 abort;
 Select gp_segment_id, count(*) from t1 group by gp_segment_id;
-NOTICE:  One or more columns in the following table(s) do not have statistics: t1
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
  gp_segment_id | count 
 ---------------+-------
              0 |    38
@@ -478,10 +473,8 @@ CREATE TRIGGER foo_ar_trigger AFTER INSERT OR UPDATE OR DELETE ON table_with_upd
 FOR EACH ROW EXECUTE PROCEDURE trigger_func('before_stmt');
 CREATE TRIGGER foo_bs_trigger BEFORE INSERT OR UPDATE OR DELETE ON table_with_update_trigger 
 FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('before_stmt');
-ERROR:  Triggers for statements are not yet supported
 CREATE TRIGGER foo_as_trigger AFTER INSERT OR UPDATE OR DELETE ON table_with_update_trigger 
 FOR EACH STATEMENT EXECUTE PROCEDURE trigger_func('before_stmt');
-ERROR:  Triggers for statements are not yet supported
 -- update should fail
 update table_with_update_trigger set a = a + 1;
 ERROR:  UPDATE on distributed key column not allowed on relation with update triggers
@@ -716,8 +709,8 @@ select gp_segment_id, * from part_t1_1_prt_other_b_2_prt_2_3_prt_others_d;
 
 alter table part_t1_1_prt_other_b_2_prt_2_3_prt_others_d shrink table to 2;
 ERROR:  cannot shrink leaf or interior partition "part_t1_1_prt_other_b_2_prt_2_3_prt_others_d"
-DETAIL:  Root/leaf/interior partitions need to have same numsegments
-HINT:  Call ALTER TABLE SHRINK TABLE on the root table instead
+DETAIL:  root/leaf/interior partitions need to have same numsegments
+HINT:  use "ALTER TABLE part_t1 SHRINK TABLE" instead
 select gp_segment_id, * from part_t1_1_prt_other_b_2_prt_2_3_prt_others_d;
  gp_segment_id | a  | b | c | d | e 
 ---------------+----+---+---+---+---

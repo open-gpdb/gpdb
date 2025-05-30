@@ -234,6 +234,7 @@ DefineType(List *names, List *parameters)
 	if (!OidIsValid(typoid))
 	{
 		address = TypeShellMake(typeName, typeNamespace, GetUserId());
+		typoid = address.objectId;
 		/* Make new shell type visible for modification below */
 		CommandCounterIncrement();
 
