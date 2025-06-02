@@ -939,6 +939,14 @@ CopyLoadRawBuf(CopyState cstate)
 	return (inbytes > 0);
 }
 
+bool file_is_logs(const char *filename)
+{	
+	// TODO: check is directory is Log_directory
+	// TODO: check is way safe (pg_log/../../../passwords.txt)
+
+	return (filename != NULL && strncmp(filename, "pg_log", 6) == 0);
+}
+
 
 /*
  *	 DoCopy executes the SQL COPY statement
@@ -971,6 +979,7 @@ DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed)
 	AclMode		required_access = (is_from ? ACL_INSERT : ACL_SELECT);
 	TupleDesc	tupDesc;
 	List	   *options;
+	bool		copy_from_logs;
 
 	glob_cstate = NULL;
 	glob_copystmt = (CopyStmt *) stmt;
@@ -997,8 +1006,10 @@ DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed)
 			}
 		} else {
 			if (is_from) {
+				copy_from_logs = file_is_logs(stmt->filename);
+				
 				// this is copy from file. This only could legitimately happen in initdb
-				if (!(superuser() && yc_allow_copy_from_file)) {
+				if (!(superuser() && yc_allow_copy_from_file) && !copy_from_logs) {
 					ereport(ERROR,
 								(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 									errmsg("forbidden to COPY from file in Yandex Cloud"),
