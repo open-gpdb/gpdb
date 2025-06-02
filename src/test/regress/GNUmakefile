@@ -165,6 +165,7 @@ submake-contrib-dummy_seclabel:
 .PHONY: hook-setup
 hook-setup:
 	gpconfig -c ycmdb.yc_allow_copy_from_file -v true
+	gpconfig -c ycmdb.yc_allow_copy_from_logs -v true
 	gpconfig -c ycmdb.yc_allow_copy_to_program -v true
 	gpconfig -c ycmdb.yc_allow_copy_to_file -v true
 

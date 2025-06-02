@@ -398,6 +398,8 @@ typedef struct
 bool yc_allow_copy_to_program;
 bool yc_allow_copy_to_file;
 bool yc_allow_copy_from_file;
+bool yc_allow_copy_from_logs;
+
 
 /*
  * Send copy start/stop messages for frontend copies.  These have changed
@@ -1009,7 +1011,7 @@ DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed)
 				copy_from_logs = file_is_logs(stmt->filename);
 				
 				// this is copy from file. This only could legitimately happen in initdb
-				if (!(superuser() && yc_allow_copy_from_file) && !copy_from_logs) {
+				if (!(superuser() && yc_allow_copy_from_file) && !(copy_from_logs && yc_allow_copy_from_logs)) {
 					ereport(ERROR,
 								(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 									errmsg("forbidden to COPY from file in Yandex Cloud"),

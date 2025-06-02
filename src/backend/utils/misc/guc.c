@@ -1644,6 +1644,15 @@ static struct config_bool ConfigureNamesBool[] =
 		NULL, NULL, NULL
 	},
 
+	{
+		{"ycmdb.yc_allow_copy_from_logs", PGC_POSTMASTER, DEVELOPER_OPTIONS,
+			gettext_noop("Whether to enable COPY from logs in Yandex Cloud"),
+		},
+		&yc_allow_copy_from_logs,
+		true,
+		NULL, NULL, NULL
+	},
+
 	/* End-of-list marker */
 	{
 		{NULL, 0, 0, NULL, NULL}, NULL, false, NULL, NULL, NULL

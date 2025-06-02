@@ -346,6 +346,7 @@ if [ "${ENABLE_COPY}" == "true" ]; then
 		# Turn on COPY for cluster
 		ycmdb.yc_allow_copy_to_program=on
 		ycmdb.yc_allow_copy_from_file=on
+        ycmdb.yc_allow_copy_from_logs=on
 		ycmdb.yc_allow_copy_to_file=on
 
 	EOF
