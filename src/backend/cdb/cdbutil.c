@@ -93,7 +93,6 @@ static CdbComponentDatabases *getCdbComponentInfo(void);
 static void cleanupComponentIdleQEs(CdbComponentDatabaseInfo *cdi, bool includeWriter);
 
 static int	CdbComponentDatabaseInfoCompare(const void *p1, const void *p2);
-static int	CdbComponentDatabaseInfoComparem(const void *p1, const void *p2);
 
 static GpSegConfigEntry * readGpSegConfigFromCatalog(int *total_dbs);
 static GpSegConfigEntry * readGpSegConfigFromFTSFiles(int *total_dbs);
@@ -382,7 +381,7 @@ getCdbComponentInfo(void)
 		(CdbComponentDatabaseInfo *) palloc0(sizeof(CdbComponentDatabaseInfo) * total_dbs);
 
 	component_databases->entry_db_info =
-		(CdbComponentDatabaseInfo *) palloc0(sizeof(CdbComponentDatabaseInfo) * 2);
+		(CdbComponentDatabaseInfo *) palloc0(sizeof(CdbComponentDatabaseInfo) * 3);
 
 	for (i = 0; i < total_dbs; i++)
 	{
@@ -486,26 +485,14 @@ getCdbComponentInfo(void)
 	/*
 	 * Now sort the data by segindex, isprimary desc
 	 */
-	if (gp_dispatch_on_mirrors)
-	{
-		qsort(component_databases->segment_db_info,
-			component_databases->total_segment_dbs, sizeof(CdbComponentDatabaseInfo),
-			CdbComponentDatabaseInfoComparem);
 
-		qsort(component_databases->entry_db_info,
-			component_databases->total_entry_dbs, sizeof(CdbComponentDatabaseInfo),
-			CdbComponentDatabaseInfoComparem);
-	}
-	else 
-	{
-		qsort(component_databases->segment_db_info,
-			component_databases->total_segment_dbs, sizeof(CdbComponentDatabaseInfo),
-			CdbComponentDatabaseInfoCompare);
+	qsort(component_databases->segment_db_info,
+		component_databases->total_segment_dbs, sizeof(CdbComponentDatabaseInfo),
+		CdbComponentDatabaseInfoCompare);
 
-		qsort(component_databases->entry_db_info,
-			component_databases->total_entry_dbs, sizeof(CdbComponentDatabaseInfo),
-			CdbComponentDatabaseInfoCompare);
-	}
+	qsort(component_databases->entry_db_info,
+		component_databases->total_entry_dbs, sizeof(CdbComponentDatabaseInfo),
+		CdbComponentDatabaseInfoCompare);
 	/*
 	 * Now count the number of distinct segindexes. Since it's sorted, this is
 	 * easy.
@@ -1084,14 +1071,17 @@ cdbcomponent_getComponentInfo(int contentId)
 	/* with mirror, segment_db_info is sorted by content id */
 	if (cdbs->total_segment_dbs != cdbs->total_segments)
 	{
-		Assert(cdbs->total_segment_dbs == cdbs->total_segments * 2);
+		Assert(cdbs->total_segment_dbs >= cdbs->total_segments * 2);
 		cdbInfo = &cdbs->segment_db_info[2 * contentId];
 
 		if (gp_dispatch_on_mirrors)
 		{
-			if (!SEGMENT_IS_ACTIVE_MIRROR(cdbInfo))
-			{
-				cdbInfo = &cdbs->segment_db_info[2 * contentId + 1];
+			for (int i = 0; i < cdbs->total_segment_dbs; ++ i) {
+				if (SEGMENT_IS_AUX_MIRROR(&cdbs->segment_db_info[i]) 
+				&& cdbs->segment_db_info[i].config->segindex == contentId) 
+				{
+					cdbInfo = &cdbs->segment_db_info[i];
+				}
 			}
 		}
 		else 
@@ -1264,45 +1254,34 @@ CdbComponentDatabaseInfoCompare(const void *p1, const void *p2)
 	const CdbComponentDatabaseInfo *obj1 = (CdbComponentDatabaseInfo *) p1;
 	const CdbComponentDatabaseInfo *obj2 = (CdbComponentDatabaseInfo *) p2;
 
-	int			cmp = obj1->config->segindex - obj2->config->segindex;
+	int			cmp;
 
-	if (cmp == 0)
+	if (SEGMENT_IS_AUX_MIRROR(obj1) && SEGMENT_IS_AUX_MIRROR(obj2))
 	{
-		int			obj2cmp = 0;
-		int			obj1cmp = 0;
-
-		if (SEGMENT_IS_ACTIVE_PRIMARY(obj2))
-			obj2cmp = 1;
-
-		if (SEGMENT_IS_ACTIVE_PRIMARY(obj1))
-			obj1cmp = 1;
-
-		cmp = obj2cmp - obj1cmp;
+		cmp = obj1->config->segindex - obj2->config->segindex;
+	} 
+	else if (SEGMENT_IS_AUX_MIRROR(obj1)) 
+	{
+		cmp = 1;
 	}
-
-	return cmp;
-}
-
-static int
-CdbComponentDatabaseInfoComparem(const void *p1, const void *p2)
-{
-	const CdbComponentDatabaseInfo *obj1 = (CdbComponentDatabaseInfo *) p1;
-	const CdbComponentDatabaseInfo *obj2 = (CdbComponentDatabaseInfo *) p2;
-
-	int			cmp = obj1->config->segindex - obj2->config->segindex;
-
-	if (cmp == 0)
+	else if (SEGMENT_IS_AUX_MIRROR(obj2)) 
 	{
-		int			obj2cmp = 0;
-		int			obj1cmp = 0;
+		cmp = -1;
+	} else {
+		cmp = obj1->config->segindex - obj2->config->segindex;
 
-		if (SEGMENT_IS_ACTIVE_MIRROR(obj2))
-			obj2cmp = 1;
+		if (cmp == 0)
+		{
+			int			obj2cmp = 0;
+			int			obj1cmp = 0;
+			if (SEGMENT_IS_ACTIVE_PRIMARY(obj2))
+				obj2cmp = 1;
 
-		if (SEGMENT_IS_ACTIVE_MIRROR(obj1))
-			obj1cmp = 1;
+			if (SEGMENT_IS_ACTIVE_PRIMARY(obj1))
+				obj1cmp = 1;
 
-		cmp = obj2cmp - obj1cmp;
+			cmp = obj2cmp - obj1cmp;
+		}
 	}
 
 	return cmp;

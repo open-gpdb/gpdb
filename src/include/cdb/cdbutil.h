@@ -75,6 +75,8 @@ struct CdbComponentDatabaseInfo
 
 #define SEGMENT_IS_ACTIVE_MIRROR(p) \
 	((p)->config->role == GP_SEGMENT_CONFIGURATION_ROLE_MIRROR ? true : false)
+#define SEGMENT_IS_AUX_MIRROR(p) \
+	((p)->config->role == GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR ? true : false)
 #define SEGMENT_IS_ACTIVE_PRIMARY(p) \
 	((p)->config->role == GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ? true : false)
 
