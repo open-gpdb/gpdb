@@ -442,7 +442,7 @@ getCdbComponentInfo(void)
 
 		if (gp_dispatch_on_mirrors)
 		{
-			if (config->role != GP_SEGMENT_CONFIGURATION_ROLE_MIRROR ||
+			if (config->role != GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR||
 				(gp_count_host_segments_using_address &&
 				(config->hostip == NULL || strlen(config->hostip) == 0)))
 				continue;
@@ -494,11 +494,14 @@ getCdbComponentInfo(void)
 		component_databases->total_entry_dbs, sizeof(CdbComponentDatabaseInfo),
 		CdbComponentDatabaseInfoCompare);
 	/*
-	 * Now count the number of distinct segindexes. Since it's sorted, this is
-	 * easy.
+	 * Now count the number of distinct segindexes. Since it's sorted up until aux mirrors,
+	 * this is easy.
 	 */
 	for (i = 0; i < component_databases->total_segment_dbs; i++)
 	{
+		if (component_databases->segment_db_info[i].config->role == GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR) {
+			break;
+		}
 		if (i == 0 ||
 			(component_databases->segment_db_info[i].config->segindex != component_databases->segment_db_info[i - 1].config->segindex))
 		{
@@ -571,7 +574,7 @@ getCdbComponentInfo(void)
 
 		if (gp_dispatch_on_mirrors)
 		{
-			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_MIRROR ||
+			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR ||
 				(gp_count_host_segments_using_address &&
 				(cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
 				continue;
@@ -598,7 +601,7 @@ getCdbComponentInfo(void)
 
 		if (gp_dispatch_on_mirrors)
 		{
-			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_MIRROR ||
+			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR ||
 				(gp_count_host_segments_using_address &&
 				(cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
 				continue;
