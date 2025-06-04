@@ -20,7 +20,7 @@ CREATE TABLE nonfirst_distkey_table (id int4, t text) DISTRIBUTED BY (t);
 INSERT INTO nonfirst_distkey_table SELECT g, g::text FROM generate_series(1, 100) g;
 -- Check that AO Tables throw error when checked
 SELECT gp_heap_distribution_check('appendonly_table');
-ERROR:  input relation is not a heap table (gp_distribution_policy.c:180)  (seg0 slice1 127.0.1.1:25432 pid=10683) (gp_distribution_policy.c:180)
+ERROR:  input relation is not a heap table (gp_distribution_policy.c:65)  (seg0 slice1 127.0.1.1:25432 pid=10683) (gp_distribution_policy.c:65)
 CONTEXT:  SQL function "gp_heap_distribution_check" statement 1
 -- Check partitioned table returns something
 SELECT gp_heap_distribution_check('some_table');
@@ -42,7 +42,7 @@ SELECT gp_heap_distribution_check('nonfirst_distkey_table');
 
 -- Check that a table with the wrong distribution correctly displays a false
 CREATE TABLE some_other_table(id int, some_other_data int) distributed by (id);
-CREATE FUNCTION gp_execute_on_server(content smallint, query cstring) returns boolean
+CREATE OR REPLACE FUNCTION gp_execute_on_server(content int, query text) returns text
 language C as '@abs_builddir@/../../src/test/regress/regress.so', 'gp_execute_on_server';
 INSERT INTO some_other_table select i, i from generate_series(1,12)i;
 -- Ensure that the distribution is correct on all segments.
@@ -60,17 +60,17 @@ select gp_execute_on_server(content, 'update some_other_table set id = 0') from
  gp_segment_configuration where role = 'p' and content >= 0;
  gp_execute_on_server 
 ----------------------
- t
- t
- t
+ 
+ 
+ 
 (3 rows)
 
 -- Expect only one segment to have correct distribution.
 SELECT gp_heap_distribution_check('some_other_table');
  gp_heap_distribution_check 
 ----------------------------
- (0,t)
- (1,f)
+ (0,f)
+ (1,t)
  (2,f)
 (3 rows)
 
