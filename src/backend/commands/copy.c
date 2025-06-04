@@ -941,12 +941,45 @@ CopyLoadRawBuf(CopyState cstate)
 	return (inbytes > 0);
 }
 
-bool file_is_logs(const char *filename)
+bool file_is_logs(const char *filepath)
 {	
-	// TODO: check is directory is Log_directory
-	// TODO: check is way safe (pg_log/../../../passwords.txt)
+	char* filename;
+	/// TODO: get log_directory from gloabl GUC Log_directory
+	char* log_dir = "pg_log";
+	char* abs_log_path;
+	bool is_logs = false;
 
-	return (filename != NULL && strncmp(filename, "pg_log", 6) == 0);
+	if (filepath == NULL || DataDir == NULL)
+		return false;
+
+	filename = strdup(filepath);
+
+	canonicalize_path(filename);
+
+	if (path_contains_parent_reference(filename)) {
+		free(filename);
+		return false;
+	}
+
+	if (is_absolute_path(filename)) {
+		if (is_absolute_path(log_dir)) {
+			abs_log_path = strdup(log_dir);
+		} else {
+			abs_log_path = malloc(strlen(DataDir) + strlen(log_dir) + 2);
+			join_path_components(abs_log_path, DataDir, log_dir);
+		}
+
+		is_logs = path_is_prefix_of_path(abs_log_path, filename);
+		free(abs_log_path);
+	} else if (path_is_relative_and_below_cwd(filename)) {
+		is_logs = path_is_prefix_of_path(log_dir, filename);
+	} else {
+		is_logs = false;
+	}
+
+	free(filename);
+
+	return is_logs;
 }
 
 
@@ -1011,7 +1044,7 @@ DoCopy(const CopyStmt *stmt, const char *queryString, uint64 *processed)
 				copy_from_logs = file_is_logs(stmt->filename);
 				
 				// this is copy from file. This only could legitimately happen in initdb
-				if (!(superuser() && yc_allow_copy_from_file) && !(copy_from_logs && yc_allow_copy_from_logs)) {
+				if (!(superuser() && (yc_allow_copy_from_file || (copy_from_logs && yc_allow_copy_from_logs)))) {
 					ereport(ERROR,
 								(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
 									errmsg("forbidden to COPY from file in Yandex Cloud"),
