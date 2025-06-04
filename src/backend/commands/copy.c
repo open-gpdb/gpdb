@@ -964,12 +964,12 @@ bool file_is_logs(const char *filepath)
 		if (is_absolute_path(Log_directory)) {
 			abs_log_path = strdup(Log_directory);
 		} else {
-			abs_log_path = malloc(strlen(DataDir) + strlen(Log_directory) + 2);
+			abs_log_path = palloc(strlen(DataDir) + strlen(Log_directory) + 2);
 			join_path_components(abs_log_path, DataDir, Log_directory);
 		}
 
 		is_logs = path_is_prefix_of_path(abs_log_path, filename);
-		free(abs_log_path);
+		pfree(abs_log_path);
 	} else if (path_is_relative_and_below_cwd(filename)) {
 		is_logs = path_is_prefix_of_path(Log_directory, filename);
 	} else {
