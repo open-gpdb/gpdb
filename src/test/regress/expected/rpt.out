@@ -1325,10 +1325,11 @@ select j, (select 5) AS "Uncorrelated Field" from t;
 --
 set optimizer = off;
 drop table if exists t;
-create table t (i int) distributed replicated;
-create table t1 (a int) distributed by (a);
-create table t2 (a int, b float) distributed replicated;
-create or replace function f(i int) returns int language sql security definer as $$ select i; $$;
+create table t (i bigint) distributed replicated;
+create table t1 (a bigint) distributed by (a);
+create table t2 (a bigint, b float) distributed replicated;
+create or replace function f(i bigint) returns bigint language sql security definer as $$ select i; $$;
+create sequence seq increment by 1 minvalue 1 maxvalue 2 start 2 no cycle;
 -- ensure we make gather motion when volatile functions in subplan
 explain (costs off, verbose) select (select f(i) from t);
                              QUERY PLAN                             
@@ -1485,10 +1486,25 @@ explain (costs off, verbose) select * from t1 where 1 <= ALL (select i from t gr
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (20 rows)
 
+-- ensure we make redistribute motion above scan
+explain (costs off, verbose) insert into t1 (select nextval('seq') from t);
+                             QUERY PLAN                             
+--------------------------------------------------------------------
+ Insert on rpt.t1
+   ->  Redistribute Motion 1:3  (slice1; segments: 1)
+         Output: (nextval('seq'::regclass))
+         Hash Key: (nextval('seq'::regclass))
+         ->  Seq Scan on rpt.t
+               Output: nextval('seq'::regclass)
+ Optimizer: Postgres query optimizer
+ Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
+(8 rows)
+
 drop table if exists t;
 drop table if exists t1;
 drop table if exists t2;
-drop function if exists f(i int);
+drop function if exists f(i bigint);
+drop sequence if exists seq;
 reset optimizer;
 -- start_ignore
 drop schema rpt cascade;
