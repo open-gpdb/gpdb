@@ -530,6 +530,8 @@ select j, (select 5) AS "Uncorrelated Field" from t;
 --
 -- Check sub-selects with distributed replicated tables and volatile functions
 --
+set optimizer = off;
+drop table if exists t;
 create table t (i int) distributed replicated;
 create table t1 (a int) distributed by (a);
 create table t2 (a int, b float) distributed replicated;
@@ -551,6 +553,7 @@ drop table if exists t;
 drop table if exists t1;
 drop table if exists t2;
 drop function if exists f(i int);
+reset optimizer;
 
 -- start_ignore
 drop schema rpt cascade;
