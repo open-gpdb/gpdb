@@ -42,6 +42,7 @@
 #include "optimizer/clauses.h"
 #include "optimizer/planner.h"
 #include "parser/parse_relation.h"
+#include "postmaster/syslogger.h"
 #include "rewrite/rewriteHandler.h"
 #include "storage/fd.h"
 #include "tcop/tcopprot.h"
@@ -944,8 +945,6 @@ CopyLoadRawBuf(CopyState cstate)
 bool file_is_logs(const char *filepath)
 {	
 	char* filename;
-	/// TODO: get log_directory from gloabl GUC Log_directory
-	char* log_dir = "pg_log";
 	char* abs_log_path;
 	bool is_logs = false;
 
@@ -962,17 +961,17 @@ bool file_is_logs(const char *filepath)
 	}
 
 	if (is_absolute_path(filename)) {
-		if (is_absolute_path(log_dir)) {
-			abs_log_path = strdup(log_dir);
+		if (is_absolute_path(Log_directory)) {
+			abs_log_path = strdup(Log_directory);
 		} else {
-			abs_log_path = malloc(strlen(DataDir) + strlen(log_dir) + 2);
-			join_path_components(abs_log_path, DataDir, log_dir);
+			abs_log_path = malloc(strlen(DataDir) + strlen(Log_directory) + 2);
+			join_path_components(abs_log_path, DataDir, Log_directory);
 		}
 
 		is_logs = path_is_prefix_of_path(abs_log_path, filename);
 		free(abs_log_path);
 	} else if (path_is_relative_and_below_cwd(filename)) {
-		is_logs = path_is_prefix_of_path(log_dir, filename);
+		is_logs = path_is_prefix_of_path(Log_directory, filename);
 	} else {
 		is_logs = false;
 	}
