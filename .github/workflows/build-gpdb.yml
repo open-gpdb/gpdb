@@ -131,6 +131,7 @@ jobs:
                                "contrib/intarray:installcheck",
                                "contrib/isn:installcheck",
                                "contrib/ltree:installcheck",
+                               "contrib/passwordcheck:installcheck",
                                "contrib/pg_trgm:installcheck",
                                "contrib/pgcrypto:installcheck",
                                "contrib/pgstattuple:installcheck",

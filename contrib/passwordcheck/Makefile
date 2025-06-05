@@ -3,6 +3,8 @@
 MODULE_big = passwordcheck
 OBJS = passwordcheck.o
 
+REGRESS = passwordcheck
+
 # uncomment the following two lines to enable cracklib support
 # PG_CPPFLAGS = -DUSE_CRACKLIB '-DCRACKLIB_DICTPATH="/usr/lib/cracklib_dict"'
 # SHLIB_LINK = -lcrack
