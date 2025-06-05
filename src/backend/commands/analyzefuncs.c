@@ -363,16 +363,6 @@ gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 	return gp_acquire_sample_rows_int(fcinfo,relOid,targrows,inherited,0);
 }
 
-Datum
-gp_acquire_sample_rows_vac(PG_FUNCTION_ARGS)
-{
-	
-	Oid			relOid = PG_GETARG_OID(0);
-	int32		targrows = PG_GETARG_INT32(1);
-	bool		inherited = PG_GETARG_BOOL(2);
-	int32		vacopts = PG_GETARG_INT32(3);
-	return gp_acquire_sample_rows_int(fcinfo,relOid,targrows,inherited,vacopts);
-}
 
 /*
  * Companion to gp_acquire_sample_rows().

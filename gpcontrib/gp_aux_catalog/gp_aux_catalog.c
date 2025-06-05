@@ -15,7 +15,7 @@
 #include "catalog/pg_amproc.h"
 #include "catalog/pg_amop.h"
 #include "access/htup_details.h"
-#include "commands/vacuum.h"
+#include "../backend/commands/analyzefuncs.c"
 PG_MODULE_MAGIC;
 void _PG_init(void);
 
@@ -153,4 +153,15 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 	relation_close(pgamoprel, RowExclusiveLock);
 
     PG_RETURN_VOID();
+}
+
+Datum
+gp_acquire_sample_rows_vac(PG_FUNCTION_ARGS)
+{
+	
+	Oid			relOid = PG_GETARG_OID(0);
+	int32		targrows = PG_GETARG_INT32(1);
+	bool		inherited = PG_GETARG_BOOL(2);
+	int32		vacopts = PG_GETARG_INT32(3);
+	return gp_acquire_sample_rows_int(fcinfo,relOid,targrows,inherited,vacopts);
 }
