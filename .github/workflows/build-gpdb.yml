@@ -122,6 +122,7 @@ jobs:
                                "contrib/dict_int:installcheck",
                                "contrib/dict_xsyn:installcheck",
                                "contrib/extprotocol:installcheck",
+                               "contrib/file_fdw:installcheck",
                                "contrib/formatter_fixedwidth:installcheck",
                                "contrib/hstore:installcheck",
                                "contrib/indexscan:installcheck",
