@@ -531,30 +531,29 @@ select j, (select 5) AS "Uncorrelated Field" from t;
 -- Check sub-selects with distributed replicated tables and volatile functions
 --
 set optimizer = off;
-drop table if exists t;
-create table t (i bigint) distributed replicated;
-create table t1 (a bigint) distributed by (a);
-create table t2 (a bigint, b float) distributed replicated;
+create table repl_tbl_1 (i bigint) distributed replicated;
+create table dist_tbl (a bigint) distributed by (a);
+create table repl_tbl_2 (a bigint, b float) distributed replicated;
 create or replace function f(i bigint) returns bigint language sql security definer as $$ select i; $$;
 create sequence seq increment by 1 minvalue 1 maxvalue 2 start 2 no cycle;
 -- ensure we make gather motion when volatile functions in subplan
-explain (costs off, verbose) select (select f(i) from t);
-explain (costs off, verbose) select (select f(i) from t group by f(i));
-explain (costs off, verbose) select (select i from t group by i having f(i) > 0);
+explain (costs off, verbose) select (select f(i) from repl_tbl_1);
+explain (costs off, verbose) select (select f(i) from repl_tbl_1 group by f(i));
+explain (costs off, verbose) select (select i from repl_tbl_1 group by i having f(i) > 0);
 -- ensure we do not make broadcast motion
-explain (costs off, verbose) select * from t1 where a in (select random() from t where i=a group by i);
-explain (costs off, verbose) select * from t1 where a in (select random() from t where i=a);
+explain (costs off, verbose) select * from dist_tbl where a in (select random() from repl_tbl_1 where i=a group by i);
+explain (costs off, verbose) select * from dist_tbl where a in (select random() from repl_tbl_1 where i=a);
 -- ensure we make broadcast motion when volatile function in deleting motion flow
-explain (costs off, verbose) insert into t2 (a, b) select i, random() from t;
+explain (costs off, verbose) insert into repl_tbl_2 (a, b) select i, random() from repl_tbl_1;
 -- ensure we make broadcast motion when volatile function in correlated subplan qual
-explain (costs off, verbose) select * from t1 where a in (select f(i) from t where i=a and f(i) > 0);
+explain (costs off, verbose) select * from dist_tbl where a in (select f(i) from repl_tbl_1 where i=a and f(i) > 0);
 -- ensure we do not break broadcast motion
-explain (costs off, verbose) select * from t1 where 1 <= ALL (select i from t group by i having random() > 0);
+explain (costs off, verbose) select * from dist_tbl where 1 <= ALL (select i from repl_tbl_1 group by i having random() > 0);
 -- ensure we make redistribute motion above scan
-explain (costs off, verbose) insert into t1 (select nextval('seq') from t);
-drop table if exists t;
-drop table if exists t1;
-drop table if exists t2;
+explain (costs off, verbose) insert into dist_tbl (select nextval('seq') from repl_tbl_1);
+drop table if exists repl_tbl_1;
+drop table if exists dist_tbl;
+drop table if exists repl_tbl_2;
 drop function if exists f(i bigint);
 drop sequence if exists seq;
 reset optimizer;

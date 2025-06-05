@@ -1324,14 +1324,13 @@ select j, (select 5) AS "Uncorrelated Field" from t;
 -- Check sub-selects with distributed replicated tables and volatile functions
 --
 set optimizer = off;
-drop table if exists t;
-create table t (i bigint) distributed replicated;
-create table t1 (a bigint) distributed by (a);
-create table t2 (a bigint, b float) distributed replicated;
+create table repl_tbl_1 (i bigint) distributed replicated;
+create table dist_tbl (a bigint) distributed by (a);
+create table repl_tbl_2 (a bigint, b float) distributed replicated;
 create or replace function f(i bigint) returns bigint language sql security definer as $$ select i; $$;
 create sequence seq increment by 1 minvalue 1 maxvalue 2 start 2 no cycle;
 -- ensure we make gather motion when volatile functions in subplan
-explain (costs off, verbose) select (select f(i) from t);
+explain (costs off, verbose) select (select f(i) from repl_tbl_1);
                              QUERY PLAN                             
 --------------------------------------------------------------------
  Result
@@ -1339,13 +1338,13 @@ explain (costs off, verbose) select (select f(i) from t);
    InitPlan 1 (returns $0)  (slice2)
      ->  Gather Motion 1:1  (slice1; segments: 1)
            Output: (f(i))
-           ->  Seq Scan on rpt.t
+           ->  Seq Scan on rpt.repl_tbl_1
                  Output: f(i)
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (9 rows)
 
-explain (costs off, verbose) select (select f(i) from t group by f(i));
+explain (costs off, verbose) select (select f(i) from repl_tbl_1 group by f(i));
                              QUERY PLAN                             
 --------------------------------------------------------------------
  Result
@@ -1355,14 +1354,14 @@ explain (costs off, verbose) select (select f(i) from t group by f(i));
            Output: (f(i))
            ->  HashAggregate
                  Output: (f(i))
-                 Group Key: f(t.i)
-                 ->  Seq Scan on rpt.t
+                 Group Key: f(repl_tbl_1.i)
+                 ->  Seq Scan on rpt.repl_tbl_1
                        Output: i, f(i)
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (12 rows)
 
-explain (costs off, verbose) select (select i from t group by i having f(i) > 0);
+explain (costs off, verbose) select (select i from repl_tbl_1 group by i having f(i) > 0);
                              QUERY PLAN                             
 --------------------------------------------------------------------
  Result
@@ -1372,143 +1371,143 @@ explain (costs off, verbose) select (select i from t group by i having f(i) > 0)
            Output: i
            ->  HashAggregate
                  Output: i
-                 Group Key: t.i
-                 Filter: (f(t.i) > 0)
-                 ->  Seq Scan on rpt.t
+                 Group Key: repl_tbl_1.i
+                 Filter: (f(repl_tbl_1.i) > 0)
+                 ->  Seq Scan on rpt.repl_tbl_1
                        Output: i
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (13 rows)
 
 -- ensure we do not make broadcast motion
-explain (costs off, verbose) select * from t1 where a in (select random() from t where i=a group by i);
+explain (costs off, verbose) select * from dist_tbl where a in (select random() from repl_tbl_1 where i=a group by i);
                              QUERY PLAN                             
 --------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
-   Output: t1.a
-   ->  Seq Scan on rpt.t1
-         Output: t1.a
+   Output: dist_tbl.a
+   ->  Seq Scan on rpt.dist_tbl
+         Output: dist_tbl.a
          Filter: (SubPlan 1)
          SubPlan 1  (slice1; segments: 1)
            ->  Result
-                 Output: random(), t.i
-                 Filter: (t.i = t1.a)
+                 Output: random(), repl_tbl_1.i
+                 Filter: (repl_tbl_1.i = dist_tbl.a)
                  ->  Materialize
-                       Output: t.i, t.i
-                       ->  Seq Scan on rpt.t
-                             Output: t.i, t.i
+                       Output: repl_tbl_1.i, repl_tbl_1.i
+                       ->  Seq Scan on rpt.repl_tbl_1
+                             Output: repl_tbl_1.i, repl_tbl_1.i
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (15 rows)
 
-explain (costs off, verbose) select * from t1 where a in (select random() from t where i=a);
+explain (costs off, verbose) select * from dist_tbl where a in (select random() from repl_tbl_1 where i=a);
                              QUERY PLAN                             
 --------------------------------------------------------------------
  Gather Motion 3:1  (slice1; segments: 3)
-   Output: t1.a
-   ->  Seq Scan on rpt.t1
-         Output: t1.a
+   Output: dist_tbl.a
+   ->  Seq Scan on rpt.dist_tbl
+         Output: dist_tbl.a
          Filter: (SubPlan 1)
          SubPlan 1  (slice1; segments: 1)
            ->  Result
                  Output: random()
-                 Filter: (t.i = t1.a)
+                 Filter: (repl_tbl_1.i = dist_tbl.a)
                  ->  Materialize
-                       Output: t.i
-                       ->  Seq Scan on rpt.t
-                             Output: t.i
+                       Output: repl_tbl_1.i
+                       ->  Seq Scan on rpt.repl_tbl_1
+                             Output: repl_tbl_1.i
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (15 rows)
 
 -- ensure we make broadcast motion when volatile function in deleting motion flow
-explain (costs off, verbose) insert into t2 (a, b) select i, random() from t;
+explain (costs off, verbose) insert into repl_tbl_2 (a, b) select i, random() from repl_tbl_1;
                              QUERY PLAN                             
 --------------------------------------------------------------------
- Insert on rpt.t2
+ Insert on rpt.repl_tbl_2
    ->  Broadcast Motion 1:3  (slice1; segments: 1)
-         Output: t.i, (random())
-         ->  Seq Scan on rpt.t
-               Output: t.i, random()
+         Output: repl_tbl_1.i, (random())
+         ->  Seq Scan on rpt.repl_tbl_1
+               Output: repl_tbl_1.i, random()
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (7 rows)
 
 -- ensure we make broadcast motion when volatile function in correlated subplan qual
-explain (costs off, verbose) select * from t1 where a in (select f(i) from t where i=a and f(i) > 0);
+explain (costs off, verbose) select * from dist_tbl where a in (select f(i) from repl_tbl_1 where i=a and f(i) > 0);
                                  QUERY PLAN                                  
 -----------------------------------------------------------------------------
  Gather Motion 3:1  (slice2; segments: 3)
-   Output: t1.a
-   ->  Seq Scan on rpt.t1
-         Output: t1.a
+   Output: dist_tbl.a
+   ->  Seq Scan on rpt.dist_tbl
+         Output: dist_tbl.a
          Filter: (SubPlan 1)
          SubPlan 1  (slice2; segments: 3)
            ->  Result
-                 Output: f(t.i)
+                 Output: f(repl_tbl_1.i)
                  ->  Result
-                       Output: t.i
-                       Filter: (t.i = t1.a)
+                       Output: repl_tbl_1.i
+                       Filter: (repl_tbl_1.i = dist_tbl.a)
                        ->  Materialize
-                             Output: t.i, t.i
+                             Output: repl_tbl_1.i, repl_tbl_1.i
                              ->  Broadcast Motion 1:3  (slice1; segments: 1)
-                                   Output: t.i, t.i
-                                   ->  Seq Scan on rpt.t
-                                         Output: t.i, t.i
-                                         Filter: (f(t.i) > 0)
+                                   Output: repl_tbl_1.i, repl_tbl_1.i
+                                   ->  Seq Scan on rpt.repl_tbl_1
+                                         Output: repl_tbl_1.i, repl_tbl_1.i
+                                         Filter: (f(repl_tbl_1.i) > 0)
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (20 rows)
 
 -- ensure we do not break broadcast motion
-explain (costs off, verbose) select * from t1 where 1 <= ALL (select i from t group by i having random() > 0);
+explain (costs off, verbose) select * from dist_tbl where 1 <= ALL (select i from repl_tbl_1 group by i having random() > 0);
                                QUERY PLAN                               
 ------------------------------------------------------------------------
  Gather Motion 3:1  (slice2; segments: 3)
-   Output: t1.a
+   Output: dist_tbl.a
    ->  Result
-         Output: t1.a
+         Output: dist_tbl.a
          One-Time Filter: (SubPlan 1)
-         ->  Seq Scan on rpt.t1
-               Output: t1.a
+         ->  Seq Scan on rpt.dist_tbl
+               Output: dist_tbl.a
          SubPlan 1  (slice2; segments: 3)
            ->  Materialize
-                 Output: t.i
+                 Output: repl_tbl_1.i
                  ->  Broadcast Motion 1:3  (slice1; segments: 1)
-                       Output: t.i
+                       Output: repl_tbl_1.i
                        ->  HashAggregate
-                             Output: t.i
-                             Group Key: t.i
+                             Output: repl_tbl_1.i
+                             Group Key: repl_tbl_1.i
                              Filter: (random() > '0'::double precision)
-                             ->  Seq Scan on rpt.t
-                                   Output: t.i
+                             ->  Seq Scan on rpt.repl_tbl_1
+                                   Output: repl_tbl_1.i
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (20 rows)
 
 -- ensure we make redistribute motion above scan
-explain (costs off, verbose) insert into t1 (select nextval('seq') from t);
+explain (costs off, verbose) insert into dist_tbl (select nextval('seq') from repl_tbl_1);
                              QUERY PLAN                             
 --------------------------------------------------------------------
- Insert on rpt.t1
+ Insert on rpt.dist_tbl
    ->  Redistribute Motion 1:3  (slice1; segments: 1)
          Output: (nextval('seq'::regclass))
          Hash Key: (nextval('seq'::regclass))
-         ->  Seq Scan on rpt.t
+         ->  Seq Scan on rpt.repl_tbl_1
                Output: nextval('seq'::regclass)
  Optimizer: Postgres query optimizer
  Settings: enable_bitmapscan=off, enable_seqscan=off, optimizer=off
 (8 rows)
 
-drop table if exists t;
-drop table if exists t1;
-drop table if exists t2;
+drop table if exists repl_tbl_1;
+drop table if exists dist_tbl;
+drop table if exists repl_tbl_2;
 drop function if exists f(i bigint);
 drop sequence if exists seq;
 reset optimizer;
 -- start_ignore
 drop schema rpt cascade;
-NOTICE:  drop cascades to 18 other objects
+NOTICE:  drop cascades to 19 other objects
 DETAIL:  drop cascades to table foo
 drop cascades to table bar
 drop cascades to view v_foo
@@ -1527,4 +1526,5 @@ drop cascades to table t2_13532
 drop cascades to table dist_tab
 drop cascades to table rep_tab
 drop cascades to table rand_tab
+drop cascades to table t
 -- end_ignore
