@@ -63,7 +63,7 @@ endif
 
 abs_srcdir := $(shell cd "$(srcdir)" && pwd)
 
-installcheck: all
+installcheck:
 	$(top_builddir)/src/test/regress/pg_regress --init-file=init_file --dbname=mapred_regression --inputdir=$(srcdir) --top-builddir=$(top_builddir) mapred
 
 install: all installdirs
