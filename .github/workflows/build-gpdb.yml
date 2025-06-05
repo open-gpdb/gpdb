@@ -139,7 +139,8 @@ jobs:
                                "contrib/test_shm_mq:installcheck",
                                "contrib/try_convert:generate-tests,installcheck",
                                "contrib/tsearch2:installcheck",
-                               "contrib/unaccent:installcheck"]
+                               "contrib/unaccent:installcheck",
+                               "contrib/xml2:installcheck"]
               },
               {"test":"ic-gpcontrib",
                "make_configs":["gpcontrib/gp_array_agg:installcheck",
