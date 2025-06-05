@@ -1,15 +1,27 @@
 
 #include "postgres.h"
 
+#include "catalog/indexing.h"
 #include "utils/builtins.h"
-
+#include "utils/fmgroids.h"
+#include "access/heapam.h"
+#include "catalog/pg_proc.h"
+#include "catalog/pg_namespace.h"
+#include "catalog/pg_authid.h"
+#include "catalog/pg_opclass.h"
+#include "catalog/pg_opfamily.h"
+#include "catalog/pg_language.h"
+#include "catalog/pg_type.h"
+#include "catalog/pg_amproc.h"
+#include "catalog/pg_amop.h"
+#include "access/htup_details.h"
 PG_MODULE_MAGIC;
 void _PG_init(void);
 
 PG_FUNCTION_INFO_V1(pg_event_trigger_ddl_commands);
 PG_FUNCTION_INFO_V1(pg_event_trigger_table_rewrite_oid);
 PG_FUNCTION_INFO_V1(pg_event_trigger_table_rewrite_reason);
-
+PG_FUNCTION_INFO_V1(gpdb_binary_upgrade_catalog_1_0_to_1_1);
 Datum
 pg_event_trigger_ddl_commands(PG_FUNCTION_ARGS)
 {
@@ -26,4 +38,116 @@ Datum
 pg_event_trigger_table_rewrite_reason(PG_FUNCTION_ARGS)
 {
     return pg_event_trigger_table_rewrite_reason_internal(fcinfo);
+}
+
+static void
+gpdb_binary_upgrade_insert_pro_tup(
+	Relation rel,
+	Oid oid,
+	TupleDesc tupDesc,
+	const char * proname,
+	Oid prorettype,
+	uint16 nargs,
+	oidvector	*parameterTypes)
+{
+    bool		nulls[Natts_pg_proc];
+	Datum		values[Natts_pg_proc];
+    HeapTuple tuple;
+
+	memset(values, 0, sizeof(values));
+	memset(nulls, false, sizeof(nulls));
+
+    values[Anum_pg_proc_proname - 1] = NameGetDatum(proname);
+	values[Anum_pg_proc_pronamespace - 1] = ObjectIdGetDatum(PG_CATALOG_NAMESPACE);
+	values[Anum_pg_proc_proowner - 1] = ObjectIdGetDatum(BOOTSTRAP_SUPERUSERID);
+	values[Anum_pg_proc_prolang - 1] = ObjectIdGetDatum(INTERNALlanguageId);
+	values[Anum_pg_proc_procost - 1] = Float4GetDatum(1);
+	values[Anum_pg_proc_prorows - 1] = Float4GetDatum(0);
+	values[Anum_pg_proc_provariadic - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_proc_protransform - 1] = ObjectIdGetDatum(InvalidOid);
+	values[Anum_pg_proc_proisagg - 1] = BoolGetDatum(false);
+	values[Anum_pg_proc_proiswindow - 1] = BoolGetDatum(false);
+	values[Anum_pg_proc_prosecdef - 1] = BoolGetDatum(false);
+	values[Anum_pg_proc_proleakproof - 1] = BoolGetDatum(false);
+	values[Anum_pg_proc_proisstrict - 1] = BoolGetDatum(true);
+	values[Anum_pg_proc_proretset - 1] = BoolGetDatum(false);
+	values[Anum_pg_proc_provolatile - 1] = CharGetDatum(PROVOLATILE_VOLATILE);
+	values[Anum_pg_proc_pronargs - 1] = UInt16GetDatum(nargs);
+	values[Anum_pg_proc_pronargdefaults - 1] = UInt16GetDatum(0);
+	values[Anum_pg_proc_prorettype - 1] = ObjectIdGetDatum(prorettype);
+	values[Anum_pg_proc_proargtypes - 1] = PointerGetDatum(parameterTypes);
+	nulls[Anum_pg_proc_proallargtypes - 1] = true;
+	nulls[Anum_pg_proc_proargmodes - 1] = true;
+	nulls[Anum_pg_proc_proargnames - 1] = true;
+	nulls[Anum_pg_proc_proargdefaults - 1] = true;
+	values[Anum_pg_proc_prosrc - 1] = CStringGetTextDatum(proname);
+	nulls[Anum_pg_proc_probin - 1] = true;
+	nulls[Anum_pg_proc_proconfig - 1] = true;
+	nulls[Anum_pg_proc_proacl - 1] = true;
+	/* proacl will be determined later */
+	values[Anum_pg_proc_prodataaccess - 1] = CharGetDatum(PRODATAACCESS_NONE);
+	values[Anum_pg_proc_proexeclocation - 1] = CharGetDatum(PROEXECLOCATION_ANY);
+
+	tuple = heap_form_tuple(tupDesc, values, nulls);
+
+	if (tupDesc->tdhasoid)
+		HeapTupleSetOid(tuple, oid);
+	else
+		elog(ERROR, "failed to upgrade");
+
+	simple_heap_insert(rel, tuple);
+
+	CatalogUpdateIndexes(rel, tuple);
+	heap_freetuple(tuple);
+}
+
+
+
+
+
+Datum
+gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
+{
+    Relation pgprocrel;
+    Relation pgamrel;
+	Relation pgopcrel;
+	Relation pgopfrel;
+	Relation pgamprocrel;
+	Relation pgamoprel;
+
+    TupleDesc tupDesc;
+
+	pgprocrel = relation_open(ProcedureRelationId, RowExclusiveLock);
+	pgamrel = relation_open(AccessMethodRelationId, RowExclusiveLock);
+	pgopcrel = relation_open(OperatorClassRelationId, RowExclusiveLock);
+	pgopfrel = relation_open(OperatorFamilyRelationId, RowExclusiveLock);
+	pgamprocrel = relation_open(AccessMethodProcedureRelationId, RowExclusiveLock);
+	pgamoprel = relation_open(AccessMethodOperatorRelationId, RowExclusiveLock);
+
+	tupDesc = RelationGetDescr(pgprocrel);
+    {
+#define F_GP_ASR 7214
+#define F_GP_NARGS 4
+		Oid			procArgTypes[F_GP_NARGS];
+		oidvector	*parameterTypes;
+
+		char proname[NAMEDATALEN] = "gp_acquire_sample_rows_vac";
+
+		for (int i = 0; i  < F_GP_NARGS; ++i) 
+			procArgTypes[i] = INTERNALOID;
+
+		parameterTypes = buildoidvector(procArgTypes, F_GP_NARGS);
+		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_GP_ASR, tupDesc, proname, INTERNALOID, F_GP_NARGS, parameterTypes);
+	}
+//DATA(insert OID = 6038 ( gp_acquire_sample_rows  PGNSP PGUID 12 1 1000 0 0 f f f f t t v 3 0 2249 "26 23 16" _null_ _null_ _null_ _null_ gp_acquire_sample_rows _null_ _null_ _null_ n s ));
+//DESCR("Collect a random sample of rows from table");
+
+	relation_close(pgopcrel, RowExclusiveLock);
+	relation_close(pgopfrel, RowExclusiveLock);
+    relation_close(pgprocrel, RowExclusiveLock);
+    relation_close(pgamrel, RowExclusiveLock);
+	relation_close(pgamprocrel, RowExclusiveLock);
+	relation_close(pgamoprel, RowExclusiveLock);
+
+    PG_RETURN_VOID();
 }
