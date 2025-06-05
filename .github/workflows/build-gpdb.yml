@@ -1423,7 +1423,7 @@ jobs:
   ## ======================================================================
 
   upload_debian:
-    if: startsWith(github.ref_name , 'refs/tags/')
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     name: Upload Debian Package
     needs: [build, deb-install-test]
