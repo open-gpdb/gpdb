@@ -15,6 +15,7 @@
 #include "catalog/pg_amproc.h"
 #include "catalog/pg_amop.h"
 #include "access/htup_details.h"
+#include "commands/vacuum.h"
 PG_MODULE_MAGIC;
 void _PG_init(void);
 
@@ -62,7 +63,7 @@ gpdb_binary_upgrade_insert_pro_tup(
 	values[Anum_pg_proc_proowner - 1] = ObjectIdGetDatum(BOOTSTRAP_SUPERUSERID);
 	values[Anum_pg_proc_prolang - 1] = ObjectIdGetDatum(INTERNALlanguageId);
 	values[Anum_pg_proc_procost - 1] = Float4GetDatum(1);
-	values[Anum_pg_proc_prorows - 1] = Float4GetDatum(0);
+	values[Anum_pg_proc_prorows - 1] = Float4GetDatum(1000);
 	values[Anum_pg_proc_provariadic - 1] = ObjectIdGetDatum(InvalidOid);
 	values[Anum_pg_proc_protransform - 1] = ObjectIdGetDatum(InvalidOid);
 	values[Anum_pg_proc_proisagg - 1] = BoolGetDatum(false);
@@ -70,7 +71,7 @@ gpdb_binary_upgrade_insert_pro_tup(
 	values[Anum_pg_proc_prosecdef - 1] = BoolGetDatum(false);
 	values[Anum_pg_proc_proleakproof - 1] = BoolGetDatum(false);
 	values[Anum_pg_proc_proisstrict - 1] = BoolGetDatum(true);
-	values[Anum_pg_proc_proretset - 1] = BoolGetDatum(false);
+	values[Anum_pg_proc_proretset - 1] = BoolGetDatum(true);
 	values[Anum_pg_proc_provolatile - 1] = CharGetDatum(PROVOLATILE_VOLATILE);
 	values[Anum_pg_proc_pronargs - 1] = UInt16GetDatum(nargs);
 	values[Anum_pg_proc_pronargdefaults - 1] = UInt16GetDatum(0);
@@ -86,7 +87,7 @@ gpdb_binary_upgrade_insert_pro_tup(
 	nulls[Anum_pg_proc_proacl - 1] = true;
 	/* proacl will be determined later */
 	values[Anum_pg_proc_prodataaccess - 1] = CharGetDatum(PRODATAACCESS_NONE);
-	values[Anum_pg_proc_proexeclocation - 1] = CharGetDatum(PROEXECLOCATION_ANY);
+	values[Anum_pg_proc_proexeclocation - 1] = CharGetDatum(PROEXECLOCATION_ALL_SEGMENTS);
 
 	tuple = heap_form_tuple(tupDesc, values, nulls);
 
@@ -135,12 +136,14 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 
 		for (int i = 0; i  < F_GP_NARGS; ++i) 
 			procArgTypes[i] = INTERNALOID;
-
+		procArgTypes[0] = OIDOID;
+		procArgTypes[1] =  INT4OID;
+		procArgTypes[2] =  BOOLOID;
+		procArgTypes[3] = INT4OID;
 		parameterTypes = buildoidvector(procArgTypes, F_GP_NARGS);
-		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_GP_ASR, tupDesc, proname, INTERNALOID, F_GP_NARGS, parameterTypes);
+		gpdb_binary_upgrade_insert_pro_tup(pgprocrel, F_GP_ASR, tupDesc, proname, RECORDOID, F_GP_NARGS, parameterTypes);
 	}
-//DATA(insert OID = 6038 ( gp_acquire_sample_rows  PGNSP PGUID 12 1 1000 0 0 f f f f t t v 3 0 2249 "26 23 16" _null_ _null_ _null_ _null_ gp_acquire_sample_rows _null_ _null_ _null_ n s ));
-//DESCR("Collect a random sample of rows from table");
+
 
 	relation_close(pgopcrel, RowExclusiveLock);
 	relation_close(pgopfrel, RowExclusiveLock);

@@ -177,7 +177,7 @@ static VacAttrStats *examine_attribute(Relation onerel, int attnum,
 				  Node *index_expr, int elevel);
 static int acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 										  HeapTuple *rows, int targrows,
-										  double *totalrows, double *totaldeadrows);
+										  double *totalrows, double *totaldeadrows,int32 vacopts);
 static BlockNumber acquire_number_of_blocks(Relation onerel);
 static BlockNumber acquire_index_number_of_blocks(Relation indexrel, Relation tablerel);
 
@@ -680,7 +680,7 @@ do_analyze_rel(Relation onerel, VacuumStmt *vacstmt,
 	}
 
 	sample_needed = needs_sample(vacattrstats, attr_cnt);
-	if (sample_needed && (!(vacstmt->options&VACOPT_NOWAIT) || (rel_part_status(RelationGetRelid(onerel)) == PART_STATUS_LEAF)))
+	if (sample_needed)
 	{
 		rows = (HeapTuple *) palloc(targrows * sizeof(HeapTuple));
 
@@ -1775,7 +1775,7 @@ acquire_sample_rows(Relation onerel, int elevel,
 		/* Fetch sample from the segments. */
 		return acquire_sample_rows_dispatcher(onerel, false, elevel,
 											  rows, targrows,
-											  totalrows, totaldeadrows);
+											  totalrows, totaldeadrows,0);
 	}
 	/* Gather sample on this server. */
 	else if (RelationIsHeap(onerel))
@@ -1874,7 +1874,7 @@ acquire_inherited_sample_rows(Relation onerel, int elevel,
 		return acquire_sample_rows_dispatcher(onerel,
 											  true, /* inherited stats */
 											  elevel, rows, targrows,
-											  totalrows, totaldeadrows);
+											  totalrows, totaldeadrows,vacopts);
 	}
 
 	/*
@@ -2335,7 +2335,7 @@ parse_record_to_string(char *string, TupleDesc tupdesc, char** values, bool *nul
 static int
 acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 							   HeapTuple *rows, int targrows,
-							   double *totalrows, double *totaldeadrows)
+							   double *totalrows, double *totaldeadrows,int32 vacopts)
 {
 	/*
 	 * 'colLargeRowIndexes' is essentially an argument, but it's passed via a
@@ -2403,10 +2403,21 @@ acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 	 * may result in different behaviour under different acl configuration.
 	 */
 	initStringInfo(&str);
-	appendStringInfo(&str, "select pg_catalog.gp_acquire_sample_rows(%u, %d, '%s');",
+	int flag=0;
+	if (inh)
+	{
+		flag^=1;
+	}
+	if ((VACOPT_NOWAIT&vacopts) != 0)
+	{
+		flag^=2;
+	}
+	
+	appendStringInfo(&str, "select pg_catalog.gp_acquire_sample_rows(%u, %d, %d::bool);", 
 					 RelationGetRelid(onerel),
 					 perseg_targrows,
-					 inh ? "t" : "f");
+					 flag
+					);
 
 	/*
 	 * Execute it.
