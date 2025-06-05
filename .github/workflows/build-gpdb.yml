@@ -152,6 +152,7 @@ jobs:
                                "gpcontrib/gp_percentile_agg:installcheck",
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
+                               "gpcontrib/gpmapreduce:installcheck",
                                "gpcontrib/orafce:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
