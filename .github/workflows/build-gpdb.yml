@@ -136,6 +136,7 @@ jobs:
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
                                "contrib/try_convert:generate-tests,installcheck",
+                               "contrib/tsearch2:installcheck",
                                "contrib/unaccent:installcheck"]
               },
               {"test":"ic-gpcontrib",
