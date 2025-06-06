@@ -325,9 +325,9 @@ SELECT '''the wether'':dc & '' sKies '':BC & a:d b:a';
  'the wether':dc & ' sKies ':BC & a:d b:a
 (1 row)
 
-SELECT tsvector_in(tsvector_out($$'\\as' ab\c ab\\c AB\\\c ab\\\\c$$::tsvector)), tsquery_in(tsquery_out($$'\\as'$$::tsquery));
-              tsvector_in               | tsquery_in 
-----------------------------------------+------------
+SELECT tsvectorin(tsvectorout($$'\\as' ab\c ab\\c AB\\\c ab\\\\c$$::tsvector)), tsqueryin(tsqueryout($$'\\as'$$::tsquery));
+               tsvectorin               | tsqueryin 
+----------------------------------------+-----------
  '\\as' 'abc' 'AB\\c' 'ab\\c' 'ab\\\\c' | '\\as'
 (1 row)
 
@@ -379,7 +379,7 @@ select numnode( 'new & york | qwery'::tsquery );
        5
 (1 row)
 
-create table test_tsquery (txtkeyword text, txtsample text);
+create table test_tsquery (txtkeyword text, txtsample text) distributed replicated;
 \set ECHO none
 alter table test_tsquery add column keyword tsquery;
 update test_tsquery set keyword = to_tsquery('english', txtkeyword);
@@ -917,7 +917,7 @@ select 'a b:89  ca:23A,64b d:34c'::tsvector @@ 'd:AC & ca:CB';
  t
 (1 row)
 
-CREATE TABLE test_tsvector( t text, a tsvector );
+CREATE TABLE test_tsvector( t text, a tsvector ) DISTRIBUTED RANDOMLY;
 \copy test_tsvector from 'data/test_tsearch.data'
 SELECT count(*) FROM test_tsvector WHERE a @@ 'wr|qh';
  count 
