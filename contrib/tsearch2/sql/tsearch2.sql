@@ -86,6 +86,8 @@ update test_tsquery set keyword = to_tsquery('english', txtkeyword);
 alter table test_tsquery add column sample tsquery;
 update test_tsquery set sample = to_tsquery('english', txtsample::text);
 
+analyze test_tsquery;
+
 create unique index bt_tsq on test_tsquery (keyword);
 
 select count(*) from test_tsquery where keyword <  'new & york';
