@@ -18,7 +18,7 @@ REGRESS =
 ifeq ($(TEST_PGFDW),1)
 REGRESS += gp2pg_postgres_fdw
 endif
-REGRESS_OPTS = --load-extension=$(EXTENSION)
+REGRESS_OPTS = --load-extension=$(EXTENSION) --init-file=$(top_builddir)/src/test/regress/init_file
 
 
 
