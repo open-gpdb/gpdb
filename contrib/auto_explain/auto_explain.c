@@ -30,7 +30,7 @@ static bool auto_explain_log_verbose = false;
 static bool auto_explain_log_buffers = false;
 static bool auto_explain_log_triggers = false;
 static bool auto_explain_log_timing = true;
-static bool auto_explain_log_query_text = false;
+static bool auto_explain_log_query_text = true;
 static int	auto_explain_log_format = EXPLAIN_FORMAT_TEXT;
 static bool auto_explain_log_nested_statements = false;
 
@@ -185,7 +185,7 @@ _PG_init(void)
 							"Collect query text.",
 							NULL,
 							&auto_explain_log_query_text,
-							false,
+							true,
 							PGC_SUSET,
 							0,
 							NULL,
