@@ -328,7 +328,7 @@ SELECT '''the wether'':dc & '' sKies '':BC & a:d b:a';
 SELECT tsvectorin(tsvectorout($$'\\as' ab\c ab\\c AB\\\c ab\\\\c$$::tsvector)), tsqueryin(tsqueryout($$'\\as'$$::tsquery));
                tsvectorin               | tsqueryin 
 ----------------------------------------+-----------
- '\\as' 'abc' 'AB\\c' 'ab\\c' 'ab\\\\c' | '\\as'
+ 'AB\\c' '\\as' 'ab\\\\c' 'ab\\c' 'abc' | '\\as'
 (1 row)
 
 select 'a' < 'b & c'::tsquery;
