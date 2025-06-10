@@ -1086,7 +1086,7 @@ jobs:
 
             cd ${SRC_DIR}
             if ! su - gpadmin -c "cd ${SRC_DIR} && \
-                 source gpAux/gpdemo/gpdemo-env.sh && \
+                 source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
                  MAKE_TARGET='$target' \
                  MAKE_DIRECTORY='-C $dir' \
