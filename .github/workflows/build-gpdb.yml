@@ -997,19 +997,19 @@ jobs:
             echo "Patching tests completed successfully"
           } 2>&1 | tee -a build-logs/details/patching-tests.log
 
-      # - name: Run Greenplum configure script
-      #   env:
-      #     SRC_DIR: ${{ github.workspace }}
-      #   run: |
-      #     set -ex pipefail
+      - name: Run Greenplum configure script
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
 
-      #     # set env for debian build
-      #     export BUILD_DESTINATION=/opt/greenplum-db-6
+          # set env for debian build
+          export BUILD_DESTINATION=/opt/greenplum-db-6
 
-      #     if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS=${{ matrix.extra_configure_flags }} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
-      #       echo "::error::Configure script failed"
-      #       exit 1
-      #     fi
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd"; then
+            echo "::error::Configure script failed"
+            exit 1
+          fi
 
       - name: Create Greenplum demo cluster
         env:
