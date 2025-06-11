@@ -960,8 +960,7 @@ DEALLOCATE st5;
 DEALLOCATE st6;
 DEALLOCATE st7;
 -- System columns, except ctid, should not be sent to remote
-EXPLAIN (VERBOSE, COSTS false)
-SELECT * FROM ft1 t1 WHERE t1.tableoid = 'pg_class'::regclass LIMIT 1;
+EXPLAIN (VERBOSE, COSTS false) SELECT * FROM ft1 t1 WHERE t1.tableoid = 'pg_class'::regclass LIMIT 1;
                                   QUERY PLAN                                   
 -------------------------------------------------------------------------------
  Limit
@@ -980,8 +979,7 @@ SELECT * FROM ft1 t1 WHERE t1.tableoid = 'ft1'::regclass LIMIT 1;
   1 |  1 | 00001 | Fri Jan 02 00:00:00 1970 PST | Fri Jan 02 00:00:00 1970 | 1  | 1          | foo
 (1 row)
 
-EXPLAIN (VERBOSE, COSTS false)
-SELECT tableoid::regclass, * FROM ft1 t1 LIMIT 1;
+EXPLAIN (VERBOSE, COSTS false) SELECT tableoid::regclass, * FROM ft1 t1 LIMIT 1;
                                   QUERY PLAN                                   
 -------------------------------------------------------------------------------
  Limit
@@ -999,8 +997,7 @@ SELECT tableoid::regclass, * FROM ft1 t1 LIMIT 1;
  ft1      |  1 |  1 | 00001 | Fri Jan 02 00:00:00 1970 PST | Fri Jan 02 00:00:00 1970 | 1  | 1          | foo
 (1 row)
 
-EXPLAIN (VERBOSE, COSTS false)
-SELECT * FROM ft1 t1 WHERE t1.ctid = '(0,2)';
+EXPLAIN (VERBOSE, COSTS false) SELECT * FROM ft1 t1 WHERE t1.ctid = '(0,2)';
                                               QUERY PLAN                                               
 -------------------------------------------------------------------------------------------------------
  Foreign Scan on public.ft1 t1
@@ -1016,8 +1013,7 @@ SELECT * FROM ft1 t1 WHERE t1.ctid = '(0,2)';
   2 |  2 | 00002 | Sat Jan 03 00:00:00 1970 PST | Sat Jan 03 00:00:00 1970 | 2  | 2          | foo
 (1 row)
 
-EXPLAIN (VERBOSE, COSTS false)
-SELECT ctid, * FROM ft1 t1 LIMIT 1;
+EXPLAIN (VERBOSE, COSTS false) SELECT ctid, * FROM ft1 t1 LIMIT 1;
                                      QUERY PLAN                                      
 -------------------------------------------------------------------------------------
  Limit
