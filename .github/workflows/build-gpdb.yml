@@ -135,6 +135,7 @@ jobs:
                                "contrib/pg_trgm:installcheck",
                                "contrib/pgcrypto:installcheck",
                                "contrib/pgstattuple:installcheck",
+                               "contrib/postgres_fdw:installcheck",
                                "contrib/sslinfo:installcheck",
                                "contrib/tablefunc:installcheck",
                                "contrib/test_parser:installcheck",
