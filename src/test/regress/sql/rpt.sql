@@ -397,7 +397,8 @@ explain (costs off) select a from t_replicate_volatile union all select * from n
 create table t_replicate_dst(id serial, i integer) distributed replicated;
 create table t_replicate_src(i integer) distributed replicated;
 insert into t_replicate_src select i from generate_series(1, 5) i;
-explain (costs off) insert into t_replicate_dst (i) select i from t_replicate_src;
+explain (costs off, verbose) insert into t_replicate_dst (i) select i from t_replicate_src;
+explain (costs off, verbose) with s as (select i from t_replicate_src group by i having random() > 0) insert into t_replicate_dst (i) select i from s;
 insert into t_replicate_dst (i) select i from t_replicate_src;
 select distinct id from gp_dist_random('t_replicate_dst') order by id;
 
@@ -525,6 +526,37 @@ explain (costs off) select j, (select j) AS "Correlated Field" from t;
 select j, (select j) AS "Correlated Field" from t;
 explain (costs off) select j, (select 5) AS "Uncorrelated Field" from t;
 select j, (select 5) AS "Uncorrelated Field" from t;
+
+--
+-- Check sub-selects with distributed replicated tables and volatile functions
+--
+set optimizer = off;
+create table repl_tbl_1 (i bigint) distributed replicated;
+create table dist_tbl (a bigint) distributed by (a);
+create table repl_tbl_2 (a bigint, b float) distributed replicated;
+create or replace function f(i bigint) returns bigint language sql security definer as $$ select i; $$;
+create sequence seq increment by 1 minvalue 1 maxvalue 2 start 2 no cycle;
+-- ensure we make gather motion when volatile functions in subplan
+explain (costs off, verbose) select (select f(i) from repl_tbl_1);
+explain (costs off, verbose) select (select f(i) from repl_tbl_1 group by f(i));
+explain (costs off, verbose) select (select i from repl_tbl_1 group by i having f(i) > 0);
+-- ensure we do not make broadcast motion
+explain (costs off, verbose) select * from dist_tbl where a in (select random() from repl_tbl_1 where i=a group by i);
+explain (costs off, verbose) select * from dist_tbl where a in (select random() from repl_tbl_1 where i=a);
+-- ensure we make broadcast motion when volatile function in deleting motion flow
+explain (costs off, verbose) insert into repl_tbl_2 (a, b) select i, random() from repl_tbl_1;
+-- ensure we make broadcast motion when volatile function in correlated subplan qual
+explain (costs off, verbose) select * from dist_tbl where a in (select f(i) from repl_tbl_1 where i=a and f(i) > 0);
+-- ensure we do not break broadcast motion
+explain (costs off, verbose) select * from dist_tbl where 1 <= ALL (select i from repl_tbl_1 group by i having random() > 0);
+-- ensure we make redistribute motion above scan
+explain (costs off, verbose) insert into dist_tbl (select nextval('seq') from repl_tbl_1);
+drop table if exists repl_tbl_1;
+drop table if exists dist_tbl;
+drop table if exists repl_tbl_2;
+drop function if exists f(i bigint);
+drop sequence if exists seq;
+reset optimizer;
 
 -- start_ignore
 drop schema rpt cascade;
