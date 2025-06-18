@@ -1,6 +1,8 @@
 EXTENSION = gp_log_tools
 DATA = gp_log_tools--0.0.1.sql
 
+REGRESS = gp_log_tools
+
 ifdef USE_PGXS
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
