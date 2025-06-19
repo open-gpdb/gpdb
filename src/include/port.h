@@ -491,4 +491,6 @@ extern char *escape_single_quotes_ascii(const char *src);
 /* common/wait_error.c */
 extern char *wait_result_to_str(int exit_status);
 
+extern bool wait_result_is_any_signal(int exit_status, bool include_command_not_found);
+
 #endif   /* PG_PORT_H */
