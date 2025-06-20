@@ -16,14 +16,6 @@ VOLATILE
 EXECUTE ON ALL SEGMENTS
 LANGUAGE C STRICT;
 
-CREATE FUNCTION
-gp_acquire_sample_rows_vac(oid,int4,bool,int4)
-RETURNS SETOF record
-AS 'MODULE_PATHNAME','gp_acquire_sample_rows_vac'
-VOLATILE
-EXECUTE ON ALL SEGMENTS
-LANGUAGE C STRICT;
-
  
 
 SELECT gpdb_binary_upgrade_catalog_1_0_to_1_1_seg();

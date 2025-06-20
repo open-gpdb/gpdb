@@ -48,8 +48,8 @@ typedef struct
 	bool		summary_sent;
 } gp_acquire_sample_rows_context;
 
-
-gp_acquire_sample_rows_int(PG_FUNCTION_ARGS,Oid relOid,int32 targrows,bool inherited,int32 vacopts){
+Datum
+gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bool inherited,int32 vacopts){
 	FuncCallContext *funcctx = NULL;
 	gp_acquire_sample_rows_context *ctx;
 	MemoryContext oldcontext;
@@ -360,7 +360,7 @@ gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 	Oid			relOid = PG_GETARG_OID(0);
 	int32		targrows = PG_GETARG_INT32(1);
 	bool		inherited = PG_GETARG_BOOL(2);
-	return gp_acquire_sample_rows_int(fcinfo,relOid,targrows,inherited,0);
+	return gp_acquire_sample_rows_int(fcinfo, relOid, targrows, inherited, 0);
 }
 
 

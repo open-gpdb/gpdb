@@ -23,6 +23,8 @@ PG_FUNCTION_INFO_V1(pg_event_trigger_ddl_commands);
 PG_FUNCTION_INFO_V1(pg_event_trigger_table_rewrite_oid);
 PG_FUNCTION_INFO_V1(pg_event_trigger_table_rewrite_reason);
 PG_FUNCTION_INFO_V1(gpdb_binary_upgrade_catalog_1_0_to_1_1);
+PG_FUNCTION_INFO_V1(gp_acquire_sample_rows_vac);
+
 Datum
 pg_event_trigger_ddl_commands(PG_FUNCTION_ARGS)
 {
@@ -61,7 +63,7 @@ gpdb_binary_upgrade_insert_pro_tup(
     values[Anum_pg_proc_proname - 1] = NameGetDatum(proname);
 	values[Anum_pg_proc_pronamespace - 1] = ObjectIdGetDatum(PG_CATALOG_NAMESPACE);
 	values[Anum_pg_proc_proowner - 1] = ObjectIdGetDatum(BOOTSTRAP_SUPERUSERID);
-	values[Anum_pg_proc_prolang - 1] = ObjectIdGetDatum(INTERNALlanguageId);
+	values[Anum_pg_proc_prolang - 1] = ObjectIdGetDatum(ClanguageId);
 	values[Anum_pg_proc_procost - 1] = Float4GetDatum(1);
 	values[Anum_pg_proc_prorows - 1] = Float4GetDatum(1000);
 	values[Anum_pg_proc_provariadic - 1] = ObjectIdGetDatum(InvalidOid);
@@ -82,7 +84,8 @@ gpdb_binary_upgrade_insert_pro_tup(
 	nulls[Anum_pg_proc_proargnames - 1] = true;
 	nulls[Anum_pg_proc_proargdefaults - 1] = true;
 	values[Anum_pg_proc_prosrc - 1] = CStringGetTextDatum(proname);
-	nulls[Anum_pg_proc_probin - 1] = true;
+	values[Anum_pg_proc_probin - 1] = CStringGetTextDatum("$libdir/gp_aux_catalog");
+	
 	nulls[Anum_pg_proc_proconfig - 1] = true;
 	nulls[Anum_pg_proc_proacl - 1] = true;
 	/* proacl will be determined later */

@@ -2403,20 +2403,12 @@ acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 	 * may result in different behaviour under different acl configuration.
 	 */
 	initStringInfo(&str);
-	int flag=0;
-	if (inh)
-	{
-		flag^=1;
-	}
-	if ((VACOPT_NOWAIT&vacopts) != 0)
-	{
-		flag^=2;
-	}
-	
-	appendStringInfo(&str, "select pg_catalog.gp_acquire_sample_rows(%u, %d, %d::bool);", 
+
+		appendStringInfo(&str, "select gp_acquire_sample_rows_vac(%u, %d, %d::bool,%d);", 
 					 RelationGetRelid(onerel),
 					 perseg_targrows,
-					 flag
+					 inh,
+					 vacopts
 					);
 
 	/*
