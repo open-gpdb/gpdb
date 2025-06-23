@@ -2418,7 +2418,7 @@ acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 
 	initStringInfo(&str);
 
-		appendStringInfo(&str, "select pg_catalog.gp_acquire_sample_rows(%u, %d, '%s'););", 
+		appendStringInfo(&str, "select pg_catalog.gp_acquire_sample_rows(%u, %d, '%s');", 
 					 RelationGetRelid(onerel),
 					 perseg_targrows,
 					 inh ? "t" : "f"
