@@ -2402,14 +2402,29 @@ acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 	 * permission check on each columns. This is not consistent with GPDB5 and
 	 * may result in different behaviour under different acl configuration.
 	 */
+
+	if (vacopts & VACOPT_NOWAIT)
+	{
 	initStringInfo(&str);
 
 		appendStringInfo(&str, "select gp_acquire_sample_rows_vac(%u, %d, %d::bool,%d);", 
 					 RelationGetRelid(onerel),
 					 perseg_targrows,
-					 inh,
+					 inh ? "t" : "f",
 					 vacopts
 					);
+	}
+	else{
+
+	initStringInfo(&str);
+
+		appendStringInfo(&str, "select pg_catalog.gp_acquire_sample_rows(%u, %d, '%s'););", 
+					 RelationGetRelid(onerel),
+					 perseg_targrows,
+					 inh ? "t" : "f"
+					);
+	}
+
 
 	/*
 	 * Execute it.
