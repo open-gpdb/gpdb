@@ -191,12 +191,12 @@ vacuum(VacuumStmt *vacstmt, Oid relid, bool do_toast,
 	if (vacstmt->options & VACOPT_NOWAIT)
 	{
 		proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(7214));
-		if (!HeapTupleIsValid(proctup))
+		if (!HeapTupleIsValid(proctup)){
 			ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
 				 errmsg("skip_locked without gp_aux_catalog, upgrade extension")));
-
 			elog(ERROR, "cache lookup failed for function %u", 7214);
+		}
 		ReleaseSysCache(proctup);
 	}
 	
