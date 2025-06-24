@@ -26,6 +26,7 @@
 #include "getopt_long.h"
 #include "utils/palloc.h"
 #include "storage/bufpage.h"
+#include "common/file_perm.h"
 
 static void usage(const char *progname);
 
