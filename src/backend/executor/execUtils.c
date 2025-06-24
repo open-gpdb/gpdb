@@ -84,6 +84,8 @@
 
 #include "cdb/memquota.h"
 
+analyze_stats_collect_hook_type analyze_stats_collect_hook = NULL;
+
 static bool get_last_attnums(Node *node, ProjectionInfo *projInfo);
 static bool index_recheck_constraint(Relation index, Oid *constr_procs,
 						 Datum *existing_values, bool *existing_isnull,
@@ -2141,6 +2143,9 @@ void mppExecutorFinishup(QueryDesc *queryDesc)
 			ThrowErrorData(qeError);
 		}
 
+		if (analyze_stats_collect_hook)
+			(*analyze_stats_collect_hook)(queryDesc);
+
 		/* If top slice was delegated to QEs, get num of rows processed. */
 		int primaryWriterSliceIndex = PrimaryWriterSliceIndex(estate);
 		//if (sliceRunsOnQE(currentSlice))
@@ -2218,6 +2223,9 @@ void mppExecutorFinishup(QueryDesc *queryDesc)
 		 */
 		estate->dispatcherState = NULL;
 		cdbdisp_destroyDispatcherState(ds);
+	} else {
+		if (analyze_stats_collect_hook)
+			(*analyze_stats_collect_hook)(queryDesc);
 	}
 }
 
