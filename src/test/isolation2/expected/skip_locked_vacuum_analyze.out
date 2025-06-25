@@ -1,7 +1,8 @@
 -- Scenario to test SKIP_LOCKED usage
 
 1: analyze SKIP_LOCKED tp;
-ERROR:  skip_locked without gp_aux_catalog, upgrade extension
+ERROR:  skip_locked is impossible without gp_aux_catalog
+DETAIL:  create and upgrade extension gp_aux_catalog to version 1.1
 
 1: create extension gp_aux_catalog;
 CREATE

@@ -2407,7 +2407,7 @@ acquire_sample_rows_dispatcher(Relation onerel, bool inh, int elevel,
 	{
 	initStringInfo(&str);
 
-		appendStringInfo(&str, "select gp_acquire_sample_rows_vac(%u, %d, %d::bool,%d);", 
+		appendStringInfo(&str, "select gp_acquire_sample_rows_vac(%u, %d, '%s', %d);", 
 					 RelationGetRelid(onerel),
 					 perseg_targrows,
 					 inh ? "t" : "f",

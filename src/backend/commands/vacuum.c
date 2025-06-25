@@ -194,7 +194,8 @@ vacuum(VacuumStmt *vacstmt, Oid relid, bool do_toast,
 		if (!HeapTupleIsValid(proctup)){
 			ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("skip_locked without gp_aux_catalog, upgrade extension")));
+				 errmsg("skip_locked is impossible without gp_aux_catalog"),
+				 errdetail("create and upgrade extension gp_aux_catalog to version 1.1")));
 			elog(ERROR, "cache lookup failed for function %u", 7214);
 		}
 		ReleaseSysCache(proctup);
