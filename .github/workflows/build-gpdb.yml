@@ -112,6 +112,9 @@ jobs:
                "enable_cgroups":true,
                "runs_on":"self-hosted"
               },
+              {"test":"ic-mdb",
+               "make_configs":["src/test/isolation2:installcheck-mdb"],
+              },
               {"test":"ic-contrib",
                "install_target":true,
                "make_configs":["contrib/amcheck:installcheck",
