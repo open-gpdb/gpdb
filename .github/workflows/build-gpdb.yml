@@ -113,7 +113,7 @@ jobs:
                "runs_on":"self-hosted"
               },
               {"test":"ic-mdb",
-               "make_configs":["src/test/isolation2:installcheck-mdb"],
+               "make_configs":["src/test/isolation2:installcheck-mdb"]
               },
               {"test":"ic-contrib",
                "install_target":true,
