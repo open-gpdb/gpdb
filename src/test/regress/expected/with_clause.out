@@ -2214,6 +2214,19 @@ select * from rcte limit 10;
 ERROR:  window functions in the target list of a recursive query is not supported in Greenplum
 LINE 5:   select first_value(c) over (partition by b), a+x
                  ^
+-- Test issue from PR#1204
+-- Executor used to fail to execute this query
+CREATE TABLE foo_issue_1204_test (
+    col1 character varying(64) ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col2 character varying(1020) ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col3 text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col4 date ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_s text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_r text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_rej text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_a text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_c text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3)
+)
 WITH (appendonly='true', compresstype=zstd, compresslevel='3', orientation='column')
  DISTRIBUTED BY (col1);
 -- Assert than plan uses Merge Append strategy, and has Share Input Scan node.
