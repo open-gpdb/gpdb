@@ -2342,8 +2342,8 @@ FROM foo_issue_1204_test
 GROUP BY   1, 2,3
 order by 1
 ;
- col4 | col2 | col3 | traffic | clicks | cr_traffic_click | approves | cr_click_approve | rejects | cr_click_reject | confirms | cr_click_confirm | cr_traffic_confirm
+ col4 | col2 | col3 | traffic | clicks | cr_traffic_click | approves | cr_click_approve | rejects | cr_click_reject | confirms | cr_click_confirm | cr_traffic_confirm 
 ------+------+------+---------+--------+------------------+----------+------------------+---------+-----------------+----------+------------------+--------------------
-GP_IGNORE:(0 rows)
+(0 rows)
 
 DROP TABLE foo_issue_1204_test;
