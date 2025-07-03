@@ -2214,3 +2214,140 @@ select * from rcte limit 10;
 ERROR:  window functions in the target list of a recursive query is not supported in Greenplum
 LINE 5:   select first_value(c) over (partition by b), a+x
                  ^
+-- Test issue from PR#1204
+-- Executor used to fail to execute this query
+CREATE TABLE foo_issue_1204_test (
+    col1 character varying(64) ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col2 character varying(1020) ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col3 text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col4 date ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_s text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_r text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_rej text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_a text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_c text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3)
+)
+WITH (appendonly='true', compresstype=zstd, compresslevel='3', orientation='column')
+ DISTRIBUTED BY (col1);
+-- Assert than plan uses Merge Append strategy, and has Share Input Scan node.
+EXPLAIN (COSTS OFF, TIMING OFF, BUFFERS OFF)
+SELECT EXISTS(
+	SELECT
+	    col4
+	    , col2
+	    , col3
+	    , COUNT(DISTINCT u_w_s) AS TRAFFIC
+	    , COUNT(DISTINCT u_w_r) AS CLICKS
+	    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
+	    , COUNT(DISTINCT u_w_rej) AS REJECTS
+	    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
+	    , COUNT(DISTINCT u_w_c) AS CONFIRMS
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY    1,2,3
+	UNION ALL
+	SELECT
+	    NULL::date as col4
+	    , col2
+	    , col3
+	    , NULL AS TRAFFIC
+	    , NULL AS CLICKS
+	    , NULL AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , 1.0 AS CR_CLICK_APPROVE
+	    , NULL  AS REJECTS
+	    , 1.0 AS CR_CLICK_REJECT
+	    , NULL AS CONFIRMS
+	    , 1.  AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY   1, 2,3
+	ORDER BY 1
+);
+                                                                                                                     QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Result
+   InitPlan 1 (returns $0)  (slice5)
+     ->  Gather Motion 3:1  (slice4; segments: 3)
+           ->  Merge Append
+                 Sort Key: foo_issue_1204_test.col4
+                 ->  GroupAggregate
+                       Group Key: foo_issue_1204_test.col4, foo_issue_1204_test.col2, foo_issue_1204_test.col3
+                       ->  Sort
+                             Sort Key: foo_issue_1204_test.col4, foo_issue_1204_test.col2, foo_issue_1204_test.col3
+                             ->  Redistribute Motion 3:3  (slice1; segments: 3)
+                                   Hash Key: foo_issue_1204_test.col4, foo_issue_1204_test.col2, foo_issue_1204_test.col3
+                                   ->  Seq Scan on foo_issue_1204_test
+                 ->  Sort
+                       Sort Key: share0_ref2.col_5
+                       ->  Hash Join
+                             Hash Cond: ((NOT (share0_ref2.col_5 IS DISTINCT FROM share0_ref1.col_5)) AND (NOT ((share0_ref2.col2)::text IS DISTINCT FROM (share0_ref1.col2)::text)) AND (NOT (share0_ref2.col3 IS DISTINCT FROM share0_ref1.col3)))
+                             ->  HashAggregate
+                                   Group Key: share0_ref2.col_5, share0_ref2.col2, share0_ref2.col3
+                                   ->  HashAggregate
+                                         Group Key: share0_ref2.col_5, share0_ref2.col2, share0_ref2.col3, share0_ref2.u_w_a
+                                         ->  Redistribute Motion 3:3  (slice2; segments: 3)
+                                               Hash Key: share0_ref2.col_5, share0_ref2.col2, share0_ref2.col3
+                                               ->  HashAggregate
+                                                     Group Key: share0_ref2.col_5, share0_ref2.col2, share0_ref2.col3, share0_ref2.u_w_a
+                                                     ->  Shared Scan (share slice:id 2:0)
+                             ->  Hash
+                                   ->  HashAggregate
+                                         Group Key: share0_ref1.col_5, share0_ref1.col2, share0_ref1.col3
+                                         ->  HashAggregate
+                                               Group Key: share0_ref1.col_5, share0_ref1.col2, share0_ref1.col3, share0_ref1.u_w_c
+                                               ->  Redistribute Motion 3:3  (slice3; segments: 3)
+                                                     Hash Key: share0_ref1.col_5, share0_ref1.col2, share0_ref1.col3
+                                                     ->  HashAggregate
+                                                           Group Key: share0_ref1.col_5, share0_ref1.col2, share0_ref1.col3, share0_ref1.u_w_c
+                                                           ->  Shared Scan (share slice:id 3:0)
+                                                                 ->  Materialize
+                                                                       ->  Seq Scan on foo_issue_1204_test foo_issue_1204_test_1
+ Optimizer: Postgres query optimizer
+(38 rows)
+
+SELECT EXISTS(
+	SELECT
+	    col4
+	    , col2
+	    , col3
+	    , COUNT(DISTINCT u_w_s) AS TRAFFIC
+	    , COUNT(DISTINCT u_w_r) AS CLICKS
+	    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
+	    , COUNT(DISTINCT u_w_rej) AS REJECTS
+	    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
+	    , COUNT(DISTINCT u_w_c) AS CONFIRMS
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY    1,2,3
+	UNION ALL
+	SELECT
+	    NULL::date as col4
+	    , col2
+	    , col3
+	    , NULL AS TRAFFIC
+	    , NULL AS CLICKS
+	    , NULL AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , 1.0 AS CR_CLICK_APPROVE
+	    , NULL  AS REJECTS
+	    , 1.0 AS CR_CLICK_REJECT
+	    , NULL AS CONFIRMS
+	    , 1.  AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY   1, 2,3
+	ORDER BY 1
+);
+ exists 
+--------
+ f
+(1 row)
+
+DROP TABLE foo_issue_1204_test;
