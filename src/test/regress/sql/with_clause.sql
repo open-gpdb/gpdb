@@ -390,3 +390,98 @@ with recursive rcte(x,y) as
   where t.b = x
 )
 select * from rcte limit 10;
+
+-- Test issue from PR#1204
+-- Executor used to fail to execute this query
+
+CREATE TABLE foo_issue_1204_test (
+    col1 character varying(64) ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col2 character varying(1020) ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col3 text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    col4 date ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_s text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_r text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_rej text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_a text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3),
+    u_w_c text ENCODING (compresstype=zstd,blocksize=32768,compresslevel=3)
+)
+WITH (appendonly='true', compresstype=zstd, compresslevel='3', orientation='column')
+ DISTRIBUTED BY (col1);
+
+-- Assert than plan uses Merge Append strategy, and has Share Input Scan node.
+EXPLAIN (COSTS OFF, TIMING OFF, BUFFERS OFF)
+SELECT EXISTS(
+	SELECT
+	    col4
+	    , col2
+	    , col3
+	    , COUNT(DISTINCT u_w_s) AS TRAFFIC
+	    , COUNT(DISTINCT u_w_r) AS CLICKS
+	    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
+	    , COUNT(DISTINCT u_w_rej) AS REJECTS
+	    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
+	    , COUNT(DISTINCT u_w_c) AS CONFIRMS
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY    1,2,3
+	UNION ALL
+	SELECT
+	    NULL::date as col4
+	    , col2
+	    , col3
+	    , NULL AS TRAFFIC
+	    , NULL AS CLICKS
+	    , NULL AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , 1.0 AS CR_CLICK_APPROVE
+	    , NULL  AS REJECTS
+	    , 1.0 AS CR_CLICK_REJECT
+	    , NULL AS CONFIRMS
+	    , 1.  AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY   1, 2,3
+	ORDER BY 1
+);
+
+SELECT EXISTS(
+	SELECT
+	    col4
+	    , col2
+	    , col3
+	    , COUNT(DISTINCT u_w_s) AS TRAFFIC
+	    , COUNT(DISTINCT u_w_r) AS CLICKS
+	    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
+	    , COUNT(DISTINCT u_w_rej) AS REJECTS
+	    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
+	    , COUNT(DISTINCT u_w_c) AS CONFIRMS
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY    1,2,3
+	UNION ALL
+	SELECT
+	    NULL::date as col4
+	    , col2
+	    , col3
+	    , NULL AS TRAFFIC
+	    , NULL AS CLICKS
+	    , NULL AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , 1.0 AS CR_CLICK_APPROVE
+	    , NULL  AS REJECTS
+	    , 1.0 AS CR_CLICK_REJECT
+	    , NULL AS CONFIRMS
+	    , 1.  AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY   1, 2,3
+	ORDER BY 1
+);
+
+DROP TABLE foo_issue_1204_test;
