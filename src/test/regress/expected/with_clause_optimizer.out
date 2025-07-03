@@ -2346,7 +2346,7 @@ SELECT EXISTS(
 	GROUP BY   1, 2,3
 	ORDER BY 1
 );
- exists
+ exists 
 --------
  f
 (1 row)
