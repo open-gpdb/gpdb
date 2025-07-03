@@ -410,76 +410,78 @@ WITH (appendonly='true', compresstype=zstd, compresslevel='3', orientation='colu
 
 -- Assert than plan uses Merge Append strategy, and has Share Input Scan node.
 EXPLAIN (COSTS OFF, TIMING OFF, BUFFERS OFF)
-SELECT
-    col4
-    , col2
-    , col3
-    , COUNT(DISTINCT u_w_s) AS TRAFFIC
-    , COUNT(DISTINCT u_w_r) AS CLICKS
-    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
-    , COUNT(DISTINCT u_w_a) AS APPROVES
-    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
-    , COUNT(DISTINCT u_w_rej) AS REJECTS
-    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
-    , COUNT(DISTINCT u_w_c) AS CONFIRMS
-    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
-    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
-FROM foo_issue_1204_test
-GROUP BY    1,2,3
-UNION ALL
-SELECT
-    NULL::date as col4
-    , col2
-    , col3
-    , NULL AS TRAFFIC
-    , NULL AS CLICKS
-    , NULL AS CR_TRAFFIC_CLICK
-    , COUNT(DISTINCT u_w_a) AS APPROVES
-    , 1.0 AS CR_CLICK_APPROVE
-    , NULL  AS REJECTS
-    , 1.0 AS CR_CLICK_REJECT
-    , NULL AS CONFIRMS
-    , 1.  AS CR_CLICK_CONFIRM
-    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
-FROM foo_issue_1204_test
-GROUP BY   1, 2,3
-order by 1
-;
+SELECT EXISTS(
+	SELECT
+	    col4
+	    , col2
+	    , col3
+	    , COUNT(DISTINCT u_w_s) AS TRAFFIC
+	    , COUNT(DISTINCT u_w_r) AS CLICKS
+	    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
+	    , COUNT(DISTINCT u_w_rej) AS REJECTS
+	    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
+	    , COUNT(DISTINCT u_w_c) AS CONFIRMS
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY    1,2,3
+	UNION ALL
+	SELECT
+	    NULL::date as col4
+	    , col2
+	    , col3
+	    , NULL AS TRAFFIC
+	    , NULL AS CLICKS
+	    , NULL AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , 1.0 AS CR_CLICK_APPROVE
+	    , NULL  AS REJECTS
+	    , 1.0 AS CR_CLICK_REJECT
+	    , NULL AS CONFIRMS
+	    , 1.  AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY   1, 2,3
+	ORDER BY 1
+);
 
-SELECT
-    col4
-    , col2
-    , col3
-    , COUNT(DISTINCT u_w_s) AS TRAFFIC
-    , COUNT(DISTINCT u_w_r) AS CLICKS
-    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
-    , COUNT(DISTINCT u_w_a) AS APPROVES
-    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
-    , COUNT(DISTINCT u_w_rej) AS REJECTS
-    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
-    , COUNT(DISTINCT u_w_c) AS CONFIRMS
-    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
-    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
-FROM foo_issue_1204_test
-GROUP BY    1,2,3
-UNION ALL
-SELECT
-    NULL::date as col4
-    , col2
-    , col3
-    , NULL AS TRAFFIC
-    , NULL AS CLICKS
-    , NULL AS CR_TRAFFIC_CLICK
-    , COUNT(DISTINCT u_w_a) AS APPROVES
-    , 1.0 AS CR_CLICK_APPROVE
-    , NULL  AS REJECTS
-    , 1.0 AS CR_CLICK_REJECT
-    , NULL AS CONFIRMS
-    , 1.  AS CR_CLICK_CONFIRM
-    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
-FROM foo_issue_1204_test
-GROUP BY   1, 2,3
-order by 1
-;
+SELECT EXISTS(
+	SELECT
+	    col4
+	    , col2
+	    , col3
+	    , COUNT(DISTINCT u_w_s) AS TRAFFIC
+	    , COUNT(DISTINCT u_w_r) AS CLICKS
+	    , COUNT(DISTINCT u_w_r) / COUNT(DISTINCT u_w_s) AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , COUNT(DISTINCT u_w_a) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_APPROVE
+	    , COUNT(DISTINCT u_w_rej) AS REJECTS
+	    , COUNT(DISTINCT u_w_rej) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_REJECT
+	    , COUNT(DISTINCT u_w_c) AS CONFIRMS
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_r) AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 / COUNT(DISTINCT u_w_s)  AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY    1,2,3
+	UNION ALL
+	SELECT
+	    NULL::date as col4
+	    , col2
+	    , col3
+	    , NULL AS TRAFFIC
+	    , NULL AS CLICKS
+	    , NULL AS CR_TRAFFIC_CLICK
+	    , COUNT(DISTINCT u_w_a) AS APPROVES
+	    , 1.0 AS CR_CLICK_APPROVE
+	    , NULL  AS REJECTS
+	    , 1.0 AS CR_CLICK_REJECT
+	    , NULL AS CONFIRMS
+	    , 1.  AS CR_CLICK_CONFIRM
+	    , COUNT(DISTINCT u_w_c) * 1.0 AS CR_TRAFFIC_CONFIRM
+	FROM foo_issue_1204_test
+	GROUP BY   1, 2,3
+	ORDER BY 1
+);
 
 DROP TABLE foo_issue_1204_test;
