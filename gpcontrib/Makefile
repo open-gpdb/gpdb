@@ -21,6 +21,7 @@ ifeq "$(enable_debug_extensions)" "yes"
                gp_inject_fault \
                gp_replica_check \
                gp_legacy_string_agg \
+			   gp_log_tools \
                gp_array_agg \
                gp_percentile_agg \
                gp_error_handling \
@@ -37,6 +38,7 @@ else
                gp_parser \
                jsonlog-gpdb \
                gp_legacy_string_agg \
+			   gp_log_tools \
                gp_array_agg \
                gp_percentile_agg \
                gp_error_handling \
@@ -122,6 +124,7 @@ distclean:
 
 installcheck:
 	$(MAKE) -C gp_internal_tools installcheck
+	$(MAKE) -C gp_log_tools installcheck
 	$(MAKE) -C gp_array_agg installcheck
 	if [ "$(enable_mapreduce)" = "yes" ]; then \
 		$(MAKE) -C gpmapreduce installcheck; \
