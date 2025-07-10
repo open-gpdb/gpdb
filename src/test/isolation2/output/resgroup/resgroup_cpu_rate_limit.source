@@ -43,8 +43,8 @@ def verify_cpu_usage(): all_info = plpy.execute(''' SELECT sample::json->'{name}
 return verify_cpu_usage() $$ LANGUAGE plpythonu;
 CREATE
 
-CREATE TABLE bigtable AS SELECT i AS c1, 'abc' AS c2 FROM generate_series(1,50000) i distributed randomly;
-CREATE 50000
+CREATE TABLE bigtable AS SELECT i AS c1, 'abc' AS c2 FROM generate_series(1,10000) i distributed randomly;
+CREATE 10000
 
 CREATE OR REPLACE FUNCTION complex_compute(i int) RETURNS int AS $$ results = 1 for j in range(1, 10000 + i): results = (results * j) % 35969 return results $$ LANGUAGE plpythonu;
 CREATE
