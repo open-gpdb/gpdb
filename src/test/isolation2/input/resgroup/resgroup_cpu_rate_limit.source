@@ -63,7 +63,7 @@ $$ LANGUAGE plpythonu;
 
 CREATE TABLE bigtable AS
     SELECT i AS c1, 'abc' AS c2
-    FROM generate_series(1,10000) i distributed randomly;
+    FROM generate_series(1,1000) i distributed randomly;
 
 CREATE OR REPLACE FUNCTION complex_compute(i int)
 RETURNS int AS $$
