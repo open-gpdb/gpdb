@@ -2,6 +2,7 @@ EXTENSION = gp_log_tools
 DATA = gp_log_tools--0.0.1.sql
 
 REGRESS = gp_log_tools
+REGRESS_OPTS += --init-file=$(top_builddir)/src/test/regress/init_file
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config
