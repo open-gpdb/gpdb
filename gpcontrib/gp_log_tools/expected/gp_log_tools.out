@@ -11,4 +11,15 @@ SELECT count(*) != 0 as is_logs_selected FROM gp_master_logs;
  t
 (1 row)
 
+CREATE USER test_user1;
+GRANT SELECT ON gp_master_logs TO PUBLIC;
+SET SESSION AUTHORIZATION test_user1;
+SELECT count(*) != 0 as is_logs_selected FROM gp_master_logs;
+ is_logs_selected 
+------------------
+ t
+(1 row)
+
+\c -
+DROP USER test_user1;
 DROP EXTENSION gp_log_tools;
