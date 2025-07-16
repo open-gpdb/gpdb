@@ -83,6 +83,3 @@ SECURITY DEFINER;
 
 CREATE VIEW gp_master_logs AS
 SELECT * FROM get_logs();
-
-CREATE VIEW gp_segments_logs AS
-SELECT * FROM gp_dist_random('gp_master_logs');
