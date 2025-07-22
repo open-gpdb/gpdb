@@ -16,7 +16,7 @@
 #include "utils/snapmgr.h"
 #include "miscadmin.h"
 #include "funcapi.h"
-
+#include "pgstat.h"
 /**
  * Statistics related parameters.
  */
@@ -178,6 +178,7 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 
 		ctx->index = 0;
 		ctx->summary_sent = false;
+		pgstat_report_analyze(onerel, totalrows, totaldeadrows, true);
 
 		MemoryContextSwitchTo(oldcontext);
 	}
