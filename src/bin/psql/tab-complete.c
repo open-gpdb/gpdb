@@ -2274,9 +2274,12 @@ psql_completion(const char *text, int start, int end)
 
 /* CREATE TABLE */
 	/* Complete "CREATE TEMP/TEMPORARY" with the possible temp objects */
-	else if (pg_strcasecmp(prev2_wd, "CREATE") == 0 &&
+	else if ((pg_strcasecmp(prev2_wd, "CREATE") == 0 &&
 			 (pg_strcasecmp(prev_wd, "TEMP") == 0 ||
-			  pg_strcasecmp(prev_wd, "TEMPORARY") == 0) || pg_strcasecmp(prev3_wd, "CREATE") == 0 && pg_strcasecmp(prev2_wd, "FAST") == 0 && pg_strcasecmp(prev_wd, "TEMP") == 0)
+			  pg_strcasecmp(prev_wd, "TEMPORARY") == 0)) || 
+			  (pg_strcasecmp(prev3_wd, "CREATE") == 0 && 
+			  	pg_strcasecmp(prev2_wd, "FAST") == 0 && 
+				pg_strcasecmp(prev_wd, "TEMP") == 0))
 	{
 		static const char *const list_TEMP[] =
 		{"SEQUENCE", "TABLE", "VIEW", NULL};

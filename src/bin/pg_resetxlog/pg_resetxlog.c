@@ -53,6 +53,7 @@
 #include "catalog/catversion.h"
 #include "catalog/pg_control.h"
 #include "common/fe_memutils.h"
+#include "common/string.h"
 #include "storage/large_object.h"
 #include "pg_getopt.h"
 
@@ -576,7 +577,6 @@ CheckDataVersion(void)
 	const char *ver_file = "PG_VERSION";
 	FILE	   *ver_fd;
 	char		rawline[64];
-	int			len;
 
 	if ((ver_fd = fopen(ver_file, "r")) == NULL)
 	{
@@ -601,14 +601,8 @@ CheckDataVersion(void)
 		exit(1);
 	}
 
-	/* remove trailing newline, handling Windows newlines as well */
-	len = strlen(rawline);
-	if (len > 0 && rawline[len - 1] == '\n')
-	{
-		rawline[--len] = '\0';
-		if (len > 0 && rawline[len - 1] == '\r')
-			rawline[--len] = '\0';
-	}
+	/* strip trailing newline and carriage return */
+	(void) pg_strip_crlf(rawline);
 
 	if (strcmp(rawline, PG_MAJORVERSION) != 0)
 	{

@@ -6,6 +6,7 @@ EXTENSION = file_fdw
 DATA = file_fdw--1.0.sql
 
 REGRESS = file_fdw gp_file_fdw
+REGRESS_OPTS += --init-file=$(top_srcdir)/src/test/regress/init_file
 
 EXTRA_CLEAN = sql/file_fdw.sql expected/file_fdw.out sql/gp_file_fdw.sql expected/gp_file_fdw.out
 

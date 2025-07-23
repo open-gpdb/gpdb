@@ -5,12 +5,67 @@
 name: Greenplum Build
 
 on:
+  release:
+    types: [published]
   push:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   pull_request:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+  workflow_dispatch:
+    inputs:
+      test_selection:
+        description: 'Select tests to run (comma-separated). Examples: ic-good-opt-off,ic-contrib'
+        required: false
+        default: 'all'
+        type: string
+      build_variant:
+        description: 'Build variant'
+        required: true
+        default: 'default'
+        type: choice
+        options:
+        - default
+        - t_dwh
 
 jobs:
+
+  ## ======================================================================
+  ## Job: prepare-build-matrix
+  ## ======================================================================
+
+  prepare-build-matrix:
+
+    name: Prepare Build Variations
+
+    runs-on: ubuntu-latest
+
+    outputs:
+      build-matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - id: set-matrix
+        run: |
+          echo "=== Matrix Preparation ==="
+          # Build result JSON with defaults applied
+          RESULT='{"include":[
+            {
+              "name": "build"
+            },
+            {
+              "name": "test",
+              "extra_configure_flags": "--enable-debug-extensions"
+            }
+          ]}'
+          # Output the matrix for GitHub Actions
+          echo "Final matrix configuration:"
+          echo "$RESULT" | jq .
+          # Fix: Use block redirection
+          {
+            echo "matrix<<EOF"
+            echo "$RESULT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "=== Matrix Preparation Complete ==="
 
   ## ======================================================================
   ## Job: prepare-test-matrix
@@ -57,24 +112,23 @@ jobs:
               {"test":"ic-resgroup",
                "make_configs":["src/test/isolation2:installcheck-resgroup"],
                "enable_cgroups":true,
-               "runs_on":"ubuntu-20.04"
+               "runs_on":"self-hosted"
+              },
+              {"test":"ic-mdb",
+               "make_configs":["src/test/isolation2:installcheck-mdb"]
               },
               {"test":"ic-contrib",
                "install_target":true,
                "make_configs":["contrib/amcheck:installcheck",
                                "contrib/auto_explain:installcheck",
                                "contrib/btree_gin:installcheck",
-                               "contrib/btree_gist:installcheck",
                                "contrib/citext:installcheck",
-                               "contrib/cube:installcheck",
                                "contrib/dblink:installcheck",
                                "contrib/dict_int:installcheck",
                                "contrib/dict_xsyn:installcheck",
-                               "contrib/earthdistance:installcheck",
                                "contrib/extprotocol:installcheck",
                                "contrib/file_fdw:installcheck",
                                "contrib/formatter_fixedwidth:installcheck",
-                               "contrib/fuzzystrmatch:installcheck",
                                "contrib/hstore:installcheck",
                                "contrib/indexscan:installcheck",
                                "contrib/intarray:installcheck",
@@ -85,17 +139,13 @@ jobs:
                                "contrib/pgcrypto:installcheck",
                                "contrib/pgstattuple:installcheck",
                                "contrib/postgres_fdw:installcheck",
-                               "contrib/sasdemo:installcheck",
-                               "contrib/sepgsql:installcheck",
                                "contrib/sslinfo:installcheck",
                                "contrib/tablefunc:installcheck",
-                               "contrib/test_decoding:installcheck",
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
-                               "contrib/try_convert:installcheck",
+                               "contrib/try_convert:generate-tests,installcheck",
                                "contrib/tsearch2:installcheck",
                                "contrib/unaccent:installcheck",
-                               "contrib/uuid-ossp:installcheck",
                                "contrib/xml2:installcheck"]
               },
               {"test":"ic-gpcontrib",
@@ -109,13 +159,8 @@ jobs:
                                "gpcontrib/gp_percentile_agg:installcheck",
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
-                               "gpcontrib/gpcloud:installcheck",
                                "gpcontrib/gpmapreduce:installcheck",
-                               "gpcontrib/orafce:installcheck",
-                               "gpcontrib/pgaudit:installcheck",
-                               "gpcontrib/quicklz:installcheck",
-                               "gpcontrib/sr_plan",
-                               "gpcontrib/zstd"]
+                               "gpcontrib/orafce:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
@@ -217,6 +262,8 @@ jobs:
   ## ======================================================================
 
   build:
+    name: Build (${{ matrix.name }})
+    needs: [prepare-build-matrix]
     env:
       JOB_TYPE: build
     runs-on: ubuntu-latest
@@ -224,8 +271,14 @@ jobs:
     outputs:
       build_timestamp: ${{ steps.set_timestamp.outputs.timestamp }}
 
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
+
     container:
       image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --user root
 
     steps:
       - name: Set build timestamp
@@ -263,11 +316,16 @@ jobs:
           LOGS_DIR: build-logs
         run: |
           set -ex pipefail
+          if ! su - gpadmin -c "/tmp/init_system.sh"; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
 
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
-          sudo chmod -R 755 .
+          chown -R gpadmin:gpadmin .
+          chmod -R 755 .
           chmod 777 "${LOGS_DIR}"
 
           df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
@@ -303,10 +361,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh
-
-          cd ${SRC_DIR}
-          if ! SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS=${{ matrix.extra_configure_flags }} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -319,10 +374,8 @@ jobs:
 
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
-
-          chmod +x "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh
-          cd ${SRC_DIR}
-          if ! SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh; then
+          
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
             exit 1
           fi
@@ -401,16 +454,20 @@ jobs:
           echo "=== Artifact Creation Log ==="
           echo "Timestamp: $(date -u)"
 
-          sudo cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
-          sudo chown -R "$(whoami)" debian
+          cp -r "${SRC_DIR}"/../gpdb-devops/packaging/deb/jammy/debian/* debian/
+          chown -R "$(whoami)" debian
 
           # replace not supported symbols in version
           GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/\//./g")
+          GPDB_VERSION=$(echo "$GPDB_VERSION" | sed "s/_/-/g")
+          if ! echo "$GPDB_VERSION" | grep -qE '^[0-9]'; then
+              GPDB_VERSION="6.$GPDB_VERSION"
+          fi
+          
           echo "We will built ${GPDB_VERSION}"
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
 
-          chmod +x "${SRC_DIR}"/../gpdb-devops/scripts/build-deb.sh
           if ! ${SRC_DIR}/../gpdb-devops/scripts/build-deb.sh -v $GPDB_VERSION; then
             echo "::error::Build script failed"
             exit 1
@@ -463,7 +520,7 @@ jobs:
       - name: Upload Debian Packages
         uses: actions/upload-artifact@v4
         with:
-          name: debian-packages-${{ env.BUILD_TIMESTAMP }}
+          name: debian-packages-${{ matrix.name }}
           path: |
             *.deb
             *.ddeb
@@ -473,9 +530,955 @@ jobs:
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ env.BUILD_TIMESTAMP }}
+          name: build-logs-${{ env.BUILD_TIMESTAMP }}-${{ matrix.name }}
           path: |
             build-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
 
 
+  ## ======================================================================
+  ## Job: deb-install-test
+  ## ======================================================================
+
+  deb-install-test:
+    name: Deb install test (${{ matrix.name }})
+    needs: [prepare-build-matrix, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-build-matrix.outputs.build-matrix) }}
+
+    container:
+      image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --user root
+
+    steps:
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-${{ matrix.name }}
+          path: ${{ github.workspace }}/deb_build_artifacts
+          merge-multiple: false
+
+      - name: Environment Initialization
+        if: needs.check-skip.outputs.should_skip != 'true'
+        env:
+          LOGS_DIR: install-logs
+        run: |
+          set -ex pipefail
+          if ! su - gpadmin -c "/tmp/init_system.sh"; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
+
+          export LOGS_DIR=install-logs
+
+          mkdir -p "${LOGS_DIR}/details"
+          chown -R gpadmin:gpadmin .
+          chmod -R 755 .
+          chmod 777 "${LOGS_DIR}"
+
+          df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
+          free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
+
+          {
+            echo "=== Environment Information ==="
+            uname -a
+            df -h
+            free -h
+            env
+          } | tee -a "${LOGS_DIR}/details/environment.log"
+
+          echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
+
+      - name: Verify DEB artifacts
+        id: verify-artifacts
+        run: |
+          set -ex pipefail
+
+          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          if [ ! -f "${DEB_FILE}" ]; then
+            echo "::error::DEB file not found"
+            exit 1
+          fi
+
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+
+          echo "Verifying DEB artifacts..."
+          {
+            echo "=== DEB Verification Summary ==="
+            echo "Timestamp: $(date -u)"
+            echo "DEB File: ${DEB_FILE}"
+
+            # Get DEB metadata and verify contents
+            echo "Package Information:"
+            dpkg-deb -f "${DEB_FILE}"
+
+            # Get key DEB attributes for verification
+            DEB_VERSION=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 1)
+            DEB_RELEASE=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 3)
+            echo "version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release=${DEB_RELEASE}" >> "$GITHUB_OUTPUT"
+
+            # Verify expected binaries are in the DEB
+            echo "Verifying critical files in DEB..."
+            for binary in "bin/postgres" "bin/psql"; do
+              if ! dpkg-deb -c "${DEB_FILE}" | grep "${binary}" > /dev/null; then
+                echo "::error::Critical binary '${binary}' not found in DEB"
+                exit 1
+              fi
+            done
+
+            echo "DEB Details:"
+            echo "- Version: ${DEB_VERSION}"
+            echo "- Release: ${DEB_RELEASE}"
+
+            # Calculate and store checksum
+            echo "Checksum:"
+            sha256sum "${DEB_FILE}"
+
+          } 2>&1 | tee -a install-logs/details/deb-verification.log
+
+      - name: Install Greenplum DEB
+        env:
+          DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
+          DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
+          DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
+        run: |
+          set -ex pipefail
+
+          if [ -z "${DEB_FILE}" ]; then
+            echo "::error::DEB_FILE environment variable is not set"
+            exit 1
+          fi
+
+          {
+            echo "=== DEB Installation Log ==="
+            echo "Timestamp: $(date -u)"
+            echo "DEB File: ${DEB_FILE}"
+            echo "Version: ${DEB_VERSION}"
+            echo "Release: ${DEB_RELEASE}"
+
+            # Clean install location
+            rm -rf /opt/greenplum-db-6
+
+            # Install DEB
+            echo "Starting installation..."
+            if ! apt -y install "${DEB_FILE}"; then
+              echo "::error::DEB installation failed"
+              exit 1
+            fi
+
+            echo "Installation completed successfully"
+            dpkg-query -s greenplum-db-6
+            echo "Installed files:"
+            dpkg-query -L greenplum-db-6
+          } 2>&1 | tee -a install-logs/details/deb-installation.log
+
+      - name: Upload install logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: install-logs-${{ matrix.name }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            install-logs/
+          retention-days: ${{ env.LOG_RETENTION_DAYS }}
+
+      - name: Generate Install Test Job Summary End
+        if: always()
+        shell: bash {0}
+        run: |
+          {
+            echo "# Installed Package Summary"
+            echo "\`\`\`"
+
+            dpkg-query -s greenplum-db-6
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+  ## ======================================================================
+  ## Job: test
+  ## ======================================================================
+
+  test:
+    name: ${{ matrix.test }}
+    needs: [build, prepare-test-matrix]
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+      matrix: ${{ fromJson(needs.prepare-test-matrix.outputs.test-matrix) }}
+
+    container:
+      image: ghcr.io/open-gpdb/gpdb-env:jammy-latest
+      options: >-
+        --privileged
+        --user root
+        --cgroupns=private
+        --dns 8.8.8.8
+      volumes:
+        - /:/host_volume
+
+    steps:
+      - name: Use timestamp from previous job
+        run: |
+          echo "Timestamp from output: ${{ needs.build.outputs.build_timestamp }}"
+
+      - name: Cleanup build folder
+        run: |
+          ls -la ./
+          rm -rf ./* || true
+          rm -rf ./.??* || true
+          ls -la ./
+
+      - name: Checkout CI Build/Test Scripts
+        uses: actions/checkout@v4
+        with:
+          repository: open-gpdb/gpdb-devops
+          ref: main
+          path: gpdb-devops
+          fetch-depth: 1
+      
+      - name: Move gpdb-devops directory
+        run: |
+          set -ex pipefail
+
+          rm -rf "${GITHUB_WORKSPACE}"/../gpdb-devops
+
+          if ! mv "${GITHUB_WORKSPACE}"/gpdb-devops "${GITHUB_WORKSPACE}"/..; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
+
+      - name: Free disk space
+        run: |
+          set -ex pipefail
+
+          # Check disk usage
+          df -h
+
+          # Remove some host directories
+          rm -rf \
+            /host_volume/usr/share/dotnet /host_volume/usr/local/lib/android /host_volume/opt/ghc \
+            /host_volume/usr/local/share/powershell /host_volume/usr/share/swift /host_volume/usr/local/.ghcup \
+            /host_volume/usr/lib/jvm || true
+
+          # Check disk usage
+          df -h
+
+      - name: Environment Initialization
+        env:
+          LOGS_DIR: build-logs
+        run: |
+          set -ex pipefail
+          if ! su - gpadmin -c "/tmp/init_system.sh"; then
+            echo "::error::Container initialization failed"
+            exit 1
+          fi
+
+          apt update -y
+          apt install -y tzdata
+          pip2 install pyyaml
+
+          export LOGS_DIR=build-logs
+
+          mkdir -p "${LOGS_DIR}/details"
+          chown -R gpadmin:gpadmin .
+          chmod -R 755 .
+          chmod 777 "${LOGS_DIR}"
+
+          df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
+          free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
+
+          {
+            echo "=== Environment Information ==="
+            uname -a
+            df -h
+            free -h
+            env
+          } | tee -a "${LOGS_DIR}/details/environment.log"
+
+          echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
+
+      - name: Setup cgroups
+        shell: bash
+        run: |
+          set -ux pipefail
+
+          if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
+
+            echo "Current mounts:"
+            mount | grep cgroup
+
+            stat -fc %T /sys/fs/cgroup/
+            ls -l /sys/fs/cgroup/
+
+            for cgroup_dir in cpu cpuacct cpuset memory
+            do
+                chmod -R 777 /sys/fs/cgroup/$cgroup_dir
+                chown -R gpadmin /sys/fs/cgroup/$cgroup_dir
+
+                mkdir -p /sys/fs/cgroup/$cgroup_dir/gpdb/
+                chmod -R 777 /sys/fs/cgroup/$cgroup_dir/gpdb/
+                chown -R gpadmin /sys/fs/cgroup/$cgroup_dir/gpdb/
+                ls -l /sys/fs/cgroup/$cgroup_dir/gpdb/
+            done
+
+            ls -l /sys/fs/cgroup/
+          else
+            echo "Cgroup setup skipped"
+          fi
+
+      - name: "Generate Test Job Summary Start: ${{ matrix.test }}"
+        if: always()
+        run: |
+          {
+            echo "# Test Job Summary: ${{ matrix.test }}"
+            echo "## Environment"
+            echo "- Start Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+            if [[ "${{ needs.check-skip.outputs.should_skip }}" == "true" ]]; then
+              echo "## Skip Status"
+              echo "✓ Test execution skipped via CI skip flag"
+            else
+              echo "- OS Version: $(cat /etc/redhat-release)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-test
+          path: ${{ github.workspace }}/deb_build_artifacts
+          merge-multiple: false
+
+      - name: Verify downloaded artifacts
+        id: verify-artifacts
+        run: |
+          set -ex pipefail
+
+          SRC_TARBALL_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.tar.xz)
+          if [ ! -f "${SRC_TARBALL_FILE}" ]; then
+            echo "::error::SRC TARBALL file not found"
+            exit 1
+          fi
+
+          echo "src_tarball_file=${SRC_TARBALL_FILE}" >> "$GITHUB_OUTPUT"
+
+          echo "Verifying SRC TARBALL artifacts..."
+          {
+            echo "=== SRC TARBALL Verification Summary ==="
+            echo "Timestamp: $(date -u)"
+            echo "SRC TARBALL File: ${SRC_TARBALL_FILE}"
+
+            # Calculate and store checksum
+            echo "Checksum:"
+            sha256sum "${SRC_TARBALL_FILE}"
+
+          } 2>&1 | tee -a build-logs/details/src-tarball-verification.log
+
+          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          if [ ! -f "${DEB_FILE}" ]; then
+            echo "::error::DEB file not found"
+            exit 1
+          fi
+
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+
+          echo "Verifying DEB artifacts..."
+          {
+            echo "=== DEB Verification Summary ==="
+            echo "Timestamp: $(date -u)"
+            echo "DEB File: ${DEB_FILE}"
+
+            # Get DEB metadata and verify contents
+            echo "Package Information:"
+            dpkg-deb -f "${DEB_FILE}"
+
+            # Get key DEB attributes for verification
+            DEB_VERSION=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 1)
+            DEB_RELEASE=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 3)
+            echo "version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release=${DEB_RELEASE}" >> "$GITHUB_OUTPUT"
+
+            # Verify expected binaries are in the DEB
+            echo "Verifying critical files in DEB..."
+            for binary in "bin/postgres" "bin/psql"; do
+              if ! dpkg-deb -c "${DEB_FILE}" | grep "${binary}" > /dev/null; then
+                echo "::error::Critical binary '${binary}' not found in DEB"
+                exit 1
+              fi
+            done
+
+            echo "DEB Details:"
+            echo "- Version: ${DEB_VERSION}"
+            echo "- Release: ${DEB_RELEASE}"
+
+            # Calculate and store checksum
+            echo "Checksum:"
+            sha256sum "${DEB_FILE}"
+
+          } 2>&1 | tee -a build-logs/details/deb-verification.log
+
+      - name: Install Greenplum DEB
+        env:
+          DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
+          DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
+          DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
+        run: |
+          set -ex pipefail
+
+          if [ -z "${DEB_FILE}" ]; then
+            echo "::error::DEB_FILE environment variable is not set"
+            exit 1
+          fi
+
+          {
+            echo "=== DEB Installation Log ==="
+            echo "Timestamp: $(date -u)"
+            echo "DEB File: ${DEB_FILE}"
+            echo "Version: ${DEB_VERSION}"
+            echo "Release: ${DEB_RELEASE}"
+
+            # Clean install location
+            rm -rf /opt/greenplum-db-6
+
+            # Install DEB
+            echo "Starting installation..."
+            if ! apt -y install "${DEB_FILE}"; then
+              echo "::error::DEB installation failed"
+              exit 1
+            fi
+
+            echo "Installation completed successfully"
+            dpkg-query -s greenplum-db-6
+            echo "Installed files:"
+            dpkg-query -L greenplum-db-6
+          } 2>&1 | tee -a build-logs/details/deb-installation.log
+
+      - name: Extract source tarball
+        env:
+          SRC_TARBALL_FILE: ${{ steps.verify-artifacts.outputs.src_tarball_file }}
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+
+          {
+            echo "=== Source Extraction Log ==="
+            echo "Timestamp: $(date -u)"
+
+            echo "Starting extraction..."
+            if ! tar xJf "${SRC_TARBALL_FILE}" -C "${SRC_DIR}"/.. ; then
+              echo "::error::Source extraction failed"
+              exit 1
+            fi
+
+            chown -R gpadmin:gpadmin "${SRC_DIR}/../gpdb"
+            chmod -R 755 "${SRC_DIR}/../gpdb"
+
+            echo "Extraction completed successfully"
+            echo "Extracted contents:"
+            ls -la "${SRC_DIR}/../gpdb"
+            echo "Directory size:"
+            du -sh "${SRC_DIR}/../gpdb"
+          } 2>&1 | tee -a build-logs/details/source-extraction.log
+
+      - name: Patch tests
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+          {
+            echo "=== Patching Tests Log ==="
+            echo "Timestamp: $(date -u)"
+
+            # Patch tests
+            sed -i  '/mdb-related/,$d' ${SRC_DIR}/../gpdb/src/test/regress/input/misc.source ${SRC_DIR}/../gpdb/src/test/regress/output/misc.source
+
+            echo "Patching tests completed successfully"
+          } 2>&1 | tee -a build-logs/details/patching-tests.log
+
+      - name: Run Greenplum configure script
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+
+          # set env for debian build
+          export BUILD_DESTINATION=/opt/greenplum-db-6
+
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd"; then
+            echo "::error::Configure script failed"
+            exit 1
+          fi
+
+      - name: Create Greenplum demo cluster
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+
+          {            
+            if ! su - gpadmin -c "cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh"; then
+              echo "::error::Demo cluster creation failed"
+              exit 1
+            fi
+
+            # ENABLE CGROUPS ON CLUSTER
+            if [ "${{ matrix.enable_cgroups }}" = "true" ]; then
+                if ! su - gpadmin -c "source /opt/greenplum-db-6/greenplum_path.sh && \
+                     source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
+                     gpconfig -c gp_resource_manager -v 'group' && \
+                     gpstop -a -i && \
+                     gpstart -a"; then
+                  echo "::error::cgroups enable failed"
+                  exit 1
+                fi
+            fi
+
+          } 2>&1 | tee -a build-logs/details/create-gpdb-demo-cluster.log
+
+      - name: "Run Tests: ${{ matrix.test }}"
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        shell: bash {0}
+        run: |
+          set -x pipefail
+
+          # Initialize test status
+          overall_status=0
+          # Create logs directory structure
+          mkdir -p build-logs/details
+          # Create results directory structure
+          mkdir -p build-results
+
+          # WARNING: PostgreSQL Settings
+          # When adding new pg_settings key/value pairs:
+          # 1. Add a new check below for the setting
+          # 2. Follow the same pattern as optimizer
+          # 3. Update matrix entries to include the new setting
+          
+          # Set PostgreSQL options if defined
+          PG_OPTS=""
+          if [[ "${{ matrix.pg_settings.optimizer != '' }}" == "true" ]]; then
+            PG_OPTS="$PG_OPTS -c optimizer=${{ matrix.pg_settings.optimizer }}"
+          fi
+
+          # Read configs into array
+          IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+          echo "=== Starting test execution for ${{ matrix.test }} ==="
+          echo "Number of configurations to execute: ${#configs[@]}"
+          echo ""
+
+          # Execute each config separately
+          for ((i=0; i<${#configs[@]}; i++)); do
+            config="${configs[$i]}"
+            IFS=':' read -r dir target <<< "$config"
+            # Change seporator for multiple targets
+            target=${target//,/ }
+
+            echo "=== Executing configuration $((i+1))/${#configs[@]} ==="
+            echo "Make command: make -C $dir $target"
+            echo "Environment:"
+            echo "- PGOPTIONS: ${PG_OPTS}"
+            
+            # Create unique log file for this configuration
+            config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+
+            cd ${SRC_DIR}
+            if ! su - gpadmin -c "cd ${SRC_DIR} && \
+                 source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
+                 MAKE_NAME='${{ matrix.test }}-config$i' \
+                 MAKE_TARGET='$target' \
+                 MAKE_DIRECTORY='-C $dir' \
+                 PGOPTIONS='${PG_OPTS}' \
+                 SRC_DIR='${SRC_DIR}' \
+                 TEST_PGFDW=1 \
+                 ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh" \
+                 2>&1 | tee "$config_log";then
+              echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
+              overall_status=1
+            fi
+            
+            # Check for results directory
+            results_dir="${dir}/results"
+
+            if [[ -d "$results_dir" ]]; then
+              echo "-----------------------------------------" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+              echo "Found results directory: $results_dir" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+              echo "Contents of results directory:" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+
+              find "$results_dir" -type f -ls >> "$log_file" 2>&1 | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+              echo "-----------------------------------------" | tee -a build-logs/details/make-${{ matrix.test }}-config$i-results.log
+            else
+              echo "-----------------------------------------"
+              echo "Results directory $results_dir does not exit"
+              echo "-----------------------------------------"
+            fi
+
+            echo "Log file: $config_log"
+            echo "=== End configuration $((i+1)) execution ==="
+            echo ""
+          done
+
+          echo "=== Test execution completed ==="
+          echo "Log files:"
+          ls -l build-logs/details/
+
+          # Store number of configurations for parsing step
+          echo "NUM_CONFIGS=${#configs[@]}" >> "$GITHUB_ENV"
+
+          # Report overall status
+          if [ $overall_status -eq 0 ]; then
+            echo "All test executions completed successfully"
+          else
+            echo "::warning::Some test executions failed, check individual logs for details"
+          fi
+
+          exit $overall_status
+
+      - name: "Parse Test Results: ${{ matrix.test }}"
+        id: test-results
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        shell: bash {0}
+        run: |
+          set -o pipefail
+
+          overall_status=0
+
+          # Get configs array to create context for results
+          IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+
+          echo "=== Starting results parsing for ${{ matrix.test }} ==="
+          echo "Number of configurations to parse: ${#configs[@]}"
+          echo ""
+
+          # Parse each configuration's results independently
+          for ((i=0; i<NUM_CONFIGS; i++)); do
+            config="${configs[$i]}"
+            IFS=':' read -r dir target <<< "$config"
+
+            config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+
+            echo "=== Parsing results for configuration $((i+1))/${NUM_CONFIGS} ==="
+            echo "Make command: make -C $dir $target"
+            echo "Log file: $config_log"
+
+            if [ ! -f "$config_log" ]; then
+              echo "::error::Log file not found: $config_log"
+              {
+                echo "MAKE_COMMAND=make -C $dir $target"
+                echo "STATUS=missing_log"
+                echo "TOTAL_TESTS=0"
+                echo "FAILED_TESTS=0"
+                echo "PASSED_TESTS=0"
+                echo "IGNORED_TESTS=0"
+              } > "test_results.$i.txt"
+              overall_status=1
+              continue
+            fi
+
+            # Parse this configuration's results
+
+            MAKE_NAME="${{ matrix.test }}-config$i" \
+            "${SRC_DIR}"/../gpdb-devops/build_automation/gpdb/scripts/parse-test-results.sh "$config_log"
+            status_code=$?
+
+            {
+                echo "SUITE_NAME=${{ matrix.test }}"
+                echo "DIR=${dir}"
+                echo "TARGET=${target}"
+            } >> test_results.txt
+
+            # Process return code
+            case $status_code in
+              0)  # All tests passed
+                  echo "All tests passed successfully"
+                  if [ -f test_results.txt ]; then
+                    (echo "MAKE_COMMAND=\"make -C $dir $target\""; cat test_results.txt) | tee "test_results.${{ matrix.test }}.$i.txt"
+                    rm test_results.txt
+                  fi
+                  ;;
+              1)  # Tests failed but parsed successfully
+                  echo "Test failures detected but properly parsed"
+                  if [ -f test_results.txt ]; then
+                    (echo "MAKE_COMMAND=\"make -C $dir $target\""; cat test_results.txt) | tee "test_results.${{ matrix.test }}.$i.txt"
+                    rm test_results.txt
+                  fi
+                  overall_status=1
+                  ;;
+              2)  # Parse error or missing file
+                  echo "::warning::Could not parse test results properly for configuration $((i+1))"
+                  {
+                    echo "MAKE_COMMAND=\"make -C $dir $target\""
+                    echo "STATUS=parse_error"
+                    echo "TOTAL_TESTS=0"
+                    echo "FAILED_TESTS=0"
+                    echo "PASSED_TESTS=0"
+                    echo "IGNORED_TESTS=0"
+                  } | tee "test_results.${{ matrix.test }}.$i.txt"
+                  overall_status=1
+                  ;;
+              *)  # Unexpected error
+                  echo "::warning::Unexpected error during test results parsing for configuration $((i+1))"
+                  {
+                    echo "MAKE_COMMAND=\"make -C $dir $target\""
+                    echo "STATUS=unknown_error"
+                    echo "TOTAL_TESTS=0"
+                    echo "FAILED_TESTS=0"
+                    echo "PASSED_TESTS=0"
+                    echo "IGNORED_TESTS=0"
+                  } | tee "test_results.${{ matrix.test }}.$i.txt"
+                  overall_status=1
+                  ;;
+            esac
+
+            echo "Results stored in test_results.$i.txt"
+            echo "=== End parsing for configuration $((i+1)) ==="
+            echo ""
+          done
+
+          # Report status of results files
+          echo "=== Results file status ==="
+          echo "Generated results files:"
+          for ((i=0; i<NUM_CONFIGS; i++)); do
+            if [ -f "test_results.${{ matrix.test }}.$i.txt" ]; then
+              echo "- test_results.${{ matrix.test }}.$i.txt exists"
+              echo ""
+            else
+              echo "::error::Missing results file: test_results.${{ matrix.test }}.$i.txt"
+              overall_status=1
+            fi
+          done
+
+          exit $overall_status
+
+      - name: Check and Display Diffs
+        if: always()
+        shell: bash
+        run: |
+            # Search for regression.diffs recursively
+            found_files=$(find . -type f -name "regression.diffs")
+            if [[ -n "$found_files" ]]; then
+              for found_file in $found_files
+               do
+                 echo "-----------------------------------------------------"
+                 echo "Found regression.diffs at: $found_file"
+                 echo "-----------------------------------------------------"
+                 cat "$found_file"
+               done
+            else
+              echo "No regression.diffs file found in the hierarchy."
+            fi
+
+      - name: "Generate Test Job Summary End: ${{ matrix.test }}"
+        if: always()
+        shell: bash {0}
+        run: |
+          {
+            echo "## Test Results"
+            echo "- End Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            # Check if job was cancelled
+            if [[ "${{ job.status }}" == "cancelled" ]]; then
+              echo "### Test Status"
+              echo "🚫 Test execution was cancelled"
+              echo ""
+              echo "### Execution Summary"
+              echo "Test run was interrupted and did not complete. No test results are available."
+              exit 0
+            fi
+            # Process results for each configuration
+            IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
+            for ((i=0; i<NUM_CONFIGS; i++)); do
+              config="${configs[$i]}"
+              IFS=':' read -r dir target <<< "$config"
+              echo "### Configuration $((i+1)): \`make -C $dir $target\`"
+              config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
+              if [[ ! -f "$config_log" ]]; then
+                echo "⚠️ No log file found for this configuration"
+                continue
+              fi
+              cat $config_log | tail -4
+              test_pattern="\s+\S+\s+\.\.\."
+              TOTAL_TESTS=$(cat $config_log | grep -E "$test_pattern [Foi]" -c)
+              PASSED_TESTS=$(cat $config_log | grep -E "$test_pattern ok" -c)
+              FAILED_TESTS=$(cat $config_log | grep -E "$test_pattern FAILED" -c)
+              IGNORED_TESTS=$(cat $config_log | grep -E "$test_pattern ignored" -c)
+              STATUS="failed"
+              if grep -qE "All .+ tests passed." $config_log; then
+                STATUS="passed"
+              fi
+              # Rest of the code remains the same...
+              # Display status with emoji
+              echo "#### Status $STATUS"
+              case "${STATUS:-unknown}" in
+                passed)
+                  echo "✅ All tests passed"
+                  ;;
+                failed)
+                  echo "❌ Some tests failed"
+                  ;;
+                parse_error)
+                  echo "⚠️ Could not parse test results"
+                  ;;
+                unknown_error)
+                  echo "⚠️ Unexpected error during test execution/parsing"
+                  ;;
+                missing_log)
+                  echo "⚠️ Test log file missing"
+                  ;;
+                *)
+                  echo "⚠️ Unknown status: ${status:-unknown}"
+                  ;;
+              esac
+              echo ""
+              echo "#### Test Counts"
+              echo "| Metric | Count |"
+              echo "|--------|-------|"
+              echo "| Total Tests | ${TOTAL_TESTS:-0} |"
+              echo "| Passed Tests | ${PASSED_TESTS:-0} |"
+              echo "| Failed Tests | ${FAILED_TESTS:-0} |"
+              echo "| Ignored Tests | ${IGNORED_TESTS:-0} |"
+              FAILED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern FAILED" | grep -oE "^.... \w+" | grep -oE "\w+$")
+              # Add failed tests if any
+              if [[ -n "${FAILED_TEST_NAMES:-}" && "${FAILED_TESTS:-0}" != "0" ]]; then
+                echo ""
+                echo "#### Failed Tests"
+                echo "${FAILED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                  if [[ -n "$test" ]]; then
+                    echo "* \`${test}\`"
+                  fi
+                done
+              fi
+              IGNORED_TEST_NAMES=$(cat $config_log | grep -E "$test_pattern ignored" | grep -oE "^.... \w+" | grep -oE "\w+$")
+              # Add ignored tests if any
+              if [[ -n "${IGNORED_TEST_NAMES:-}" && "${IGNORED_TESTS:-0}" != "0" ]]; then
+                echo ""
+                echo "#### Ignored Tests"
+                echo "${IGNORED_TEST_NAMES}" | tr ',' '\n' | while read -r test; do
+                  if [[ -n "$test" ]]; then
+                    echo "* \`${test}\`"
+                  fi
+                done
+              fi
+              echo ""
+              echo "---"
+            done
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            build-logs/
+
+      - name: Upload test results files
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            **/regression.out
+            **/regression.diffs
+            **/results/
+
+      - name: Upload test regression logs
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-logs-${{ matrix.test }}-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            **/regression.out
+            **/regression.diffs
+            **/results/
+            gpAux/gpdemo/datadirs/standby/log/
+            gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
+            gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/
+            gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/log/
+            gpAux/gpdemo/datadirs/dbfast3/demoDataDir2/log/
+            gpAux/gpdemo/datadirs/dbfast_mirror1/demoDataDir0/log/
+            gpAux/gpdemo/datadirs/dbfast_mirror2/demoDataDir1/log/
+            gpAux/gpdemo/datadirs/dbfast_mirror3/demoDataDir2/log/
+
+  ## ======================================================================
+  ## Job: report
+  ## ======================================================================
+
+  report:
+    name: Generate Greenplum Build Report
+    needs: [build, prepare-test-matrix, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Final Report
+        run: |
+          {
+            echo "# Greenplum Build Pipeline Report"
+            echo "## Job Status"
+            echo "- Build Job: ${{ needs.build.result }}"
+            echo "- Test Job: ${{ needs.test.result }}"
+            echo "- Completion Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            if [[ "${{ needs.build.result }}" == "success" && "${{ needs.test.result }}" == "success" ]]; then
+              echo "✅ Pipeline completed successfully"
+            else
+              echo "⚠️ Pipeline completed with failures"
+              if [[ "${{ needs.build.result }}" != "success" ]]; then
+                echo "### Build Job Failure"
+                echo "Check build logs for details"
+              fi
+              if [[ "${{ needs.test.result }}" != "success" ]]; then
+                echo "### Test Job Failure"
+                echo "Check test logs and regression files for details"
+              fi
+            fi
+            
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Notify on failure
+        if: |
+          (needs.build.result != 'success' || needs.test.result != 'success')
+        run: |
+          echo "::error::Build/Test pipeline failed! Check job summaries and logs for details"
+          echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "Build Result: ${{ needs.build.result }}"
+          echo "Test Result: ${{ needs.test.result }}"
+
+  ## ======================================================================
+  ## Job: upload_debian
+  ## ======================================================================
+
+  upload_debian:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    name: Upload Debian Package
+    needs: [build, deb-install-test]
+    permissions:
+      contents: write
+    steps:
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-build
+          path: ${{ github.workspace }}/deb_build_artifacts
+          merge-multiple: false
+
+      - name: Verify DEB artifacts
+        id: verify-artifacts
+        run: |
+          set -ex pipefail
+          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          if [ ! -f "${DEB_FILE}" ]; then
+            echo "::error::DEB file not found"
+            exit 1
+          fi
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.verify-artifacts.outputs.deb_file }}

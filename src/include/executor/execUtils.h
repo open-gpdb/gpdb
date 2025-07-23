@@ -16,6 +16,10 @@
 
 #include "executor/execdesc.h"
 
+#define ANALYZE_STATS_COLLECT_HOOK
+typedef void (*analyze_stats_collect_hook_type) (QueryDesc *queryDesc);
+extern PGDLLIMPORT analyze_stats_collect_hook_type analyze_stats_collect_hook;
+
 struct EState;
 struct QueryDesc;
 struct CdbDispatcherState;

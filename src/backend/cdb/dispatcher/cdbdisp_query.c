@@ -869,8 +869,8 @@ buildGpQueryString(DispatchCommandQueryParms *pQueryParms,
 	int			sddesc_len = pQueryParms->serializedQueryDispatchDesclen;
 	const char *dtxContextInfo = pQueryParms->serializedDtxContextInfo;
 	int			dtxContextInfo_len = pQueryParms->serializedDtxContextInfolen;
-	char *queryEnvInfo = 0;
-	int			queryEnvInfo_len = NULL;
+	char 	   *queryEnvInfo = NULL;
+	int			queryEnvInfo_len = 0;
 	int64		currentStatementStartTimestamp = GetCurrentStatementStartTimestamp();
 	Oid			sessionUserId = GetSessionUserId();
 	Oid			outerUserId = GetOuterUserId();

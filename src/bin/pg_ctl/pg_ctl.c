@@ -36,6 +36,8 @@
 #include <sys/resource.h>
 #endif
 
+#include "catalog/pg_control.h"
+#include "common/string.h"
 #include "getopt_long.h"
 #include "miscadmin.h"
 
@@ -2357,9 +2359,8 @@ adjust_data_dir(void)
 	pclose(fd);
 	free(my_exec_path);
 
-	/* Remove trailing newline */
-	if (strchr(filename, '\n') != NULL)
-		*strchr(filename, '\n') = '\0';
+	/* strip trailing newline and carriage return */
+	(void) pg_strip_crlf(filename);
 
 	free(pg_data);
 	pg_data = pg_strdup(filename);

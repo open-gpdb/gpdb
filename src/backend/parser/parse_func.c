@@ -1932,7 +1932,10 @@ funcname_signature_string(const char *funcname, int nargs,
 			appendStringInfo(&argbuf, "%s := ", (char *) lfirst(lc));
 			lc = lnext(lc);
 		}
-		appendStringInfoString(&argbuf, format_type_be(argtypes[i]));
+		if (OidIsValid(argtypes[i]))
+			appendStringInfoString(&argbuf, format_type_be(argtypes[i]));
+		else
+			appendStringInfoString(&argbuf, "not_existing_type");
 	}
 
 	appendStringInfoChar(&argbuf, ')');

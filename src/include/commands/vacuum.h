@@ -224,19 +224,19 @@ extern void analyze_rel(Oid relid, VacuumStmt *vacstmt,
 
 extern void analyzeStatement(VacuumStmt *vacstmt, List *relids, BufferAccessStrategy start, bool isTopLevel);
 extern bool std_typanalyze(VacAttrStats *stats);
-extern double anl_random_fract(void);
-extern double anl_init_selection_state(int n);
-extern double anl_get_next_S(double t, int n, double *stateptr);
 
 extern int acquire_sample_rows(Relation onerel, int elevel,
 							   HeapTuple *rows, int targrows,
 							   double *totalrows, double *totaldeadrows);
 extern int acquire_inherited_sample_rows(Relation onerel, int elevel,
 							  HeapTuple *rows, int targrows,
-							  double *totalrows, double *totaldeadrows);
+							  double *totalrows, double *totaldeadrows,int vacopts);
 
 /* in commands/analyzefuncs.c */
 extern Datum gp_acquire_sample_rows(PG_FUNCTION_ARGS);
 extern Oid gp_acquire_sample_rows_col_type(Oid typid);
+
+
+extern bool gp_use_fastanalyze;
 
 #endif   /* VACUUM_H */

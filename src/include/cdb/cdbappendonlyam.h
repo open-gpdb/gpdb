@@ -141,6 +141,7 @@ typedef struct AppendOnlyExecutorReadBlock
 	int				segmentFileNum;
 
 	int64			totalRowsScannned;
+	int64			blockRowsProcessed;
 
 	int64			blockFirstRowNum;
 	int64			headerOffsetInFile;
@@ -164,107 +165,6 @@ typedef struct AppendOnlyExecutorReadBlock
 	int32			singleRowLen;
 } AppendOnlyExecutorReadBlock;
 
-/*
- * used for scan of append only relations using BufferedRead and VarBlocks
- */
-typedef struct AppendOnlyScanDescData
-{
-	/* scan parameters */
-	Relation	aos_rd;				/* target relation descriptor */
-	Snapshot	appendOnlyMetaDataSnapshot;
-
-	/*
-	 * Snapshot to use for non-metadata operations.
-	 * Usually snapshot = appendOnlyMetaDataSnapshot, but they
-	 * differ e.g. if gp_select_invisible is set.
-	 */ 
-	Snapshot    snapshot;
-
-	Index       aos_scanrelid;
-	int			aos_nkeys;			/* number of scan keys */
-	ScanKey		aos_key;			/* array of scan key descriptors */
-	
-	/* file segment scan state */
-	int			aos_filenamepath_maxlen;
-	char		*aos_filenamepath;
-									/* the current segment file pathname. */
-	int			aos_total_segfiles;	/* the relation file segment number */
-	int			aos_segfiles_processed; /* num of segfiles already processed */
-	FileSegInfo **aos_segfile_arr;	/* array of all segfiles information */
-	bool		aos_need_new_segfile;
-	bool		aos_done_all_segfiles;
-	
-	MemoryContext	aoScanInitContext; /* mem context at init time */
-
-	int32			usableBlockSize;
-	int32			maxDataLen;
-
-	AppendOnlyExecutorReadBlock	executorReadBlock;
-
-	/* current scan state */
-	bool		bufferDone;
-
-	bool	initedStorageRoutines;
-
-	AppendOnlyStorageAttributes	storageAttributes;
-	AppendOnlyStorageRead		storageRead;
-
-	char						*title;
-				/*
-				 * A phrase that better describes the purpose of the this open.
-				 *
-				 * We manage the storage for this.
-				 */
-	
-	/*
-	 * The block directory info.
-	 *
-	 * For AO tables, the block directory is built during the first index
-	 * creation. If set indicates whether to build block directory while
-	 * scanning.
-	 */
-	AppendOnlyBlockDirectory *blockDirectory;
-
-	/**
-	 * The visibility map is used during scans
-	 * to check tuple visibility using visi map.
-	 */ 
-	AppendOnlyVisimap visibilityMap;
-
-}	AppendOnlyScanDescData;
-
-typedef AppendOnlyScanDescData *AppendOnlyScanDesc;
-
-/*
- * Statistics on the latest fetch.
- */
-typedef struct AppendOnlyFetchDetail
-{
-	int64		rangeFileOffset;
-	int64		rangeFirstRowNum;
-	int64		rangeAfterFileOffset;
-	int64		rangeLastRowNum;
-					/*
-					 * The range covered by the Block Directory.
-					 */
-	
-	int64		skipBlockCount;
-					/*
-					 * Number of blocks skipped since the previous block processed in
-					 * the range.
-					 */
-	
-	int64		blockFileOffset;
-	int32		blockOverallLen;
-	int64		blockFirstRowNum;
-	int64		blockLastRowNum;
-	bool		isCompressed;
-	bool		isLargeContent;
-					/*
-					 * The last block processed.
-					 */
-
-} AppendOnlyFetchDetail;
 
 
 /*
@@ -326,6 +226,144 @@ typedef struct AppendOnlyFetchDescData
 
 typedef AppendOnlyFetchDescData *AppendOnlyFetchDesc;
 
+/*
+ * used for scan of append only relations using BufferedRead and VarBlocks
+ */
+typedef struct AppendOnlyScanDescData
+{
+	/* scan parameters */
+	Relation	aos_rd;				/* target relation descriptor */
+	Snapshot	appendOnlyMetaDataSnapshot;
+
+	/*
+	 * Snapshot to use for non-metadata operations.
+	 * Usually snapshot = appendOnlyMetaDataSnapshot, but they
+	 * differ e.g. if gp_select_invisible is set.
+	 */ 
+	Snapshot    snapshot;
+
+	Index       aos_scanrelid;
+	int			aos_nkeys;			/* number of scan keys */
+	ScanKey		aos_key;			/* array of scan key descriptors */
+	
+	/* file segment scan state */
+	int			aos_filenamepath_maxlen;
+	char		*aos_filenamepath;
+									/* the current segment file pathname. */
+	int			aos_total_segfiles;	/* the relation file segment number */
+	int			aos_segfiles_processed; /* num of segfiles already processed */
+	FileSegInfo **aos_segfile_arr;	/* array of all segfiles information */
+	bool		aos_need_new_segfile;
+	bool		aos_done_all_segfiles;
+	
+	MemoryContext	aoScanInitContext; /* mem context at init time */
+
+	int32			usableBlockSize;
+	int32			maxDataLen;
+
+	AppendOnlyExecutorReadBlock	executorReadBlock;
+
+	/* current scan state */
+	bool		needNextBuffer;
+
+	bool	initedStorageRoutines;
+
+	AppendOnlyStorageAttributes	storageAttributes;
+	AppendOnlyStorageRead		storageRead;
+
+	char						*title;
+				/*
+				 * A phrase that better describes the purpose of the this open.
+				 *
+				 * We manage the storage for this.
+				 */
+	
+	/*
+	 * The block directory info.
+	 *
+	 * For AO tables, the block directory is built during the first index
+	 * creation. If set indicates whether to build block directory while
+	 * scanning.
+	 */
+	AppendOnlyBlockDirectory *blockDirectory;
+
+	/**
+	 * The visibility map is used during scans
+	 * to check tuple visibility using visi map.
+	 */ 
+	AppendOnlyVisimap visibilityMap;
+
+	/*
+	 * used by `analyze`
+	 */
+
+	/*
+	 * targrow: the output of the Row-based sampler (Algorithm S), denotes a
+	 * rownumber in the flattened row number space that is the target of a sample,
+	 * which starts from 0.
+	 * In other words, if we have seg0 rownums: [1, 100], seg1 rownums: [1, 200]
+	 * If targrow = 150, then we are referring to seg1's rownum=51.
+	 */
+	int64				targrow;
+
+	/*
+	 * segfirstrow: pointing to the next starting row which is used to check
+	 * the distance to `targrow`
+	 */
+	int64				segfirstrow;
+
+	/*
+	 * segrowsprocessed: track the rows processed under the current segfile.
+	 * Don't miss updating it accordingly when "segfirstrow" is updated.
+	 */
+	int64				segrowsprocessed;
+
+	AOBlkDirScan		blkdirscan;
+
+	/*
+	* The total number of bytes read, compressed, across all segment files, so
+	* far. This is used for scan progress reporting.
+	*/
+	int64           totalBytesRead;
+
+	AppendOnlyFetchDesc	aofetch;
+
+}	AppendOnlyScanDescData;
+
+typedef AppendOnlyScanDescData *AppendOnlyScanDesc;
+
+/*
+ * Statistics on the latest fetch.
+ */
+typedef struct AppendOnlyFetchDetail
+{
+	int64		rangeFileOffset;
+	int64		rangeFirstRowNum;
+	int64		rangeAfterFileOffset;
+	int64		rangeLastRowNum;
+					/*
+					 * The range covered by the Block Directory.
+					 */
+	
+	int64		skipBlockCount;
+					/*
+					 * Number of blocks skipped since the previous block processed in
+					 * the range.
+					 */
+	
+	int64		blockFileOffset;
+	int32		blockOverallLen;
+	int64		blockFirstRowNum;
+	int64		blockLastRowNum;
+	bool		isCompressed;
+	bool		isLargeContent;
+					/*
+					 * The last block processed.
+					 */
+
+} AppendOnlyFetchDetail;
+
+
 typedef struct AppendOnlyUpdateDescData *AppendOnlyUpdateDesc;
 typedef struct AppendOnlyDeleteDescData *AppendOnlyDeleteDesc;
 
@@ -351,6 +389,9 @@ extern void appendonly_endscan(AppendOnlyScanDesc scan);
 extern bool appendonly_getnext(AppendOnlyScanDesc scan,
 							   ScanDirection direction,
 							   TupleTableSlot *slot);
+extern bool appendonly_get_target_tuple(AppendOnlyScanDesc aoscan,
+										int64 targrow,
+										TupleTableSlot *slot);
 extern AppendOnlyFetchDesc appendonly_fetch_init(
 	Relation 	relation,
 	Snapshot    snapshot,
@@ -397,5 +438,43 @@ extern bool AppendOnlyExecutorReadBlock_ScanNextTuple(AppendOnlyExecutorReadBloc
 										  TupleTableSlot *slot);
 
 extern void AppendOnlyExecutorReadBlock_GetContents(AppendOnlyExecutorReadBlock *executorReadBlock);
+
+/*
+ * Update total bytes read for the entire scan. If the block was compressed,
+ * update it with the compressed length. If the block was not compressed, update
+ * it with the uncompressed length.
+ */
+static inline void
+AppendOnlyScanDesc_UpdateTotalBytesRead(AppendOnlyScanDesc scan)
+{
+	Assert(scan->storageRead.isActive);
+
+	if (scan->storageRead.current.isCompressed)
+		scan->totalBytesRead += scan->storageRead.current.compressedLen;
+	else
+		scan->totalBytesRead += scan->storageRead.current.uncompressedLen;
+}
+
+
+static inline int64
+AppendOnlyScanDesc_TotalTupCount(AppendOnlyScanDesc scan)
+{
+	Assert(scan != NULL);
+
+	int64 totalrows = 0;
+	FileSegInfo **seginfo = scan->aos_segfile_arr;
+
+    for (int i = 0; i < scan->aos_total_segfiles; i++)
+    {
+	    if (seginfo[i]->state != AOSEG_STATE_AWAITING_DROP)
+		    totalrows += seginfo[i]->total_tupcount;
+    }
+
+    return totalrows;
+}
+
+int
+appendonly_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
+							   int targrows, double *totalrows, double *totaldeadrows);
 
 #endif   /* CDBAPPENDONLYAM_H */

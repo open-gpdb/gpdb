@@ -21,6 +21,11 @@
 #include <io.h>
 #endif
 
+#include "getopt_long.h"
+#include "common/string.h"
+
+#include "pg_upgrade.h"
+
 
 static void usage(void);
 static void check_required_directory(char **dirpath,
@@ -410,9 +415,8 @@ adjust_data_dir(ClusterInfo *cluster)
 
 	pclose(output);
 
-	/* Remove trailing newline */
-	if (strchr(cmd_output, '\n') != NULL)
-		*strchr(cmd_output, '\n') = '\0';
+	/* strip trailing newline and carriage return */
+	(void) pg_strip_crlf(cmd_output);
 
 	cluster->pgdata = pg_strdup(cmd_output);
 
@@ -471,10 +475,9 @@ get_sock_dir(ClusterInfo *cluster, bool live_check)
 					sscanf(line, "%hu", &old_cluster.port);
 				if (lineno == LOCK_FILE_LINE_SOCKET_DIR)
 				{
+					/* strip trailing newline and carriage return */
 					cluster->sockdir = pg_strdup(line);
-					/* strip off newline */
-					if (strchr(cluster->sockdir, '\n') != NULL)
-						*strchr(cluster->sockdir, '\n') = '\0';
+					(void) pg_strip_crlf(cluster->sockdir);
 				}
 			}
 			fclose(fp);
