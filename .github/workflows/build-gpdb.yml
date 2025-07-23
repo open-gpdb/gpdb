@@ -672,6 +672,9 @@ jobs:
               exit 1
             fi
 
+            # Change ownership back to gpadmin - it is needed for future tests
+            chown -R gpadmin:gpadmin /opt/greenplum-db-6
+
             echo "Installation completed successfully"
             dpkg-query -s greenplum-db-6
             echo "Installed files:"
