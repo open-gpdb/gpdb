@@ -204,6 +204,7 @@
 		"gp_fts_retry_interval",
 		"gp_fts_probe_timeout",
 		"gp_fts_replication_attempt_count",
+		"gp_fts_maintenance",
 		"gp_gang_creation_retry_count",
 		"gp_gang_creation_retry_non_recovery",
 		"gp_gang_creation_retry_timer",
