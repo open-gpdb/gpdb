@@ -8,9 +8,9 @@ on:
   release:
     types: [published]
   push:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   pull_request:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   workflow_dispatch:
     inputs:
       test_selection:
@@ -955,6 +955,8 @@ jobs:
               echo "::error::DEB installation failed"
               exit 1
             fi
+
+            chown -R gpadmin:gpadmin /opt/greenplum-db-6
 
             echo "Installation completed successfully"
             dpkg-query -s greenplum-db-6
