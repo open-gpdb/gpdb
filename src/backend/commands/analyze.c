@@ -1802,6 +1802,8 @@ acquire_sample_rows(Relation onerel, int elevel,
 	else if (RelationIsAppendOptimized(onerel))
 		return acquire_sample_rows_ao(onerel, elevel, rows, targrows,
 									  totalrows, totaldeadrows);
+	else if (RelationIsForeign(onerel))
+		return 0;
 	else
 		elog(ERROR, "unsupported table type");
 }
