@@ -15,8 +15,6 @@ insert into ao_age_test select i, (i%123 > 50), (i/11) || '',
 '2008/10/12'::date + (i || ' days')::interval
 from generate_series(0, 99) i;
 create index ao_age_test_i on ao_age_test(i);
-NOTICE:  building index for child partition "ao_age_test_1_prt_b1"
-NOTICE:  building index for child partition "ao_age_test_1_prt_b2"
 -- MPP-23647 Create a empty table with no segments, let its age
 -- increase during the test.  We will vacuum it at the end of the
 -- test.
@@ -291,6 +289,8 @@ DROP ROLE r_priv_test;
 -- VACUUM and ANALYZE.
 set gp_autostats_mode='none';
 CREATE TABLE vacuum_gp_pt (a int, b int) DISTRIBUTED BY (a) PARTITION BY range (b) (END(5), START(5));
+NOTICE:  CREATE TABLE will create partition "vacuum_gp_pt_1_prt_1" for table "vacuum_gp_pt"
+NOTICE:  CREATE TABLE will create partition "vacuum_gp_pt_1_prt_2" for table "vacuum_gp_pt"
 INSERT INTO vacuum_gp_pt SELECT 0, 6 FROM generate_series(1, 12);
 SELECT relname, reltuples, relpages FROM pg_catalog.pg_class WHERE relname like 'vacuum_gp_pt%';
        relname        | reltuples | relpages 
@@ -338,12 +338,19 @@ WARNING:  skipping "__gp_log_master_ext" --- cannot vacuum non-tables, external 
 -- Vacuum related access control tests (Issue: https://github.com/greenplum-db/gpdb/issues/9001)
 -- Given a non-super-user role
 CREATE ROLE non_super_user_vacuum;
+NOTICE:  resource queue required -- using default resource queue "pg_default"
 -- And a heap table with auxiliary relations under the pg_toast namespace.
 CREATE TABLE vac_acl_heap(i int, j text);
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'i' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 -- And an AO table with auxiliary relations under the pg_aoseg namespace.
 CREATE TABLE vac_acl_ao(i int, j text) with (appendonly=true);
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'i' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 -- And an AOCS table with auxiliary relations under the pg_aocsseg namespace.
 CREATE TABLE vac_acl_aocs(i int, j text) with (appendonly=true, orientation=column);
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'i' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
 -- And all the tables belong to the non-super-user role.
 ALTER TABLE vac_acl_heap OWNER TO non_super_user_vacuum;
 ALTER TABLE vac_acl_ao OWNER TO non_super_user_vacuum;
@@ -380,9 +387,9 @@ ORDER BY gp_segment_id;
  gp_segment_id |        relname         | reltuples | relpages | age 
 ---------------+------------------------+-----------+----------+-----
             -1 | vacuum_test_heap_table |        10 |        3 |   3
-             0 | vacuum_test_heap_table |         0 |        0 |   4
-             1 | vacuum_test_heap_table |         0 |        0 |   4
-             2 | vacuum_test_heap_table |         0 |        0 |   4
+             0 | vacuum_test_heap_table |         5 |        1 |   4
+             1 | vacuum_test_heap_table |         1 |        1 |   4
+             2 | vacuum_test_heap_table |         4 |        1 |   4
 (4 rows)
 
 VACUUM FREEZE vacuum_test_heap_table;
