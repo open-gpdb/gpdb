@@ -39,7 +39,8 @@ char *
 BuildRestoreCommand(const char *restoreCommand,
 					const char *xlogpath,
 					const char *xlogfname,
-					const char *lastRestartPointFname)
+					const char *lastRestartPointFname,
+					int segindex)
 {
 	StringInfoData result;
 	const char *sp;
@@ -104,9 +105,9 @@ BuildRestoreCommand(const char *restoreCommand,
 					break;
 				case 'c':
 					/* GPDB: %c: contentId of segment */
-					Assert(GpIdentity.segindex != UNINITIALIZED_GP_IDENTITY_VALUE);
+					Assert(segindex != UNINITIALIZED_GP_IDENTITY_VALUE);
 					sp++;
-					pg_ltoa(GpIdentity.segindex, contentid);
+					pg_ltoa(segindex, contentid);
 					appendStringInfoString(&result, contentid);
 					break;
 				case '%':
