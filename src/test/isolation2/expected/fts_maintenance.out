@@ -1,0 +1,117 @@
+-- Faster FTS probes
+-- Let FTS detect/declare failure sooner
+!\retcode gpconfig -c gp_fts_probe_interval -v 10 --masteronly;
+(exited with code 0)
+!\retcode gpconfig -c gp_fts_probe_retries -v 2 --masteronly;
+(exited with code 0)
+
+!\retcode gpconfig -c gp_fts_maintenance -v on --skipvalidation --masteronly;
+(exited with code 0)
+!\retcode gpstop -u;
+(exited with code 0)
+
+include: helpers/server_helpers.sql;
+CREATE
+
+create table fts_mnt_tbl(i integer);
+CREATE
+insert into fts_mnt_tbl select i from generate_series(1, 100)i;
+INSERT 100
+
+-- no segment down.
+select count(*) from gp_segment_configuration where status = 'd';
+ count 
+-------
+ 0     
+(1 row)
+
+-- Kill a mirror segment
+select pg_ctl((select datadir from gp_segment_configuration c where c.role='m' and c.content=1), 'stop');
+ pg_ctl 
+--------
+ OK     
+(1 row)
+
+-- Take a nap to make sure FTS would notice a failed segment
+select pg_sleep(0.2);
+ pg_sleep 
+----------
+          
+(1 row)
+
+-- Still no segmens down
+select count(*) from gp_segment_configuration where status = 'd';
+ count 
+-------
+ 0     
+(1 row)
+
+-- Even after a manual probe?
+select gp_request_fts_probe_scan();
+ gp_request_fts_probe_scan 
+---------------------------
+ t                         
+(1 row)
+select count(*) from gp_segment_configuration where status = 'd';
+ count 
+-------
+ 0     
+(1 row)
+
+-- Try read - non blocking
+1:select count(*) from fts_mnt_tbl;
+ count 
+-------
+ 100   
+(1 row)
+
+-- Try write - blocking
+1&:insert into fts_mnt_tbl select i from generate_series(101, 200)i;  <waiting ...>
+
+-- Try recovereseg - noop
+!\retcode gprecoverseg -a;
+(exited with code 0)
+
+-- Still no segmens down
+select count(*) from gp_segment_configuration where status = 'd';
+ count 
+-------
+ 0     
+(1 row)
+
+-- Still blocking
+2&:insert into fts_mnt_tbl select i from generate_series(201, 300)i;  <waiting ...>
+
+-- Turn maintenance off
+!\retcode gpconfig -c gp_fts_maintenance -v off --skipvalidation --masteronly;
+(exited with code 0)
+!\retcode gpstop -u;
+(exited with code 1)
+
+-- writes unblock
+1<:  <... completed>
+INSERT 100
+2<:  <... completed>
+INSERT 100
+
+-- gpsegment configuration changes
+select count(*) from gp_segment_configuration where status = 'd';
+ count 
+-------
+ 1     
+(1 row)
+
+-- gpsecoverseg works
+!\retcode gprecoverseg -a;
+(exited with code 0)
+
+-- gpsegment configuration changes
+select count(*) from gp_segment_configuration where status = 'd';
+ count 
+-------
+ 0     
+(1 row)
+
+!\retcode gprecoverseg -ar;
+(exited with code 0)
+
