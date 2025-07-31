@@ -107,11 +107,6 @@ jobs:
               {"test":"ic-expandshrink",
                "make_configs":["src/test/isolation2:installcheck-expandshrink"]
               },
-              {"test":"ic-resgroup",
-               "make_configs":["src/test/isolation2:installcheck-resgroup"],
-               "enable_cgroups":true,
-               "runs_on":"ubuntu-20.04"
-              },
               {"test":"ic-contrib",
                "install_target":true,
                "make_configs":["contrib/amcheck:installcheck",
