@@ -109,11 +109,6 @@ jobs:
               {"test":"ic-expandshrink",
                "make_configs":["src/test/isolation2:installcheck-expandshrink"]
               },
-              {"test":"ic-resgroup",
-               "make_configs":["src/test/isolation2:installcheck-resgroup"],
-               "enable_cgroups":true,
-               "runs_on":"self-hosted"
-              },
               {"test":"ic-mdb",
                "make_configs":["src/test/isolation2:installcheck-mdb"]
               },

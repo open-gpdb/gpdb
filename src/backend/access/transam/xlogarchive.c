@@ -150,7 +150,8 @@ RestoreArchivedFile(char *path, const char *xlogfname,
 	/* Build the restore command to execute */
 	xlogRestoreCmd = BuildRestoreCommand(recoveryRestoreCommand,
 										 xlogpath, xlogfname,
-										 lastRestartPointFname);
+										 lastRestartPointFname,
+										 GpIdentity.segindex);
 	if (xlogRestoreCmd == NULL)
 		elog(ERROR, "could not build restore command \"%s\"",
 			 recoveryRestoreCommand);

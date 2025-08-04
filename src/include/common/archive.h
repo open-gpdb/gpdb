@@ -16,6 +16,7 @@
 extern char *BuildRestoreCommand(const char *restoreCommand,
 								 const char *xlogpath,	/* %p */
 								 const char *xlogfname, /* %f */
-								 const char *lastRestartPointFname);	/* %r */
+								 const char *lastRestartPointFname,
+								 int segindx);	/* %r */
 
 #endif							/* ARCHIVE_H */
