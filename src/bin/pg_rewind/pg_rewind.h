@@ -46,4 +46,7 @@ extern XLogRecPtr readOneRecord(const char *datadir, XLogRecPtr ptr,
 extern TimeLineHistoryEntry *rewind_parseTimeLineHistory(char *buffer,
 							TimeLineID targetTLI, int *nentries);
 
+
+extern int instanceSegIndx;
+
 #endif   /* PG_REWIND_H */

@@ -83,7 +83,7 @@ static int SimpleXLogPageRead(XLogReaderState *xlogreader,
  */
 int
 RWRestoreArchivedFile(const char *path, const char *xlogfname,
-					off_t expectedSize, const char *restoreCommand)
+					off_t expectedSize, const char *restoreCommand, int segindx)
 {
 	char		xlogpath[MAXPGPATH];
 	char	   *xlogRestoreCmd;
@@ -93,7 +93,7 @@ RWRestoreArchivedFile(const char *path, const char *xlogfname,
 	snprintf(xlogpath, MAXPGPATH, "%s/" XLOGDIR "/%s", path, xlogfname);
 
 	xlogRestoreCmd = BuildRestoreCommand(restoreCommand, xlogpath,
-										 xlogfname, NULL);
+										 xlogfname, NULL, segindx);
 	if (xlogRestoreCmd == NULL)
 	{
 		pg_fatal("could not use restore_command with %%r alias");
@@ -393,6 +393,12 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 				return -1;
 			}
 
+			if (instanceSegIndx == -2) {
+
+				pg_log(PG_FATAL, "could get instance segment uid");
+				return -1;
+			}
+
 			/*
 			 * Since we have restore_command, then try to retrieve missing WAL
 			 * file from the archive.
@@ -400,7 +406,7 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 			xlogreadfd = RWRestoreArchivedFile(path,
 											 xlogfname,
 											 XLogSegSize,
-											 private->restoreCommand);
+											 private->restoreCommand, instanceSegIndx);
 
 			if (xlogreadfd < 0)
 				return -1;

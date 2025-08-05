@@ -80,10 +80,29 @@ timestamptz_to_str(TimestampTz dt)
 	return buf;
 }
 
+
 /*
  * Provide a hacked up compat layer for StringInfos so xlog desc functions can
  * be linked/called.
  */
+
+
+/*
+ * initStringInfo
+ *
+ * Initialize a StringInfoData struct (with previously undefined contents)
+ * to describe an empty string.
+ */
+void
+initStringInfo(StringInfo str)
+{
+	int			size = 1024;	/* initial default buffer size */
+
+	str->data = (char *) palloc(size);
+	str->maxlen = size;
+	resetStringInfo(str);
+}
+
 void
 appendStringInfo(StringInfo str, const char *fmt,...)
 {
@@ -106,3 +125,71 @@ appendStringInfoChar(StringInfo str, char ch)
 	appendStringInfo(str, "%c", ch);
 }
 
+/*
+ * resetStringInfo
+ *
+ * Reset the StringInfo: the data buffer remains valid, but its
+ * previous content, if any, is cleared.
+ */
+void
+resetStringInfo(StringInfo str)
+{
+	str->data[0] = '\0';
+	str->len = 0;
+	str->cursor = 0;
+}
+
+
+/*
+ * pg_ltoa: converts a signed 32-bit integer to its string representation
+ *
+ * Caller must ensure that 'a' points to enough memory to hold the result
+ * (at least 12 bytes, counting a leading sign and trailing NUL).
+ */
+void
+pg_ltoa(int32 value, char *a)
+{
+	char	   *start = a;
+	bool		neg = false;
+
+	/*
+	 * Avoid problems with the most negative integer not being representable
+	 * as a positive integer.
+	 */
+	if (value == (-2147483647 - 1))
+	{
+		memcpy(a, "-2147483648", 12);
+		return;
+	}
+	else if (value < 0)
+	{
+		value = -value;
+		neg = true;
+	}
+
+	/* Compute the result string backwards. */
+	do
+	{
+		int32		remainder;
+		int32		oldval = value;
+
+		value /= 10;
+		remainder = oldval - value * 10;
+		*a++ = '0' + remainder;
+	} while (value != 0);
+
+	if (neg)
+		*a++ = '-';
+
+	/* Add trailing NUL byte, and back up 'a' to the last character. */
+	*a-- = '\0';
+
+	/* Reverse string. */
+	while (start < a)
+	{
+		char		swap = *start;
+
+		*start++ = *a;
+		*a-- = swap;
+	}
+}

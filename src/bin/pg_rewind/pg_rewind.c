@@ -62,6 +62,9 @@ char	   *datadir_source = NULL;
 char	   *connstr_source = NULL;
 char	   *restore_command = NULL;
 
+
+int instanceSegIndx = -2;
+
 bool		debug = false;
 bool		showprogress = false;
 bool		dry_run = false;
@@ -108,6 +111,7 @@ main(int argc, char **argv)
 		{"no-sync", no_argument, NULL, 'N'},
 		{"progress", no_argument, NULL, 'P'},
 		{"debug", no_argument, NULL, 3},
+		{"segindx", no_argument, NULL, 4},
 		{NULL, 0, NULL, 0}
 	};
 	int			option_index;
@@ -187,6 +191,9 @@ main(int argc, char **argv)
 				break;
 			case 2:				/* --source-server */
 				connstr_source = pg_strdup(optarg);
+				break;
+			case 4:
+				instanceSegIndx = strtoll(optarg, optarg + strlen(optarg), 10);
 				break;
 		}
 	}
