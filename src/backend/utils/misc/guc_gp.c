@@ -3447,7 +3447,7 @@ struct config_bool ConfigureNamesBool_gp[] =
 
 		{
 		{"gp_fts_maintenance", PGC_SIGHUP, GP_ARRAY_TUNING,
-		 gettext_noop("Don't run FTS probes, the clustar ARRAY has known issues"),
+		 gettext_noop("Don't run FTS probes, the cluster ARRAY has known issues"),
 		 NULL
 		},
 		&gp_fts_maintenance,
