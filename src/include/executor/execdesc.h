@@ -23,6 +23,14 @@
 
 struct CdbExplain_ShowStatCtx;  /* private, in "cdb/cdbexplain.c" */
 
+typedef struct YagpHooksQueryState
+{
+	int tmid; /* transaction time */
+	int ssid; /* session id */
+	int ccnt; /* command count */
+	int nesting_level;
+	uintptr_t query_desc_addr;
+} YagpHooksQueryState;
 
 /* GangType enumeration is used in several structures related to CDB
  * slice plan support.
@@ -275,6 +283,9 @@ typedef struct QueryDesc
 
 	/* The overall memory consumption account (i.e., outside of an operator) */
 	MemoryAccountIdType memoryAccountId;
+
+	/* YAGP Hooks collector */
+	YagpHooksQueryState *yagp_hooks_query_state;
 } QueryDesc;
 
 /* in pquery.c */
