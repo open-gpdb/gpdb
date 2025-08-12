@@ -127,7 +127,7 @@ CreateQueryDesc(PlannedStmt *plannedstmt,
 	}
 
 	/* null this field until set by YAGP Hooks collector */
-	qd->yagp_hooks_query_state = NULL;
+	qd->yagp_query_key = NULL;
 
 	return qd;
 }
@@ -165,7 +165,7 @@ CreateUtilityQueryDesc(Node *utilitystmt,
 	qd->showstatctx = NULL;
 
 	/* null this field until set by YAGP Hooks collector */
-	qd->yagp_hooks_query_state = NULL;
+	qd->yagp_query_key = NULL;
 
 	return qd;
 }
