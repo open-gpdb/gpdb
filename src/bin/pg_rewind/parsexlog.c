@@ -28,6 +28,7 @@
 #include "logging.h"
 
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "access/bitmap.h"
 #include "access/heapam_xlog.h"
@@ -43,6 +44,10 @@
 #include "commands/tablespace.h"
 #include "commands/sequence.h"
 #include "cdb/cdbappendonlyxlog.h"
+#include "filemap.h"
+#include "pg_rewind.h"
+
+#include "common/archive.h"
 
 static void extractPageInfo(XLogRecord *record);
 
@@ -52,6 +57,7 @@ static char xlogfpath[MAXPGPATH];
 
 typedef struct XLogPageReadPrivate
 {
+	const char *restoreCommand;
 	const char *datadir;
 	TimeLineID	tli;
 } XLogPageReadPrivate;
@@ -61,6 +67,109 @@ static int SimpleXLogPageRead(XLogReaderState *xlogreader,
 				   int reqLen, XLogRecPtr targetRecPtr, char *readBuf,
 				   TimeLineID *pageTLI);
 
+
+
+
+/*
+ * RWRestoreArchivedFile
+ *
+ * Attempt to retrieve the specified file from off-line archival storage.
+ * If successful, return a file descriptor of the restored file, else
+ * return -1.
+ *
+ * For fixed-size files, the caller may pass the expected size as an
+ * additional crosscheck on successful recovery.  If the file size is not
+ * known, set expectedSize = 0.
+ */
+int
+RWRestoreArchivedFile(const char *path, const char *xlogfname,
+					off_t expectedSize, const char *restoreCommand, int segindx)
+{
+	char		xlogpath[MAXPGPATH];
+	char	   *xlogRestoreCmd;
+	int			rc;
+	struct stat stat_buf;
+
+	snprintf(xlogpath, MAXPGPATH, "%s/" XLOGDIR "/%s", path, xlogfname);
+
+	xlogRestoreCmd = BuildRestoreCommand(restoreCommand, xlogpath,
+										 xlogfname, NULL, segindx);
+	if (xlogRestoreCmd == NULL)
+	{
+		pg_fatal("could not use restore_command with %%r alias");
+		exit(1);
+	}
+
+	/*
+	 * Execute restore_command, which should copy the missing file from
+	 * archival storage.
+	 */
+	rc = system(xlogRestoreCmd);
+	pfree(xlogRestoreCmd);
+
+	if (rc == 0)
+	{
+		/*
+		 * Command apparently succeeded, but let's make sure the file is
+		 * really there now and has the correct size.
+		 */
+		if (stat(xlogpath, &stat_buf) == 0)
+		{
+			if (expectedSize > 0 && stat_buf.st_size != expectedSize)
+			{
+				pg_fatal("unexpected file size for \"%s\": %lu instead of %lu",
+							 xlogfname, (unsigned long) stat_buf.st_size,
+							 (unsigned long) expectedSize);
+				exit(1);
+			}
+			else
+			{
+				int			xlogfd = open(xlogpath, O_RDONLY | PG_BINARY, 0);
+
+				if (xlogfd < 0)
+				{
+					pg_fatal("could not open file \"%s\" restored from archive: %m",
+								 xlogpath);
+					exit(1);
+				}
+				else
+					return xlogfd;
+			}
+		}
+		else
+		{
+			if (errno != ENOENT)
+			{
+				pg_fatal("could not stat file \"%s\": %m",
+							 xlogpath);
+				exit(1);
+			}
+		}
+	}
+
+	/*
+	 * If the failure was due to a signal, then it would be misleading to
+	 * return with a failure at restoring the file.  So just bail out and
+	 * exit.  Hard shell errors such as "command not found" are treated as
+	 * fatal too.
+	 */
+	if (wait_result_is_any_signal(rc, true))
+	{
+		pg_fatal("restore_command failed due to the signal: %s",
+					 wait_result_to_str(rc));
+		exit(1);
+	}
+
+	/*
+	 * The file is not available, so just let the caller decide what to do
+	 * next.
+	 */
+	pg_log(PG_FATAL, "could not restore file \"%s\" from archive",
+				 xlogfname);
+	return -1;
+}
+
+
 /*
  * Read WAL from the datadir/pg_xlog, starting from 'startpoint' on timeline
  * 'tli', until 'endpoint'. Make note of the data blocks touched by the WAL
@@ -68,7 +177,7 @@ static int SimpleXLogPageRead(XLogReaderState *xlogreader,
  */
 void
 extractPageMap(const char *datadir, XLogRecPtr startpoint, TimeLineID tli,
-			   XLogRecPtr endpoint)
+			   XLogRecPtr endpoint, const char *restoreCommand)
 {
 	XLogRecord *record;
 	XLogReaderState *xlogreader;
@@ -77,6 +186,7 @@ extractPageMap(const char *datadir, XLogRecPtr startpoint, TimeLineID tli,
 
 	private.datadir = datadir;
 	private.tli = tli;
+	private.restoreCommand = restoreCommand;
 	xlogreader = XLogReaderAllocate(&SimpleXLogPageRead, &private);
 	if (xlogreader == NULL)
 		pg_fatal("out of memory\n");
@@ -161,7 +271,7 @@ readOneRecord(const char *datadir, XLogRecPtr ptr, TimeLineID tli)
 void
 findLastCheckpoint(const char *datadir, XLogRecPtr forkptr, TimeLineID tli,
 				   XLogRecPtr *lastchkptrec, TimeLineID *lastchkpttli,
-				   XLogRecPtr *lastchkptredo)
+				   XLogRecPtr *lastchkptredo, const char *restoreCommand)
 {
 	/* Walk backwards, starting from the given record */
 	XLogRecord *record;
@@ -181,6 +291,7 @@ findLastCheckpoint(const char *datadir, XLogRecPtr forkptr, TimeLineID tli,
 
 	private.datadir = datadir;
 	private.tli = tli;
+	private.restoreCommand = restoreCommand;
 	xlogreader = XLogReaderAllocate(&SimpleXLogPageRead, &private);
 	if (xlogreader == NULL)
 		pg_fatal("out of memory\n");
@@ -263,6 +374,7 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 	if (xlogreadfd < 0)
 	{
 		char		xlogfname[MAXFNAMELEN];
+		char		path[MAXPGPATH];
 
 		XLogFileName(xlogfname, private->tli, xlogreadsegno);
 
@@ -272,9 +384,35 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 
 		if (xlogreadfd < 0)
 		{
-			printf(_("could not open file \"%s\": %s\n"), xlogfpath,
-				   strerror(errno));
-			return -1;
+			/*
+			 * If we have no restore_command to execute, then exit.
+			 */
+			if (private->restoreCommand == NULL)
+			{
+				pg_log(PG_FATAL, "could not open file \"%s\": %m", xlogfpath);
+				return -1;
+			}
+
+			if (instanceSegIndx == -2) {
+
+				pg_log(PG_FATAL, "could get instance segment uid");
+				return -1;
+			}
+
+			/*
+			 * Since we have restore_command, then try to retrieve missing WAL
+			 * file from the archive.
+			 */
+			xlogreadfd = RWRestoreArchivedFile(path,
+											 xlogfname,
+											 XLogSegSize,
+											 private->restoreCommand, instanceSegIndx);
+
+			if (xlogreadfd < 0)
+				return -1;
+			else
+				pg_log(PG_DEBUG, "using file \"%s\" restored from archive",
+							 xlogfpath);
 		}
 	}
 

@@ -23,6 +23,10 @@
 #include "access/xlog_internal.h"
 #include "catalog/catversion.h"
 #include "catalog/pg_control.h"
+#include "common/string.h"
+#include "fetch.h"
+#include "file_ops.h"
+#include "filemap.h"
 #include "getopt_long.h"
 #include "utils/palloc.h"
 #include "storage/bufpage.h"
@@ -37,6 +41,7 @@ static void digestControlFile(ControlFileData *ControlFile, char *source,
 				  size_t size);
 static void updateControlFile(ControlFileData *ControlFile);
 static void syncTargetDirectory(void);
+static void getRestoreCommand(const char *argv0);
 static void sanityChecks(void);
 static void findCommonAncestorTimeline(XLogRecPtr *recptr, TimeLineID *tli);
 static void ensureCleanShutdown(const char *argv0);
@@ -55,11 +60,16 @@ const char *progname;
 char	   *datadir_target = NULL;
 char	   *datadir_source = NULL;
 char	   *connstr_source = NULL;
+char	   *restore_command = NULL;
+
+
+int instanceSegIndx = -2;
 
 bool		debug = false;
 bool		showprogress = false;
 bool		dry_run = false;
 bool		do_sync = true;
+bool		restore_wal = false;
 
 static void
 usage(const char *progname)
@@ -67,6 +77,8 @@ usage(const char *progname)
 	printf(_("%s resynchronizes a PostgreSQL cluster with another copy of the cluster.\n\n"), progname);
 	printf(_("Usage:\n  %s [OPTION]...\n\n"), progname);
 	printf(_("Options:\n"));
+	printf(_("  -c, --restore-target-wal       use restore_command in target config\n"
+			 "                                 to retrieve WAL files from archives\n"));
 	printf(_("  -D, --target-pgdata=DIRECTORY  existing data directory to modify\n"));
 	printf(_("      --source-pgdata=DIRECTORY  source data directory to synchronize with\n"));
 	printf(_("      --source-server=CONNSTR    source server to synchronize with\n"));
@@ -94,10 +106,12 @@ main(int argc, char **argv)
 		{"source-pgdata", required_argument, NULL, 1},
 		{"source-server", required_argument, NULL, 2},
 		{"version", no_argument, NULL, 'V'},
+		{"restore-target-wal", no_argument, NULL, 'c'},
 		{"dry-run", no_argument, NULL, 'n'},
 		{"no-sync", no_argument, NULL, 'N'},
 		{"progress", no_argument, NULL, 'P'},
 		{"debug", no_argument, NULL, 3},
+		{"segindx", no_argument, NULL, 4},
 		{NULL, 0, NULL, 0}
 	};
 	int			option_index;
@@ -132,13 +146,17 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((c = getopt_long(argc, argv, "D:nNPRS:", long_options, &option_index)) != -1)
+	while ((c = getopt_long(argc, argv, "cD:nNPRS:", long_options, &option_index)) != -1)
 	{
 		switch (c)
 		{
 			case '?':
 				fprintf(stderr, _("Try \"%s --help\" for more information.\n"), progname);
 				exit(1);
+
+			case 'c':
+				restore_wal = true;
+				break;
 
 			case 'P':
 				showprogress = true;
@@ -173,6 +191,9 @@ main(int argc, char **argv)
 				break;
 			case 2:				/* --source-server */
 				connstr_source = pg_strdup(optarg);
+				break;
+			case 4:
+				instanceSegIndx = strtoll(optarg, optarg + strlen(optarg), 10);
 				break;
 		}
 	}
@@ -228,6 +249,15 @@ main(int argc, char **argv)
 	}
 #endif
 
+	/* Set mask based on PGDATA permissions */
+	if (!GetDataDirectoryCreatePerm(datadir_target))
+	{
+		pg_log(PG_FATAL, "could not read permissions of directory \"%s\": %m",
+					 datadir_target);
+		exit(1);
+	}
+
+	getRestoreCommand(argv[0]);
 	/* Connect to remote server */
 	if (connstr_source)
 		libpqConnect(connstr_source);
@@ -339,7 +369,7 @@ main(int argc, char **argv)
 	}
 
 	findLastCheckpoint(datadir_target, divergerec, lastcommontli,
-					   &chkptrec, &chkpttli, &chkptredo);
+					   &chkptrec, &chkpttli, &chkptredo, restore_command);
 	printf(_("rewinding from last common checkpoint at %X/%X on timeline %u\n"),
 		   (uint32) (chkptrec >> 32), (uint32) chkptrec,
 		   chkpttli);
@@ -362,7 +392,7 @@ main(int argc, char **argv)
 	 */
 	pg_log(PG_PROGRESS, "reading WAL in target\n");
 	extractPageMap(datadir_target, chkptrec, lastcommontli,
-				   ControlFile_target.checkPoint);
+				   ControlFile_target.checkPoint, restore_command);
 
 	/*
 	 * We have collected all information we need from both systems. Decide
@@ -822,6 +852,71 @@ syncTargetDirectory()
 	fsync_fname("recovery.conf", false);
 	fsync_fname(".", true); /* due to new file backup_label. */
 }
+
+/*
+ * Get value of GUC parameter restore_command from the target cluster.
+ *
+ * This uses a logic based on "postgres -C" to get the value from the
+ * cluster.
+ */
+static void
+getRestoreCommand(const char *argv0)
+{
+	int			rc;
+	char		postgres_exec_path[MAXPGPATH],
+				postgres_cmd[MAXPGPATH],
+				cmd_output[MAXPGPATH];
+
+	if (!restore_wal)
+		return;
+
+	/* find postgres executable */
+	rc = find_other_exec(argv0, "postgres",
+						 PG_BACKEND_VERSIONSTR,
+						 postgres_exec_path);
+
+	if (rc < 0)
+	{
+		char		full_path[MAXPGPATH];
+
+		if (find_my_exec(argv0, full_path) < 0)
+			strlcpy(full_path, progname, sizeof(full_path));
+
+		if (rc == -1)
+			pg_log(PG_FATAL, "The program \"postgres\" is needed by %s but was not found in the\n"
+						 "same directory as \"%s\".\n"
+						 "Check your installation.",
+						 progname, full_path);
+		else
+			pg_log(PG_FATAL, "The program \"postgres\" was found by \"%s\"\n"
+						 "but was not the same version as %s.\n"
+						 "Check your installation.",
+						 full_path, progname);
+		exit(1);
+	}
+
+	/*
+	 * Build a command able to retrieve the value of GUC parameter
+	 * restore_command, if set.
+	 */
+	snprintf(postgres_cmd, sizeof(postgres_cmd),
+			 "\"%s\" -D \"%s\" -C restore_command",
+			 postgres_exec_path, datadir_target);
+
+	if (!pipe_read_line(postgres_cmd, cmd_output, sizeof(cmd_output)))
+		exit(1);
+
+	(void) pg_strip_crlf(cmd_output);
+
+	if (strcmp(cmd_output, "") == 0)
+		pg_fatal("restore_command is not set on the target cluster");
+
+	restore_command = pg_strdup(cmd_output);
+
+	pg_log(PG_DEBUG, "using for rewind restore_command = \'%s\'",
+				 restore_command);
+}
+
 
 /*
  * Ensure clean shutdown of target instance by launching single-user mode
