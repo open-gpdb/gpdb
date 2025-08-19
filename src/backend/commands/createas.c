@@ -463,10 +463,6 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 				GetResqueueName(GetResQueueId()),
 				GetResqueuePriority(GetResQueueId()));
 	}
-
-	/* GPDB hook for collecting query info */
-	if (query_info_collect_hook)
-		(*query_info_collect_hook)(METRICS_QUERY_SUBMIT, queryDesc);
 	
 	if (into->skipData)
 	{
@@ -480,6 +476,10 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 	}
 	else
 	{
+		/* GPDB hook for collecting query info */
+		if (query_info_collect_hook)
+			(*query_info_collect_hook)(METRICS_QUERY_SUBMIT, queryDesc);
+
 		queryDesc->plannedstmt->query_mem = ResourceManagerGetQueryMemoryLimit(queryDesc->plannedstmt);
 
 		/* call ExecutorStart to prepare the plan for execution */

@@ -34,6 +34,7 @@
 #include "port/atomics.h"
 #include "tcop/pquery.h"
 #include "utils/memutils.h"
+#include "utils/metrics_utils.h"
 #include "utils/snapmgr.h"
 
 #include "cdb/cdbendpoint.h"
@@ -385,6 +386,10 @@ PortalCleanup(Portal portal)
 			}
 			PG_END_TRY();
 			CurrentResourceOwner = saveResourceOwner;
+		} else {
+			/* GPDB hook for collecting query info */
+			if (queryDesc->yagp_query_key && query_info_collect_hook)
+				(*query_info_collect_hook)(METRICS_QUERY_ERROR, queryDesc);
 		}
 	}
 
