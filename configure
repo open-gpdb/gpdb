@@ -750,6 +750,7 @@ INCLUDES
 enable_ic_proxy
 enable_sr_plan
 enable_yezzey
+enable_pgaudit
 HAVE_CXX11
 enable_gpcloud
 enable_mapreduce
@@ -872,6 +873,7 @@ enable_orca
 enable_mapreduce
 enable_gpcloud
 enable_yezzey
+enable_pgaudit
 enable_sr_plan
 enable_ic_proxy
 enable_thread_safety
@@ -7124,6 +7126,30 @@ $as_echo "#define HAVE_CXX11 1" >>confdefs.h
 
 
 fi # fi
+
+#
+# pgaudit, enabled by default
+#
+
+# Check whether --enable-pgaudit was given.
+if test "${enable_pgaudit+set}" = set; then :
+  enableval=$enable_pgaudit;
+  case $enableval in
+    yes)
+      :
+      ;;
+    no)
+      :
+      ;;
+    *)
+      as_fn_error $? "no argument expected for --enable-pgaudit option" "$LINENO" 5
+      ;;
+  esac
+
+else
+  enable_pgaudit=yes
+
+fi
 
 #
 # yezzey, enabled by default
