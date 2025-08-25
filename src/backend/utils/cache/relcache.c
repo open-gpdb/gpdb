@@ -569,11 +569,9 @@ RelationBuildTupleDesc(Relation relation)
 			ndef++;
 		}
 		need--;
-		if (need == -1) need = 0;
-		/*
+		
 		if (need == 0)
 			break;
-		*/
 	}
 
 	/*
