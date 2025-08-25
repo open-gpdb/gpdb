@@ -4,7 +4,7 @@ default: all
 top_builddir = ..
 include $(top_builddir)/src/Makefile.global
 
-.PHONY: all install clean distclean gpcloud mapreduce
+.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan
 
 #
 # targets built via top_builddir/GNUmakefile
@@ -78,15 +78,13 @@ orafce:
 	fi
 
 sr_plan:
-	@if [ "$(enable_sr_plan)" == "yes" ]; then \
-  		$(MAKE) -C sr_plan USE_PGXS=1 && \
-  		$(MAKE) -C sr_plan USE_PGXS=1 install; \
+	@if [ "$(enable_sr_plan)" = "yes" ]; then \
+  		$(MAKE) -C sr_plan NO_PGXS=true; \
  	fi
 
 pgaudit:
-	@if [ "$(enable_pgaudit)" == "yes" ]; then \
-  		$(MAKE) -C pgaudit USE_PGXS=1 && \
-  		$(MAKE) -C pgaudit USE_PGXS=1 install; \
+	@if [ "$(enable_pgaudit)" = "yes" ]; then \
+  		$(MAKE) -C pgaudit NO_PGXS=true; \
  	fi
 
 
@@ -104,6 +102,12 @@ install:
 	@if [ "$(enable_orafce)" = "yes" ]; then \
 		$(MAKE) -C orafce NO_PGXS=true install; \
 	fi
+	@if [ "$(enable_pgaudit)" = "yes" ]; then \
+                $(MAKE) -C pgaudit NO_PGXS=true install; \
+        fi
+	@if [ "$(enable_sr_plan)" = "yes" ]; then \
+                $(MAKE) -C sr_plan NO_PGXS=true install; \
+        fi
 
 clean:
 	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce clean; fi
