@@ -96,6 +96,7 @@ int			XLOGbuffers = -1;
 int			XLogArchiveTimeout = 0;
 bool		XLogArchiveMode = false;
 char	   *XLogArchiveCommand = NULL;
+char	   *XLogRestoreCommandDummy = NULL;
 bool		EnableHotStandby = false;
 bool		fullPageWrites = true;
 bool		wal_log_hints = false;

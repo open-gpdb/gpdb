@@ -200,6 +200,7 @@ static bool check_canonical_path(char **newval, void **extra, GucSource source);
 static bool check_timezone_abbreviations(char **newval, void **extra, GucSource source);
 static void assign_timezone_abbreviations(const char *newval, void *extra);
 static const char *show_archive_command(void);
+static const char *show_restore_command(void);
 static void assign_tcp_keepalives_idle(int newval, void *extra);
 static void assign_tcp_keepalives_interval(int newval, void *extra);
 static void assign_tcp_keepalives_count(int newval, void *extra);
@@ -2886,6 +2887,17 @@ static struct config_string ConfigureNamesString[] =
 		&XLogArchiveCommand,
 		"",
 		NULL, NULL, show_archive_command
+	},
+
+	{
+		{"restore_command_hint", PGC_POSTMASTER, WAL_ARCHIVING,
+			gettext_noop("Sets the shell command that will be called to restore a WAL file."),
+			NULL,
+			GUC_NOT_IN_SAMPLE
+		},
+		&XLogRestoreCommandDummy,
+		"",
+		NULL, NULL, show_restore_command
 	},
 
 	{
@@ -9976,6 +9988,15 @@ show_archive_command(void)
 {
 	if (XLogArchivingActive())
 		return XLogArchiveCommand;
+	else
+		return "(disabled)";
+}
+
+static const char *
+show_restore_command(void)
+{
+	if (XLogRestoreCommandDummy)
+		return XLogRestoreCommandDummy;
 	else
 		return "(disabled)";
 }

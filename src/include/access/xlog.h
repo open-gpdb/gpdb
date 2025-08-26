@@ -195,6 +195,7 @@ extern int	XLOGbuffers;
 extern int	XLogArchiveTimeout;
 extern bool XLogArchiveMode;
 extern char *XLogArchiveCommand;
+extern char *XLogRestoreCommandDummy;
 extern bool EnableHotStandby;
 extern bool gp_keep_all_xlog;
 
