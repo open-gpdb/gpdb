@@ -158,7 +158,7 @@ WHERE pp.parrelid = c.oid AND c.relnamespace = n.oid AND pp.paristemplate = fals
 ORDER_CANDIDATES_BY_OID_SQL = """
 SELECT foo.schemaname as schemaname, tablename 
 FROM (SELECT c.oid as tableoid, n.nspname as schemaname, c.relname as tablename FROM pg_class c, pg_namespace n where c.relnamespace=n.oid and c.oid in (%s)) AS foo
-JOIN (SELECT relname,schemaname, max(n_mod_since_analyze)as msa FROM gp_dist_random('pg_stat_all_tables') GROUP BY relid, schemaname, relname) bar
+JOIN (SELECT relname,schemaname, sum(n_mod_since_analyze)as msa FROM gp_dist_random('pg_stat_all_tables') GROUP BY relid, schemaname, relname) bar
 ON foo.schemaname = bar.schemaname and foo.tablename = bar.relname
 ORDER BY msa DESC, tableoid DESC;
 """
