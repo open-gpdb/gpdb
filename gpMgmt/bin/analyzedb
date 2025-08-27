@@ -42,7 +42,7 @@ logger = gplog.get_default_logger()
 WRITE_LOCK_FILE_NAME = "write_lock_semaphore"
 ANALYZE_GUCS = "set optimizer_analyze_enable_merge_of_leaf_stats=off; "
 ANALYZE_SQL = """analyze %s"""
-ANALYZE_SQL_SKIP_LOCKED = """analyze skip_locked %s;"""
+ANALYZE_SQL_SKIP_LOCKED = """begin; lock table %s in SHARE UPDATE EXCLUSIVE mode nowait; analyze %s; commit"""
 ANALYZE_ROOT_SQL = """analyze rootpartition %s"""
 REPORTS_ARE_STALE_AFTER_N_DAYS = 8
 NUM_REPORTS_TO_SAVE = 3
