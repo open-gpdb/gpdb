@@ -12,11 +12,12 @@ class RecoveryInfo(object):
 
     Note: we don't have target hostname, since an object of this class will be accessed by the target host directly
     """
-    def __init__(self, target_datadir, target_port, target_segment_dbid, source_hostname, source_port,
+    def __init__(self, target_datadir, target_port, target_segment_dbid, target_segment_contentid, source_hostname, source_port,
                  source_datadir, is_full_recovery, is_differential_recovery, progress_file):
         self.target_datadir = target_datadir
         self.target_port = target_port
         self.target_segment_dbid = target_segment_dbid
+        self.target_segment_contentid = target_segment_contentid
 
         # FIXME: use address instead of hostname ?
         self.source_hostname = source_hostname
@@ -67,7 +68,7 @@ def build_recovery_info(mirrors_to_build):
 
         recovery_info_by_host[hostname].append(RecoveryInfo(
             target_segment.getSegmentDataDirectory(), target_segment.getSegmentPort(),
-            target_segment.getSegmentDbId(), source_segment.getSegmentHostName(),
+            target_segment.getSegmentDbId(), target_segment.getSegmentContentId(), source_segment.getSegmentHostName(),
             source_segment.getSegmentPort(), source_segment.getSegmentDataDirectory(),
             to_recover.isFullSynchronization(), to_recover.isDifferentialSynchronization(), progress_file))
     return recovery_info_by_host

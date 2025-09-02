@@ -286,7 +286,7 @@ class PgRewind(Command):
     """
     PgRewind is used to run pg_rewind using source server.
     """
-    def __init__(self, name, target_datadir, source_host, source_port, progress_file):
+    def __init__(self, name, target_datadir, source_host, source_port, progress_file, target_contend_id):
 
         # Construct the source server libpq connection string
         # We set application_name here so gpstate can identify whether an
@@ -300,7 +300,7 @@ class PgRewind(Command):
         # be started up normally as a mirror for WAL replication catch up.
         rewind_cmd = '[ -f %s/recovery.conf ] || PGOPTIONS="-c gp_session_role=utility" $GPHOME/bin/pg_rewind ' \
                      '--write-recovery-conf --slot="internal_wal_replication_slot" --source-server="%s" ' \
-                     '--target-pgdata=%s --progress' % (target_datadir, source_server, target_datadir)
+                     '--target-pgdata=%s --progress --restore-target-wal --source-segment-id=%s' % (target_datadir, source_server, target_datadir, target_contend_id)
 
         # pg_rewind prints progress updates to stdout, but it also prints
         # errors relating to relevant failures(like it will not rewind due to

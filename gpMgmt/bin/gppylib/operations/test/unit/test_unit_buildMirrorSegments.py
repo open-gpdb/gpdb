@@ -83,10 +83,10 @@ class BuildMirrorsTestCase(GpTestCase):
 
         self.gpEnv = Mock()
         self.gpArray = GpArray([self.master, self.primary, self.mirror])
-        self.recovery_info1 = RecoveryInfo('/datadir2', 7001, 2, 'source_host_for_dbid2', 7002, 'source_dir_for_dbid2', True, False, self.progress_file_dbid2)
-        self.recovery_info2 = RecoveryInfo('/datadir3', 7003, 3, 'source_host_for_dbid3', 7004, 'source_dir_for_dbid3', True, False, self.progress_file_dbid3)
-        self.recovery_info3 = RecoveryInfo('/datadir4', 7005, 4, 'source_host_for_dbid4', 7006, 'source_dir_for_dbid4', True, False, self.progress_file_dbid4)
-        self.recovery_info4 = RecoveryInfo('/datadir5', 7006, 5, 'source_host_for_dbid5', 7007, 'source_dir_for_dbid5', False, True, self.progress_file_dbid5)
+        self.recovery_info1 = RecoveryInfo('/datadir2', 7001, 2, 2, 'source_host_for_dbid2', 7002, 'source_dir_for_dbid2', True, False, self.progress_file_dbid2)
+        self.recovery_info2 = RecoveryInfo('/datadir3', 7003, 3, 3, 'source_host_for_dbid3', 7004, 'source_dir_for_dbid3', True, False, self.progress_file_dbid3)
+        self.recovery_info3 = RecoveryInfo('/datadir4', 7005, 4, 4, 'source_host_for_dbid4', 7006, 'source_dir_for_dbid4', True, False, self.progress_file_dbid4)
+        self.recovery_info4 = RecoveryInfo('/datadir5', 7006, 5, 5, 'source_host_for_dbid5', 7007, 'source_dir_for_dbid5', False, True, self.progress_file_dbid5)
 
     def tearDown(self):
         super(BuildMirrorsTestCase, self).tearDown()

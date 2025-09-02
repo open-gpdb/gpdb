@@ -74,7 +74,7 @@ class IncrementalRecovery(Command):
         self.error_type = RecoveryErrorType.REWIND_ERROR
         cmd = PgRewind('rewind dbid: {}'.format(self.recovery_info.target_segment_dbid),
                        self.recovery_info.target_datadir, self.recovery_info.source_hostname,
-                       self.recovery_info.source_port, self.recovery_info.progress_file)
+                       self.recovery_info.source_port, self.recovery_info.progress_file, self.recovery_info.target_segment_contentid)
         cmd.run(validateAfter=True)
         self.logger.info("Successfully ran pg_rewind for dbid: {}".format(self.recovery_info.target_segment_dbid))
 
