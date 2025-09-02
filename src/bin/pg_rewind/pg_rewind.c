@@ -82,6 +82,7 @@ usage(const char *progname)
 	printf(_("  -D, --target-pgdata=DIRECTORY  existing data directory to modify\n"));
 	printf(_("      --source-pgdata=DIRECTORY  source data directory to synchronize with\n"));
 	printf(_("      --source-server=CONNSTR    source server to synchronize with\n"));
+	printf(_("      --source-segment-id=SEGID  source server segment(content) id\n"));
 	printf(_("  -R, --write-recovery-conf      write recovery.conf after backup\n"));
 	printf(_("  -S, --slot=SLOTNAME            replication slot to use\n"));
 	printf(_("  -n, --dry-run                  stop before modifying anything\n"));
@@ -111,7 +112,7 @@ main(int argc, char **argv)
 		{"no-sync", no_argument, NULL, 'N'},
 		{"progress", no_argument, NULL, 'P'},
 		{"debug", no_argument, NULL, 3},
-		{"segindx", no_argument, NULL, 4},
+		{"source-segment-id", required_argument, NULL, 4},
 		{NULL, 0, NULL, 0}
 	};
 	int			option_index;
@@ -192,7 +193,7 @@ main(int argc, char **argv)
 			case 2:				/* --source-server */
 				connstr_source = pg_strdup(optarg);
 				break;
-			case 4:
+			case 4:             /* --source-segment-id */
 				instanceSegIndx = strtoll(optarg, optarg + strlen(optarg), 10);
 				break;
 		}
@@ -900,7 +901,7 @@ getRestoreCommand(const char *argv0)
 	 * restore_command, if set.
 	 */
 	snprintf(postgres_cmd, sizeof(postgres_cmd),
-			 "\"%s\" -D \"%s\" -C restore_command",
+			 "\"%s\" -D \"%s\" -C restore_command_hint",
 			 postgres_exec_path, datadir_target);
 
 	if (!pipe_read_line(postgres_cmd, cmd_output, sizeof(cmd_output)))
@@ -909,7 +910,7 @@ getRestoreCommand(const char *argv0)
 	(void) pg_strip_crlf(cmd_output);
 
 	if (strcmp(cmd_output, "") == 0)
-		pg_fatal("restore_command is not set on the target cluster");
+		pg_fatal("restore_command is not set on the target cluster\n");
 
 	restore_command = pg_strdup(cmd_output);
 

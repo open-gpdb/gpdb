@@ -164,7 +164,7 @@ RWRestoreArchivedFile(const char *path, const char *xlogfname,
 	 * The file is not available, so just let the caller decide what to do
 	 * next.
 	 */
-	pg_log(PG_FATAL, "could not restore file \"%s\" from archive",
+	pg_log(PG_FATAL, "could not restore file \"%s\" from archive %m\n",
 				 xlogfname);
 	return -1;
 }
@@ -374,7 +374,6 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 	if (xlogreadfd < 0)
 	{
 		char		xlogfname[MAXFNAMELEN];
-		char		path[MAXPGPATH];
 
 		XLogFileName(xlogfname, private->tli, xlogreadsegno);
 
@@ -394,8 +393,7 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 			}
 
 			if (instanceSegIndx == -2) {
-
-				pg_log(PG_FATAL, "could get instance segment uid");
+				pg_log(PG_FATAL, "could get instance segment uid\n");
 				return -1;
 			}
 
@@ -403,7 +401,7 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 			 * Since we have restore_command, then try to retrieve missing WAL
 			 * file from the archive.
 			 */
-			xlogreadfd = RWRestoreArchivedFile(path,
+			xlogreadfd = RWRestoreArchivedFile(private->datadir,
 											 xlogfname,
 											 XLogSegSize,
 											 private->restoreCommand, instanceSegIndx);
