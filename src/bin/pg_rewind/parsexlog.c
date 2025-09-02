@@ -409,7 +409,7 @@ SimpleXLogPageRead(XLogReaderState *xlogreader, XLogRecPtr targetPagePtr,
 			if (xlogreadfd < 0)
 				return -1;
 			else
-				pg_log(PG_DEBUG, "using file \"%s\" restored from archive",
+				pg_log(PG_DEBUG, "using file \"%s\" restored from archive\n",
 							 xlogfpath);
 		}
 	}
