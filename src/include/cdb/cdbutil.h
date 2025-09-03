@@ -75,6 +75,8 @@ struct CdbComponentDatabaseInfo
 
 #define SEGMENT_IS_ACTIVE_MIRROR(p) \
 	((p)->config->role == GP_SEGMENT_CONFIGURATION_ROLE_MIRROR ? true : false)
+#define SEGMENT_IS_AUX_MIRROR(p) \
+	((p)->config->role == GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR ? true : false)
 #define SEGMENT_IS_ACTIVE_PRIMARY(p) \
 	((p)->config->role == GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ? true : false)
 
@@ -206,6 +208,7 @@ extern int16 contentid_get_dbid(int16 contentid, char role, bool getPreferredRol
 extern int numsegmentsFromQD;
 
 extern bool gp_count_host_segments_using_address;
+extern bool gp_dispatch_on_mirrors;
 
 /*
  * Returns the number of segments

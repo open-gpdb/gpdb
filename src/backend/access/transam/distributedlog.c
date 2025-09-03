@@ -163,6 +163,7 @@ DistributedLog_InitOldestXmin(void)
 
 	pg_atomic_write_u32((pg_atomic_uint32 *)&DistributedLogShared->oldestXmin, oldestXmin);
 }
+
 /*
  * Advance the "oldest xmin" among distributed snapshots.
  *

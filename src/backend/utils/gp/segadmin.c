@@ -52,6 +52,15 @@ content_get_mirror_dbid(int16 contentid)
 							    * preferred, role */ );
 }
 
+/* Convenience routine to look up the mirror for a given segment index */
+static int16
+content_get_query_aux_mirror_dbid(int16 contentid)
+{
+	return contentid_get_dbid(contentid, GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR, false /* false == current, not
+							    * preferred, role */ );
+}
+
+
 /* Tell the caller whether a mirror exists at a given segment index */
 static bool
 segment_has_mirror(int16 contentid)
@@ -110,7 +119,7 @@ get_maxdbid()
  * gp_segment_configuration to prevent races but no one should be calling
  * this code concurrently if we've done our job right.
  */
-static int16
+int16
 get_availableDbId()
 {
 	/*
@@ -320,7 +329,7 @@ remove_segment_config(int16 dbid)
 	heap_close(rel, NoLock);
 }
 
-static void
+void
 add_segment(GpSegConfigEntry *new_segment_information)
 {
 	int16		primary_dbid = new_segment_information->dbid;

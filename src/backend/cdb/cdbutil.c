@@ -82,6 +82,7 @@
 #endif
 
 bool gp_count_host_segments_using_address = false;
+bool gp_dispatch_on_mirrors = false;
 MemoryContext CdbComponentsContext = NULL;
 static CdbComponentDatabases *cdb_component_dbs = NULL;
 
@@ -380,7 +381,7 @@ getCdbComponentInfo(void)
 		(CdbComponentDatabaseInfo *) palloc0(sizeof(CdbComponentDatabaseInfo) * total_dbs);
 
 	component_databases->entry_db_info =
-		(CdbComponentDatabaseInfo *) palloc0(sizeof(CdbComponentDatabaseInfo) * 2);
+		(CdbComponentDatabaseInfo *) palloc0(sizeof(CdbComponentDatabaseInfo) * 3);
 
 	for (i = 0; i < total_dbs; i++)
 	{
@@ -439,10 +440,20 @@ getCdbComponentInfo(void)
 		pRow->numIdleQEs = 0;
 		pRow->numActiveQEs = 0;
 
-		if (config->role != GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ||
-			(gp_count_host_segments_using_address &&
-			 (config->hostip == NULL || strlen(config->hostip) == 0)))
-			continue;
+		if (gp_dispatch_on_mirrors)
+		{
+			if (config->role != GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR||
+				(gp_count_host_segments_using_address &&
+				(config->hostip == NULL || strlen(config->hostip) == 0)))
+				continue;
+		}
+		else
+		{
+			if (config->role != GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ||
+				(gp_count_host_segments_using_address &&
+				(config->hostip == NULL || strlen(config->hostip) == 0)))
+				continue;
+		}
 
 		hsEntry = (HostSegsEntry *) hash_search(hostSegsHash,
 												gp_count_host_segments_using_address ? config->hostip : config->hostname,
@@ -474,20 +485,23 @@ getCdbComponentInfo(void)
 	/*
 	 * Now sort the data by segindex, isprimary desc
 	 */
+
 	qsort(component_databases->segment_db_info,
-		  component_databases->total_segment_dbs, sizeof(CdbComponentDatabaseInfo),
-		  CdbComponentDatabaseInfoCompare);
+		component_databases->total_segment_dbs, sizeof(CdbComponentDatabaseInfo),
+		CdbComponentDatabaseInfoCompare);
 
 	qsort(component_databases->entry_db_info,
-		  component_databases->total_entry_dbs, sizeof(CdbComponentDatabaseInfo),
-		  CdbComponentDatabaseInfoCompare);
-
+		component_databases->total_entry_dbs, sizeof(CdbComponentDatabaseInfo),
+		CdbComponentDatabaseInfoCompare);
 	/*
-	 * Now count the number of distinct segindexes. Since it's sorted, this is
-	 * easy.
+	 * Now count the number of distinct segindexes. Since it's sorted up until aux mirrors,
+	 * this is easy.
 	 */
 	for (i = 0; i < component_databases->total_segment_dbs; i++)
 	{
+		if (component_databases->segment_db_info[i].config->role == GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR) {
+			break;
+		}
 		if (i == 0 ||
 			(component_databases->segment_db_info[i].config->segindex != component_databases->segment_db_info[i - 1].config->segindex))
 		{
@@ -558,10 +572,20 @@ getCdbComponentInfo(void)
 	{
 		cdbInfo = &component_databases->segment_db_info[i];
 
-		if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ||
-			(gp_count_host_segments_using_address &&
-			 (cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
-			continue;
+		if (gp_dispatch_on_mirrors)
+		{
+			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR ||
+				(gp_count_host_segments_using_address &&
+				(cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
+				continue;
+		}
+		else
+		{
+			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ||
+				(gp_count_host_segments_using_address &&
+				(cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
+				continue;
+		}
 
 		hsEntry = (HostSegsEntry *) hash_search(hostSegsHash,
 												gp_count_host_segments_using_address ? cdbInfo->config->hostip : cdbInfo->config->hostname,
@@ -575,10 +599,20 @@ getCdbComponentInfo(void)
 	{
 		cdbInfo = &component_databases->entry_db_info[i];
 
-		if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ||
-			(gp_count_host_segments_using_address &&
-			 (cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
-			continue;
+		if (gp_dispatch_on_mirrors)
+		{
+			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_AUX_MIRROR ||
+				(gp_count_host_segments_using_address &&
+				(cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
+				continue;
+		}
+		else
+		{
+			if (cdbInfo->config->role != GP_SEGMENT_CONFIGURATION_ROLE_PRIMARY ||
+				(gp_count_host_segments_using_address &&
+				(cdbInfo->config->hostip == NULL || strlen(cdbInfo->config->hostip) == 0)))
+				continue;
+		}
 
 		hsEntry = (HostSegsEntry *) hash_search(hostSegsHash,
 												gp_count_host_segments_using_address ? cdbInfo->config->hostip : cdbInfo->config->hostname,
@@ -847,7 +881,9 @@ cdbcomponent_allocateIdleQE(int contentId, SegmentType segmentType)
 		 * 1. for entrydb, it's never be writer.
 		 * 2. for first QE, it must be a writer.
 		 */
+		/*XXX: what if gp_dispatch_on_mirrors?*/
 		isWriter = contentId == -1 ? false: (cdbinfo->numIdleQEs == 0 && cdbinfo->numActiveQEs == 0);
+		
 		segdbDesc = cdbconn_createSegmentDescriptor(cdbinfo, nextQEIdentifer(cdbinfo->cdbs), isWriter);
 	}
 
@@ -1038,14 +1074,26 @@ cdbcomponent_getComponentInfo(int contentId)
 	/* with mirror, segment_db_info is sorted by content id */
 	if (cdbs->total_segment_dbs != cdbs->total_segments)
 	{
-		Assert(cdbs->total_segment_dbs == cdbs->total_segments * 2);
+		Assert(cdbs->total_segment_dbs >= cdbs->total_segments * 2);
 		cdbInfo = &cdbs->segment_db_info[2 * contentId];
 
-		if (!SEGMENT_IS_ACTIVE_PRIMARY(cdbInfo))
+		if (gp_dispatch_on_mirrors)
 		{
-			cdbInfo = &cdbs->segment_db_info[2 * contentId + 1];
+			for (int i = 0; i < cdbs->total_segment_dbs; ++ i) {
+				if (SEGMENT_IS_AUX_MIRROR(&cdbs->segment_db_info[i]) 
+				&& cdbs->segment_db_info[i].config->segindex == contentId) 
+				{
+					cdbInfo = &cdbs->segment_db_info[i];
+				}
+			}
 		}
-
+		else 
+		{
+			if (!SEGMENT_IS_ACTIVE_PRIMARY(cdbInfo))
+			{
+				cdbInfo = &cdbs->segment_db_info[2 * contentId + 1];
+			}
+		}
 		return cdbInfo;
 	}
 
@@ -1209,20 +1257,34 @@ CdbComponentDatabaseInfoCompare(const void *p1, const void *p2)
 	const CdbComponentDatabaseInfo *obj1 = (CdbComponentDatabaseInfo *) p1;
 	const CdbComponentDatabaseInfo *obj2 = (CdbComponentDatabaseInfo *) p2;
 
-	int			cmp = obj1->config->segindex - obj2->config->segindex;
+	int			cmp;
 
-	if (cmp == 0)
+	if (SEGMENT_IS_AUX_MIRROR(obj1) && SEGMENT_IS_AUX_MIRROR(obj2))
 	{
-		int			obj2cmp = 0;
-		int			obj1cmp = 0;
+		cmp = obj1->config->segindex - obj2->config->segindex;
+	} 
+	else if (SEGMENT_IS_AUX_MIRROR(obj1)) 
+	{
+		cmp = 1;
+	}
+	else if (SEGMENT_IS_AUX_MIRROR(obj2)) 
+	{
+		cmp = -1;
+	} else {
+		cmp = obj1->config->segindex - obj2->config->segindex;
 
-		if (SEGMENT_IS_ACTIVE_PRIMARY(obj2))
-			obj2cmp = 1;
+		if (cmp == 0)
+		{
+			int			obj2cmp = 0;
+			int			obj1cmp = 0;
+			if (SEGMENT_IS_ACTIVE_PRIMARY(obj2))
+				obj2cmp = 1;
 
-		if (SEGMENT_IS_ACTIVE_PRIMARY(obj1))
-			obj1cmp = 1;
+			if (SEGMENT_IS_ACTIVE_PRIMARY(obj1))
+				obj1cmp = 1;
 
-		cmp = obj2cmp - obj1cmp;
+			cmp = obj2cmp - obj1cmp;
+		}
 	}
 
 	return cmp;

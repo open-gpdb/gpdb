@@ -17,6 +17,7 @@
 #define BUILTINS_H
 
 #include "fmgr.h"
+#include "cdb/cdbutil.h"
 #include "nodes/parsenodes.h"
 
 /*
@@ -1351,6 +1352,9 @@ extern Datum gp_add_master_standby_port(PG_FUNCTION_ARGS);
 extern Datum gp_add_master_standby(PG_FUNCTION_ARGS);
 extern Datum gp_remove_master_standby(PG_FUNCTION_ARGS);
 extern bool gp_activate_standby(void);
+
+extern void add_segment(GpSegConfigEntry *new_segment_information);
+extern int16 get_availableDbId();
 
 extern Datum gp_add_segment_primary(PG_FUNCTION_ARGS);
 extern Datum gp_add_segment_mirror(PG_FUNCTION_ARGS);
