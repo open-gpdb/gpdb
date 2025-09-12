@@ -1881,7 +1881,7 @@ SetupTCPInterconnect(EState *estate)
 	estate->es_interconnect_is_setup = true;
 }								/* SetupInterconnect */
 
-/* TeardownInterconnect() function is used to cleanup interconnect resources that
+/* TeardownInterconnect_Internal() function is used to cleanup interconnect resources that
  * were allocated during SetupInterconnect().  This function should ALWAYS be
  * called after SetupInterconnect to avoid leaking resources (like sockets)
  * even if SetupInterconnect did not complete correctly.  As a result, this
@@ -1893,7 +1893,7 @@ SetupTCPInterconnect(EState *estate)
  * we definitely have to worry about socket resources.
  */
 void
-TeardownTCPInterconnect(ChunkTransportState *transportStates, bool hasErrors)
+TeardownTCPInterconnect_Internal(ChunkTransportState *transportStates, bool hasErrors)
 {
 	ListCell   *cell;
 	ChunkTransportStateEntry *pEntry = NULL;
@@ -2038,6 +2038,11 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool hasErrors)
 
 		aSlice = (Slice *) list_nth(transportStates->sliceTable->slices, childId);
 
+#ifdef FAULT_INJECTOR
+		if (SIMPLE_FAULT_INJECTOR("tcp_teardown_invalid_slice_index") == FaultInjectorTypeSkip) {
+			aSlice->sliceIndex = -1;
+		}
+#endif
 		getChunkTransportState(transportStates, aSlice->sliceIndex, &pEntry);
 
 		if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
@@ -2138,6 +2143,35 @@ TeardownTCPInterconnect(ChunkTransportState *transportStates, bool hasErrors)
 	if (gp_log_interconnect >= GPVARS_VERBOSITY_DEBUG)
 		elog(DEBUG4, "TeardownInterconnect successful");
 #endif
+}
+
+/*
+ * TeardownTCPInterconnect
+ * 		Tear down TCP interconnect.
+ *
+ * This function is called to release the resources used by tcp interconnect.
+ */
+void
+TeardownTCPInterconnect(ChunkTransportState *transportStates, bool hasErrors)
+{
+	if (hasErrors)
+	{
+		PG_TRY();
+		{
+			TeardownTCPInterconnect_Internal(transportStates, hasErrors);
+		}
+		PG_CATCH();
+		{
+			char *error_message = elog_message();
+			elog(WARNING, "TeardownTCPInterconnent: failed to teardown interconnect, error: %s",
+				error_message ? error_message : "unknown error");
+		}
+		PG_END_TRY();
+	}
+	else
+	{
+		TeardownTCPInterconnect_Internal(transportStates, hasErrors);
+	}
 }
 
 #ifdef AMS_VERBOSE_LOGGING
