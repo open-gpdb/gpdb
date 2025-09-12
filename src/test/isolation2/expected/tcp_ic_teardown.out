@@ -58,5 +58,37 @@ SELECT gp_inject_fault('doSendStopMessageTCP', 'reset', dbid) FROM gp_segment_co
 -- After 6s have elapsed (enough to have covered the timed wait of 3s, we should
 -- have consequently ERRORed out on the motion sender side)
 1<:  <... completed>
-ERROR:  timed out waiting for response from motion receiver during TCP interconnect teardown  (seg1 slice1 192.168.0.148:7003 pid=654372)
+ERROR:  timed out waiting for response from motion receiver during TCP interconnect teardown  (seg1 slice1 2a02:6b8:c1d:2d02:0:696:bcf5:0:6003 pid=2549819)
 DETAIL:  1 connection(s) with pending response after 3 seconds
+
+-- Tests the fix for the issue where TeardownTCPInterconnect could
+-- erreport(ERROR) during abort cleanup, causing infinite error recursion
+-- until ERRORDATA_STACK_SIZE is exceeded.
+CREATE TABLE tcp_teardown_error(i int);
+CREATE
+INSERT INTO tcp_teardown_error SELECT generate_series(1, 5);
+INSERT 5
+
+SELECT gp_inject_fault('tcp_teardown_invalid_slice_index', 'skip', dbid) FROM gp_segment_configuration WHERE role = 'p';
+ gp_inject_fault 
+-----------------
+ Success:        
+ Success:        
+ Success:        
+ Success:        
+(4 rows)
+
+-- Should not see ERRORDATA_STACK_SIZE
+SELECT count(*) FROM tcp_teardown_error;
+ERROR:  Interconnect Error: Unexpected Motion Node Id: -1 (size 10). This means a motion node that wasn't setup is requesting interconnect resources.
+
+SELECT gp_inject_fault('tcp_teardown_invalid_slice_index', 'reset', dbid) FROM gp_segment_configuration WHERE role = 'p';
+ gp_inject_fault 
+-----------------
+ Success:        
+ Success:        
+ Success:        
+ Success:        
+(4 rows)
+DROP TABLE tcp_teardown_error;
+DROP
