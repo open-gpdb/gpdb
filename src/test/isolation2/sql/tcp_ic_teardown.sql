@@ -33,3 +33,19 @@ SELECT gp_inject_fault('doSendStopMessageTCP', 'reset', dbid)
 -- After 6s have elapsed (enough to have covered the timed wait of 3s, we should
 -- have consequently ERRORed out on the motion sender side)
 1<:
+
+-- Tests the fix for the issue where TeardownTCPInterconnect could
+-- erreport(ERROR) during abort cleanup, causing infinite error recursion
+-- until ERRORDATA_STACK_SIZE is exceeded.
+CREATE TABLE tcp_teardown_error(i int);
+INSERT INTO tcp_teardown_error SELECT generate_series(1, 5);
+
+SELECT gp_inject_fault('tcp_teardown_invalid_slice_index', 'skip', dbid)
+    FROM gp_segment_configuration WHERE role = 'p';
+
+-- Should not see ERRORDATA_STACK_SIZE
+SELECT count(*) FROM tcp_teardown_error;
+
+SELECT gp_inject_fault('tcp_teardown_invalid_slice_index', 'reset', dbid)
+    FROM gp_segment_configuration WHERE role = 'p';
+DROP TABLE tcp_teardown_error;
