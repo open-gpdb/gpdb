@@ -1396,6 +1396,7 @@ jobs:
             **/regression.out
             **/regression.diffs
             **/results/
+            /home/gpadmin/gpAdminLogs/pg_rewind*
             gpAux/gpdemo/datadirs/standby/log/
             gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
             gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/

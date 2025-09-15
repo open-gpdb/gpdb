@@ -910,9 +910,9 @@ getRestoreCommand(const char *argv0)
 	(void) pg_strip_crlf(cmd_output);
 
 	if (strcmp(cmd_output, "") == 0)
-		pg_fatal("restore_command is not set on the target cluster\n");
-
-	restore_command = pg_strdup(cmd_output);
+		restore_command = pg_strdup("/bin/false");
+	else
+		restore_command = pg_strdup(cmd_output);
 
 	pg_log(PG_DEBUG, "using for rewind restore_command = \'%s\'",
 				 restore_command);

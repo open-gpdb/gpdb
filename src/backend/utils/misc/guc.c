@@ -2896,7 +2896,7 @@ static struct config_string ConfigureNamesString[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&XLogRestoreCommandDummy,
-		"",
+		"/bin/false",
 		NULL, NULL, show_restore_command
 	},
 
