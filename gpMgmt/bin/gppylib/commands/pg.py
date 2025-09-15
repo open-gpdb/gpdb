@@ -291,7 +291,7 @@ class PgRewind(Command):
         # Construct the source server libpq connection string
         # We set application_name here so gpstate can identify whether an
         # incremental recovery is occurring.
-        source_server = "host={} port={} dbname=template1 application_name={}".format(
+        source_server = "host={} port={} dbname=template1 application_name={} options='-c gp_session_role=utility'".format(
                 source_host, source_port, RECOVERY_REWIND_APPNAME
                                                    )
 
