@@ -263,10 +263,9 @@ drop event trigger no_rewrite_allowed;
 drop function test_evtrig_no_rewrite();
 
 -- test that alter table state object is not clobbered, shouldn't crash
-create event trigger regress_event_trigger_alter_tbl on ddl_command_end 
-	execute procedure test_event_trigger();
-create table part_tbl(r int) partition by range(r) (start(1) end(10) every(1));
-alter table part_tbl add partition start(11) end(20);
+create event trigger regress_event_trigger_alter_tbl on ddl_command_end execute procedure test_event_trigger();
+create table part_tbl(r int) partition by range(r) (partition part1 start(1) end(2));
+alter table part_tbl add partition part2 start(3) end(4);
 
 drop table part_tbl;
 drop event trigger regress_event_trigger_alter_tbl;
