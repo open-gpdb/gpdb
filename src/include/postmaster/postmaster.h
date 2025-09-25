@@ -55,6 +55,8 @@ extern int	postmaster_alive_fds[2];
 extern const char *progname;
 extern PGDLLIMPORT const char *progname;
 
+extern unsigned char *ForkLock;
+
 extern void PostmasterMain(int argc, char *argv[]) __attribute__((noreturn));
 extern void ClosePostmasterPorts(bool am_syslogger);
 

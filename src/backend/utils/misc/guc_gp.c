@@ -215,6 +215,7 @@ static char *gp_resource_manager_str;
 
 /* Backoff-related GUCs */
 bool		gp_enable_resqueue_priority;
+bool		gp_enable_fork_lock;
 int			gp_resqueue_priority_local_interval;
 int			gp_resqueue_priority_sweeper_interval;
 int			gp_resqueue_priority_inactivity_timeout;
@@ -1740,6 +1741,16 @@ struct config_bool ConfigureNamesBool_gp[] =
 			NULL
 		},
 		&gp_enable_resqueue_priority,
+		true,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_enable_fork_lock", PGC_POSTMASTER, RESOURCES_MGM,
+			gettext_noop("Enables priority scheduling."),
+			NULL
+		},
+		&gp_enable_fork_lock,
 		true,
 		NULL, NULL, NULL
 	},

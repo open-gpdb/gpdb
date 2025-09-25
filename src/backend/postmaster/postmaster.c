@@ -239,6 +239,8 @@ int			ReservedBackends;
 #define MAXLISTEN	64
 static pgsocket ListenSocket[MAXLISTEN];
 
+unsigned char *ForkLock = NULL;
+
 /*
  * Set by the -o option
  */
@@ -4498,6 +4500,9 @@ BackendStartup(Port *port)
 #ifdef EXEC_BACKEND
 	pid = backend_forkexec(port);
 #else							/* !EXEC_BACKEND */
+
+	if (gp_enable_fork_lock)
+		SpinLockAcquire(ForkLock);
 	pid = fork_process();
 	if (pid == 0)				/* child */
 	{
@@ -4522,6 +4527,8 @@ BackendStartup(Port *port)
 
 		/* Perform additional initialization and collect startup packet */
 		BackendInitialize(port);
+		if (gp_enable_fork_lock)
+			SpinLockRelease(ForkLock);
 
 		/* And run the backend */
 		BackendRun(port);

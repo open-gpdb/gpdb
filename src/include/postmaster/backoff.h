@@ -12,6 +12,7 @@
 
 /* GUCs */
 extern bool gp_enable_resqueue_priority;
+extern bool gp_enable_fork_lock;
 extern int gp_resqueue_priority_local_interval;
 extern int gp_resqueue_priority_sweeper_interval;
 extern int gp_resqueue_priority_inactivity_timeout;
