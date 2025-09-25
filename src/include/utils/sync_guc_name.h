@@ -23,7 +23,7 @@
 		"gp_enable_mk_sort",
 		"gp_enable_motion_mk_sort",
 		"gp_enable_segment_copy_checking",
-		"gp_enable_fork_lock",
+		"gp_enable_fork_sleep",
 		"gp_external_enable_filter_pushdown",
 		"gp_gpperfmon_send_interval",
 		"gp_hashagg_default_nbatches",

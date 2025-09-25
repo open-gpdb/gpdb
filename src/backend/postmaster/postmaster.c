@@ -4501,8 +4501,9 @@ BackendStartup(Port *port)
 	pid = backend_forkexec(port);
 #else							/* !EXEC_BACKEND */
 
-	if (gp_enable_fork_lock)
-		SpinLockAcquire(ForkLock);
+	if (gp_enable_fork_sleep)
+		pg_usleep(gp_enable_fork_sleep * 1000 /*ms*/);
+
 	pid = fork_process();
 	if (pid == 0)				/* child */
 	{
@@ -4527,8 +4528,6 @@ BackendStartup(Port *port)
 
 		/* Perform additional initialization and collect startup packet */
 		BackendInitialize(port);
-		if (gp_enable_fork_lock)
-			SpinLockRelease(ForkLock);
 
 		/* And run the backend */
 		BackendRun(port);

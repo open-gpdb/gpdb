@@ -372,7 +372,7 @@ CreateSharedMemoryAndSemaphores(int port)
 
 	if (gp_enable_resqueue_priority)
 		BackoffStateInit();
-	if (gp_enable_fork_lock) {
+	if (gp_enable_fork_sleep) {
 			/* Create ProcStructLock spinlock, too */
 		ForkLock = (slock_t *) ShmemAlloc(sizeof(slock_t));
 		SpinLockInit(ForkLock);

@@ -215,7 +215,7 @@ static char *gp_resource_manager_str;
 
 /* Backoff-related GUCs */
 bool		gp_enable_resqueue_priority;
-bool		gp_enable_fork_lock;
+int			gp_enable_fork_sleep;
 int			gp_resqueue_priority_local_interval;
 int			gp_resqueue_priority_sweeper_interval;
 int			gp_resqueue_priority_inactivity_timeout;
@@ -1744,17 +1744,6 @@ struct config_bool ConfigureNamesBool_gp[] =
 		true,
 		NULL, NULL, NULL
 	},
-
-	{
-		{"gp_enable_fork_lock", PGC_POSTMASTER, RESOURCES_MGM,
-			gettext_noop("Enables priority scheduling."),
-			NULL
-		},
-		&gp_enable_fork_lock,
-		true,
-		NULL, NULL, NULL
-	},
-
 	{
 		{"debug_resource_group", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Prints resource groups debug logs."),
@@ -3350,6 +3339,19 @@ struct config_bool ConfigureNamesBool_gp[] =
 
 struct config_int ConfigureNamesInt_gp[] =
 {
+
+	{
+		{"gp_enable_fork_sleep", PGC_USERSET, RESOURCES_MGM,
+			gettext_noop("Enables priority scheduling."),
+			gettext_noop("Enables priority scheduling."),
+			GUC_UNIT_S | GUC_NOT_IN_SAMPLE
+		},
+		&gp_enable_fork_sleep,
+		1000, 0, 72000,
+		NULL, NULL, NULL
+	},
+
+	
 	{
 		{"readable_external_table_timeout", PGC_USERSET, EXTERNAL_TABLES,
 			gettext_noop("Cancel the query if no data read within N seconds."),
