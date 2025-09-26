@@ -63,6 +63,7 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 #include "utils/ps_status.h"
+#include "utils/ratelimiter.h"
 #include "utils/resgroup-ops.h"
 #include "utils/resgroup.h"
 #include "utils/resource_manager.h"
@@ -220,6 +221,7 @@ struct ResGroupData
 	int			totalQueued;	/* total number of queued trans	*/
 	Interval	totalQueuedTime;/* total queue time */
 	PROC_QUEUE	waitProcs;		/* list of PGPROC objects waiting on this group */
+	void        *rate_limiter;  /* sliding window rate limiter for this group */
 
 	/*
 	 * operation functions for resource group
@@ -452,6 +454,8 @@ ResGroupShmemSize(void)
 	/* The slot pool. */
 	size = add_size(size, mul_size(RESGROUP_MAX_SLOTS, sizeof(ResGroupSlotData)));
 
+	size = add_size(size, mul_size(RateLimiterShmemSize(), MaxResourceGroups));
+
 	/* Add a safety margin */
 	size = add_size(size, size / 10);
 
@@ -464,11 +468,11 @@ ResGroupShmemSize(void)
 void
 ResGroupControlInit(void)
 {
-	int			i;
-    bool        found;
-    HASHCTL     info;
-    int         hash_flags;
-	int			size;
+	int			    i;
+	bool            found;
+	HASHCTL         info;
+	int             hash_flags;
+	int			    size;
 
 	size = sizeof(*pResGroupControl) - sizeof(ResGroupData);
 	size += mul_size(MaxResourceGroups, sizeof(ResGroupData));
@@ -1330,6 +1334,7 @@ createGroup(Oid groupId, const ResGroupCaps *caps)
 {
 	ResGroupData	*group;
 	int32			chunks;
+	RateLimiterDesc limiter_desc;
 
 	Assert(LWLockHeldExclusiveByMe(ResGroupLock));
 	Assert(OidIsValid(groupId));
@@ -1361,6 +1366,20 @@ createGroup(Oid groupId, const ResGroupCaps *caps)
 
 	bindGroupOperation(group);
 
+	limiter_desc.limiter_name = "Resource group rate limiter";
+	limiter_desc.num_elements = 10;
+	limiter_desc.num_elements_guc = "gp_resgroup_rate_limiter_size";
+	limiter_desc.num_elements_guc_description =
+		"Limit the maximum number of transactions startingin a given timeframe per resgroup";
+	limiter_desc.time_frame = 60;
+	limiter_desc.time_frame_guc = "gp_resgroup_rate_limiter_frame";
+	limiter_desc.time_frame_guc_description =
+		"Size of time frame in seconds for the resource group rate limiter";
+	group->rate_limiter = RateLimiterShmemInit(limiter_desc);
+	if (group->rate_limiter == NULL)
+		ereport(FATAL,
+					(errcode(ERRCODE_OUT_OF_MEMORY),
+					errmsg("not enough shared memory for resource group rate limiter")));
 	return group;
 }
 
@@ -1950,6 +1969,8 @@ groupAcquireSlot(ResGroupInfo *pGroupInfo, bool isMoveQuery)
 	 * Update the statistic information of the resource group.
 	 */
 	slot = (ResGroupSlotData *) MyProc->resSlot;
+	if (group->groupId != ADMINRESGROUP_OID)
+		RateLimit(group->rate_limiter);
 	MyProc->resSlot = NULL;
 	LWLockAcquire(ResGroupLock, LW_EXCLUSIVE);
 	addTotalQueueDuration(group);
