@@ -57,32 +57,6 @@ RateLimiterShmemInit(RateLimiterDesc limiter_desc)
 		ProcQueueInit(&rate_limiter->waiters);
 	}
 
-	DefineCustomIntVariable(limiter_desc.num_elements_guc,
-							limiter_desc.num_elements_guc_description,
-							NULL,
-							&rate_limiter->ring_size,
-							rate_limiter->ring_size,
-							1,
-							1024,
-							PGC_SIGHUP,
-							0,
-							NULL,
-							NULL,
-							NULL);
-
-	DefineCustomIntVariable(limiter_desc.time_frame_guc,
-							limiter_desc.time_frame_guc_description,
-							NULL,
-							&rate_limiter->time_frame,
-							rate_limiter->time_frame,
-							0,
-							3600,
-							PGC_SIGHUP,
-							0,
-							NULL,
-							NULL,
-							NULL);
-
 	return rate_limiter;
 }
 

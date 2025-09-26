@@ -4395,6 +4395,29 @@ struct config_int ConfigureNamesInt_gp[] =
 		NULL, NULL, NULL
 	},
 
+	// TODO: can slacken it to SIGHUP
+	{
+		{"gp_resource_group_rate_limit", PGC_POSTMASTER, RESOURCES_MEM,
+			gettext_noop("Sets the maximum number of transactions starting per group in a given time frame."),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&gp_resource_group_rate_limit,
+		10, 0, 1024,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_resource_group_rate_window", PGC_POSTMASTER, RESOURCES_MEM,
+			gettext_noop("Sets time frame for resource groups rate limiting (in seconds)."),
+			NULL,
+			GUC_NO_SHOW_ALL | GUC_NOT_IN_SAMPLE
+		},
+		&gp_resource_group_rate_window,
+		60, 1, 3600,
+		NULL, NULL, NULL
+	},
+
 	{
 		{"gp_global_deadlock_detector_period", PGC_SIGHUP, LOCK_MANAGEMENT,
 			gettext_noop("Sets the executing period of global deadlock detector backend."),

@@ -242,6 +242,8 @@
 		"gp_resource_group_queuing_timeout",
 		"gp_resource_group_enable_recalculate_query_mem",
 		"gp_resource_group_move_timeout",
+		"gp_resource_group_rate_limit",
+		"gp_resource_group_rate_window",
 		"gp_resource_manager",
 		"gp_resqueue_memory_policy",
 		"gp_resqueue_priority",

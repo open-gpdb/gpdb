@@ -94,6 +94,8 @@ bool						gp_resgroup_debug_wait_queue = true;
 int							memory_spill_ratio = 20;
 int							gp_resource_group_queuing_timeout = 0;
 int							gp_resource_group_move_timeout = 30000;
+int 						gp_resource_group_rate_limit = 10;
+long 						gp_resource_group_rate_window = 60;
 
 /*
  * Data structures
@@ -1367,14 +1369,8 @@ createGroup(Oid groupId, const ResGroupCaps *caps)
 	bindGroupOperation(group);
 
 	limiter_desc.limiter_name = "Resource group rate limiter";
-	limiter_desc.num_elements = 10;
-	limiter_desc.num_elements_guc = "gp_resgroup_rate_limiter_size";
-	limiter_desc.num_elements_guc_description =
-		"Limit the maximum number of transactions startingin a given timeframe per resgroup";
-	limiter_desc.time_frame = 60;
-	limiter_desc.time_frame_guc = "gp_resgroup_rate_limiter_frame";
-	limiter_desc.time_frame_guc_description =
-		"Size of time frame in seconds for the resource group rate limiter";
+	limiter_desc.num_elements = gp_resource_group_rate_limit;
+	limiter_desc.time_frame = gp_resource_group_rate_window;
 	group->rate_limiter = RateLimiterShmemInit(limiter_desc);
 	if (group->rate_limiter == NULL)
 		ereport(FATAL,
