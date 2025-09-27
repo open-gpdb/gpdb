@@ -68,7 +68,7 @@ ring_push_unlocked(RateLimiterShmem * rate_limiter, TimestampTz now)
 
 	if (rate_limiter->count < rate_limiter->ring_size)
 	{
-		int			idx = (rate_limiter->head + rate_limiter->count) % rate_limiter->ring_capacity;
+		int			idx = (rate_limiter->head + rate_limiter->count) % rate_limiter->ring_size;
 
 		rate_limiter->ring[idx] = now;
 		rate_limiter->count++;
@@ -77,7 +77,7 @@ ring_push_unlocked(RateLimiterShmem * rate_limiter, TimestampTz now)
 	{
 		rate_limiter->ring[rate_limiter->head] = now;
 		rate_limiter->head++;
-		rate_limiter->head %= rate_limiter->ring_capacity;
+		rate_limiter->head %= rate_limiter->ring_size;
 	}
 }
 
@@ -106,12 +106,11 @@ dequeue_unlocked(RateLimiterShmem * rate_limiter)
 	PGPROC	   *proc;
 	PGPROC	   *next;
 
-	if (rate_limiter->count != 0)
+	waitQueue = &rate_limiter->waiters;
+	if (waitQueue->size != 0)
 	{
-		waitQueue = &rate_limiter->waiters;
 		proc = (PGPROC *)waitQueue->links.next;
 		SHMQueueDelete(&proc->links);
-		Assert(waitQueue->size != 0);
 		waitQueue->size--;
 		if (waitQueue->size != 0)
 		{
@@ -156,8 +155,6 @@ RateLimit(void *limiter)
 		now = GetCurrentTimestamp();
 
 		LWLockAcquire(rate_limiter->lock, LW_EXCLUSIVE);
-		waitQueue = &rate_limiter->waiters;
-		headProc = (PGPROC *)&waitQueue->links;
 
 		/* Disabled? Admit immediately. */
 		if (rate_limiter->ring_size == 0)
@@ -175,6 +172,11 @@ RateLimit(void *limiter)
 			enqueue_unlocked(rate_limiter);
 			enqueued = true;
 		}
+
+		waitQueue = &rate_limiter->waiters;
+		headProc = (PGPROC *)SHMQueueNext(&waitQueue->links,
+										  &waitQueue->links,
+										  offsetof(PGPROC, links));
 
 		/*
 		 * Are we the head of the FIFO? Only the head is allowed to evaluate
