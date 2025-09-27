@@ -1965,8 +1965,6 @@ groupAcquireSlot(ResGroupInfo *pGroupInfo, bool isMoveQuery)
 	 * Update the statistic information of the resource group.
 	 */
 	slot = (ResGroupSlotData *) MyProc->resSlot;
-	if (group->groupId != ADMINRESGROUP_OID)
-		RateLimit(group->rate_limiter);
 	MyProc->resSlot = NULL;
 	LWLockAcquire(ResGroupLock, LW_EXCLUSIVE);
 	addTotalQueueDuration(group);
@@ -2688,6 +2686,9 @@ AssignResGroupOnMaster(void)
 
 			/* Acquire slot */
 			slot = groupAcquireSlot(&groupInfo, false);
+			if (slot && slot->group->groupId != ADMINRESGROUP_OID)
+				RateLimit(slot->group->rate_limiter);
+				
 		} while (slot == NULL);
 
 		/* Set resource group slot for current session */
