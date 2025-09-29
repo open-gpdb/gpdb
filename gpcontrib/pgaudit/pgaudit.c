@@ -1340,6 +1340,47 @@ pgaudit_ProcessUtility_hook(Node *parsetree,
     AuditEventStackItem *stackItem = NULL;
     int64 stackId = 0;
 
+    if (IsA(parsetree, CreateTableAsStmt))
+    {
+        CreateTableAsStmt *ctas = (CreateTableAsStmt*)parsetree;
+
+        ereport(auditLogClient ? auditLogLevel : COMMERROR,
+            (errmsg("AUDIT: CTAS: New table name %s",
+                    ctas->into->rel->relname),
+                    errhidestmt(true),
+                    errhidecontext(true)));
+        if (IsA(ctas->query, Query))
+        {
+            ListCell *lc;
+            Query    *query = (Query*)ctas->query;
+
+            foreach(lc, query->targetList)
+            {
+                TargetEntry *tle = (TargetEntry *) lfirst(lc);
+
+                if (tle->resjunk)
+                    continue;
+
+                if (tle->resorigtbl == 0 || tle->resorigcol == 0)
+                    ereport(auditLogClient ? auditLogLevel : COMMERROR,
+                        (errmsg("AUDIT: CTAS: New table column name %s. "
+                            "There is no source column",
+                            tle->resname),
+                            errhidestmt(true),
+                            errhidecontext(true)));
+                else
+                    ereport(auditLogClient ? auditLogLevel : COMMERROR,
+                        (errmsg("AUDIT: CTAS: New table column name %s. "
+                            "Source: table: %s, column: %s",
+                            tle->resname,
+                            get_rel_name(tle->resorigtbl),
+                            get_attname(tle->resorigtbl, tle->resorigcol)),
+                            errhidestmt(true),
+                            errhidecontext(true)));
+            }
+        }
+    }
+
     /*
      * Don't audit substatements.  All the substatements we care about should
      * be covered by the event triggers.
