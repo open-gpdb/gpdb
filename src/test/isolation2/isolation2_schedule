@@ -259,7 +259,7 @@ test: segwalrep/dtx_recovery_wait_lsn
 test: segwalrep/hintbit_throttle
 test: fts_manual_probe
 test: fts_session_reset
-#test: fts_segment_reset
+test: fts_segment_reset
 test: fts_maintenance
 
 # Reindex tests
