@@ -108,7 +108,11 @@ extern int gp_resource_group_queuing_timeout;
 extern bool gp_resource_group_bypass_catalog_query;
 extern int gp_resource_group_move_timeout;
 extern int gp_resource_group_rate_limit;
-extern long gp_resource_group_rate_window;
+extern int gp_resource_group_rate_window;
+
+/* GUC validators */
+extern void assign_resource_group_rate_limit(int newval);
+extern void assign_resource_group_rate_window(int newval);
 
 /*
  * Non-GUC global variables.

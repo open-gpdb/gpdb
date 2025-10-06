@@ -10,6 +10,7 @@ typedef struct RateLimiterDesc
 
 extern Size RateLimiterShmemSize(void);
 extern void *RateLimiterShmemInit(RateLimiterDesc limiter_desc);
-extern void RateLimit(void *limiter);
+extern void RateLimiterRunOrWait(void *limiter);
+extern void RateLimiterReconfigure(void *limiter, int limit, int window);
 
 #endif   /* RATELIMITER_H */

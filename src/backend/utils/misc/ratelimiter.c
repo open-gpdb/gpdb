@@ -135,7 +135,7 @@ enqueue_unlocked(RateLimiterShmem * rate_limiter)
 }
 
 void
-RateLimit(void *limiter)
+RateLimiterRunOrWait(void *limiter)
 {
 	bool		enqueued = false;
 	int			latchRes;
@@ -227,4 +227,14 @@ RateLimit(void *limiter)
 		 * queue
 		 */
 	}
+}
+
+void
+RateLimiterReconfigure(void *limiter, int limit, int window)
+{
+	RateLimiterShmem *rate_limiter = (RateLimiterShmem *) limiter;
+	LWLockAcquire(rate_limiter->lock, LW_EXCLUSIVE);
+	rate_limiter->ring_size = limit;
+	rate_limiter->time_frame = window;
+	LWLockRelease(rate_limiter->lock);
 }

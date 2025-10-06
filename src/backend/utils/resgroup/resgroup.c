@@ -94,8 +94,8 @@ bool						gp_resgroup_debug_wait_queue = true;
 int							memory_spill_ratio = 20;
 int							gp_resource_group_queuing_timeout = 0;
 int							gp_resource_group_move_timeout = 30000;
-int 						gp_resource_group_rate_limit = 10;
-long 						gp_resource_group_rate_window = 60;
+int 						gp_resource_group_rate_limit = 2;
+int 						gp_resource_group_rate_window = 10;
 
 /*
  * Data structures
@@ -2687,7 +2687,7 @@ AssignResGroupOnMaster(void)
 			/* Acquire slot */
 			slot = groupAcquireSlot(&groupInfo, false);
 			if (slot && slot->group->groupId != ADMINRESGROUP_OID)
-				RateLimit(slot->group->rate_limiter);
+				RateLimiterRunOrWait(slot->group->rate_limiter);
 				
 		} while (slot == NULL);
 
@@ -5192,4 +5192,40 @@ ResGroupGetGroupAvailableMem(Oid groupId)
 				   group->memSharedGranted - group->memSharedUsage;
 	LWLockRelease(ResGroupLock);
 	return availMem;
+}
+
+static void
+reconfigure_rate_limiter(int limit, int window)
+{
+	int i;
+
+	if (IsUnderPostmaster || !IsResGroupEnabled())
+		return;
+
+	LWLockAcquire(ResGroupLock, LW_EXCLUSIVE);
+
+	for (i = 0; i < MaxResourceGroups; i++)
+	{
+		ResGroupData	*group = &pResGroupControl->groups[i];
+
+		if (group->groupId != InvalidOid)
+		{
+			Assert(group->rate_limiter != NULL);
+			RateLimiterReconfigure(group->rate_limiter, limit, window);
+		}
+	}
+
+	LWLockRelease(ResGroupLock);
+}
+
+void
+assign_resource_group_rate_limit(int newval)
+{
+	reconfigure_rate_limiter(newval, gp_resource_group_rate_window);
+}
+
+void
+assign_resource_group_rate_window(int newval)
+{
+	reconfigure_rate_limiter(gp_resource_group_rate_limit, newval);
 }
