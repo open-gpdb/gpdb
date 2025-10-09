@@ -42,7 +42,7 @@
 /*
  *	DefineExtprotocol
  */
-void
+ObjectAddress
 DefineExtProtocol(List *name, List *parameters, bool trusted)
 {
 	char	   *protName;
@@ -50,7 +50,7 @@ DefineExtProtocol(List *name, List *parameters, bool trusted)
 	List	   *writefuncName = NIL;
 	List	   *validatorfuncName = NIL;
 	ListCell   *pl;
-	Oid			protOid;
+	ObjectAddress address;
 
 	if (!superuser())
 		ereport(ERROR,
@@ -88,7 +88,7 @@ DefineExtProtocol(List *name, List *parameters, bool trusted)
 	/*
 	 * Most of the argument-checking is done inside of ExtProtocolCreate
 	 */
-	protOid = ExtProtocolCreate(protName,			/* protocol name */
+	address = ExtProtocolCreate(protName,			/* protocol name */
 								readfuncName,		/* read function name */
 								writefuncName,		/* write function name */
 								validatorfuncName, 	/* validator function name */
@@ -110,6 +110,8 @@ DefineExtProtocol(List *name, List *parameters, bool trusted)
 									GetAssignedOidsForDispatch(),
 									NULL);
 	}
+
+	return address;
 }
 
 /*

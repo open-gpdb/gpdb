@@ -7,6 +7,8 @@ EXTENSION = gp_aux_catalog
 DATA = gp_aux_catalog--1.0.sql gp_aux_catalog--1.0--1.1.sql
 PGFILEDESC = "gp_aux_catalog - An auxiliar catalog extension for Greenplum"
 
+REGRESS = pg_event_trigger_ddl_commands
+
 ifdef USE_PGXS
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)

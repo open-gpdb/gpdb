@@ -101,7 +101,7 @@ NeedErrorLogPersistent(List *options)
  * in pg_class and a text array of external location URIs among
  * other external table properties.
  */
-void
+ObjectAddress
 InsertExtTableEntry(Oid 	tbloid,
 					bool 	iswritable,
 					bool	issreh,
@@ -120,7 +120,9 @@ InsertExtTableEntry(Oid 	tbloid,
 	HeapTuple	pg_exttable_tuple = NULL;
 	bool		nulls[Natts_pg_exttable];
 	Datum		values[Natts_pg_exttable];
+	ObjectAddress	myself;
 
+	ObjectAddressSet(myself, RelationRelationId, tbloid);
 	MemSet(values, 0, sizeof(values));
 	MemSet(nulls, false, sizeof(nulls));
 
@@ -200,7 +202,7 @@ InsertExtTableEntry(Oid 	tbloid,
 
 		for (int i = 0; i < nelems; i++)
 		{
-			ObjectAddress	myself, referenced;
+			ObjectAddress	referenced;
 			char	   *location;
 			char	   *protocol;
 			Size		position;
@@ -208,10 +210,6 @@ InsertExtTableEntry(Oid 	tbloid,
 			location = TextDatumGetCString(elems[i]);
 			position = strchr(location, ':') - location;
 			protocol = pnstrdup(location, position);
-
-			myself.classId = RelationRelationId;
-			myself.objectId = tbloid;
-			myself.objectSubId = 0;
 
 			referenced.classId = ExtprotocolRelationId;
 			referenced.objectId = get_extprotocol_oid(protocol, true);
@@ -224,8 +222,9 @@ InsertExtTableEntry(Oid 	tbloid,
 			if (referenced.objectId)
 				recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
 		}
-
 	}
+
+	return myself;
 }
 
 /*

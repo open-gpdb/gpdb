@@ -17,6 +17,7 @@
 #define PG_EXTTABLE_H
 
 #include "catalog/genbki.h"
+#include "catalog/objectaddress.h"
 #include "nodes/pg_list.h"
 
 /*
@@ -102,7 +103,7 @@ extern void ValidateExtTableOptions(List *options);
 
 extern bool NeedErrorLogPersistent(List *options);
 
-extern void InsertExtTableEntry(Oid 	tbloid,
+extern ObjectAddress InsertExtTableEntry(Oid 	tbloid,
 					bool 	iswritable,
 					bool	issreh,
 					char	formattype,
