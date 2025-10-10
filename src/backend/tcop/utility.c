@@ -1095,9 +1095,9 @@ ProcessUtilitySlow(Node *parsetree,
 	bool		isTopLevel = (context == PROCESS_UTILITY_TOPLEVEL);
 	bool		isCompleteQuery = (context <= PROCESS_UTILITY_QUERY);
 	bool		needCleanup;
-	bool        commandCollected;
-	ObjectAddress address;
-	ObjectAddress secondaryObject;
+	bool		commandCollected = false;
+	ObjectAddress address = {InvalidOid, InvalidOid, 0};
+	ObjectAddress secondaryObject = {InvalidOid, InvalidOid, 0};
 
 	/* All event trigger calls are done only when isCompleteQuery is true */
 	needCleanup = isCompleteQuery && EventTriggerBeginCompleteQuery();
@@ -1466,7 +1466,8 @@ ProcessUtilitySlow(Node *parsetree,
 												   true);
 							break;
 						case 'C':		/* ADD CONSTRAINT */
-							AlterDomainAddConstraint(stmt->typeName,
+							address =
+								AlterDomainAddConstraint(stmt->typeName,
 													 stmt->def,
 													 NULL);
 							break;
@@ -1542,16 +1543,16 @@ ProcessUtilitySlow(Node *parsetree,
 							break;
 						case OBJECT_TSCONFIGURATION:
 							Assert(stmt->args == NIL);
-							DefineTSConfiguration(stmt->defnames,
+							address = DefineTSConfiguration(stmt->defnames,
 												  stmt->definition);
 							break;
 						case OBJECT_COLLATION:
 							Assert(stmt->args == NIL);
-							DefineCollation(stmt->defnames, stmt->definition, false);
+							address = DefineCollation(stmt->defnames, stmt->definition, false);
 							break;
 						case OBJECT_EXTPROTOCOL:
 							Assert(stmt->args == NIL);
-							DefineExtProtocol(stmt->defnames, stmt->definition, stmt->trusted);
+							address = DefineExtProtocol(stmt->defnames, stmt->definition, stmt->trusted);
 							break;						
 						default:
 							elog(ERROR, "unrecognized define stmt type: %d",
@@ -1586,7 +1587,7 @@ ProcessUtilitySlow(Node *parsetree,
 						Node	   *stmt = (Node *) lfirst(l);
 
 						if (IsA(stmt, CreateExternalStmt))
-							DefineExternalRelation((CreateExternalStmt *) stmt);
+							address = DefineExternalRelation((CreateExternalStmt *) stmt);
 						else
 						{
 							/* Recurse for anything else */
@@ -1640,7 +1641,7 @@ ProcessUtilitySlow(Node *parsetree,
 					stmt = transformIndexStmt(relid, stmt, queryString);
 
 					/* ... and do it */
-					DefineIndex(relid,	/* OID of heap relation */
+					address = DefineIndex(relid,	/* OID of heap relation */
 							stmt,
 							InvalidOid,		/* no predefined OID */
 							false,	/* is_alter_table */
@@ -1659,7 +1660,7 @@ ProcessUtilitySlow(Node *parsetree,
 				break;
 
 			case T_AlterExtensionContentsStmt:
-				ExecAlterExtensionContentsStmt((AlterExtensionContentsStmt *) parsetree,
+				address = ExecAlterExtensionContentsStmt((AlterExtensionContentsStmt *) parsetree,
 											   NULL);
 				break;
 
@@ -1772,22 +1773,18 @@ ProcessUtilitySlow(Node *parsetree,
 				break;
 
 			case T_CreateTrigStmt:
+				address = CreateTrigger((CreateTrigStmt *) parsetree, queryString,
+										InvalidOid, InvalidOid, InvalidOid,
+										InvalidOid, false);
+				if (Gp_role == GP_ROLE_DISPATCH)
 				{
-					ObjectAddress			trigAddr;
-
-					trigAddr = CreateTrigger((CreateTrigStmt *) parsetree, queryString,
-											InvalidOid, InvalidOid, InvalidOid,
-											InvalidOid, false);
-					if (Gp_role == GP_ROLE_DISPATCH)
-					{
-						((CreateTrigStmt *) parsetree)->trigOid = trigAddr.objectId;
-						CdbDispatchUtilityStatement((Node *) parsetree,
-													DF_CANCEL_ON_ERROR|
-													DF_WITH_SNAPSHOT|
-													DF_NEED_TWO_PHASE,
-													GetAssignedOidsForDispatch(),
-													NULL);
-					}
+					((CreateTrigStmt *) parsetree)->trigOid = address.objectId;
+					CdbDispatchUtilityStatement((Node *) parsetree,
+												DF_CANCEL_ON_ERROR|
+												DF_WITH_SNAPSHOT|
+												DF_NEED_TWO_PHASE,
+												GetAssignedOidsForDispatch(),
+												NULL);
 				}
 				break;
 
@@ -1832,7 +1829,7 @@ ProcessUtilitySlow(Node *parsetree,
 				break;
 
 			case T_AlterTypeStmt:
-				AlterType((AlterTypeStmt *) parsetree);
+				address = AlterType((AlterTypeStmt *) parsetree);
 				break;
 
 			case T_AlterTableMoveAllStmt:
@@ -1868,7 +1865,7 @@ ProcessUtilitySlow(Node *parsetree,
 				break;
 
 			case T_CommentStmt:
-				CommentObject((CommentStmt *) parsetree);
+				address = CommentObject((CommentStmt *) parsetree);
 				break;
 
 			case T_DropOwnedStmt:

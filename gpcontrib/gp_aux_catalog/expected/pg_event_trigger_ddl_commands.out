@@ -1,0 +1,94 @@
+-- Create an event trigger to output information about DDL queries
+create or replace function test_pg_event_trigger_ddl_commands()
+returns event_trigger as
+$$
+declare
+	r record;
+begin
+	for r in select * from pg_event_trigger_ddl_commands()
+	loop
+		raise notice 'classid = %, command_tag = %, object_type = %, schema_name = %, object_identity = %, in_extension = %',
+			r.classid, r.command_tag, r.object_type, r.schema_name, r.object_identity, r.in_extension;
+	end loop;
+end;
+$$ language plpgsql;
+create event trigger test_pg_event_trigger_ddl_commands
+on ddl_command_end
+execute procedure test_pg_event_trigger_ddl_commands();
+-- The following queries should work without errors when the event
+-- trigger calls pg_event_trigger_ddl_commands()
+-- Check T_IndexStmt
+create table t(i int primary key) distributed by (i);
+NOTICE:  classid = 1259, command_tag = CREATE TABLE, object_type = table, schema_name = public, object_identity = public.t, in_extension = f
+NOTICE:  classid = 1259, command_tag = CREATE INDEX, object_type = index, schema_name = public, object_identity = public.t_pkey, in_extension = f
+-- Check T_CommentStmt
+comment on column t.i is 'comment for column i';
+NOTICE:  classid = 1259, command_tag = COMMENT, object_type = table column, schema_name = public, object_identity = public.t.i, in_extension = f
+-- Check T_AlterExtensionContentsStmt
+alter extension gp_aux_catalog add table t;
+NOTICE:  classid = 3079, command_tag = ALTER EXTENSION, object_type = extension, schema_name = <NULL>, object_identity = gp_aux_catalog, in_extension = f
+alter extension gp_aux_catalog drop table t;
+NOTICE:  classid = 3079, command_tag = ALTER EXTENSION, object_type = extension, schema_name = <NULL>, object_identity = gp_aux_catalog, in_extension = f
+-- Check T_CreateTrigStmt
+create or replace function t_trigger()
+returns trigger as
+$$
+begin
+	raise notice 't_trigger';
+	return null;
+end;
+$$ language plpgsql;
+NOTICE:  classid = 1255, command_tag = CREATE FUNCTION, object_type = function, schema_name = public, object_identity = public.t_trigger(), in_extension = f
+create trigger t_trigger after insert on t for each statement
+execute procedure t_trigger();
+NOTICE:  classid = 2620, command_tag = CREATE TRIGGER, object_type = trigger, schema_name = <NULL>, object_identity = t_trigger on public.t, in_extension = f
+drop trigger t_trigger on t;
+drop function t_trigger();
+drop table t;
+-- Check T_AlterTypeStmt
+create type color as enum ('red', 'green', 'blue');
+NOTICE:  classid = 1247, command_tag = CREATE TYPE, object_type = type, schema_name = public, object_identity = public.color, in_extension = f
+alter type color set default encoding (compresstype=zlib);
+NOTICE:  classid = 1247, command_tag = ALTER TYPE, object_type = type, schema_name = public, object_identity = public.color, in_extension = f
+drop type color;
+-- Check T_CreateExternalStmt
+create external table ext_t1 (a int, b int)
+location ('file:///tmp/test.txt') format 'text';
+NOTICE:  classid = 1259, command_tag = CREATE EXTERNAL TABLE, object_type = table, schema_name = public, object_identity = public.ext_t1, in_extension = f
+drop external table ext_t1;
+-- Check T_DefineStmt, OBJECT_TSCONFIGURATION
+create text search configuration tsc_pg_event_trigger_ddl_commands (
+	copy = pg_catalog.english
+);
+NOTICE:  classid = 3602, command_tag = CREATE TEXT SEARCH CONFIGURATION, object_type = text search configuration, schema_name = public, object_identity = public.tsc_pg_event_trigger_ddl_commands, in_extension = f
+drop text search configuration tsc_pg_event_trigger_ddl_commands;
+-- Check T_DefineStmt, OBJECT_COLLATION
+create collation test0 from "C";
+NOTICE:  classid = 3456, command_tag = CREATE COLLATION, object_type = collation, schema_name = public, object_identity = public.test0, in_extension = f
+drop collation test0;
+-- Check T_DefineStmt, OBJECT_EXTPROTOCOL
+create or replace function write_to_file()
+returns int as
+'$libdir/gpextprotocol.so', 'demoprot_export' language C stable;
+NOTICE:  classid = 1255, command_tag = CREATE FUNCTION, object_type = function, schema_name = public, object_identity = public.write_to_file(), in_extension = f
+create or replace function read_from_file()
+returns int as
+'$libdir/gpextprotocol.so', 'demoprot_import' language C stable;
+NOTICE:  classid = 1255, command_tag = CREATE FUNCTION, object_type = function, schema_name = public, object_identity = public.read_from_file(), in_extension = f
+create protocol demoprot (
+	readfunc  = read_from_file,
+	writefunc = write_to_file
+);
+NOTICE:  classid = 7175, command_tag = CREATE PROTOCOL, object_type = protocol, schema_name = <NULL>, object_identity = protocol demoprot, in_extension = f
+drop protocol demoprot;
+drop function read_from_file();
+drop function write_to_file();
+-- Check T_AlterDomainStmt
+create domain con as int;
+NOTICE:  classid = 1247, command_tag = CREATE DOMAIN, object_type = type, schema_name = public, object_identity = public.con, in_extension = f
+alter domain con add constraint t check (value < 34);
+NOTICE:  classid = 1247, command_tag = ALTER DOMAIN, object_type = type, schema_name = public, object_identity = public.con, in_extension = f
+drop domain con;
+-- Cleanup
+drop event trigger test_pg_event_trigger_ddl_commands;
+drop function test_pg_event_trigger_ddl_commands();

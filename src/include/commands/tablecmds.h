@@ -51,7 +51,7 @@ extern const char *synthetic_sql;
 
 extern ObjectAddress DefineRelation(CreateStmt *stmt, char relkind, Oid ownerId, ObjectAddress *typaddress, char relstorage, bool dispatch, bool useChangedOpts, GpPolicy *intoPolicy);
 
-extern void	DefineExternalRelation(CreateExternalStmt *stmt);
+extern ObjectAddress DefineExternalRelation(CreateExternalStmt *stmt);
 
 extern void EvaluateDeferredStatements(List *deferredStmts);
 
