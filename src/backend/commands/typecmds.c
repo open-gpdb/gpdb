@@ -3875,7 +3875,7 @@ AlterTypeArray(Oid typeOid, Oid arrayOid)
  *
  * ALTER TYPE <typname> SET DEFAULT ENCODING (...)
  */
-void
+ObjectAddress
 AlterType(AlterTypeStmt *stmt)
 {
 	TypeName   *typname;
@@ -3883,6 +3883,7 @@ AlterType(AlterTypeStmt *stmt)
 	Oid			arrtypid;
 	Datum		typoptions;
 	List	   *encoding;
+	ObjectAddress address;
 
 	/* Make a TypeName so we can use standard type lookup machinery */
 	typname = makeTypeNameFromNameList(stmt->typeName);
@@ -3928,6 +3929,9 @@ AlterType(AlterTypeStmt *stmt)
 									DF_NEED_TWO_PHASE,
 									NIL,
 									NULL);
+
+	ObjectAddressSet(address, TypeRelationId, typid);
+	return address;
 }
 
 /*

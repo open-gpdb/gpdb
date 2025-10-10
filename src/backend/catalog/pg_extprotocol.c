@@ -45,7 +45,7 @@ static char *func_type_to_name(ExtPtcFuncType ftype);
 /*
  * ExtProtocolCreate
  */
-Oid
+ObjectAddress
 ExtProtocolCreate(const char *protocolName,
 				  List *readfuncName,
 				  List *writefuncName,
@@ -180,7 +180,7 @@ ExtProtocolCreate(const char *protocolName,
 	/* dependency on extension */
 	recordDependencyOnCurrentExtension(&myself, false);
 
-	return protOid;
+	return myself;
 }
 
 /*
