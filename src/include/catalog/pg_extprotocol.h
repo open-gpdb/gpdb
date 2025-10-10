@@ -16,6 +16,7 @@
 #define PG_EXTPROTOCOL_H
 
 #include "catalog/genbki.h"
+#include "catalog/objectaddress.h"
 #include "nodes/pg_list.h"
 #include "utils/acl.h"
 
@@ -75,7 +76,7 @@ typedef enum ExtPtcFuncType
 	
 } ExtPtcFuncType;
 
-extern Oid
+extern ObjectAddress
 ExtProtocolCreate(const char *protocolName,
 				  List *readfuncName,
 				  List *writefuncName,

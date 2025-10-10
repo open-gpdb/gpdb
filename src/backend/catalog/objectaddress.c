@@ -2745,6 +2745,10 @@ getObjectTypeDescription(const ObjectAddress *object)
 			appendStringInfoString(&buffer, "event trigger");
 			break;
 
+		case OCLASS_EXTPROTOCOL:
+			appendStringInfoString(&buffer, "protocol");
+			break;
+
 		default:
 			appendStringInfo(&buffer, "unrecognized %u", object->classId);
 			break;
@@ -3507,6 +3511,11 @@ getObjectIdentity(const ObjectAddress *object)
 				ReleaseSysCache(tup);
 				break;
 			}
+
+		case OCLASS_EXTPROTOCOL:
+			appendStringInfo(&buffer, "protocol %s",
+							 ExtProtocolGetNameByOid(object->objectId));
+			break;
 
 		default:
 			appendStringInfo(&buffer, "unrecognized object %u %u %d",

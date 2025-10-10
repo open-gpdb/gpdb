@@ -60,7 +60,7 @@ static Datum optionsListToArray(List *options);
 * to leave it intact and do another dispatch.
 * ----------------------------------------------------------------
 */
-extern void
+extern ObjectAddress
 DefineExternalRelation(CreateExternalStmt *createExtStmt)
 {
 	CreateStmt *createStmt = makeNode(CreateStmt);
@@ -84,6 +84,7 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	bool		isweb = createExtStmt->isweb;
 	bool		shouldDispatch = (Gp_role == GP_ROLE_DISPATCH &&
 								  IsNormalProcessingMode());
+	ObjectAddress address;
 
 	/*
 	 * now set the parameters for keys/inheritance etc. Most of these are
@@ -389,7 +390,7 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 	/*
 	 * create a pg_exttable entry for this external table.
 	 */
-	InsertExtTableEntry(reloid,
+	address = InsertExtTableEntry(reloid,
 						iswritable,
 						issreh,
 						formattype,
@@ -425,6 +426,8 @@ DefineExternalRelation(CreateExternalStmt *createExtStmt)
 									GetAssignedOidsForDispatch(),
 									NULL);
 	}
+
+	return address;
 }
 
 
