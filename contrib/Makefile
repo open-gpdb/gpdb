@@ -16,6 +16,7 @@ SUBDIRS = \
 		file_fdw	\
 		fuzzystrmatch	\
 		hstore		\
+		hypodist    \
 		intarray	\
 		ltree		\
 		pageinspect	\

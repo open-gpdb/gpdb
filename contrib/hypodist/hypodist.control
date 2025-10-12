@@ -1,0 +1,5 @@
+# hypodist extension
+comment = 'hypodist - an extension to add hypothetical distribution keys to gp tables'
+default_version = '1.0'
+module_pathname = '$libdir/hypodist'
+superuser = false

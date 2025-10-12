@@ -37,6 +37,7 @@ endif
 	$(MAKE) -C contrib/pg_upgrade all
 	$(MAKE) -C contrib/pg_xlogdump all
 	$(MAKE) -C contrib/hstore all
+	$(MAKE) -C contrib/hypodist all
 	$(MAKE) -C contrib/ltree all
 	$(MAKE) -C contrib/pgcrypto all
 ifeq ($(with_openssl), yes)
@@ -91,6 +92,7 @@ endif
 	$(MAKE) -C contrib/pg_upgrade $@
 	$(MAKE) -C contrib/pg_xlogdump $@
 	$(MAKE) -C contrib/hstore $@
+	$(MAKE) -C contrib/hypodist $@
 	$(MAKE) -C contrib/ltree $@
 	$(MAKE) -C contrib/pgcrypto $@
 ifeq ($(with_openssl), yes)
