@@ -29,7 +29,8 @@ typedef struct HypoDist
 
 void _PG_init(void);
 void _PG_fini(void);
-static HypoDist dist;
+static HypoDist dist[3]; // it's a hack, but no more than 3 right now
+static int hypodist_cnt = 0;
 static get_relation_info_hook_type prev_get_relation_info_hook = NULL;
 
 static void hypodist_get_relation_info_hook(PlannerInfo *root,
@@ -40,8 +41,9 @@ static void hypodist_get_relation_info_hook(PlannerInfo *root,
 Datum
 create_hypodist(PG_FUNCTION_ARGS)
 {
-    if (InvalidOid != dist.table) {
-        ereport(ERROR, (errmsg("Only one hypothetical distkey is supported at the moment")));
+    if (hypodist_cnt == 3) 
+    {
+        ereport(ERROR, (errmsg("Only three hypothetical distkeys are supported at the moment")));
     }
     Name            table_name, column_name;
     StringInfoData  sql;
@@ -77,9 +79,10 @@ create_hypodist(PG_FUNCTION_ARGS)
         
         table_oid = SPI_getvalue(spi_tuple, spi_tupdesc, 1);
         att_num = SPI_getvalue(spi_tuple, spi_tupdesc, 2);
-        dist.table = atoi(table_oid);
-        dist.attnum = atoi(att_num);
-        ereport(NOTICE, (errmsg("Table %d, Column %d", dist.table, dist.attnum)));
+        dist[hypodist_cnt].table = atoi(table_oid);
+        dist[hypodist_cnt].attnum = atoi(att_num);
+        ereport(NOTICE, (errmsg("Table %d, Column %d", dist[hypodist_cnt].table, dist[hypodist_cnt].attnum)));
+        hypodist_cnt++;
     }
     SPI_finish();
 
@@ -89,8 +92,7 @@ create_hypodist(PG_FUNCTION_ARGS)
 Datum
 drop_hypodist(PG_FUNCTION_ARGS)
 {
-    dist.table = InvalidOid;
-    dist.attnum = 0;
+    hypodist_cnt = 0;
     PG_RETURN_VOID();
 }
 
@@ -100,18 +102,21 @@ hypodist_get_relation_info_hook(PlannerInfo *root,
                                 bool inhparent,
                                 RelOptInfo *rel)
 {
-    if (relationObjectId != dist.table /*|| also should ignore any query but explain, TODO*/)
-        return;
-    Assert(rel->cdbpolicy->nattrs > 0);
-    rel->cdbpolicy->nattrs = 1;
-    rel->cdbpolicy->attrs[0] = dist.attnum;
+    for (int i = 0; i < hypodist_cnt; ++i)
+    {
+        if (relationObjectId == dist[i].table)
+        {
+            Assert(rel->cdbpolicy->nattrs > 0);
+            rel->cdbpolicy->nattrs = 1;
+            rel->cdbpolicy->attrs[0] = dist[i].attnum;
+            break;
+        }
+    }    
 }
 
 void
 _PG_init(void)
 {
-    dist.table = InvalidOid;
-    dist.attnum = 0;
     prev_get_relation_info_hook = get_relation_info_hook;
     get_relation_info_hook = hypodist_get_relation_info_hook;
 }
