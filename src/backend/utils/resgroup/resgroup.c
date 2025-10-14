@@ -1368,14 +1368,17 @@ createGroup(Oid groupId, const ResGroupCaps *caps)
 
 	bindGroupOperation(group);
 
-	limiter_desc.limiter_name = psprintf("Resgroup#%d rate limiter", group->groupId);
-	limiter_desc.num_elements = gp_resource_group_rate_limit;
-	limiter_desc.time_frame = gp_resource_group_rate_window;
-	group->rate_limiter = RateLimiterShmemInit(limiter_desc);
-	if (group->rate_limiter == NULL)
-		ereport(FATAL,
-					(errcode(ERRCODE_OUT_OF_MEMORY),
-					errmsg("not enough shared memory for resource group rate limiter")));
+	if (IS_QUERY_DISPATCHER())
+	{
+		limiter_desc.limiter_name = psprintf("Resgroup#%d rate limiter", group->groupId);
+		limiter_desc.num_elements = gp_resource_group_rate_limit;
+		limiter_desc.time_frame = gp_resource_group_rate_window;
+		group->rate_limiter = RateLimiterShmemInit(limiter_desc);
+		if (group->rate_limiter == NULL)
+			ereport(FATAL,
+						(errcode(ERRCODE_OUT_OF_MEMORY),
+						errmsg("not enough shared memory for resource group rate limiter")));
+	}
 	return group;
 }
 
@@ -5199,7 +5202,10 @@ reconfigure_rate_limiter(int limit, int window)
 {
 	int i;
 
-	if (IsUnderPostmaster || !IsResGroupEnabled())
+	/* No need to run it anywhere but master`s posrmaster;
+	 * No need to run it before shmem is initialized 
+	 */
+	if (IsUnderPostmaster || !IsResGroupEnabled() || !IS_QUERY_DISPATCHER() || !pResGroupControl)
 		return;
 
 	LWLockAcquire(ResGroupLock, LW_EXCLUSIVE);
