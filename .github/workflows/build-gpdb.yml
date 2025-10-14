@@ -145,6 +145,7 @@ jobs:
               },
               {"test":"ic-gpcontrib",
                "make_configs":["gpcontrib/gp_array_agg:installcheck",
+                               "gpcontrib/gp_aux_catalog",
                                "gpcontrib/gp_debug_numsegments:installcheck",
                                "gpcontrib/gp_distribution_policy:installcheck",
                                "gpcontrib/gp_error_handling:installcheck",
@@ -155,7 +156,8 @@ jobs:
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
                                "gpcontrib/gpmapreduce:installcheck",
-                               "gpcontrib/orafce:installcheck"]
+                               "gpcontrib/orafce:installcheck",
+                               "gpcontrib/pgaudit:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
