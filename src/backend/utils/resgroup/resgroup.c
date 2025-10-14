@@ -1368,7 +1368,7 @@ createGroup(Oid groupId, const ResGroupCaps *caps)
 
 	bindGroupOperation(group);
 
-	limiter_desc.limiter_name = "Resource group rate limiter";
+	limiter_desc.limiter_name = psprintf("Resgroup#%d rate limiter", group->groupId);
 	limiter_desc.num_elements = gp_resource_group_rate_limit;
 	limiter_desc.time_frame = gp_resource_group_rate_window;
 	group->rate_limiter = RateLimiterShmemInit(limiter_desc);
