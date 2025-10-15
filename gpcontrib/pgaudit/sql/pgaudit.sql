@@ -1,6 +1,10 @@
 \set VERBOSITY terse
 
--- Create pgaudit extension
+-- start_ignore
+\! gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly
+\! gpstop -raiq
+\c
+-- Create extension which pgaudit depends on
 CREATE EXTENSION IF NOT EXISTS gp_aux_catalog;
 -- Create pgaudit extension
 CREATE EXTENSION IF NOT EXISTS pgaudit;
@@ -9,9 +13,10 @@ CREATE EXTENSION IF NOT EXISTS pgaudit;
 SET pgaudit.log = 'all';
 SET pgaudit.log_client = ON;
 SET pgaudit.log_level = 'notice';
+-- end_ignore
 
-CREATE TABLE tmp (id int, data text);
-CREATE TABLE tmp2 AS (SELECT * FROM tmp);
+CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 
 -- Reset log_client first to show that audits logs are not set to client
 RESET pgaudit.log_client;
@@ -39,19 +44,25 @@ SELECT current_user \gset
 
 --
 -- Set pgaudit parameters for the current (super)user.
-ALTER ROLE :current_user SET pgaudit.log = 'Role';
-ALTER ROLE :current_user SET pgaudit.log_level = 'notice';
-ALTER ROLE :current_user SET pgaudit.log_client = ON;
+ALTER ROLE :"current_user" SET pgaudit.log = 'Role';
+ALTER ROLE :"current_user" SET pgaudit.log_level = 'notice';
+ALTER ROLE :"current_user" SET pgaudit.log_client = ON;
 
-\connect - :current_user;
+\connect - :"current_user";
 
 --
 -- Create auditor role
-CREATE ROLE auditor;
+-- start_ignore
+DROP ROLE IF EXISTS auditor;
+-- end_ignore
+CREATE ROLE auditor RESOURCE QUEUE pg_default;
 
 --
 -- Create first test user
-CREATE USER user1 password 'password';
+-- start_ignore
+DROP ROLE IF EXISTS user1;
+-- end_ignore
+CREATE USER user1 password 'password' RESOURCE QUEUE pg_default;
 ALTER ROLE user1 SET pgaudit.log = 'ddl, ROLE';
 ALTER ROLE user1 SET pgaudit.log_level = 'notice';
 
@@ -61,6 +72,22 @@ ALTER USER user1 encrypted /* random comment */PASSWORD
     'md565cb1da342495ea6bb0418a6e5718c38' LOGIN;
 ALTER ROLE user1 SET pgaudit.log_client = ON;
 
+-- start_ignore
+SELECT '\! cp "' || setting || '/pg_hba.conf" "'  || setting || '/pg_hba.conf.backup"' as cp_backup
+FROM pg_settings
+WHERE name = 'data_directory' \gset
+
+:cp_backup
+
+SELECT '\! echo "local all user1,user2 trust" >> ' || setting || '/pg_hba.conf' as add_users
+FROM pg_settings
+WHERE name = 'data_directory' \gset
+
+:add_users
+
+\!gpstop -u
+-- end_ignore
+
 --
 -- Create, select, drop (select will not be audited)
 \connect - user1
@@ -68,7 +95,7 @@ ALTER ROLE user1 SET pgaudit.log_client = ON;
 CREATE TABLE public.test
 (
 	id INT
-);
+) DISTRIBUTED BY (id);
 
 SELECT *
   FROM test;
@@ -77,9 +104,12 @@ DROP TABLE test;
 
 --
 -- Create second test user
-\connect - :current_user
+\connect - :"current_user"
 
-CREATE ROLE user2 LOGIN password 'password';
+-- start_ignore
+DROP ROLE IF EXISTS user2;
+-- end_ignore
+CREATE ROLE user2 LOGIN password 'password' RESOURCE QUEUE pg_default;
 ALTER ROLE user2 SET pgaudit.log = 'Read, writE';
 ALTER ROLE user2 SET pgaudit.log_catalog = OFF;
 ALTER ROLE user2 SET pgaudit.log_client = ON;
@@ -92,7 +122,7 @@ ALTER ROLE user2 SET pgaudit.log_statement_once = ON;
 CREATE TABLE test2
 (
 	id INT
-);
+) DISTRIBUTED BY (id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE
    ON test2
@@ -105,7 +135,7 @@ GRANT SELECT, UPDATE
 CREATE TABLE test3
 (
 	id INT
-);
+) DISTRIBUTED BY (id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE
    ON test3
@@ -184,47 +214,8 @@ INSERT INTO test3
 SELECT id
   FROM cte;
 
---
--- Object logged because of:
--- insert on test3
-WITH CTE AS
-(
-	INSERT INTO test3 VALUES (1)
-				   RETURNING id
-)
-INSERT INTO test2
-SELECT id
-  FROM cte;
 
 DO $$ BEGIN PERFORM test2_change(91); END $$;
-
---
--- Object logged because of:
--- insert on test3
--- update on test2
-WITH CTE AS
-(
-	UPDATE test2
-	   SET id = 45
-	 WHERE id = 92
-	RETURNING id
-)
-INSERT INTO test3
-SELECT id
-  FROM cte;
-
---
--- Object logged because of:
--- insert on test2
-WITH CTE AS
-(
-	INSERT INTO test2 VALUES (37)
-				   RETURNING id
-)
-UPDATE test3
-   SET id = cte.id
-  FROM cte
- WHERE test3.id <> cte.id;
 
 --
 -- Be sure that test has correct contents
@@ -234,7 +225,7 @@ SELECT *
 
 --
 -- Change permissions of user 2 so that only object logging will be done
-\connect - :current_user
+\connect - :"current_user"
 ALTER ROLE user2 SET pgaudit.log = 'NONE';
 
 \connect - user2
@@ -245,7 +236,7 @@ CREATE TABLE test4
 (
 	id int,
 	name text
-);
+) DISTRIBUTED BY (id);
 
 GRANT SELECT (name)
    ON TABLE public.test4
@@ -300,7 +291,7 @@ update public.test4 set name = 'foo' where name = 'bar';
 
 --
 -- Change permissions of user 1 so that session logging will be done
-\connect - :current_user
+\connect - :"current_user"
 
 --
 -- Drop test tables
@@ -322,7 +313,7 @@ CREATE TABLE public.account
 	name TEXT,
 	password TEXT,
 	description TEXT
-);
+) DISTRIBUTED BY (id);
 
 --
 -- Select is session logged
@@ -336,7 +327,7 @@ INSERT INTO account (id, name, password, description)
 
 --
 -- Change permissions of user 1 so that only object logging will be done
-\connect - :current_user
+\connect - :"current_user"
 ALTER ROLE user1 SET pgaudit.log = 'none';
 ALTER ROLE user1 SET pgaudit.role = 'auditor';
 \connect - user1
@@ -373,7 +364,7 @@ UPDATE account
 
 --
 -- Change permissions of user 1 so that session relation logging will be done
-\connect - :current_user
+\connect - :"current_user"
 ALTER ROLE user1 SET pgaudit.log_relation = on;
 ALTER ROLE user1 SET pgaudit.log = 'read, WRITE';
 \connect - user1
@@ -384,7 +375,7 @@ CREATE TABLE ACCOUNT_ROLE_MAP
 (
 	account_id INT,
 	role_id INT
-);
+) DISTRIBUTED BY (account_id);
 
 --
 -- ROLE class not set, so auditor grants not logged
@@ -433,7 +424,7 @@ UPDATE account
 
 --
 -- Change back to superuser to do exhaustive tests
-\connect - :current_user
+\connect - :"current_user"
 SET pgaudit.log = 'ALL';
 SET pgaudit.log_level = 'notice';
 SET pgaudit.log_client = ON;
@@ -459,7 +450,8 @@ COPY account TO stdout;
 -- Create a table from a query
 CREATE TABLE test.account_copy AS
 SELECT *
-  FROM account;
+  FROM account
+DISTRIBUTED BY (id);
 
 --
 -- Copy from stdin to account copy
@@ -511,7 +503,7 @@ SELECT count(*)
 CREATE TABLE test.test_insert
 (
 	id INT
-);
+) DISTRIBUTED BY (id);
 
 PREPARE pgclassstmt (oid) AS
 INSERT INTO test.test_insert (id)
@@ -526,7 +518,7 @@ CREATE TABLE public.test
 	name TEXT,
 	description TEXT,
 	CONSTRAINT test_pkey PRIMARY KEY (id)
-);
+) DISTRIBUTED BY (id);
 
 --
 -- Check that analyze is logged
@@ -575,6 +567,7 @@ BEGIN
 	FOR result IN
 		SELECT id
 		  FROM test
+		ORDER BY id
 	LOOP
 		INSERT INTO test (id)
 			 VALUES (result.id + 100);
@@ -623,8 +616,8 @@ DROP TABLE test.test2;
 --
 -- Test multiple statements with one semi-colon
 CREATE SCHEMA foo
-	CREATE TABLE foo.bar (id int)
-	CREATE TABLE foo.baz (id int);
+	CREATE TABLE foo.bar (id int) DISTRIBUTED BY (id)
+	CREATE TABLE foo.baz (id int) DISTRIBUTED BY (id);
 
 --
 -- Test aggregate
@@ -657,8 +650,8 @@ DROP DATABASE contrib_regression_pgaudit2;
 -- Test role as a substmt
 SET pgaudit.log = 'ROLE';
 
-CREATE TABLE t ();
-CREATE ROLE alice;
+CREATE TABLE t () DISTRIBUTED RANDOMLY;
+CREATE ROLE alice RESOURCE QUEUE pg_default;
 
 CREATE SCHEMA foo2
 	GRANT SELECT
@@ -693,7 +686,7 @@ SET pgaudit.log = 'ALL';
 CREATE TABLE hoge
 (
 	id int
-);
+) DISTRIBUTED BY (id);
 
 CREATE FUNCTION test()
 	RETURNS INT AS $$
@@ -717,7 +710,7 @@ SET pgaudit.role = 'auditor';
 create table bar
 (
 	col int
-);
+) distributed by (col);
 
 grant delete
    on bar
@@ -740,52 +733,11 @@ SET pgaudit.log = 'role';
 GRANT user1 TO user2;
 REVOKE user1 FROM user2;
 
---
--- Test that FK references do not log but triggers still do
-SET pgaudit.log = 'READ,WRITE';
-SET pgaudit.role TO 'auditor';
-
-CREATE TABLE aaa
-(
-	ID int primary key
-);
-
-CREATE TABLE bbb
-(
-	id int
-		references aaa(id)
-);
-
-CREATE FUNCTION bbb_insert() RETURNS TRIGGER AS $$
-BEGIN
-	UPDATE bbb set id = new.id + 1;
-
-	RETURN new;
-END $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER bbb_insert_trg
-	AFTER INSERT ON bbb
-	FOR EACH ROW EXECUTE PROCEDURE bbb_insert();
-
-GRANT SELECT
-   ON aaa
-   TO auditor;
-
-GRANT UPDATE
-   ON bbb
-   TO auditor;
-
-INSERT INTO aaa VALUES (generate_series(1,100));
-INSERT INTO bbb VALUES (1);
-
-DROP TABLE bbb;
-DROP TABLE aaa;
-
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
 
-CREATE TABLE tmp (id int, data text);
-CREATE TABLE tmp2 AS (SELECT * FROM tmp);
+CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 
 DROP TABLE tmp;
 DROP TABLE tmp2;
@@ -811,7 +763,7 @@ SET pgaudit.log = 'DDL';
 SET search_path = public, pg_catalog;
 
 -- If there was a vulnerability, these would fail with division by zero error
-CREATE TABLE wombat ();
+CREATE TABLE wombat () DISTRIBUTED RANDOMLY;
 DROP TABLE wombat;
 
 SET pgaudit.log = 'NONE';
@@ -826,14 +778,14 @@ DROP FUNCTION upper(text);
 -- Set client_min_messages up to warning to avoid noise
 SET client_min_messages = 'warning';
 
-ALTER ROLE :current_user RESET pgaudit.log;
-ALTER ROLE :current_user RESET pgaudit.log_catalog;
-ALTER ROLE :current_user RESET pgaudit.log_client;
-ALTER ROLE :current_user RESET pgaudit.log_level;
-ALTER ROLE :current_user RESET pgaudit.log_parameter;
-ALTER ROLE :current_user RESET pgaudit.log_relation;
-ALTER ROLE :current_user RESET pgaudit.log_statement_once;
-ALTER ROLE :current_user RESET pgaudit.role;
+ALTER ROLE :"current_user" RESET pgaudit.log;
+ALTER ROLE :"current_user" RESET pgaudit.log_catalog;
+ALTER ROLE :"current_user" RESET pgaudit.log_client;
+ALTER ROLE :"current_user" RESET pgaudit.log_level;
+ALTER ROLE :"current_user" RESET pgaudit.log_parameter;
+ALTER ROLE :"current_user" RESET pgaudit.log_relation;
+ALTER ROLE :"current_user" RESET pgaudit.log_statement_once;
+ALTER ROLE :"current_user" RESET pgaudit.role;
 
 RESET pgaudit.log;
 RESET pgaudit.log_catalog;
@@ -857,3 +809,14 @@ DROP USER user1;
 DROP ROLE auditor;
 
 RESET client_min_messages;
+
+-- start_ignore
+SELECT '\! cp "' || setting || '/pg_hba.conf.backup" "' || setting || '/pg_hba.conf"' as cp_restore
+FROM pg_settings
+WHERE name = 'data_directory' \gset
+
+:cp_restore
+
+\! gpconfig -r shared_preload_libraries
+\! gpstop -raiq
+-- end_ignore

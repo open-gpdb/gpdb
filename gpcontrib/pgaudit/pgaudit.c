@@ -19,6 +19,7 @@
 #include "catalog/namespace.h"
 #include "commands/dbcommands.h"
 #include "catalog/pg_proc.h"
+#include "cdb/cdbvars.h"
 #include "commands/event_trigger.h"
 #include "executor/executor.h"
 #include "executor/spi.h"
@@ -1155,6 +1156,7 @@ log_select_dml(Oid auditOid, List *rangeTabls)
         }
 
         pfree(auditEventStack->auditEvent.objectName);
+        auditEventStack->auditEvent.objectName = NULL;
     }
 
     /*
@@ -1481,6 +1483,9 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
     if (~auditLogBitmap & LOG_DDL && ~auditLogBitmap & LOG_ROLE)
         PG_RETURN_NULL();
 
+    if (Gp_role == GP_ROLE_EXECUTE)
+        PG_RETURN_NULL();
+
     /* Be sure the module was loaded */
     if (!auditEventStack)
         elog(ERROR, "pgaudit not loaded before call to "
@@ -1592,6 +1597,9 @@ pgaudit_sql_drop(PG_FUNCTION_ARGS)
     MemoryContext contextOld;
 
     if (~auditLogBitmap & LOG_DDL)
+        PG_RETURN_NULL();
+
+    if (Gp_role == GP_ROLE_EXECUTE)
         PG_RETURN_NULL();
 
     /* Be sure the module was loaded */
@@ -1835,7 +1843,7 @@ _PG_init(void)
     /* Be sure we do initialization only once */
     static bool inited = false;
 
-    if (inited)
+    if (inited || Gp_role == GP_ROLE_EXECUTE)
         return;
 
     /* Must be loaded with shared_preload_libraries */
