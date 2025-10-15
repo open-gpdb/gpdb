@@ -155,7 +155,8 @@ jobs:
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
                                "gpcontrib/gpmapreduce:installcheck",
-                               "gpcontrib/orafce:installcheck"]
+                               "gpcontrib/orafce:installcheck",
+                               "gpcontrib/pgaudit:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
