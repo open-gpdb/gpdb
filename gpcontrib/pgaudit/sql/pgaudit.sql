@@ -1,3 +1,9 @@
+-- start_matchsubs
+-- m/{QUERY .*}",/
+-- s/{QUERY .*}",/{QUERY...}",/
+-- m/pg_temp_\d+/
+-- s/pg_temp_\d+/pg_temp_XX/
+-- end_matchsubs
 \set VERBOSITY terse
 
 -- start_ignore
@@ -732,6 +738,14 @@ drop table bar;
 SET pgaudit.log = 'role';
 GRANT user1 TO user2;
 REVOKE user1 FROM user2;
+
+--
+-- Test logging AST for CTAS
+SET pgaudit.log = 'ast_ctas';
+CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
+CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
+DROP TABLE tmp, tmp2, tmp3;
 
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
