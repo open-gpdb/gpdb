@@ -1,3 +1,9 @@
+-- start_matchsubs
+-- m/{QUERY .*}",/
+-- s/{QUERY .*}",/{QUERY...}",/
+-- m/pg_temp_\d+/
+-- s/pg_temp_\d+/pg_temp_XX/
+-- end_matchsubs
 \set VERBOSITY terse
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 NOTICE:  AUDIT: SESSION,4,1,DDL,CREATE TABLE,TABLE,public.tmp,"CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);",<not logged>
@@ -5,6 +11,7 @@ CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 NOTICE:  AUDIT: SESSION,5,1,DDL,CREATE TABLE AS,,,CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);,<not logged>
 NOTICE:  AUDIT: SESSION,5,2,READ,SELECT,,,CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);,<not logged>
 NOTICE:  AUDIT: SESSION,5,1,DDL,CREATE TABLE AS,TABLE,public.tmp2,CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);,<not logged>
+NOTICE:  AUDIT: SESSION,5,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}",<not logged>
 -- Reset log_client first to show that audits logs are not set to client
 RESET pgaudit.log_client;
 DROP TABLE tmp;
@@ -582,6 +589,7 @@ NOTICE:  AUDIT: SESSION,9,1,DDL,CREATE TABLE AS,TABLE,test.account_copy,"CREATE 
 SELECT *
   FROM account
 DISTRIBUTED BY (id);",<none>
+NOTICE:  AUDIT: SESSION,9,1,AST_CTAS,CREATE TABLE AS,TABLE,test.account_copy,"{QUERY...}",<none>
 --
 -- Copy from stdin to account copy
 COPY test.account_copy from stdin;
@@ -1134,6 +1142,15 @@ GRANT user1 TO user2;
 NOTICE:  AUDIT: SESSION,64,1,ROLE,GRANT ROLE,,,GRANT user1 TO user2;,<none>
 REVOKE user1 FROM user2;
 NOTICE:  AUDIT: SESSION,65,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
+--
+-- Test logging AST for CTAS
+SET pgaudit.log = 'ast_ctas';
+CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
+NOTICE:  AUDIT: SESSION,66,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}",<none>
+CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
+NOTICE:  AUDIT: SESSION,67,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}",<none>
+DROP TABLE tmp, tmp2, tmp3;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
@@ -1159,9 +1176,9 @@ SET search_path = public, pg_catalog;
 -- If there was a vulnerability, these would fail with division by zero error
 CREATE TABLE wombat () DISTRIBUTED RANDOMLY;
 WARNING:  creating a table with no columns.
-NOTICE:  AUDIT: SESSION,66,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
+NOTICE:  AUDIT: SESSION,68,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
 DROP TABLE wombat;
-NOTICE:  AUDIT: SESSION,67,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
+NOTICE:  AUDIT: SESSION,69,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
 SET pgaudit.log = 'NONE';
 DROP EXTENSION pgaudit;
 DROP OPERATOR <> (text, text);
