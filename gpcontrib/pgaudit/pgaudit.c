@@ -27,6 +27,7 @@
 #include "libpq/auth.h"
 #include "nodes/nodes.h"
 #include "nodes/params.h"
+#include "rewrite/rewriteHandler.h"
 #include "tcop/utility.h"
 #include "tcop/deparse_utility.h"
 #include "utils/acl.h"
@@ -62,6 +63,7 @@ PG_FUNCTION_INFO_V1(pgaudit_sql_drop);
 #define LOG_READ        (1 << 3)    /* SELECTs */
 #define LOG_ROLE        (1 << 4)    /* GRANT/REVOKE, CREATE/ALTER/DROP ROLE */
 #define LOG_WRITE       (1 << 5)    /* INSERT, UPDATE, DELETE, TRUNCATE */
+#define LOG_AST_CTAS    (1 << 6)    /* AST for CTAS */
 
 #define LOG_NONE        0               /* nothing */
 #define LOG_ALL         (0xFFFFFFFF)    /* All */
@@ -82,6 +84,7 @@ static int auditLogBitmap = LOG_NONE;
 #define CLASS_READ      "READ"
 #define CLASS_ROLE      "ROLE"
 #define CLASS_WRITE     "WRITE"
+#define CLASS_AST_CTAS  "AST_CTAS"
 
 #define CLASS_NONE      "NONE"
 #define CLASS_ALL       "ALL"
@@ -588,6 +591,14 @@ log_audit_event(AuditEventStackItem *stackItem)
                     {
                         className = CLASS_ROLE;
                         class = LOG_ROLE;
+                    }
+                    break;
+
+                case T_CreateTableAsStmt:
+                    if (stackItem->auditEvent.commandText[0] == '{')
+                    {
+                        className = CLASS_AST_CTAS;
+                        class = LOG_AST_CTAS;
                     }
                     break;
 
@@ -1480,7 +1491,7 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
     MemoryContext contextOld;
 
     /* Continue only if session DDL logging is enabled */
-    if (~auditLogBitmap & LOG_DDL && ~auditLogBitmap & LOG_ROLE)
+    if ((auditLogBitmap & (LOG_DDL | LOG_ROLE | LOG_AST_CTAS)) == 0)
         PG_RETURN_NULL();
 
     if (Gp_role == GP_ROLE_EXECUTE)
@@ -1568,7 +1579,31 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
             auditEventStack->auditEvent.commandTag = currentCommandTag;
         }
         else
+        {
             log_audit_event(auditEventStack);
+            if (auditLogBitmap & LOG_AST_CTAS &&
+                IsA(eventData->parsetree, CreateTableAsStmt))
+            {
+                List *rewritten;
+                CreateTableAsStmt *ctas;
+
+                ctas = (CreateTableAsStmt*) eventData->parsetree;
+                if (!IsA(ctas->query, Query))
+                    continue;
+
+                rewritten = QueryRewrite((Query *) copyObject(ctas->query));
+                if (list_length(rewritten) != 1)
+                {
+                    elog(WARNING, "unexpected rewrite result for CTAS");
+                    continue;
+                }
+
+                auditEventStack->auditEvent.commandText =
+                    nodeToString(linitial(rewritten));
+                auditEventStack->auditEvent.logged = false;
+                log_audit_event(auditEventStack);
+            }
+        }
     }
 
     /* Complete the query */
@@ -1737,6 +1772,8 @@ check_pgaudit_log(char **newVal, void **extra, GucSource source)
             class = LOG_ROLE;
         else if (pg_strcasecmp(token, CLASS_WRITE) == 0)
             class = LOG_WRITE;
+        else if (pg_strcasecmp(token, CLASS_AST_CTAS) == 0)
+            class = LOG_AST_CTAS;
         else
         {
             free(flags);
