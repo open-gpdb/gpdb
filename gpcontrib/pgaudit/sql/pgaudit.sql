@@ -1,6 +1,8 @@
 -- start_matchsubs
 -- m/{QUERY .*}",/
 -- s/{QUERY .*}",/{QUERY...}",/
+-- m/{QUERY .*},<none>/
+-- s/{QUERY .*},<none>/{QUERY...},<none>/
 -- m/pg_temp_\d+/
 -- s/pg_temp_\d+/pg_temp_XX/
 -- end_matchsubs
@@ -746,6 +748,17 @@ CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 DROP TABLE tmp, tmp2, tmp3;
+
+--
+-- Test logging AST for SELECT
+SET pgaudit.log = 'ast_sel';
+SET pgaudit.log_relation = OFF;
+CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
+-- AST for select from CTAS is not logged
+CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
+-- AST for independent select is logged
+SELECT id FROM tmp2;
+DROP TABLE tmp, tmp2;
 
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
