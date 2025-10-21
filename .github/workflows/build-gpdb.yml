@@ -8,7 +8,7 @@ on:
   release:
     types: [published]
   push:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY", "pgaudit_log_ast_sel_test" ]
   pull_request:
     branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   workflow_dispatch:
