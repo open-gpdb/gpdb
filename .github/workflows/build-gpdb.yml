@@ -293,8 +293,8 @@ jobs:
       - name: Checkout CI Build/Test Scripts
         uses: actions/checkout@v4
         with:
-          repository: andr-sokolov/gpdb-devops
-          ref: pgaudit
+          repository: open-gpdb/gpdb-devops
+          ref: main
           path: gpdb-devops
           fetch-depth: 1
       
