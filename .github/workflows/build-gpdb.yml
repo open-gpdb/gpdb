@@ -1090,7 +1090,7 @@ jobs:
             config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
 
             cd ${SRC_DIR}
-            sed -i "81a\gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly && gpstop -ra && psql postgres -c 'CREATE EXTENSION IF NOT EXISTS gp_aux_catalog;' && psql postgres -c 'CREATE EXTENSION IF NOT EXISTS pgaudit;' && psql postgres -c 'show shared_preload_libraries;' && psql postgres -c '\\dx'" ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh
+            sed -i "81a\gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly && gpstop -ra && psql postgres -c 'CREATE EXTENSION IF NOT EXISTS gp_aux_catalog;' && psql postgres -c 'CREATE EXTENSION IF NOT EXISTS pgaudit;' && psql postgres -c 'show shared_preload_libraries;' && psql postgres -c 'table pg_extension;'" ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh
             if ! su - gpadmin -c "cd ${SRC_DIR} && \
                  source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
