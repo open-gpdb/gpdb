@@ -27,6 +27,7 @@
 #include "libpq/auth.h"
 #include "nodes/nodes.h"
 #include "nodes/params.h"
+#include "optimizer/planner.h"
 #include "rewrite/rewriteHandler.h"
 #include "tcop/utility.h"
 #include "tcop/deparse_utility.h"
@@ -64,6 +65,7 @@ PG_FUNCTION_INFO_V1(pgaudit_sql_drop);
 #define LOG_ROLE        (1 << 4)    /* GRANT/REVOKE, CREATE/ALTER/DROP ROLE */
 #define LOG_WRITE       (1 << 5)    /* INSERT, UPDATE, DELETE, TRUNCATE */
 #define LOG_AST_CTAS    (1 << 6)    /* AST for CTAS */
+#define LOG_AST_SEL     (1 << 7)    /* AST for SELECT */
 
 #define LOG_NONE        0               /* nothing */
 #define LOG_ALL         (0xFFFFFFFF)    /* All */
@@ -85,6 +87,7 @@ static int auditLogBitmap = LOG_NONE;
 #define CLASS_ROLE      "ROLE"
 #define CLASS_WRITE     "WRITE"
 #define CLASS_AST_CTAS  "AST_CTAS"
+#define CLASS_AST_SEL   "AST_SEL"
 
 #define CLASS_NONE      "NONE"
 #define CLASS_ALL       "ALL"
@@ -616,8 +619,16 @@ log_audit_event(AuditEventStackItem *stackItem)
                 case T_SelectStmt:
                 case T_PrepareStmt:
                 case T_PlannedStmt:
-                    className = CLASS_READ;
-                    class = LOG_READ;
+                    if (stackItem->auditEvent.commandText[0] == '{')
+                    {
+                        className = CLASS_AST_SEL;
+                        class = LOG_AST_SEL;
+                    }
+                    else
+                    {
+                        className = CLASS_READ;
+                        class = LOG_READ;
+                    }
                     break;
 
                 /* FUNCTION statements */
@@ -1178,7 +1189,6 @@ log_select_dml(Oid auditOid, List *rangeTabls)
     if (!found)
     {
         auditEventStack->auditEvent.granted = false;
-        auditEventStack->auditEvent.logged = false;
 
         log_audit_event(auditEventStack);
     }
@@ -1242,6 +1252,7 @@ static ExecutorCheckPerms_hook_type next_ExecutorCheckPerms_hook = NULL;
 static ProcessUtility_hook_type next_ProcessUtility_hook = NULL;
 static object_access_hook_type next_object_access_hook = NULL;
 static ExecutorStart_hook_type next_ExecutorStart_hook = NULL;
+static planner_hook_type next_planner_hook = NULL;
 
 /*
  * Hook ExecutorStart to get the query text and basic command type for queries
@@ -1467,6 +1478,31 @@ pgaudit_object_access_hook(ObjectAccessType access,
 
     if (next_object_access_hook)
         (*next_object_access_hook) (access, classId, objectId, subId, arg);
+}
+
+static PlannedStmt *
+pgaudit_planner_hook(Query *parse, int cursorOptions, ParamListInfo boundParams)
+{
+    if (!internalStatement &&
+        (auditLogBitmap & LOG_AST_SEL) && parse->commandType == CMD_SELECT &&
+        /* Don't log CTAS, because the AST is logged in pgaudit_ddl_command_end
+         * to log ASTs for successful CTASs only */
+        parse->parentStmtType != PARENTSTMTTYPE_CTAS)
+    {
+        AuditEventStackItem *stackItem = stack_push();
+
+        stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
+        stackItem->auditEvent.commandTag = T_SelectStmt;
+        stackItem->auditEvent.command = COMMAND_SELECT;
+        stackItem->auditEvent.commandText = nodeToString(parse);
+
+        log_audit_event(stackItem);
+    }
+
+    if (next_planner_hook)
+        return (*next_planner_hook) (parse, cursorOptions, boundParams);
+
+    return standard_planner(parse, cursorOptions, boundParams);
 }
 
 /*
@@ -1774,6 +1810,8 @@ check_pgaudit_log(char **newVal, void **extra, GucSource source)
             class = LOG_WRITE;
         else if (pg_strcasecmp(token, CLASS_AST_CTAS) == 0)
             class = LOG_AST_CTAS;
+        else if (pg_strcasecmp(token, CLASS_AST_SEL) == 0)
+            class = LOG_AST_SEL;
         else
         {
             free(flags);
@@ -2037,6 +2075,9 @@ _PG_init(void)
 
     next_object_access_hook = object_access_hook;
     object_access_hook = pgaudit_object_access_hook;
+
+    next_planner_hook = planner_hook;
+    planner_hook = pgaudit_planner_hook;
 
     /* Log that the extension has completed initialization */
 #ifndef EXEC_BACKEND
