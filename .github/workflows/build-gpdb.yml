@@ -1077,12 +1077,18 @@ jobs:
           if [[ "${{ matrix.extension != '' }}" == "true" ]]; then
             case "${{ matrix.extension }}" in
               pgaudit)
-                gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly || exit 1
-                gpstop -ra || exit 1
-                psql postgres -c 'CREATE EXTENSION IF NOT EXISTS gp_aux_catalog;' || exit 1
-                psql postgres -c 'CREATE EXTENSION IF NOT EXISTS pgaudit;' || exit 1
-                psql postgres -c 'show shared_preload_libraries;' || exit 1
-                psql postgres -c 'table pg_extension;' || exit 1
+                if ! su - gpadmin -c "cd ${SRC_DIR} && \
+                  source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
+                  gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly && \
+                  gpstop -ra && \
+                  echo 'CREATE EXTENSION IF NOT EXISTS gp_aux_catalog; \
+                        CREATE EXTENSION IF NOT EXISTS pgaudit; \
+                        show shared_preload_libraries; \
+                        table pg_extension;' | \
+                    psql postgres"
+                then
+                    exit 1
+                fi
                 ;;
               *)
                 echo "Unknown extension: ${{ matrix.extension }}"
