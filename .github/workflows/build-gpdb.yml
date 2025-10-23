@@ -109,9 +109,7 @@ jobs:
               {"test":"ic-good-opt-pgaudit",
                "make_configs":["src/test/regress:installcheck-good"],
                "pg_settings":{"optimizer":"on"},
-               "gpconfig":" -c shared_preload_libraries -v 'pgaudit' --masteronly",
-               "ext":["gp_aux_catalog", 
-               	      "pgaudit"]
+               "extension":"pgaudit"
               },
               {"test":"ic-expandshrink",
                "make_configs":["src/test/isolation2:installcheck-expandshrink"]
@@ -1073,6 +1071,24 @@ jobs:
           PG_OPTS=""
           if [[ "${{ matrix.pg_settings.optimizer != '' }}" == "true" ]]; then
             PG_OPTS="$PG_OPTS -c optimizer=${{ matrix.pg_settings.optimizer }}"
+          fi
+
+          # Create extension if required
+          if [[ "${{ matrix.extension != '' }}" == "true" ]]; then
+            case "${{ matrix.extension }}" in
+              pgaudit)
+                gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly || exit 1
+                gpstop -ra || exit 1
+                psql postgres -c 'CREATE EXTENSION IF NOT EXISTS gp_aux_catalog;' || exit 1
+                psql postgres -c 'CREATE EXTENSION IF NOT EXISTS pgaudit;' || exit 1
+                psql postgres -c 'show shared_preload_libraries;' || exit 1
+                psql postgres -c 'table pg_extension;' || exit 1
+                ;;
+              *)
+                echo "Unknown extension: ${{ matrix.extension }}"
+                exit 1
+                ;;
+            esac
           fi
 
           # Read configs into array
