@@ -41,6 +41,7 @@ max_connections = 50
 listen_addresses = '$LISTEN_ADDRESSES'
 port = $PORT_MASTER
 wal_keep_segments=5
+restore_command_hint='touch $TEST_MASTER/restore_command_hint_flag'
 EOF
 
 # Accept replication connections on master
@@ -180,6 +181,12 @@ echo "Old master restarted after rewind."
 # Make sure master is able to connect to standby and reach streaming state.
 wait_until_standby_streaming_state
 PGOPTIONS=${PGOPTIONS_UTILITY} $STANDBY_PSQL -c "SELECT state FROM pg_stat_replication;"
+
+# Make sure restore_command is taken from postgres.conf (restore_command_hint) when missing from recovery.conf
+if [ ! -f "$TEST_MASTER/restore_command_hint_flag" ]; then
+	echo "Restore command was not found"
+	exit 1
+fi
 
 # Now promote master and run validation queries
 pg_ctl -w -D $TEST_MASTER promote >>$log_path 2>&1

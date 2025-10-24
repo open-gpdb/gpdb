@@ -5582,6 +5582,16 @@ readRecoveryCommandFile(void)
 	}
 
 	/*
+	 * recovery.conf does not have restore_command,
+	 * fallback to GUC restore_command_hint (already loaded)
+	 */
+	if (!recoveryRestoreCommand) {
+		recoveryRestoreCommand = GetConfigOptionByName("restore_command_hint", NULL /* varname */);
+		ereport(DEBUG2,
+				(errmsg_internal("restore_command = '%s'", recoveryRestoreCommand)));
+	}
+
+	/*
 	 * Check for compulsory parameters
 	 */
 	if (StandbyModeRequested)
