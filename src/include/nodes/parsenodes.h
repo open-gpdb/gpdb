@@ -1546,6 +1546,7 @@ typedef struct AlterTableCmd	/* one subcommand of an ALTER TABLE */
 	Bitmapset	*ps_root;
 	Bitmapset	*ps_interior;
 	Bitmapset	*ps_leaf;
+	Oid			newTOASTTableSpace;
 } AlterTableCmd;
 
 
