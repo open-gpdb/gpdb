@@ -1077,7 +1077,8 @@ jobs:
           if [[ "${{ matrix.extension != '' }}" == "true" ]]; then
             case "${{ matrix.extension }}" in
               pgaudit)
-                if ! su - gpadmin -c "source ${BUILD_DESTINATION}/greenplum_path.sh && \
+                if ! su - gpadmin -c "BUILD_DESTINATION=/opt/greenplum-db-6 && \
+                  source ${BUILD_DESTINATION}/greenplum_path.sh && \
                   source ${SRC_DIR}/gpAux/gpdemo/gpdemo-env.sh && \
                   gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly && \
                   gpstop -ra && \
@@ -1087,6 +1088,7 @@ jobs:
                         TABLE pg_extension;' | \
                     psql postgres"
                 then
+                    echo "Error creating pgaudit extension"
                     exit 1
                 fi
                 ;;
