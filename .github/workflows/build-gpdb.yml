@@ -8,9 +8,9 @@ on:
   release:
     types: [published]
   push:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "OPENGPDB_6_29_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   pull_request:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "OPENGPDB_6_29_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   workflow_dispatch:
     inputs:
       test_selection:
