@@ -1029,6 +1029,10 @@ parserOpenTable(ParseState *pstate, const RangeVar *relation,
 		}
 	}
 
+	/* Orca doesn't support queries on master-only tables */
+	if (rel->rd_cdbpolicy == NULL)
+		pstate->usePostgresPlanner = true;
+
 	cancel_parser_errposition_callback(&pcbstate);
 	return rel;
 }
