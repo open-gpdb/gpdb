@@ -54,6 +54,7 @@ source gpAux/gpdemo/gpdemo-env.sh
 gpconfig -c shared_preload_libraries -v yezzey
 
 gpconfig -c yezzey.yproxy_socket -v "'/tmp/yproxy.sock'"
+gpconfig -c yezzey.use_otm_feature -v "true"
 gpconfig -c yezzey.use_gpg_crypto -v "false"
 gpconfig -c yezzey.use_otm_feature -v "true"
 
