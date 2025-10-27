@@ -667,7 +667,7 @@ rebuild_relation(Relation OldHeap, Oid indexOid, bool verbose)
 	heap_close(OldHeap, NoLock);
 
 	/* Create the transient table that will receive the re-ordered data */
-	OIDNewHeap = make_new_heap(tableOid, tableSpace,false,
+	OIDNewHeap = make_new_heap(tableOid, tableSpace, InvalidOid, false,
 							   AccessExclusiveLock,
 							   true /* createAoBlockDirectory */,
 							   false);
@@ -699,7 +699,7 @@ rebuild_relation(Relation OldHeap, Oid indexOid, bool verbose)
  * data, then call finish_heap_swap to complete the operation.
  */
 Oid
-make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, bool forcetemp,
+make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, Oid newTOASTTableSpace, bool forcetemp,
 			  LOCKMODE lockmode,
 			  bool createAoBlockDirectory,
 			  bool makeCdbPolicy)
@@ -837,7 +837,7 @@ make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, bool forcetemp,
 									 &isNull);
 		if (isNull)
 			reloptions = (Datum) 0;
-		NewHeapCreateToastTable(OIDNewHeap, reloptions, lockmode,
+		NewHeapCreateToastTable(OIDNewHeap, newTOASTTableSpace, reloptions, lockmode,
 								is_part_child, is_part_parent);
 
 		ReleaseSysCache(tuple);
