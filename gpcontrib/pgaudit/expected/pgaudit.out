@@ -695,10 +695,12 @@ NOTICE:  AUDIT: SESSION,22,1,WRITE,PREPARE,,,"PREPARE pgclassstmt (oid) AS
 INSERT INTO test.test_insert (id)
 					  VALUES ($1);",<none>
 EXECUTE pgclassstmt (1);
-NOTICE:  AUDIT: SESSION,23,1,WRITE,INSERT,TABLE,test.test_insert,EXECUTE pgclassstmt (1);,<none>
+NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,TABLE,test.test_insert,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,23,2,WRITE,INSERT,UNKNOWN,test.test_insert,"PREPARE pgclassstmt (oid) AS
 INSERT INTO test.test_insert (id)
 					  VALUES ($1);",1
+NOTICE:  AUDIT: SESSION,23,3,MISC,EXECUTE,,,EXECUTE pgclassstmt (1);,<none>
 --
 -- Check that primary key creation is logged
 CREATE TABLE public.test
@@ -796,15 +798,21 @@ NOTICE:  AUDIT: SESSION,31,3,MISC,EXPLAIN,,,explain select 1;,<none>
 -- Test that looks inside of do blocks log
 INSERT INTO TEST (id)
 		  VALUES (1);
-NOTICE:  AUDIT: SESSION,32,1,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
+NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,32,2,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
 		  VALUES (1);",<none>
 INSERT INTO TEST (id)
 		  VALUES (2);
-NOTICE:  AUDIT: SESSION,33,1,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
+NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,33,2,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
 		  VALUES (2);",<none>
 INSERT INTO TEST (id)
 		  VALUES (3);
-NOTICE:  AUDIT: SESSION,34,1,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
+NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,34,2,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
 		  VALUES (3);",<none>
 DO $$
 DECLARE
@@ -837,50 +845,17 @@ NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none
 NOTICE:  AUDIT: SESSION,35,3,READ,SELECT,UNKNOWN,public.test,"SELECT id
 		  FROM test
 		ORDER BY id",<none>
-NOTICE:  AUDIT: SESSION,35,1,WRITE,INSERT,TABLE,public.test,"DO $$
-DECLARE
-	result RECORD;
-BEGIN
-	FOR result IN
-		SELECT id
-		  FROM test
-		ORDER BY id
-	LOOP
-		INSERT INTO test (id)
-			 VALUES (result.id + 100);
-	END LOOP;
-END $$;",<none>
-NOTICE:  AUDIT: SESSION,35,4,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
-			 VALUES (result.id + 100)",",,1"
-NOTICE:  AUDIT: SESSION,35,1,WRITE,INSERT,TABLE,public.test,"DO $$
-DECLARE
-	result RECORD;
-BEGIN
-	FOR result IN
-		SELECT id
-		  FROM test
-		ORDER BY id
-	LOOP
-		INSERT INTO test (id)
-			 VALUES (result.id + 100);
-	END LOOP;
-END $$;",<none>
+NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,35,5,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
+			 VALUES (result.id + 100)",",,1"
+NOTICE:  AUDIT: SESSION,35,6,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,6,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,7,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
 			 VALUES (result.id + 100)",",,2"
-NOTICE:  AUDIT: SESSION,35,1,WRITE,INSERT,TABLE,public.test,"DO $$
-DECLARE
-	result RECORD;
-BEGIN
-	FOR result IN
-		SELECT id
-		  FROM test
-		ORDER BY id
-	LOOP
-		INSERT INTO test (id)
-			 VALUES (result.id + 100);
-	END LOOP;
-END $$;",<none>
-NOTICE:  AUDIT: SESSION,35,6,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
+NOTICE:  AUDIT: SESSION,35,8,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,8,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,9,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
 			 VALUES (result.id + 100)",",,3"
 --
 -- Test obfuscated dynamic sql for clean logging
@@ -1176,6 +1151,19 @@ NOTICE:  AUDIT: SESSION,69,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
 (0 rows)
 
 DROP TABLE tmp, tmp2;
+--
+-- Test logging AST for UPDATE, INSERT and DELETE
+SET pgaudit.log = 'ast_mod';
+SET pgaudit.log_relation = OFF;
+CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
+CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
+INSERT INTO dst SELECT * FROM src;
+NOTICE:  AUDIT: SESSION,70,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
+UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
+NOTICE:  AUDIT: SESSION,71,1,AST_MOD,UPDATE,,,"{QUERY...}",<none>
+DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
+NOTICE:  AUDIT: SESSION,72,1,AST_MOD,DELETE,,,"{QUERY...}",<none>
+DROP TABLE src, dst;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
@@ -1201,9 +1189,9 @@ SET search_path = public, pg_catalog;
 -- If there was a vulnerability, these would fail with division by zero error
 CREATE TABLE wombat () DISTRIBUTED RANDOMLY;
 WARNING:  creating a table with no columns.
-NOTICE:  AUDIT: SESSION,70,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
+NOTICE:  AUDIT: SESSION,73,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
 DROP TABLE wombat;
-NOTICE:  AUDIT: SESSION,71,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
+NOTICE:  AUDIT: SESSION,74,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
 SET pgaudit.log = 'NONE';
 DROP EXTENSION pgaudit;
 DROP OPERATOR <> (text, text);

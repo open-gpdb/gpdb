@@ -760,6 +760,20 @@ CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 SELECT id FROM tmp2;
 DROP TABLE tmp, tmp2;
 
+--
+-- Test logging AST for UPDATE, INSERT and DELETE
+-- start_ignore
+DROP TABLE IF EXISTS src, dst;
+-- end_ignore
+SET pgaudit.log = 'ast_mod';
+SET pgaudit.log_relation = OFF;
+CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
+CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
+INSERT INTO dst SELECT * FROM src;
+UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
+DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
+DROP TABLE src, dst;
+
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
 
