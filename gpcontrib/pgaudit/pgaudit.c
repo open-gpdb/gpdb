@@ -66,6 +66,7 @@ PG_FUNCTION_INFO_V1(pgaudit_sql_drop);
 #define LOG_WRITE       (1 << 5)    /* INSERT, UPDATE, DELETE, TRUNCATE */
 #define LOG_AST_CTAS    (1 << 6)    /* AST for CTAS */
 #define LOG_AST_SEL     (1 << 7)    /* AST for SELECT */
+#define LOG_AST_MOD     (1 << 8)    /* AST for INSERT, UPDATE, DELETE */
 
 #define LOG_NONE        0               /* nothing */
 #define LOG_ALL         (0xFFFFFFFF)    /* All */
@@ -88,6 +89,7 @@ static int auditLogBitmap = LOG_NONE;
 #define CLASS_WRITE     "WRITE"
 #define CLASS_AST_CTAS  "AST_CTAS"
 #define CLASS_AST_SEL   "AST_SEL"
+#define CLASS_AST_MOD   "AST_MOD"
 
 #define CLASS_NONE      "NONE"
 #define CLASS_ALL       "ALL"
@@ -495,20 +497,28 @@ log_audit_event(AuditEventStackItem *stackItem)
     /* Classify the statement using log stmt level and the command tag */
     switch (stackItem->auditEvent.logStmtLevel)
     {
-        /* All mods go in WRITE class, except EXECUTE */
         case LOGSTMT_MOD:
-            className = CLASS_WRITE;
-            class = LOG_WRITE;
-
-            switch (stackItem->auditEvent.commandTag)
+            if (stackItem->auditEvent.commandText[0] == '{')
             {
-                /* Currently, only EXECUTE is different */
-                case T_ExecuteStmt:
-                    className = CLASS_MISC;
-                    class = LOG_MISC;
-                    break;
-                default:
-                    break;
+                className = CLASS_AST_MOD;
+                class = LOG_AST_MOD;
+            }
+            else
+            {
+                /* All mods go in WRITE class, except EXECUTE */
+                className = CLASS_WRITE;
+                class = LOG_WRITE;
+
+                switch (stackItem->auditEvent.commandTag)
+                {
+                    /* Currently, only EXECUTE is different */
+                    case T_ExecuteStmt:
+                        className = CLASS_MISC;
+                        class = LOG_MISC;
+                        break;
+                    default:
+                        break;
+                }
             }
             break;
 
@@ -1246,6 +1256,52 @@ log_function_execute(Oid objectId)
 }
 
 /*
+ * Push a new audit event for certain type of operation
+ */
+static AuditEventStackItem *
+stack_push_cmd(CmdType cmd)
+{
+    /* Push the audit event onto the stack */
+    AuditEventStackItem *stackItem = stack_push();
+
+    /* Initialize event using cmd */
+    switch (cmd)
+    {
+        case CMD_SELECT:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
+            stackItem->auditEvent.commandTag = T_SelectStmt;
+            stackItem->auditEvent.command = COMMAND_SELECT;
+            break;
+
+        case CMD_INSERT:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
+            stackItem->auditEvent.commandTag = T_InsertStmt;
+            stackItem->auditEvent.command = COMMAND_INSERT;
+            break;
+
+        case CMD_UPDATE:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
+            stackItem->auditEvent.commandTag = T_UpdateStmt;
+            stackItem->auditEvent.command = COMMAND_UPDATE;
+            break;
+
+        case CMD_DELETE:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
+            stackItem->auditEvent.commandTag = T_DeleteStmt;
+            stackItem->auditEvent.command = COMMAND_DELETE;
+            break;
+
+        default:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
+            stackItem->auditEvent.commandTag = T_Invalid;
+            stackItem->auditEvent.command = COMMAND_UNKNOWN;
+            break;
+    }
+
+    return stackItem;
+}
+
+/*
  * Hook functions
  */
 static ExecutorCheckPerms_hook_type next_ExecutorCheckPerms_hook = NULL;
@@ -1266,42 +1322,7 @@ pgaudit_ExecutorStart_hook(QueryDesc *queryDesc, int eflags)
 
     if (!internalStatement)
     {
-        /* Push the audit even onto the stack */
-        stackItem = stack_push();
-
-        /* Initialize command using queryDesc->operation */
-        switch (queryDesc->operation)
-        {
-            case CMD_SELECT:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
-                stackItem->auditEvent.commandTag = T_SelectStmt;
-                stackItem->auditEvent.command = COMMAND_SELECT;
-                break;
-
-            case CMD_INSERT:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
-                stackItem->auditEvent.commandTag = T_InsertStmt;
-                stackItem->auditEvent.command = COMMAND_INSERT;
-                break;
-
-            case CMD_UPDATE:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
-                stackItem->auditEvent.commandTag = T_UpdateStmt;
-                stackItem->auditEvent.command = COMMAND_UPDATE;
-                break;
-
-            case CMD_DELETE:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
-                stackItem->auditEvent.commandTag = T_DeleteStmt;
-                stackItem->auditEvent.command = COMMAND_DELETE;
-                break;
-
-            default:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
-                stackItem->auditEvent.commandTag = T_Invalid;
-                stackItem->auditEvent.command = COMMAND_UNKNOWN;
-                break;
-        }
+        stackItem = stack_push_cmd(queryDesc->operation);
 
         /* Initialize the audit event */
         stackItem->auditEvent.commandText = queryDesc->sourceText;
@@ -1484,18 +1505,18 @@ static PlannedStmt *
 pgaudit_planner_hook(Query *parse, int cursorOptions, ParamListInfo boundParams)
 {
     if (!internalStatement &&
-        (auditLogBitmap & LOG_AST_SEL) && parse->commandType == CMD_SELECT &&
-        /* Don't log CTAS, because the AST is logged in pgaudit_ddl_command_end
-         * to log ASTs for successful CTASs only */
-        parse->parentStmtType != PARENTSTMTTYPE_CTAS)
+        (((auditLogBitmap & LOG_AST_SEL) &&
+            parse->commandType == CMD_SELECT &&
+            /* Don't log CTAS, because the AST is logged in
+             * pgaudit_ddl_command_end to log ASTs for successful CTASs only */
+            parse->parentStmtType != PARENTSTMTTYPE_CTAS) ||
+        ((auditLogBitmap & LOG_AST_MOD) &&
+            (parse->commandType == CMD_UPDATE ||
+             parse->commandType == CMD_INSERT ||
+             parse->commandType == CMD_DELETE))))
     {
-        AuditEventStackItem *stackItem = stack_push();
-
-        stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
-        stackItem->auditEvent.commandTag = T_SelectStmt;
-        stackItem->auditEvent.command = COMMAND_SELECT;
+        AuditEventStackItem *stackItem = stack_push_cmd(parse->commandType);
         stackItem->auditEvent.commandText = nodeToString(parse);
-
         log_audit_event(stackItem);
     }
 
@@ -1812,6 +1833,8 @@ check_pgaudit_log(char **newVal, void **extra, GucSource source)
             class = LOG_AST_CTAS;
         else if (pg_strcasecmp(token, CLASS_AST_SEL) == 0)
             class = LOG_AST_SEL;
+        else if (pg_strcasecmp(token, CLASS_AST_MOD) == 0)
+            class = LOG_AST_MOD;
         else
         {
             free(flags);
