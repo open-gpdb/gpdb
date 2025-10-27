@@ -1546,9 +1546,13 @@ typedef struct AlterTableCmd	/* one subcommand of an ALTER TABLE */
 	Bitmapset	*ps_root;
 	Bitmapset	*ps_interior;
 	Bitmapset	*ps_leaf;
-	Oid			newTOASTTableSpace;
 } AlterTableCmd;
 
+
+/* XXX: OGPDB: Hacky global variable to overwrite TOAST tablespaceoid of about-to-be 
+* created (or rewrited) relation. The main usage scenario is for ALTER 
+* TABLE with rewrite, when extension want more control of kenrel logic */
+extern Oid	newTOASTTableSpace;
 
 typedef struct SetDistributionCmd
 {

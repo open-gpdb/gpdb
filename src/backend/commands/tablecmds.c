@@ -154,6 +154,7 @@ typedef struct OnCommitItem
 
 static List *on_commits = NIL;
 
+Oid newTOASTTableSpace = InvalidOid;
 
 /*
  * State information for ALTER TABLE
@@ -4358,7 +4359,10 @@ ATPrepCmd(List **wqueue, Relation rel, AlterTableCmd *cmd,
 	/* Find or create work queue entry for this table */
 	tab = ATGetQueueEntry(wqueue, rel);
 
-	tab->newTOASTTableSpace = cmd->newTOASTTableSpace;
+	tab->newTOASTTableSpace = newTOASTTableSpace;
+
+	/* Reset it */
+	newTOASTTableSpace = InvalidOid;
 
 	/*
 	 * Copy the original subcommand for each table.  This avoids conflicts
