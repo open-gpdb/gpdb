@@ -37,10 +37,10 @@
 /* Potentially set by contrib/pg_upgrade_support functions */
 Oid			binary_upgrade_next_toast_pg_type_oid = InvalidOid;
 
-static void CheckAndCreateToastTable(Oid relOid, Datum reloptions,
+static void CheckAndCreateToastTable(Oid relOid, Oid tablespaceOid, Datum reloptions,
 						 LOCKMODE lockmode, bool check,
 						 bool is_part_child, bool is_part_parent);
-static bool create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid,
+static bool create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid, Oid tablespaceOid,
 				   Datum reloptions, LOCKMODE lockmode, bool check,
 				   bool is_part_child, bool is_part_parent);
 static bool needs_toast_table(Relation rel);
@@ -75,15 +75,15 @@ void
 AlterTableCreateToastTable(Oid relOid, Datum reloptions, LOCKMODE lockmode,
 						   bool is_part_child, bool is_part_parent)
 {
-	CheckAndCreateToastTable(relOid, reloptions, lockmode, true,
+	CheckAndCreateToastTable(relOid, InvalidOid, reloptions, lockmode, true,
 							 is_part_child, is_part_parent);
 }
 
 void
-NewHeapCreateToastTable(Oid relOid, Datum reloptions, LOCKMODE lockmode,
+NewHeapCreateToastTable(Oid relOid, Oid tablespaceOid, Datum reloptions, LOCKMODE lockmode,
 							bool is_part_child, bool is_part_parent)
 {
-	CheckAndCreateToastTable(relOid, reloptions, lockmode, false,
+	CheckAndCreateToastTable(relOid, tablespaceOid, reloptions, lockmode, false,
 							 is_part_child, is_part_parent);
 }
 
@@ -108,12 +108,12 @@ NewRelationCreateToastTable(Oid relOid, Datum reloptions,
 	else
 		lockmode = AccessExclusiveLock;
 
-	CheckAndCreateToastTable(relOid, reloptions, AccessExclusiveLock, false,
+	CheckAndCreateToastTable(relOid, InvalidOid, reloptions, AccessExclusiveLock, false,
 							 is_part_child, is_part_parent);
 }
 
 static void
-CheckAndCreateToastTable(Oid relOid, Datum reloptions, LOCKMODE lockmode, bool check,
+CheckAndCreateToastTable(Oid relOid, Oid tablespaceOid, Datum reloptions, LOCKMODE lockmode, bool check,
 							bool is_part_child, bool is_part_parent)
 {
 	Relation	rel;
@@ -121,7 +121,7 @@ CheckAndCreateToastTable(Oid relOid, Datum reloptions, LOCKMODE lockmode, bool c
 	rel = heap_open(relOid, lockmode);
 
 	/* create_toast_table does all the work */
-	(void) create_toast_table(rel, InvalidOid, InvalidOid, reloptions, lockmode, check,
+	(void) create_toast_table(rel, InvalidOid, InvalidOid, tablespaceOid, reloptions, lockmode, check,
 							  is_part_child, is_part_parent);
 
 	heap_close(rel, NoLock);
@@ -147,7 +147,7 @@ BootstrapToastTable(char *relName, Oid toastOid, Oid toastIndexOid)
 						relName)));
 
 	/* create_toast_table does all the work */
-	if (!create_toast_table(rel, toastOid, toastIndexOid, (Datum) 0,
+	if (!create_toast_table(rel, toastOid, toastIndexOid, InvalidOid, (Datum) 0,
 							AccessExclusiveLock, false,
 							false, false))
 		elog(ERROR, "\"%s\" does not require a toast table",
@@ -165,7 +165,7 @@ BootstrapToastTable(char *relName, Oid toastOid, Oid toastIndexOid)
  * bootstrap they can be nonzero to specify hand-assigned OIDs
  */
 static bool
-create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid,
+create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid, Oid tablespaceOid,
 				   Datum reloptions, LOCKMODE lockmode, bool check,
 				   bool is_part_child, bool is_part_parent)
 {
@@ -319,7 +319,7 @@ create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid,
 
 	toast_relid = heap_create_with_catalog(toast_relname,
 										   namespaceid,
-										   rel->rd_rel->reltablespace,
+										   tablespaceOid ? tablespaceOid : rel->rd_rel->reltablespace,
 										   toastOid,
 										   toast_typid,
 										   InvalidOid,
@@ -397,7 +397,7 @@ create_toast_table(Relation rel, Oid toastOid, Oid toastIndexOid,
 				 indexInfo,
 				 list_make2("chunk_id", "chunk_seq"),
 				 BTREE_AM_OID,
-				 rel->rd_rel->reltablespace,
+				 tablespaceOid ? tablespaceOid : rel->rd_rel->reltablespace,
 				 collationObjectId, classObjectId, coloptions, (Datum) 0,
 				 true, false, false, false,
 				 true, false, false, true, NULL);
