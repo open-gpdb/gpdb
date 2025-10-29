@@ -505,3 +505,35 @@ if (!recoveryRestoreCommand)
 ```c
 if (recoveryRestoreCommand == NULL)
 ```
+
+**7.** Если возможно, минимизировать вложенность.
+
+Вместо
+
+```c
+void f(int i)
+{
+	if (i == 0)
+	{
+		......
+		if (g())
+		{
+			......
+		}
+	}
+}
+```
+
+следует писать
+
+```c
+void f(int i)
+{
+	if (i != 0)
+		return;
+	......
+	if (!g())
+		return;
+	......
+}
+```
