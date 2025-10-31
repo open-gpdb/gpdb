@@ -1,0 +1,5 @@
+# ctas_log extension
+comment = 'log columns sources'
+default_version = '0.1'
+module_pathname = '$libdir/ctas_log'
+relocatable = true
