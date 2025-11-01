@@ -1021,7 +1021,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=/opt/greenplum-db-6
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests"; then
             echo "::error::Configure script failed"
             exit 1
           fi
