@@ -4354,9 +4354,6 @@ ATPrepCmd(List **wqueue, Relation rel, AlterTableCmd *cmd,
 
 	tab->newTOASTTableSpace = newTOASTTableSpace;
 
-	/* Reset it */
-	newTOASTTableSpace = InvalidOid;
-
 	/*
 	 * Copy the original subcommand for each table.  This avoids conflicts
 	 * when different child tables need to make different parse
@@ -5988,7 +5985,7 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode)
 		Relation	OldHeap;
 		Oid			newTableSpace;
 		Oid 		oldTableSpace;
-		Oid			newTOASTTableSpace;
+		Oid			resolvedTOASTTableSpace;
 		bool		hasIndexes;
 
 		/* We will lock the table iff we decide to actually rewrite it */
@@ -6001,7 +5998,7 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode)
 
 		oldTableSpace = OldHeap->rd_rel->reltablespace;
 		newTableSpace = tab->newTableSpace ? tab->newTableSpace : oldTableSpace;
-		newTOASTTableSpace = tab->newTOASTTableSpace ? tab->newTOASTTableSpace : newTableSpace;
+		resolvedTOASTTableSpace = tab->newTOASTTableSpace ? tab->newTOASTTableSpace : newTableSpace;
 		relstorage    = OldHeap->rd_rel->relstorage;
 		{
 			List	   *indexIds;
@@ -6090,7 +6087,7 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode)
 			 * unlogged anyway.
 			 */
 			/* Create transient table that will receive the modified data */
-			OIDNewHeap = make_new_heap(tab->relid, newTableSpace, newTOASTTableSpace, false,
+			OIDNewHeap = make_new_heap(tab->relid, newTableSpace, resolvedTOASTTableSpace, false,
 									   lockmode, hasIndexes, false);
 
 			/*

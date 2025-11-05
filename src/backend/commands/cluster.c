@@ -696,7 +696,7 @@ rebuild_relation(Relation OldHeap, Oid indexOid, bool verbose)
  * data, then call finish_heap_swap to complete the operation.
  */
 Oid
-make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, Oid newTOASTTableSpace, bool forcetemp,
+make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, Oid resolvedTOASTTableSpace, bool forcetemp,
 			  LOCKMODE lockmode,
 			  bool createAoBlockDirectory,
 			  bool makeCdbPolicy)
@@ -834,7 +834,7 @@ make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, Oid newTOASTTableSpace, bool fo
 									 &isNull);
 		if (isNull)
 			reloptions = (Datum) 0;
-		NewHeapCreateToastTable(OIDNewHeap, newTOASTTableSpace, reloptions, lockmode,
+		NewHeapCreateToastTable(OIDNewHeap, resolvedTOASTTableSpace, reloptions, lockmode,
 								is_part_child, is_part_parent);
 
 		ReleaseSysCache(tuple);
