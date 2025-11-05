@@ -25,7 +25,7 @@ extern void check_index_is_clusterable(Relation OldHeap, Oid indexOid,
 						   bool recheck, LOCKMODE lockmode);
 extern void mark_index_clustered(Relation rel, Oid indexOid, bool is_internal);
 
-extern Oid make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, Oid newTOASTTableSpace, bool forcetemp,
+extern Oid make_new_heap(Oid OIDOldHeap, Oid NewTableSpace, Oid resolvedTOASTTableSpace, bool forcetemp,
 			  LOCKMODE lockmode,
 			  bool createAoBlockDirectory,
 			  bool makeCdbPolicy);
