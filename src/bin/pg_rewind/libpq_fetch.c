@@ -733,7 +733,14 @@ GenerateRecoveryConf(char *replication_slot)
 	if (replication_slot)
 	{
 		escaped = escape_quotes(replication_slot);
-		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", replication_slot);
+		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", escaped);
+		free(escaped);
+	}
+
+	if (restore_command)
+	{
+		escaped = escape_quotes(restore_command);
+		appendPQExpBuffer(recoveryconfcontents, "restore_command = '%s'\n", escaped);
 		free(escaped);
 	}
 

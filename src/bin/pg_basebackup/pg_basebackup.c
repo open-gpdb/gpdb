@@ -112,6 +112,7 @@ static void progress_report(int tablespacenum, const char *filename, bool force)
 
 static void ReceiveTarFile(PGconn *conn, PGresult *res, int rownum);
 static void ReceiveAndUnpackTarFile(PGconn *conn, PGresult *res, int rownum);
+static char *GetRestoreCommandHint(PQExpBufferData conninfo_buf);
 static void GenerateRecoveryConf(PGconn *conn);
 static void WriteRecoveryConf(void);
 static void BaseBackup(const char *argv0);
@@ -1178,15 +1179,15 @@ ReceiveAndUnpackTarFile(PGconn *conn, PGresult *res, int rownum)
 	else
 	{
 		strlcpy(current_path, get_tablespace_mapping(PQgetvalue(res, rownum, 1)), sizeof(current_path));
-		
+
 		if (target_gp_dbid < 1)
 		{
 			fprintf(stderr, _("%s: cannot restore user-defined tablespaces without the --target-gp-dbid option\n"),
 					progname);
 			disconnect_and_exit(1);
 		}
-		
-		/* 
+
+		/*
 		 * Construct the new tablespace path using the given target gp dbid
 		 */
 		snprintf(gp_tablespace_filename, sizeof(filename), "%s/%d/%s",
@@ -1573,6 +1574,53 @@ escape_quotes(const char *src)
 #define GP_WALRECEIVER_APPNAME "gp_walreceiver"
 
 /*
+ * GetRestoreCommandHint
+ *
+ * Query restore_command_hint GUC from primary via regular connection.
+ * Accepts regular connection info buffer.
+ *
+ * Returns GUC value, or NULL on failure. Caller must free the GUC and
+ * the connection info buffer.
+ */
+static char *
+GetRestoreCommandHint(PQExpBufferData conninfo_buf)
+{
+	PGconn   *regular_conn = NULL;
+	PGresult *restore_cmd_hint_res = NULL;
+	char	 *restore_cmd_hint = NULL;
+
+	regular_conn = PQconnectdb(conninfo_buf.data);
+
+	if (PQstatus(regular_conn) != CONNECTION_OK)
+	{
+		fprintf(stderr, _("%s: could not connect to primary: %s"),
+				progname, PQerrorMessage(regular_conn));
+		PQfinish(regular_conn);
+		return NULL;
+	}
+
+	restore_cmd_hint_res = PQexec(regular_conn, "SHOW restore_command_hint");
+
+	if (PQresultStatus(restore_cmd_hint_res) == PGRES_TUPLES_OK &&
+		PQntuples(restore_cmd_hint_res) > 0 &&
+		!PQgetisnull(restore_cmd_hint_res, 0, 0))
+	{
+		restore_cmd_hint = pg_strdup(PQgetvalue(restore_cmd_hint_res, 0, 0));
+	}
+	else
+	{
+		fprintf(stderr, _("%s: could not get restore_command_hint: %s\n"),
+				progname, PQerrorMessage(regular_conn));
+	}
+
+	PQclear(restore_cmd_hint_res);
+	PQfinish(regular_conn);
+
+	return restore_cmd_hint;
+}
+
+
+/*
  * Create a recovery.conf file in memory using a PQExpBuffer
  */
 static void
@@ -1582,6 +1630,7 @@ GenerateRecoveryConf(PGconn *conn)
 	PQconninfoOption *option;
 	PQExpBufferData conninfo_buf;
 	char	   *escaped;
+	char	   *restore_cmd_hint;
 
 	recoveryconfcontents = createPQExpBuffer();
 	if (!recoveryconfcontents)
@@ -1628,6 +1677,8 @@ GenerateRecoveryConf(PGconn *conn)
 		free(escaped);
 	}
 
+	restore_cmd_hint = GetRestoreCommandHint(conninfo_buf);
+
 	appendPQExpBuffer(&conninfo_buf, " application_name=%s", GP_WALRECEIVER_APPNAME);
 	/*
 	 * Escape the connection string, so that it can be put in the config file.
@@ -1641,7 +1692,14 @@ GenerateRecoveryConf(PGconn *conn)
 	if (replication_slot)
 	{
 		escaped = escape_quotes(replication_slot);
-		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", replication_slot);
+		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", escaped);
+		free(escaped);
+	}
+
+	if (restore_cmd_hint)
+	{
+		escaped = escape_quotes(restore_cmd_hint);
+		appendPQExpBuffer(recoveryconfcontents, "restore_command = '%s'\n", escaped);
 		free(escaped);
 	}
 

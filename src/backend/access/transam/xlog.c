@@ -5582,16 +5582,6 @@ readRecoveryCommandFile(void)
 	}
 
 	/*
-	 * recovery.conf does not have restore_command,
-	 * fallback to GUC restore_command_hint (already loaded)
-	 */
-	if (recoveryRestoreCommand == NULL && XLogRestoreCommandDummy != NULL) {
-		recoveryRestoreCommand = XLogRestoreCommandDummy;
-		ereport(DEBUG2,
-				(errmsg_internal("restore_command = '%s'", recoveryRestoreCommand)));
-	}
-
-	/*
 	 * Check for compulsory parameters
 	 */
 	if (StandbyModeRequested)

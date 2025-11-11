@@ -868,7 +868,7 @@ getRestoreCommand(const char *argv0)
 				postgres_cmd[MAXPGPATH],
 				cmd_output[MAXPGPATH];
 
-	if (!restore_wal)
+	if (!(restore_wal || writerecoveryconf))
 		return;
 
 	/* find postgres executable */
