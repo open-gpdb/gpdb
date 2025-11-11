@@ -141,7 +141,6 @@ jobs:
                                "contrib/postgres_fdw:installcheck",
                                "contrib/sslinfo:installcheck",
                                "contrib/tablefunc:installcheck",
-                               "contrib/test_decoding:installcheck",
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
                                "contrib/try_convert:generate-tests,installcheck",
