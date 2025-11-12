@@ -733,7 +733,7 @@ GenerateRecoveryConf(char *replication_slot)
 	if (replication_slot)
 	{
 		escaped = escape_quotes(replication_slot);
-		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", escaped);
+		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", replication_slot);
 		free(escaped);
 	}
 
