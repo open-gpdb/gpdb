@@ -1,10 +1,7 @@
 CREATE EXTENSION test_bloomfilter;
 
 -- See README for explanation of arguments:
-SELECT test_bloomfilter(power => 23,
-    nelements => 838861,
-    seed => -1,
-    tests => 1);
+SELECT test_bloomfilter(23, 838861);
 
 -- Equivalent "10 bits per element" tests for all possible bitset sizes:
 --
