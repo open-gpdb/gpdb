@@ -1585,8 +1585,8 @@ escape_quotes(const char *src)
 static char *
 GetRestoreCommandHint(PQExpBufferData conninfo_buf)
 {
-	PGconn   *regular_conn = NULL;
-	PGresult *restore_cmd_hint_res = NULL;
+	PGconn   *regular_conn;
+	PGresult *restore_cmd_hint_res;
 	char	 *restore_cmd_hint = NULL;
 
 	regular_conn = PQconnectdb(conninfo_buf.data);
