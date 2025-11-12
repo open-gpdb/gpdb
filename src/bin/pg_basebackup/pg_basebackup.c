@@ -1179,15 +1179,15 @@ ReceiveAndUnpackTarFile(PGconn *conn, PGresult *res, int rownum)
 	else
 	{
 		strlcpy(current_path, get_tablespace_mapping(PQgetvalue(res, rownum, 1)), sizeof(current_path));
-
+		
 		if (target_gp_dbid < 1)
 		{
 			fprintf(stderr, _("%s: cannot restore user-defined tablespaces without the --target-gp-dbid option\n"),
 					progname);
 			disconnect_and_exit(1);
 		}
-
-		/*
+		
+		/* 
 		 * Construct the new tablespace path using the given target gp dbid
 		 */
 		snprintf(gp_tablespace_filename, sizeof(filename), "%s/%d/%s",
@@ -1692,7 +1692,7 @@ GenerateRecoveryConf(PGconn *conn)
 	if (replication_slot)
 	{
 		escaped = escape_quotes(replication_slot);
-		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", escaped);
+		appendPQExpBuffer(recoveryconfcontents, "primary_slot_name = '%s'\n", replication_slot);
 		free(escaped);
 	}
 

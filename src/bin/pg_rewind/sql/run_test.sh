@@ -165,15 +165,7 @@ if [ "$TEST_SUITE" = "remote" ]; then
         exit 1
     fi
 
-    found=false
-    while IFS= read -r line; do
-        if [ "$line" = "restore_command = '/bin/true'" ]; then
-            found=true
-            break
-        fi
-    done < "$TEST_MASTER/recovery.conf"
-
-    if [ "$found" = false ]; then
+    if ! grep -qF "restore_command = '/bin/true'" "$TEST_MASTER/recovery.conf"; then
         echo "Restore command was not found in recovery.conf"
         exit 1
     fi

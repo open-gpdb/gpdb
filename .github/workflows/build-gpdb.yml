@@ -302,7 +302,7 @@ jobs:
           ref: main
           path: gpdb-devops
           fetch-depth: 1
-
+      
       - name: Move gpdb-devops directory
         run: |
           set -ex pipefail
@@ -375,7 +375,7 @@ jobs:
 
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
-
+          
           if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/build-gpdb.sh"; then
             echo "::error::Build script failed"
             exit 1
@@ -385,7 +385,7 @@ jobs:
           if ! cp /usr/local/lib/libsigar.so ${BUILD_DESTINATION}/lib; then
             echo "::error::Copy libsigar.so failed"
             exit 1
-          fi
+          fi 
 
           if ! cp /usr/local/lib/libxerces* ${BUILD_DESTINATION}/lib; then
             echo "::error::Copy libxerces failed"
@@ -464,7 +464,7 @@ jobs:
           if ! echo "$GPDB_VERSION" | grep -qE '^[0-9]'; then
               GPDB_VERSION="6.$GPDB_VERSION"
           fi
-
+          
           echo "We will built ${GPDB_VERSION}"
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${BUILD_DESTINATION}/lib
@@ -745,7 +745,7 @@ jobs:
           ref: main
           path: gpdb-devops
           fetch-depth: 1
-
+      
       - name: Move gpdb-devops directory
         run: |
           set -ex pipefail
@@ -1027,7 +1027,7 @@ jobs:
         run: |
           set -ex pipefail
 
-          {
+          {            
             if ! su - gpadmin -c "cd ${SRC_DIR} && NUM_PRIMARY_MIRROR_PAIRS='${{ matrix.num_primary_mirror_pairs }}' SRC_DIR=${SRC_DIR} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/create-gpdb-demo-cluster.sh"; then
               echo "::error::Demo cluster creation failed"
               exit 1
@@ -1066,7 +1066,7 @@ jobs:
           # 1. Add a new check below for the setting
           # 2. Follow the same pattern as optimizer
           # 3. Update matrix entries to include the new setting
-
+          
           # Set PostgreSQL options if defined
           PG_OPTS=""
           if [[ "${{ matrix.pg_settings.optimizer != '' }}" == "true" ]]; then
@@ -1117,7 +1117,7 @@ jobs:
             echo "Make command: make -C $dir $target"
             echo "Environment:"
             echo "- PGOPTIONS: ${PG_OPTS}"
-
+            
             # Create unique log file for this configuration
             config_log="build-logs/details/make-${{ matrix.test }}-config$i.log"
 
@@ -1135,7 +1135,7 @@ jobs:
               echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
               overall_status=1
             fi
-
+            
             # Check for results directory
             results_dir="${dir}/results"
 
@@ -1470,7 +1470,7 @@ jobs:
                 echo "Check test logs and regression files for details"
               fi
             fi
-
+            
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Notify on failure
         if: |
