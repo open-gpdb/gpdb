@@ -1701,7 +1701,7 @@ get_segment_by_index(dsa_area *area, dsa_segment_index index)
 		 */
 		handle = area->control->segment_handles[index];
 
-		/* It's an erro to try to access an unused slot. */
+		/* It's an error to try to access an unused slot. */
 		if (handle == DSM_HANDLE_INVALID)
 			elog(ERROR,
 			   "dsa_area could not attach to a segment that has been freed");
