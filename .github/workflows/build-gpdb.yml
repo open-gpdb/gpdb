@@ -53,7 +53,7 @@ jobs:
             },
             {
               "name": "test",
-              "extra_configure_flags": "--enable-debug-extensions"
+              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests"
             }
           ]}'
           # Output the matrix for GitHub Actions
@@ -168,6 +168,10 @@ jobs:
               },
               {"test":"ic-mirrorless",
                "make_configs":["src/test/isolation2:installcheck-mirrorless"]
+              },
+              {"test":"ic-recovery",
+               "install_target":true,
+               "make_configs":["src/test/recovery:installcheck"]
               }
             ]
           }'
@@ -362,7 +366,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS=${{ matrix.extra_configure_flags }} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS='${{ matrix.extra_configure_flags }}' BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -1016,7 +1020,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=/opt/greenplum-db-6
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests"; then
             echo "::error::Configure script failed"
             exit 1
           fi
