@@ -1,7 +1,8 @@
-# Test for fixing timeline collision when restore_command is not written into
-# the generated recovery.conf during recovery, resulting in the promoting node not seeing
-# a newer timeline ID in the archive. Now restore_command is written to recovery.conf
-# (sourced from the primary's restore_command_hint during recovery)
+# Test for fixing timeline collision when restore_command is not written
+# into the generated recovery.conf during recovery, resulting in the
+# promoting node not seeing a newer timeline ID in the archive. Now
+# restore_command is written to recovery.conf and sourced from the
+# primary's restore_command_hint GUC during recovery.
 
 # Steps:
 # 1. Create master + standby, promote standby → timeline 2.
@@ -27,10 +28,7 @@ my $archive_dir = $node_master->archive_dir;
 
 # Append restore_command_hint to master's postgres.conf
 my $path = TestLib::perl2host($archive_dir);
-$path =~ s{\\}{\\\\}g if ($TestLib::windows_os);
-my $restore_cmd = $TestLib::windows_os
-    ? qq{copy "$path\\\\%f" "%p"}
-    : qq{cp "$path/%f" "%p"};
+my $restore_cmd = qq{cp "$path/%f" "%p"};
 
 $node_master->append_conf('postgresql.conf',
     "restore_command_hint = '$restore_cmd'\n");
@@ -51,9 +49,7 @@ $node_standby->init_from_backup($node_master, $backup_name,
     has_restoring => 1);
 
 # Enable archiving on standby for timeline history archival
-my $archive_cmd = $TestLib::windows_os
-    ? qq{copy "%p" "$archive_dir\\\\%f"}
-    : qq{cp "%p" "$archive_dir/%f"};
+my $archive_cmd = qq{cp "%p" "$archive_dir/%f"};
 
 $node_standby->append_conf('postgresql.conf', qq{
 archive_mode = on

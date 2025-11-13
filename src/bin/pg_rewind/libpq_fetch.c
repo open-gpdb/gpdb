@@ -739,9 +739,9 @@ GenerateRecoveryConf(char *replication_slot)
 
 	if (restore_command)
 	{
-		escaped = escape_quotes(restore_command);
-		appendPQExpBuffer(recoveryconfcontents, "restore_command = '%s'\n", escaped);
-		free(escaped);
+		char *escaped_cmd = escape_quotes(restore_command);
+		appendPQExpBuffer(recoveryconfcontents, "restore_command = '%s'\n", escaped_cmd);
+		free(escaped_cmd);
 	}
 
 	if (PQExpBufferBroken(recoveryconfcontents) ||
