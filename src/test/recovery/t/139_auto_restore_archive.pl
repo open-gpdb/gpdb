@@ -26,7 +26,7 @@ $node_master->init(has_archiving => 1, allows_streaming => 1);
 # Declare master’s archive for both master and standby
 my $archive_dir = $node_master->archive_dir;
 
-# Append restore_command_hint to master's postgres.conf
+# Append restore_command_hint to master's postgresql.conf
 my $path = TestLib::perl2host($archive_dir);
 my $restore_cmd = qq{cp "$path/%f" "%p"};
 
@@ -115,7 +115,6 @@ archive_command = '$archive_cmd'
 
 # Start standby (now back on timeline 1)
 $node_standby->start;
-sleep(2);
 
 # Kill master and promote standby again
 $node_master->stop('immediate');
