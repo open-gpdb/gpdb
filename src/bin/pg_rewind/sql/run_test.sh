@@ -41,6 +41,7 @@ max_connections = 50
 listen_addresses = '$LISTEN_ADDRESSES'
 port = $PORT_MASTER
 wal_keep_segments=5
+restore_command_hint='/bin/true'
 EOF
 
 # Accept replication connections on master
@@ -141,18 +142,33 @@ if [ $TEST_SUITE == "local" ]; then
 	    --progress \
 	    --debug \
 	    --source-pgdata=$TEST_STANDBY \
-	    --target-pgdata=$TEST_MASTER >>$log_path 2>&1
+	    --target-pgdata=$TEST_MASTER >>$log_path 2>&1 \
+		--write-recovery-conf
 elif [ $TEST_SUITE == "remote" ]; then
 	# Do rewind using a remote connection as source
 	PGOPTIONS=${PGOPTIONS_UTILITY} pg_rewind \
 		 --progress \
 		 --debug \
 		 --source-server="port=$PORT_STANDBY dbname=postgres" \
-		 --target-pgdata=$TEST_MASTER >>$log_path 2>&1
+		 --target-pgdata=$TEST_MASTER >>$log_path 2>&1 \
+		 --write-recovery-conf
 else
 	# Cannot come here normally
 	echo "Incorrect test suite specified"
 	exit 1
+fi
+
+# Check that recovery.conf exists and that restore_command is taken from restore_command_hint.
+if [ "$TEST_SUITE" = "remote" ]; then
+    if [ ! -f "$TEST_MASTER/recovery.conf" ]; then
+        echo "recovery.conf file is missing."
+        exit 1
+    fi
+
+    if ! grep -qF "restore_command = '/bin/true'" "$TEST_MASTER/recovery.conf"; then
+        echo "Restore command was not found in recovery.conf"
+        exit 1
+    fi
 fi
 
 # After rewind is done, restart the source node in local mode.
