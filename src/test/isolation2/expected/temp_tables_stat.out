@@ -1,13 +1,3 @@
--- start_ignore
-0: ! gpconfig -c shared_preload_libraries -v 'temp_tables_stat';
-20251120:10:17:27:025975 gpconfig:sokolov43a-yu-lin:sokolov43a-yu-[INFO]:-completed successfully with parameters '-c shared_preload_libraries -v temp_tables_stat'
-
-0: ! gpstop -raiq;
-
-
-1: CREATE EXTENSION IF NOT EXISTS temp_tables_stat;
-CREATE
--- end_ignore
 
 -- No tables, the files list is empty
 1: SELECT * FROM tts_get_seg_files();
