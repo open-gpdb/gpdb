@@ -74,7 +74,7 @@ tts_file_create_hook(RelFileNodeBackend rnode)
 	if (prev_file_create_hook)
 		(*prev_file_create_hook)(rnode);
 
-	if (!RelFileNodeBackendIsTemp(rnode))
+	if (!RelFileNodeBackendIsTemp(rnode) || head == NULL)
 		return;
 
 	rnode.backend = MyBackendId;
@@ -116,7 +116,7 @@ tts_file_unlink_hook(RelFileNodeBackend rnode)
 	if (prev_file_unlink_hook)
 		(*prev_file_unlink_hook)(rnode);
 
-	if (!RelFileNodeBackendIsTemp(rnode))
+	if (!RelFileNodeBackendIsTemp(rnode) || head == NULL)
 		return;
 
 	rnode.backend = MyBackendId;
