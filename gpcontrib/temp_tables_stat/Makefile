@@ -4,7 +4,7 @@ MODULE_big = temp_tables_stat
 OBJS = $(MODULE_big).o $(WIN32RES)
 
 EXTENSION = $(MODULE_big)
-PGFILEDESC = "Collect and show statictics on temporary tables"
+PGFILEDESC = "Collect and show statistics on temporary tables"
 
 DATA = $(MODULE_big)--0.1.sql
 
