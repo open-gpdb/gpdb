@@ -109,6 +109,37 @@ lExit:
 	LWLockRelease(&head->lock);
 }
 
+static void
+delete_from_ttsnode(TTSNode *node, int index, TTSNode *prev_node)
+{
+	/* Find the last node */
+	TTSNode *last_node = node;
+	TTSNode *last_prev_node = prev_node;
+
+	while (last_node->next != DSM_HANDLE_INVALID)
+	{
+		last_prev_node = last_node;
+		last_node = next_node(last_node);
+	}
+
+	/* replace the deleted element with the last one */
+	node->files[index] = last_node->files[last_node->num - 1];
+
+	if (last_node->num > 1)
+		last_node->num--;
+	else if (last_node == &head->node)
+		head->node.num = 0;
+	else
+	{
+		/*
+		 * last_prev_node != NULL because last_node is not head.
+		 * next_node() has been called, so the mapping exists.
+		 */
+		dsm_detach(dsm_find_mapping(last_prev_node->next));
+		last_prev_node->next = DSM_HANDLE_INVALID;
+	}
+}
+
 /* This function is called once for all forks. Delete file info from the list */
 static void
 tts_file_unlink_hook(RelFileNodeBackend rnode)
@@ -122,10 +153,7 @@ tts_file_unlink_hook(RelFileNodeBackend rnode)
 	rnode.backend = MyBackendId;
 	LWLockAcquire(&head->lock, LW_EXCLUSIVE);
 
-	/*
-	 * Find rnode in the list of arrays, replace rnode with the last element,
-	 * decrement array length.
-	 */
+	/* Find rnode in the list of arrays and delete it from the list node */
 	for (TTSNode *node = &head->node, *prev_node = NULL;
 		 node != NULL;
 		 prev_node = node, node = next_node(node))
@@ -133,31 +161,7 @@ tts_file_unlink_hook(RelFileNodeBackend rnode)
 		for (int i = 0; i < node->num; i++)
 			if (RelFileNodeBackendEquals(rnode, node->files[i]))
 			{
-				/* Find the last node */
-				TTSNode *last_node = node;
-				TTSNode *last_prev_node = prev_node;
-				while (last_node->next != DSM_HANDLE_INVALID)
-				{
-					last_prev_node = last_node;
-					last_node = next_node(last_node);
-				}
-
-				node->files[i] = last_node->files[last_node->num - 1];
-
-				if (last_node->num > 1)
-					last_node->num--;
-				else if (last_node == &head->node)
-					head->node.num = 0;
-				else
-				{
-					/*
-					 * last_prev_node != NULL because last_node is not head.
-					 * next_node() has been called, so the mapping exists.
-					 */
-					dsm_detach(dsm_find_mapping(last_prev_node->next));
-					last_prev_node->next = DSM_HANDLE_INVALID;
-				}
-
+				delete_from_ttsnode(node, i, prev_node);
 				goto lExit;
 			}
 	}
