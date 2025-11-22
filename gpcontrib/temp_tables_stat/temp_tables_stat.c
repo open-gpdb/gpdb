@@ -230,6 +230,37 @@ tts_get_file_size(const char *dirname, const char *fn_start)
 	return dirsize;
 }
 
+/* Copy the files info from the list to local memory */
+static RelFileNodeBackend *
+get_files(uint32 *files_num)
+{
+	RelFileNodeBackend *files;
+
+	*files_num = 0;
+
+	LWLockAcquire(&head->lock, LW_SHARED);
+
+	/* Count files of temp tables */
+	for (const TTSNode *node = &head->node; node != NULL; node = next_node(node))
+		*files_num += node->num;
+
+	/* Allocate local memory for array of the files data */
+	files = palloc(sizeof(*files) * (*files_num));
+
+	/* Combine arrays from the list nodes into one array */
+	*files_num = 0;
+	for (const TTSNode *node = &head->node; node != NULL; node = next_node(node))
+	{
+		RelFileNodeBackend *dst = files + (*files_num);
+		memcpy(dst, node->files, sizeof(*files) * node->num);
+		*files_num += node->num;
+	}
+
+	LWLockRelease(&head->lock);
+
+	return files;
+}
+
 /* Get temp tables files list on segments */
 PG_FUNCTION_INFO_V1(tts_get_seg_files);
 Datum
@@ -251,8 +282,6 @@ tts_get_seg_files(PG_FUNCTION_ARGS)
 	{
 		MemoryContext oldcontext;
 		TupleDesc tupdesc;
-		RelFileNodeBackend *files;
-		int files_num = 0;
 
 		funcctx = SRF_FIRSTCALL_INIT();
 
@@ -273,27 +302,7 @@ tts_get_seg_files(PG_FUNCTION_ARGS)
 			SRF_RETURN_DONE(funcctx);
 		}
 
-		LWLockAcquire(&head->lock, LW_SHARED);
-
-		/* Count files of temp tables */
-		for (const TTSNode *node = &head->node; node != NULL; node = next_node(node))
-			files_num += node->num;
-
-		/* Allocate local memory for array of the files data */
-		files = palloc(sizeof(*files) * files_num);
-
-		/* Combine arrays from the list nodes into one array */
-		funcctx->max_calls = 0;
-		for (const TTSNode *node = &head->node; node != NULL; node = next_node(node))
-		{
-			RelFileNodeBackend *dst = files + funcctx->max_calls;
-			memcpy(dst, node->files, sizeof(*files) * node->num);
-			funcctx->max_calls += node->num;
-		}
-
-		LWLockRelease(&head->lock);
-
-		funcctx->user_fctx = files;
+		funcctx->user_fctx = get_files(&funcctx->max_calls);
 		MemoryContextSwitchTo(oldcontext);
 	}
 
