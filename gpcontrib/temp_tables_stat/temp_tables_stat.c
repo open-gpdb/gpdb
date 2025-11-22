@@ -134,7 +134,8 @@ tts_file_unlink_hook(RelFileNodeBackend rnode)
 			if (RelFileNodeBackendEquals(rnode, node->files[i]))
 			{
 				/* Find the last node */
-				TTSNode *last_node = node, *last_prev_node = prev_node;
+				TTSNode *last_node = node;
+				TTSNode *last_prev_node = prev_node;
 				while (last_node->next != DSM_HANDLE_INVALID)
 				{
 					last_prev_node = last_node;
@@ -233,8 +234,8 @@ tts_get_seg_files(PG_FUNCTION_ARGS)
 	enum { NATTR = 5 };
 
 	FuncCallContext *funcctx;
-	PgBackendStatus *beStatus;
-	RelFileNodeBackend *file;
+	const PgBackendStatus *beStatus;
+	const RelFileNodeBackend *file;
 	char	   *sep;
 	char	   *path;
 	HeapTuple	tuple;
@@ -271,7 +272,7 @@ tts_get_seg_files(PG_FUNCTION_ARGS)
 		LWLockAcquire(&head->lock, LW_SHARED);
 
 		/* Count files of temp tables */
-		for (TTSNode *node = &head->node; node != NULL; node = next_node(node))
+		for (const TTSNode *node = &head->node; node != NULL; node = next_node(node))
 			files_num += node->num;
 
 		/* Allocate local memory for array of the files data */
@@ -279,7 +280,7 @@ tts_get_seg_files(PG_FUNCTION_ARGS)
 
 		/* Combine arrays from the list nodes into one array */
 		funcctx->max_calls = 0;
-		for (TTSNode *node = &head->node; node != NULL; node = next_node(node))
+		for (const TTSNode *node = &head->node; node != NULL; node = next_node(node))
 		{
 			RelFileNodeBackend *dst = files + funcctx->max_calls;
 			memcpy(dst, node->files, sizeof(*files) * node->num);
@@ -318,6 +319,7 @@ tts_get_seg_files(PG_FUNCTION_ARGS)
 	Assert(sep != NULL);
 	*sep = '\0';
 	values[4] = Int64GetDatum(tts_get_file_size(path, sep + 1));
+	pfree(path);
 
 	tuple = heap_form_tuple(funcctx->tuple_desc, values, nulls);
 
