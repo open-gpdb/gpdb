@@ -182,7 +182,7 @@ SELECT *
   FROM test3, test2;
 WARNING:  AUDIT: SESSION,1,1,READ,SELECT,,,"SELECT *
   FROM test3, test2;",<not logged>
-WARNING:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.test2,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,public.test2,<previously logged>,<previously logged>
  id | id 
 ----+----
 (0 rows)
@@ -195,7 +195,7 @@ SELECT *
   FROM vw_test3, test2;
 WARNING:  AUDIT: SESSION,2,1,READ,SELECT,,,"SELECT *
   FROM vw_test3, test2;",<not logged>
-WARNING:  AUDIT: OBJECT,2,1,READ,SELECT,UNKNOWN,public.test2,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,2,1,READ,SELECT,TABLE,public.test2,<previously logged>,<previously logged>
  id | id 
 ----+----
 (0 rows)
@@ -220,16 +220,16 @@ WARNING:  AUDIT: SESSION,3,1,WRITE,INSERT,,,"WITH CTE AS
 INSERT INTO test3
 SELECT id
   FROM cte;",<not logged>
-WARNING:  AUDIT: OBJECT,3,1,WRITE,INSERT,UNKNOWN,public.test3,<previously logged>,<previously logged>
-WARNING:  AUDIT: OBJECT,3,1,READ,SELECT,UNKNOWN,public.test2,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,3,1,WRITE,INSERT,TABLE,public.test3,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,3,1,READ,SELECT,TABLE,public.test2,<previously logged>,<previously logged>
 DO $$ BEGIN PERFORM test2_change(91); END $$;
 WARNING:  AUDIT: SESSION,4,1,READ,SELECT,,,SELECT test2_change(91),<not logged>
 WARNING:  AUDIT: OBJECT,4,1,WRITE,UPDATE,TABLE,public.test2,<previously logged>,<previously logged>
 WARNING:  AUDIT: SESSION,4,2,WRITE,UPDATE,,,"UPDATE test2
 	   SET id = id + 1
 	 WHERE id = change_id",<not logged>
-WARNING:  AUDIT: OBJECT,4,2,WRITE,UPDATE,UNKNOWN,public.test2,<previously logged>,<previously logged>
-WARNING:  AUDIT: OBJECT,4,2,READ,SELECT,UNKNOWN,public.test2,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,4,2,WRITE,UPDATE,TABLE,public.test2,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,4,2,READ,SELECT,TABLE,public.test2,<previously logged>,<previously logged>
 --
 -- Be sure that test has correct contents
 SELECT *
@@ -238,7 +238,7 @@ SELECT *
 WARNING:  AUDIT: SESSION,5,1,READ,SELECT,,,"SELECT *
   FROM test2
  ORDER BY ID;",<not logged>
-WARNING:  AUDIT: OBJECT,5,1,READ,SELECT,UNKNOWN,public.test2,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,5,1,READ,SELECT,TABLE,public.test2,<previously logged>,<previously logged>
  id 
 ----
 (0 rows)
@@ -269,7 +269,7 @@ GRANT insert (name)
 -- Not object logged
 SELECT id
   FROM public.test4;
-WARNING:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.test4,"SELECT id
+WARNING:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,public.test4,"SELECT id
   FROM public.test4;",<not logged>
  id 
 ----
@@ -280,7 +280,7 @@ WARNING:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.test4,"SELECT id
 -- select (name) on test4
 SELECT name
   FROM public.test4;
-WARNING:  AUDIT: OBJECT,2,1,READ,SELECT,UNKNOWN,public.test4,"SELECT name
+WARNING:  AUDIT: OBJECT,2,1,READ,SELECT,TABLE,public.test4,"SELECT name
   FROM public.test4;",<not logged>
  name 
 ------
@@ -290,37 +290,37 @@ WARNING:  AUDIT: OBJECT,2,1,READ,SELECT,UNKNOWN,public.test4,"SELECT name
 -- Not object logged
 INSERT INTO public.test4 (id)
 				  VALUES (1);
-WARNING:  AUDIT: OBJECT,3,1,WRITE,INSERT,UNKNOWN,public.test4,"INSERT INTO public.test4 (id)
+WARNING:  AUDIT: OBJECT,3,1,WRITE,INSERT,TABLE,public.test4,"INSERT INTO public.test4 (id)
 				  VALUES (1);",<not logged>
 --
 -- Object logged because of:
 -- insert (name) on test4
 INSERT INTO public.test4 (name)
 				  VALUES ('test');
-WARNING:  AUDIT: OBJECT,4,1,WRITE,INSERT,UNKNOWN,public.test4,"INSERT INTO public.test4 (name)
+WARNING:  AUDIT: OBJECT,4,1,WRITE,INSERT,TABLE,public.test4,"INSERT INTO public.test4 (name)
 				  VALUES ('test');",<not logged>
 --
 -- Not object logged
 UPDATE public.test4
    SET name = 'foo';
-WARNING:  AUDIT: OBJECT,5,1,WRITE,UPDATE,UNKNOWN,public.test4,"UPDATE public.test4
+WARNING:  AUDIT: OBJECT,5,1,WRITE,UPDATE,TABLE,public.test4,"UPDATE public.test4
    SET name = 'foo';",<not logged>
-WARNING:  AUDIT: OBJECT,5,1,READ,SELECT,UNKNOWN,public.test4,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,5,1,READ,SELECT,TABLE,public.test4,<previously logged>,<previously logged>
 --
 -- Object logged because of:
 -- update (id) on test4
 UPDATE public.test4
    SET id = 1;
-WARNING:  AUDIT: OBJECT,6,1,WRITE,UPDATE,UNKNOWN,public.test4,"UPDATE public.test4
+WARNING:  AUDIT: OBJECT,6,1,WRITE,UPDATE,TABLE,public.test4,"UPDATE public.test4
    SET id = 1;",<not logged>
-WARNING:  AUDIT: OBJECT,6,1,READ,SELECT,UNKNOWN,public.test4,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,6,1,READ,SELECT,TABLE,public.test4,<previously logged>,<previously logged>
 --
 -- Object logged because of:
 -- update (name) on test4
 -- update (name) takes precedence over select (name) due to ordering
 update public.test4 set name = 'foo' where name = 'bar';
-WARNING:  AUDIT: OBJECT,7,1,WRITE,UPDATE,UNKNOWN,public.test4,update public.test4 set name = 'foo' where name = 'bar';,<not logged>
-WARNING:  AUDIT: OBJECT,7,1,READ,SELECT,UNKNOWN,public.test4,<previously logged>,<previously logged>
+WARNING:  AUDIT: OBJECT,7,1,WRITE,UPDATE,TABLE,public.test4,update public.test4 set name = 'foo' where name = 'bar';,<not logged>
+WARNING:  AUDIT: OBJECT,7,1,READ,SELECT,TABLE,public.test4,<previously logged>,<previously logged>
 --
 -- Change permissions of user 1 so that session logging will be done
 \connect - :"current_user"
@@ -384,7 +384,7 @@ GRANT SELECT (password),
 SELECT id,
 	   name
   FROM account;
-NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.account,"SELECT id,
+NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,public.account,"SELECT id,
 	   name
   FROM account;",<not logged>
  id | name  
@@ -397,7 +397,7 @@ NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.account,"SELECT id,
 -- select (password) on account
 SELECT password
   FROM account;
-NOTICE:  AUDIT: OBJECT,2,1,READ,SELECT,UNKNOWN,public.account,"SELECT password
+NOTICE:  AUDIT: OBJECT,2,1,READ,SELECT,TABLE,public.account,"SELECT password
   FROM account;",<not logged>
  password 
 ----------
@@ -408,18 +408,18 @@ NOTICE:  AUDIT: OBJECT,2,1,READ,SELECT,UNKNOWN,public.account,"SELECT password
 -- Not object logged
 UPDATE account
    SET description = 'yada, yada';
-NOTICE:  AUDIT: OBJECT,3,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,3,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada';",<not logged>
-NOTICE:  AUDIT: OBJECT,3,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,3,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada';",<not logged>
 --
 -- Object logged because of:
 -- update (password) on account
 UPDATE account
    SET password = 'HASH2';
-NOTICE:  AUDIT: OBJECT,4,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,4,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: OBJECT,4,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,4,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET password = 'HASH2';",<not logged>
 --
 -- Change permissions of user 1 so that session relation logging will be done
@@ -451,22 +451,22 @@ SELECT account.password,
   FROM account
 	   INNER JOIN account_role_map
 			on account.id = account_role_map.account_id;
-NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.account,"SELECT account.password,
+NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,public.account,"SELECT account.password,
 	   account_role_map.role_id
   FROM account
 	   INNER JOIN account_role_map
 			on account.id = account_role_map.account_id;",<not logged>
-NOTICE:  AUDIT: SESSION,1,1,READ,SELECT,UNKNOWN,public.account,"SELECT account.password,
+NOTICE:  AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.account,"SELECT account.password,
 	   account_role_map.role_id
   FROM account
 	   INNER JOIN account_role_map
 			on account.id = account_role_map.account_id;",<not logged>
-NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,UNKNOWN,public.account_role_map,"SELECT account.password,
+NOTICE:  AUDIT: OBJECT,1,1,READ,SELECT,TABLE,public.account_role_map,"SELECT account.password,
 	   account_role_map.role_id
   FROM account
 	   INNER JOIN account_role_map
 			on account.id = account_role_map.account_id;",<not logged>
-NOTICE:  AUDIT: SESSION,1,1,READ,SELECT,UNKNOWN,public.account_role_map,"SELECT account.password,
+NOTICE:  AUDIT: SESSION,1,1,READ,SELECT,TABLE,public.account_role_map,"SELECT account.password,
 	   account_role_map.role_id
   FROM account
 	   INNER JOIN account_role_map
@@ -481,9 +481,9 @@ NOTICE:  AUDIT: SESSION,1,1,READ,SELECT,UNKNOWN,public.account_role_map,"SELECT 
 -- Session logged on all tables because log = read and log_relation = on
 SELECT password
   FROM account;
-NOTICE:  AUDIT: OBJECT,2,1,READ,SELECT,UNKNOWN,public.account,"SELECT password
+NOTICE:  AUDIT: OBJECT,2,1,READ,SELECT,TABLE,public.account,"SELECT password
   FROM account;",<not logged>
-NOTICE:  AUDIT: SESSION,2,1,READ,SELECT,UNKNOWN,public.account,"SELECT password
+NOTICE:  AUDIT: SESSION,2,1,READ,SELECT,TABLE,public.account,"SELECT password
   FROM account;",<not logged>
  password 
 ----------
@@ -495,13 +495,13 @@ NOTICE:  AUDIT: SESSION,2,1,READ,SELECT,UNKNOWN,public.account,"SELECT password
 -- Session logged on all tables because log = read and log_relation = on
 UPDATE account
    SET description = 'yada, yada';
-NOTICE:  AUDIT: OBJECT,3,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,3,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada';",<not logged>
-NOTICE:  AUDIT: SESSION,3,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: SESSION,3,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada';",<not logged>
-NOTICE:  AUDIT: OBJECT,3,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,3,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada';",<not logged>
-NOTICE:  AUDIT: SESSION,3,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: SESSION,3,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada';",<not logged>
 --
 -- Object logged because of:
@@ -510,16 +510,16 @@ NOTICE:  AUDIT: SESSION,3,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
 UPDATE account
    SET description = 'yada, yada'
  where password = 'HASH2';
-NOTICE:  AUDIT: OBJECT,4,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,4,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada'
  where password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: SESSION,4,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: SESSION,4,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada'
  where password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: OBJECT,4,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,4,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada'
  where password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: SESSION,4,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: SESSION,4,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET description = 'yada, yada'
  where password = 'HASH2';",<not logged>
 --
@@ -528,13 +528,13 @@ NOTICE:  AUDIT: SESSION,4,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
 -- Session logged on all tables because log = read and log_relation = on
 UPDATE account
    SET password = 'HASH2';
-NOTICE:  AUDIT: OBJECT,5,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,5,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: SESSION,5,1,WRITE,UPDATE,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: SESSION,5,1,WRITE,UPDATE,TABLE,public.account,"UPDATE account
    SET password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: OBJECT,5,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: OBJECT,5,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET password = 'HASH2';",<not logged>
-NOTICE:  AUDIT: SESSION,5,1,READ,SELECT,UNKNOWN,public.account,"UPDATE account
+NOTICE:  AUDIT: SESSION,5,1,READ,SELECT,TABLE,public.account,"UPDATE account
    SET password = 'HASH2';",<not logged>
 --
 -- Change back to superuser to do exhaustive tests
@@ -579,7 +579,7 @@ NOTICE:  AUDIT: SESSION,9,1,READ,SELECT,TABLE,public.account,"CREATE TABLE test.
 SELECT *
   FROM account
 DISTRIBUTED BY (id);",<none>
-NOTICE:  AUDIT: SESSION,9,2,READ,SELECT,UNKNOWN,public.account,"CREATE TABLE test.account_copy AS
+NOTICE:  AUDIT: SESSION,9,2,READ,SELECT,TABLE,public.account,"CREATE TABLE test.account_copy AS
 SELECT *
   FROM account
 DISTRIBUTED BY (id);",<none>
@@ -609,7 +609,7 @@ SELECT *
 EXECUTE pgclassstmt (1);
 NOTICE:  AUDIT: SESSION,12,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,12,1,AST_SEL,SELECT,TABLE,public.account,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,12,2,READ,SELECT,UNKNOWN,public.account,"PREPARE pgclassstmt (oid) AS
+NOTICE:  AUDIT: SESSION,12,2,READ,SELECT,TABLE,public.account,"PREPARE pgclassstmt (oid) AS
 SELECT *
   FROM account
  WHERE id = $1;",1
@@ -697,7 +697,7 @@ INSERT INTO test.test_insert (id)
 EXECUTE pgclassstmt (1);
 NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,TABLE,test.test_insert,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,23,2,WRITE,INSERT,UNKNOWN,test.test_insert,"PREPARE pgclassstmt (oid) AS
+NOTICE:  AUDIT: SESSION,23,2,WRITE,INSERT,TABLE,test.test_insert,"PREPARE pgclassstmt (oid) AS
 INSERT INTO test.test_insert (id)
 					  VALUES ($1);",1
 NOTICE:  AUDIT: SESSION,23,3,MISC,EXECUTE,,,EXECUTE pgclassstmt (1);,<none>
@@ -741,7 +741,7 @@ SELECT *
   FROM test;
 NOTICE:  AUDIT: SESSION,27,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,27,1,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,27,2,READ,SELECT,UNKNOWN,public.test,"SELECT *
+NOTICE:  AUDIT: SESSION,27,2,READ,SELECT,TABLE,public.test,"SELECT *
   FROM test;",<none>
  id | name | description 
 ----+------+-------------
@@ -752,7 +752,7 @@ SELECT
   FROM test;
 NOTICE:  AUDIT: SESSION,28,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,28,1,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,28,2,READ,SELECT,UNKNOWN,public.test,"SELECT
+NOTICE:  AUDIT: SESSION,28,2,READ,SELECT,TABLE,public.test,"SELECT
   FROM test;",<none>
 --
 (0 rows)
@@ -800,19 +800,19 @@ INSERT INTO TEST (id)
 		  VALUES (1);
 NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,32,2,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
+NOTICE:  AUDIT: SESSION,32,2,WRITE,INSERT,TABLE,public.test,"INSERT INTO TEST (id)
 		  VALUES (1);",<none>
 INSERT INTO TEST (id)
 		  VALUES (2);
 NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,33,2,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
+NOTICE:  AUDIT: SESSION,33,2,WRITE,INSERT,TABLE,public.test,"INSERT INTO TEST (id)
 		  VALUES (2);",<none>
 INSERT INTO TEST (id)
 		  VALUES (3);
 NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,34,2,WRITE,INSERT,UNKNOWN,public.test,"INSERT INTO TEST (id)
+NOTICE:  AUDIT: SESSION,34,2,WRITE,INSERT,TABLE,public.test,"INSERT INTO TEST (id)
 		  VALUES (3);",<none>
 DO $$
 DECLARE
@@ -842,7 +842,7 @@ BEGIN
 END $$;",<none>
 NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,35,3,READ,SELECT,UNKNOWN,public.test,"SELECT id
+NOTICE:  AUDIT: SESSION,35,3,READ,SELECT,TABLE,public.test,"SELECT id
 		  FROM test
 		ORDER BY id",<none>
 NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,,,"{QUERY...}",<none>
@@ -1084,7 +1084,7 @@ NOTICE:  AUDIT: SESSION,60,4,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  AUDIT: SESSION,60,5,READ,SELECT,,,SELECT 'cur1'::pg_catalog.refcursor,<none>
 NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,,,"{QUERY...}",<none>
 NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,TABLE,public.hoge,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,60,7,READ,SELECT,UNKNOWN,public.hoge,select * from hoge,<none>
+NOTICE:  AUDIT: SESSION,60,7,READ,SELECT,TABLE,public.hoge,select * from hoge,<none>
 NOTICE:  AUDIT: SESSION,60,8,AST_SEL,SELECT,,,{QUERY...},<none>
  test 
 ------
@@ -1104,20 +1104,20 @@ grant delete
    to auditor;
 insert into bar (col)
 		 values (1);
-NOTICE:  AUDIT: SESSION,61,1,WRITE,INSERT,UNKNOWN,public.bar,"insert into bar (col)
+NOTICE:  AUDIT: SESSION,61,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
 		 values (1);",<none>
 delete from bar;
-NOTICE:  AUDIT: OBJECT,62,1,WRITE,DELETE,UNKNOWN,public.bar,delete from bar;,<none>
-NOTICE:  AUDIT: SESSION,62,1,WRITE,DELETE,UNKNOWN,public.bar,delete from bar;,<none>
+NOTICE:  AUDIT: OBJECT,62,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
+NOTICE:  AUDIT: SESSION,62,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
 insert into bar (col)
 		 values (1);
-NOTICE:  AUDIT: SESSION,63,1,WRITE,INSERT,UNKNOWN,public.bar,"insert into bar (col)
+NOTICE:  AUDIT: SESSION,63,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
 		 values (1);",<none>
 delete from bar
  where col = 1;
-NOTICE:  AUDIT: OBJECT,64,1,WRITE,DELETE,UNKNOWN,public.bar,"delete from bar
+NOTICE:  AUDIT: OBJECT,64,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
  where col = 1;",<none>
-NOTICE:  AUDIT: SESSION,64,1,WRITE,DELETE,UNKNOWN,public.bar,"delete from bar
+NOTICE:  AUDIT: SESSION,64,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
  where col = 1;",<none>
 drop table bar;
 --
