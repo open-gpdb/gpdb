@@ -1087,7 +1087,7 @@ log_select_dml(Oid auditOid, List *rangeTabls)
         }
 
         /* Use the relation type to assign object type */
-        switch (rte->relkind)
+        switch (get_rel_relkind(relOid))
         {
             case RELKIND_RELATION:
                 auditEventStack->auditEvent.objectType = OBJECT_TYPE_TABLE;
