@@ -166,6 +166,9 @@ jobs:
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
               },
+              {"test":"ic-temp_tables_stat",
+               "make_configs":["src/test/isolation2:installcheck-tts"]
+              },
               {"test":"ic-mirrorless",
                "make_configs":["src/test/isolation2:installcheck-mirrorless"]
               },
