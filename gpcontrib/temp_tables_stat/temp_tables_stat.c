@@ -76,21 +76,21 @@ get_node_to_append(RelFileNodeBackend rnode)
 			if (RelFileNodeBackendEquals(rnode, node->files[i]))
 				return NULL;
 
-		if (node->next == DSM_HANDLE_INVALID)
-		{
-			/* Create a new node if the last node is full */
-			if (node->num == ARRAY_SIZE(node->files))
-			{
-				dsm_segment *next_seg = dsm_create(sizeof(TTSNode));
-				dsm_pin_mapping(next_seg);
-				node->next = dsm_segment_handle(next_seg);
-				node = dsm_segment_address(next_seg);
-				node->next = DSM_HANDLE_INVALID;
-				node->num = 0;
-			}
+		if (node->next != DSM_HANDLE_INVALID)
+			continue;
 
-			return node;
+		/* Create a new node if the last node is full */
+		if (node->num == ARRAY_SIZE(node->files))
+		{
+			dsm_segment *next_seg = dsm_create(sizeof(TTSNode));
+			dsm_pin_mapping(next_seg);
+			node->next = dsm_segment_handle(next_seg);
+			node = dsm_segment_address(next_seg);
+			node->next = DSM_HANDLE_INVALID;
+			node->num = 0;
 		}
+
+		return node;
 	}
 }
 
