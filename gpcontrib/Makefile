@@ -27,7 +27,8 @@ ifeq "$(enable_debug_extensions)" "yes"
                gp_subtransaction_overflow \
                gp_check_functions \
                gp_aux_catalog \
-			   gp_interconnect_stats
+               gp_interconnect_stats \
+               temp_tables_stat
 else
 	recurse_targets = gp_sparse_vector \
                gp_distribution_policy \
@@ -43,7 +44,8 @@ else
                gp_subtransaction_overflow \
                gp_check_functions \
                gp_aux_catalog \
-			   gp_interconnect_stats
+               gp_interconnect_stats \
+               temp_tables_stat
 endif
 
 ifeq "$(with_zstd)" "yes"
