@@ -218,11 +218,8 @@ tts_get_file_size(const char *dirname, const char *fn_start)
 		snprintf(fn, sizeof(fn), "%s/%s", dirname, direntry->d_name);
 
 		if (stat(fn, &fst) < 0)
-		{
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("could not stat file \"%s\": %m", fn)));
-		}
+			continue;
+
 		dirsize += fst.st_size;
 	}
 
