@@ -1731,7 +1731,7 @@ EventTriggerCollectAlterTableSubcmd(Node *subcmd, ObjectAddress address)
 		return;
 
 	Assert(IsA(subcmd, AlterTableCmd));
-	Assert(OidIsValid(currentEventTriggerState->currentCommand));
+	Assert(PointerIsValid(currentEventTriggerState->currentCommand));
 	Assert(OidIsValid(currentEventTriggerState->currentCommand->d.alterTable.objectId));
 
 	oldcxt = MemoryContextSwitchTo(currentEventTriggerState->cxt);
