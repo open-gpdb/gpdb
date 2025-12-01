@@ -130,15 +130,7 @@ static void validate_index_heapscan(Relation heapRelation,
 						IndexInfo *indexInfo,
 						Snapshot snapshot,
 						v_i_state *state);
-static double IndexBuildHeapScan(Relation heapRelation,
-								 Relation indexRelation,
-								 struct IndexInfo *indexInfo,
-								 bool allow_sync,
-								 EState *estate,
-								 Snapshot snapshot,
-								 TransactionId OldestXmin,
-								 IndexBuildCallback callback,
-								 void *callback_state);
+
 static double IndexBuildAppendOnlyRowScan(Relation parentRelation,
 										  Relation indexRelation,
 										  struct IndexInfo *indexInfo,
@@ -2062,7 +2054,7 @@ BuildDummyIndexInfo(Relation index)
  *			Construct values[] and isnull[] arrays for a new index tuple.
  *
  *	indexInfo		Info about the index
- *	slot			Heap tuple for which we must prepare an index entry
+ *	slot			Table slot for which we must prepare an index entry
  *	estate			executor state for evaluating any index expressions
  *	values			Array of index Datums (output area)
  *	isnull			Array of is-null indicators (output area)
@@ -2633,7 +2625,7 @@ IndexBuildScan(Relation parentRelation,
  * the AM might reject some of the tuples for its own reasons, such as being
  * unable to store NULLs.
  */
-static double
+double
 IndexBuildHeapScan(Relation heapRelation,
 				   Relation indexRelation,
 				   struct IndexInfo *indexInfo,

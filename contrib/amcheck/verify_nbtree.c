@@ -33,6 +33,7 @@
 #include "lib/bloomfilter.h"
 #include "miscadmin.h"
 #include "storage/lmgr.h"
+#include "storage/procarray.h"
 #include "storage/smgr.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
@@ -127,7 +128,7 @@ static void bt_target_page_check(BtreeCheckState *state);
 static ScanKey bt_right_page_check_scankey(BtreeCheckState *state);
 static void bt_downlink_check(BtreeCheckState *state, BlockNumber childblock,
 				  ScanKey targetkey);
-static void bt_tuple_present_callback(Relation index, HeapTuple htup,
+static void bt_tuple_present_callback(Relation index, ItemPointer tupleId,
 						  Datum *values, bool *isnull,
 						  bool tupleIsAlive, void *checkstate);
 static inline bool offset_is_negative_infinity(BTPageOpaque opaque,
@@ -510,7 +511,11 @@ bt_check_every_level(Relation rel, Relation heaprel, bool readonly,
 	 */
 	if (state->heapallindexed)
 	{
+		EState	   *estate;
+		ExprContext *econtext;
+		TupleTableSlot	*slot;
 		IndexInfo  *indexinfo = BuildIndexInfo(state->rel);
+#if 0
 		HeapScanDesc scan;
 
 		/*
@@ -520,12 +525,14 @@ bt_check_every_level(Relation rel, Relation heaprel, bool readonly,
 		 *
 		 * Note that IndexBuildHeapScan() calls heap_endscan() for us.
 		 */
+
 		scan = heap_beginscan_strat(state->heaprel, /* relation */
 									snapshot,	/* snapshot */
 									0,	/* number of keys */
 									NULL,	/* scan key */
 									true,	/* buffer access strategy OK */
 									true);	/* syncscan OK? */
+#endif
 
 		/*
 		 * Scan will behave as the first scan of a CREATE INDEX CONCURRENTLY
@@ -554,13 +561,28 @@ bt_check_every_level(Relation rel, Relation heaprel, bool readonly,
 			 RelationGetRelationName(state->rel),
 			 RelationGetRelationName(state->heaprel));
 
+		/*
+		* Need an EState for evaluation of index expressions and partial-index
+		* predicates.	Also a slot to hold the current tuple.
+		*/
+		estate = CreateExecutorState();
+		econtext = GetPerTupleExprContext(estate);
+		slot = MakeSingleTupleTableSlot(RelationGetDescr(state->heaprel));
+
+		/* Arrange for econtext's scan tuple to be the tuple under test */
+		econtext->ecxt_scantuple = slot;
+
+
 		IndexBuildHeapScan(state->heaprel, state->rel, indexinfo, true,
-						   bt_tuple_present_callback, (void *) state, scan);
+						   estate, snapshot, GetOldestXmin(state->heaprel, true), bt_tuple_present_callback, (void *) state);
 
 		ereport(DEBUG1,
 				(errmsg_internal("finished verifying presence of " INT64_FORMAT " tuples from table \"%s\" with bitset %.2f%% set",
 								 state->heaptuplespresent, RelationGetRelationName(heaprel),
 								 100.0 * bloom_prop_bits_set(state->filter))));
+
+		ExecDropSingleTupleTableSlot(slot);
+		FreeExecutorState(estate);
 
 		if (snapshot != SnapshotAny)
 			UnregisterSnapshot(snapshot);
@@ -1368,7 +1390,7 @@ bt_downlink_check(BtreeCheckState *state, BlockNumber childblock,
  * also allows us to detect the corruption in many cases.
  */
 static void
-bt_tuple_present_callback(Relation index, HeapTuple htup, Datum *values,
+bt_tuple_present_callback(Relation index, ItemPointer tupleId, Datum *values,
 						  bool *isnull, bool tupleIsAlive, void *checkstate)
 {
 	BtreeCheckState *state = (BtreeCheckState *) checkstate;
@@ -1392,7 +1414,7 @@ bt_tuple_present_callback(Relation index, HeapTuple htup, Datum *values,
 	 * we don't decompress/normalize toasted values as part of fingerprinting.
 	 */
 	itup = index_form_tuple(RelationGetDescr(index), values, isnull);
-	itup->t_tid = htup->t_self;
+	itup->t_tid = *tupleId;
 
 	/* Probe Bloom filter -- tuple should be present */
 	if (bloom_lacks_element(state->filter, (unsigned char *) itup,
