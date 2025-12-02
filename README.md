@@ -6,7 +6,7 @@ We've forked here the original GPDB repository after Greenplum became a closed-s
 
 The main goal is:
 - to fix bugs, especially those leading to core dump master/segment processes;
-- to adopt existing GP/PG extensions for the latest stable GP version;
+- to adopt existing Greenplum/PostgreSQL extensions for the latest stable GP version;
 - backporting stable features from other projects (Postgres > 9.4, Cloudberry);
 - creating a new stable version (7.X) by fixing everything we stumble upon.
 
