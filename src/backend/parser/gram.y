@@ -4257,8 +4257,8 @@ OptTemp:	TEMPORARY					{ $$ = RELPERSISTENCE_TEMP; }
 			| TEMP						{ $$ = RELPERSISTENCE_TEMP; }
 			| LOCAL TEMPORARY			{ $$ = RELPERSISTENCE_TEMP; }
 			| LOCAL TEMP				{ $$ = RELPERSISTENCE_TEMP; }
-			| FAST TEMPORARY			{ $$ = RELPERSISTENCE_FAST_TEMP; }
-			| FAST TEMP				{ $$ = RELPERSISTENCE_FAST_TEMP; }
+			| FAST TEMPORARY			{ $$ = RELPERSISTENCE_TEMP; }
+			| FAST TEMP				{ $$ = RELPERSISTENCE_TEMP; }
 			| GLOBAL TEMPORARY
 				{
 					ereport(WARNING,
@@ -12310,12 +12310,12 @@ OptTempTableName:
 			| FAST TEMPORARY opt_table qualified_name
 				{
 					$$ = $4;
-					$$->relpersistence = RELPERSISTENCE_FAST_TEMP;
+					$$->relpersistence = RELPERSISTENCE_TEMP;
 				}
 			| FAST TEMP opt_table qualified_name
 				{
 					$$ = $4;
-					$$->relpersistence = RELPERSISTENCE_FAST_TEMP;
+					$$->relpersistence = RELPERSISTENCE_TEMP;
 				}
 			| GLOBAL TEMPORARY opt_table qualified_name
 				{
