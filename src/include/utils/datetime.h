@@ -313,8 +313,12 @@ extern int DecodeInterval(char **field, int *ftype, int nf, int range,
 extern int DecodeISO8601Interval(char *str,
 					  int *dtype, struct pg_tm * tm, fsec_t *fsec);
 
+/* XXX: we keep this in #if 0 for sake of (possible) rebase */
+#if 0
 extern void DateTimeParseError(int dterr, const char *str,
 				   const char *datatype) __attribute__((noreturn));
+#endif
+
 extern bool DateTimeParseErrorSafe(int dterr, const char *str,
 				   const char *datatype, Node *escontext);
 
