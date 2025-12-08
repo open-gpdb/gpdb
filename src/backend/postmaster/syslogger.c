@@ -592,7 +592,7 @@ SysLoggerMain(int argc, char *argv[])
 		if (alert_log_level_opened && alert_rotation_requested)
 		{
 		    if (!time_based_rotation && size_rotation_for_alert == 0)
-		        size_rotation_for_alert = true;
+				size_rotation_for_alert = true;
 
 			alert_rotation_requested = false;
 			all_rotations_occurred &=
