@@ -14,6 +14,11 @@
 
 #ifndef CDBINTERCONNECT_H
 #define CDBINTERCONNECT_H
+#include <stdint.h>
+#include <stdlib.h>
+#include <sys/time.h>
+#include <sys/queue.h>
+#include <pthread.h>
 
 #include "libpq/libpq-be.h"
 #include "nodes/primnodes.h"
@@ -96,6 +101,9 @@ typedef struct icpkthdr
      */
     uint32      seq;
     uint32      extraSeq;
+	uint64_t send_time;
+	uint64_t recv_time;
+	uint8_t retry_times;
 } icpkthdr;
 
 typedef enum MotionConnState
@@ -306,6 +314,50 @@ struct MotionConn
 	 * all the remap information.
 	 */
 	TupleRemapper	*remapper;
+
+	struct {
+			uint32_t ts_rto;
+			uint32_t rto;
+			uint32_t srtt;
+			uint32_t rttvar;
+			uint32_t snd_una;
+			uint16_t nrtx;
+			uint16_t max_nrtx;
+			uint32_t mss;
+			uint32_t cwnd;
+			uint32_t ssthresh;
+			uint32_t fss;
+			uint8_t loss_count;
+			uint32_t mdev;
+			uint32_t mdev_max;
+			uint32_t rtt_seq;		/* sequence number to update rttvar */
+			uint32_t ts_all_rto;
+			bool karn_mode;
+	} rttvar;
+	
+	uint8_t on_timewait_list;
+	int16_t on_rto_idx;
+
+	uint32_t snd_nxt;		/* send next */
+	struct {
+			/* send sequence variables */
+			uint32_t snd_una;		/* send unacknoledged */
+			uint32_t snd_wnd;		/* send window (unscaled) */
+
+			/* retransmission timeout variables */
+			uint8_t nrtx;			/* number of retransmission */
+			uint8_t max_nrtx;		/* max number of retransmission */
+			uint32_t rto;			/* retransmission timeout */
+			uint32_t ts_rto;		/* timestamp for retransmission timeout */
+
+			/* congestion control variables */
+			uint32_t cwnd;				/* congestion window */
+			uint32_t ssthresh;			/* slow start threshold */
+
+			TAILQ_ENTRY(MotionConn) send_link;
+			TAILQ_ENTRY(MotionConn) timer_link;		/* timer link (rto list) */
+
+	} sndvar;
 };
 
 /*
