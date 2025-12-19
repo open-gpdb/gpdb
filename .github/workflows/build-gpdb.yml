@@ -53,7 +53,7 @@ jobs:
             },
             {
               "name": "test",
-              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests"
+              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests --with-yagp-hooks-collector"
             }
           ]}'
           # Output the matrix for GitHub Actions
@@ -110,6 +110,10 @@ jobs:
                "make_configs":["src/test/regress:installcheck-good"],
                "pg_settings":{"optimizer":"on"},
                "extension":"pgaudit"
+              },
+              {"test":"gpcontrib-yagp-hooks-collector",
+               "make_configs":["gpcontrib/yagp_hooks_collector:installcheck"],
+               "extension":"yagp_hooks_collector"
               },
               {"test":"ic-expandshrink",
                "make_configs":["src/test/isolation2:installcheck-expandshrink"]
@@ -331,6 +335,8 @@ jobs:
             echo "::error::Container initialization failed"
             exit 1
           fi
+
+          apt install -y libprotobuf-dev protobuf-compiler
 
           export LOGS_DIR=build-logs
 
@@ -794,7 +800,8 @@ jobs:
           fi
 
           apt update -y
-          apt install -y tzdata
+          apt install -y tzdata \
+                         libprotobuf-dev protobuf-compiler
           pip2 install pyyaml
 
           export LOGS_DIR=build-logs
@@ -1026,7 +1033,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=/opt/greenplum-db-6
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests --with-yagp-hooks-collector"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -1100,6 +1107,22 @@ jobs:
                     psql postgres"
                 then
                     echo "Error creating pgaudit extension"
+                    exit 1
+                fi
+                ;;
+              yagp_hooks_collector)
+                export BUILD_DESTINATION=/opt/greenplum-db-6
+
+                if ! su - gpadmin -c "source ${BUILD_DESTINATION}/greenplum_path.sh && \
+                  source ${SRC_DIR}/gpAux/gpdemo/gpdemo-env.sh && \
+                  gpconfig -c shared_preload_libraries -v 'yagp_hooks_collector' && \
+                  gpstop -ra && \
+                  echo 'CREATE EXTENSION IF NOT EXISTS yagp_hooks_collector; \
+                        SHOW shared_preload_libraries; \
+                        TABLE pg_extension;' | \
+                    psql postgres"
+                then
+                    echo "Error creating yagp_hooks_collector extension"
                     exit 1
                 fi
                 ;;
