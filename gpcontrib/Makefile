@@ -48,6 +48,9 @@ else
                temp_tables_stat
 endif
 
+ifeq "$(with_yagp_hooks_collector)" "yes"
+	recurse_targets += yagp_hooks_collector
+endif
 ifeq "$(with_zstd)" "yes"
 	recurse_targets += zstd
 endif
