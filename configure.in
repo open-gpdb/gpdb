@@ -1178,6 +1178,13 @@ PGAC_ARG_BOOL(with, zstd, yes,
 AC_SUBST(with_zstd)
 
 #
+# yagp_hooks_collector
+#
+PGAC_ARG_BOOL(with, yagp_hooks_collector, no,
+              [build with YAGP hooks collector extension])
+AC_SUBST(with_yagp_hooks_collector)
+
+#
 # quicklz
 #
 PGAC_ARG_BOOL(with, quicklz, no,
