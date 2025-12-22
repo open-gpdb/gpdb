@@ -158,13 +158,34 @@ SOptContext::Free(SOptContext::EPin input, SOptContext::EPin output)
 //
 //---------------------------------------------------------------------------
 CHAR *
-SOptContext::CloneErrorMsg(MemoryContext context)
+SOptContext::CloneErrorMsg(MemoryContext context, BOOL *clone_failed)
 {
+	*clone_failed = FALSE;
+
 	if (NULL == context || NULL == m_error_msg)
 	{
 		return NULL;
 	}
-	return gpdb::MemCtxtStrdup(context, m_error_msg);
+
+	CHAR *error_msg;
+	GPOS_TRY
+	{
+#ifdef FAULT_INJECTOR
+		if (gpdb::InjectFaultInOptTasks("opt_clone_error_msg") == FaultInjectorTypeSkip)
+		{
+			GpdbEreport(ERRCODE_INTERNAL_ERROR, ERROR, "Injected error", NULL);
+		}
+#endif
+		error_msg = gpdb::MemCtxtStrdup(context, m_error_msg);
+	}
+	GPOS_CATCH_EX(ex)
+	{
+		error_msg = NULL;
+		*clone_failed = TRUE;
+	}
+	GPOS_CATCH_END;
+
+	return error_msg;
 }
 
 
