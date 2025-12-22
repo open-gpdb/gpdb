@@ -31,8 +31,7 @@ RUN ln -snf /usr/share/zoneinfo/Europe/London /etc/localtime && echo Europe/Lond
   libpam0g-dev libpam0g libcgroup1 libyaml-0-2 libldap-2.4-2 libssl1.1 \
   ninja-build python-dev python-setuptools quilt unzip wget zlib1g-dev libuv1-dev \
   libgpgme-dev libgpgme11 sudo iproute2 less software-properties-common \
-  openssh-client openssh-server \
-  libprotobuf-dev protobuf-compiler
+  openssh-client openssh-server
 
 COPY yezzey_test/install_yproxy.sh /home/gpadmin
 
