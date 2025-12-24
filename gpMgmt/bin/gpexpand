@@ -1470,7 +1470,20 @@ class gpexpand:
         """
         delete_statements = ["delete from pg_catalog.%s" % tab for tab in MASTER_ONLY_TABLES_MAPPED]
         truncate_statements = ["truncate pg_catalog.%s" % tab for tab in MASTER_ONLY_TABLES_NON_MAPPED]
-        statements = delete_statements + truncate_statements
+        truncate_aoco = """do $$ 
+            declare
+                cmd text;
+            begin 
+                for cmd in
+                    select 'truncate only ' || oid::regclass::text
+                      from pg_class
+                     where relstorage = 'c'
+                loop
+                    execute cmd;
+                end loop; 
+            end
+            $$"""
+        statements = delete_statements + truncate_statements + [ truncate_aoco ]
         """
           Connect to each database in the new segments, and clean up the catalog tables.
         """
