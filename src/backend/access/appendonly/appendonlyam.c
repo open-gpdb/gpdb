@@ -3553,14 +3553,12 @@ appendonly_acquire_sample_rows(Relation onerel, int elevel, HeapTuple *rows,
 {
 	FileSegTotals	*fileSegTotals;
 	BlockNumber		totalBlocks;
-	BlockNumber     blksdone = 0;
 	int		numrows = 0;	/* # number of rows sampled */
 	double	liverows = 0;	/* # live rows seen */
 	double	deadrows = 0;	/* # dead rows seen */
 
 	Snapshot	appendOnlyMetaDataSnapshot;
 	Assert(targrows > 0);
-	int			i;
 
 	appendOnlyMetaDataSnapshot = GetTransactionSnapshot();
 

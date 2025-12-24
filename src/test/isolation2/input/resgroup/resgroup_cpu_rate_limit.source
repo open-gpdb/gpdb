@@ -89,8 +89,8 @@ CREATE VIEW cancel_all AS
     WHERE query LIKE 'SELECT * FROM busy%';
 
 -- create two resource groups
-CREATE RESOURCE GROUP rg1_cpu_test WITH (concurrency=5, cpu_rate_limit=10, memory_limit=20);
-CREATE RESOURCE GROUP rg2_cpu_test WITH (concurrency=5, cpu_rate_limit=20, memory_limit=20);
+CREATE RESOURCE GROUP rg1_cpu_test WITH (concurrency=5, cpu_rate_limit=10, memory_limit=30);
+CREATE RESOURCE GROUP rg2_cpu_test WITH (concurrency=5, cpu_rate_limit=20, memory_limit=30);
 
 --
 -- check gpdb cgroup configuration

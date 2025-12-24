@@ -81,7 +81,7 @@ static int SimpleXLogPageRead(XLogReaderState *xlogreader,
  * additional crosscheck on successful recovery.  If the file size is not
  * known, set expectedSize = 0.
  */
-int
+static int
 RWRestoreArchivedFile(const char *path, const char *xlogfname,
 					off_t expectedSize, const char *restoreCommand, int segindx)
 {
