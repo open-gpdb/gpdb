@@ -4,7 +4,7 @@ default: all
 top_builddir = ..
 include $(top_builddir)/src/Makefile.global
 
-.PHONY: all install clean distclean gpcloud mapreduce
+.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan
 
 #
 # targets built via top_builddir/GNUmakefile
@@ -27,7 +27,8 @@ ifeq "$(enable_debug_extensions)" "yes"
                gp_subtransaction_overflow \
                gp_check_functions \
                gp_aux_catalog \
-			   gp_interconnect_stats
+               gp_interconnect_stats \
+               temp_tables_stat
 else
 	recurse_targets = gp_sparse_vector \
                gp_distribution_policy \
@@ -43,9 +44,13 @@ else
                gp_subtransaction_overflow \
                gp_check_functions \
                gp_aux_catalog \
-			   gp_interconnect_stats
+               gp_interconnect_stats \
+               temp_tables_stat
 endif
 
+ifeq "$(with_yagp_hooks_collector)" "yes"
+	recurse_targets += yagp_hooks_collector
+endif
 ifeq "$(with_zstd)" "yes"
 	recurse_targets += zstd
 endif
@@ -78,15 +83,13 @@ orafce:
 	fi
 
 sr_plan:
-	@if [ "$(enable_sr_plan)" == "yes" ]; then \
-  		$(MAKE) -C sr_plan USE_PGXS=1 && \
-  		$(MAKE) -C sr_plan USE_PGXS=1 install; \
+	@if [ "$(enable_sr_plan)" = "yes" ]; then \
+  		$(MAKE) -C sr_plan NO_PGXS=true; \
  	fi
 
 pgaudit:
-	@if [ "$(enable_pgaudit)" == "yes" ]; then \
-  		$(MAKE) -C pgaudit USE_PGXS=1 && \
-  		$(MAKE) -C pgaudit USE_PGXS=1 install; \
+	@if [ "$(enable_pgaudit)" = "yes" ]; then \
+  		$(MAKE) -C pgaudit NO_PGXS=true; \
  	fi
 
 
@@ -104,6 +107,12 @@ install:
 	@if [ "$(enable_orafce)" = "yes" ]; then \
 		$(MAKE) -C orafce NO_PGXS=true install; \
 	fi
+	@if [ "$(enable_pgaudit)" = "yes" ]; then \
+                $(MAKE) -C pgaudit NO_PGXS=true install; \
+        fi
+	@if [ "$(enable_sr_plan)" = "yes" ]; then \
+                $(MAKE) -C sr_plan NO_PGXS=true install; \
+        fi
 
 clean:
 	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce clean; fi
@@ -123,6 +132,7 @@ distclean:
 installcheck:
 	$(MAKE) -C gp_internal_tools installcheck
 	$(MAKE) -C gp_array_agg installcheck
+	$(MAKE) -C gp_aux_catalog installcheck
 	if [ "$(enable_mapreduce)" = "yes" ]; then \
 		$(MAKE) -C gpmapreduce installcheck; \
 	fi
@@ -133,3 +143,4 @@ installcheck:
 	$(MAKE) -C gp_percentile_agg installcheck
 	$(MAKE) -C gp_subtransaction_overflow installcheck
 	$(MAKE) -C gp_check_functions installcheck
+	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit installcheck; fi

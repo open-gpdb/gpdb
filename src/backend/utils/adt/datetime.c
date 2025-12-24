@@ -4083,11 +4083,14 @@ DecodeUnits(int field, char *lowtoken, int *val)
  * DTERR_TZDISP_OVERFLOW from DTERR_FIELD_OVERFLOW, but SQL99 mandates three
  * separate SQLSTATE codes, so ...
  */
+/* XXX: we keep this in #if 0 for sake of (possible) rebase */
+#if 0
 void
 DateTimeParseError(int dterr, const char *str, const char *datatype)
 {
 	(void) DateTimeParseErrorSafe(dterr, str, datatype, NULL);
 }
+#endif
 
 bool
 DateTimeParseErrorSafe(int dterr, const char *str, const char *datatype, Node *escontext)

@@ -1711,7 +1711,7 @@ ScanQueryForLocks(Query *parsetree, bool acquire)
 					UnlockRelationOid(rte->relid, lockmode);
 
 					/*
-					 * If we need to release lock, we also need release leaf patition lock.
+					 * If we need to release lock, we also need release leaf partition lock.
 					 */
 					if (rel_is_partitioned(rte->relid) && ((parsetree->commandType == CMD_INSERT 
 					&& !gp_enable_global_deadlock_detector) || parsetree->commandType == CMD_UPDATE 

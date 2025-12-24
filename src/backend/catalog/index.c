@@ -54,6 +54,7 @@
 #include "catalog/pg_trigger.h"
 #include "catalog/pg_type.h"
 #include "catalog/storage.h"
+#include "commands/event_trigger.h"
 #include "commands/tablecmds.h"
 #include "commands/trigger.h"
 #include "executor/executor.h"
@@ -129,15 +130,7 @@ static void validate_index_heapscan(Relation heapRelation,
 						IndexInfo *indexInfo,
 						Snapshot snapshot,
 						v_i_state *state);
-static double IndexBuildHeapScan(Relation heapRelation,
-								 Relation indexRelation,
-								 struct IndexInfo *indexInfo,
-								 bool allow_sync,
-								 EState *estate,
-								 Snapshot snapshot,
-								 TransactionId OldestXmin,
-								 IndexBuildCallback callback,
-								 void *callback_state);
+
 static double IndexBuildAppendOnlyRowScan(Relation parentRelation,
 										  Relation indexRelation,
 										  struct IndexInfo *indexInfo,
@@ -261,7 +254,8 @@ relationHasUniqueIndex(Relation rel)
 void
 index_check_primary_key(Relation heapRel,
 						IndexInfo *indexInfo,
-						bool is_alter_table)
+						bool is_alter_table,
+						IndexStmt *stmt)
 {
 	List	   *cmds;
 	int			i;
@@ -334,7 +328,11 @@ index_check_primary_key(Relation heapRel,
 	 * unduly.
 	 */
 	if (cmds)
+	{
+		EventTriggerAlterTableStart((Node *) stmt);
 		AlterTableInternal(RelationGetRelid(heapRel), cmds, false);
+		EventTriggerAlterTableEnd();
+	}
 }
 
 /*
@@ -2056,7 +2054,7 @@ BuildDummyIndexInfo(Relation index)
  *			Construct values[] and isnull[] arrays for a new index tuple.
  *
  *	indexInfo		Info about the index
- *	slot			Heap tuple for which we must prepare an index entry
+ *	slot			Table slot for which we must prepare an index entry
  *	estate			executor state for evaluating any index expressions
  *	values			Array of index Datums (output area)
  *	isnull			Array of is-null indicators (output area)
@@ -2627,7 +2625,7 @@ IndexBuildScan(Relation parentRelation,
  * the AM might reject some of the tuples for its own reasons, such as being
  * unable to store NULLs.
  */
-static double
+double
 IndexBuildHeapScan(Relation heapRelation,
 				   Relation indexRelation,
 				   struct IndexInfo *indexInfo,

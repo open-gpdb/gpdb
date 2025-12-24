@@ -19,6 +19,7 @@
 #include "catalog/namespace.h"
 #include "commands/dbcommands.h"
 #include "catalog/pg_proc.h"
+#include "cdb/cdbvars.h"
 #include "commands/event_trigger.h"
 #include "executor/executor.h"
 #include "executor/spi.h"
@@ -26,6 +27,8 @@
 #include "libpq/auth.h"
 #include "nodes/nodes.h"
 #include "nodes/params.h"
+#include "optimizer/planner.h"
+#include "rewrite/rewriteHandler.h"
 #include "tcop/utility.h"
 #include "tcop/deparse_utility.h"
 #include "utils/acl.h"
@@ -61,6 +64,9 @@ PG_FUNCTION_INFO_V1(pgaudit_sql_drop);
 #define LOG_READ        (1 << 3)    /* SELECTs */
 #define LOG_ROLE        (1 << 4)    /* GRANT/REVOKE, CREATE/ALTER/DROP ROLE */
 #define LOG_WRITE       (1 << 5)    /* INSERT, UPDATE, DELETE, TRUNCATE */
+#define LOG_AST_CTAS    (1 << 6)    /* AST for CTAS */
+#define LOG_AST_SEL     (1 << 7)    /* AST for SELECT */
+#define LOG_AST_MOD     (1 << 8)    /* AST for INSERT, UPDATE, DELETE */
 
 #define LOG_NONE        0               /* nothing */
 #define LOG_ALL         (0xFFFFFFFF)    /* All */
@@ -81,6 +87,9 @@ static int auditLogBitmap = LOG_NONE;
 #define CLASS_READ      "READ"
 #define CLASS_ROLE      "ROLE"
 #define CLASS_WRITE     "WRITE"
+#define CLASS_AST_CTAS  "AST_CTAS"
+#define CLASS_AST_SEL   "AST_SEL"
+#define CLASS_AST_MOD   "AST_MOD"
 
 #define CLASS_NONE      "NONE"
 #define CLASS_ALL       "ALL"
@@ -488,20 +497,28 @@ log_audit_event(AuditEventStackItem *stackItem)
     /* Classify the statement using log stmt level and the command tag */
     switch (stackItem->auditEvent.logStmtLevel)
     {
-        /* All mods go in WRITE class, except EXECUTE */
         case LOGSTMT_MOD:
-            className = CLASS_WRITE;
-            class = LOG_WRITE;
-
-            switch (stackItem->auditEvent.commandTag)
+            if (stackItem->auditEvent.commandText[0] == '{')
             {
-                /* Currently, only EXECUTE is different */
-                case T_ExecuteStmt:
-                    className = CLASS_MISC;
-                    class = LOG_MISC;
-                    break;
-                default:
-                    break;
+                className = CLASS_AST_MOD;
+                class = LOG_AST_MOD;
+            }
+            else
+            {
+                /* All mods go in WRITE class, except EXECUTE */
+                className = CLASS_WRITE;
+                class = LOG_WRITE;
+
+                switch (stackItem->auditEvent.commandTag)
+                {
+                    /* Currently, only EXECUTE is different */
+                    case T_ExecuteStmt:
+                        className = CLASS_MISC;
+                        class = LOG_MISC;
+                        break;
+                    default:
+                        break;
+                }
             }
             break;
 
@@ -590,6 +607,14 @@ log_audit_event(AuditEventStackItem *stackItem)
                     }
                     break;
 
+                case T_CreateTableAsStmt:
+                    if (stackItem->auditEvent.commandText[0] == '{')
+                    {
+                        className = CLASS_AST_CTAS;
+                        class = LOG_AST_CTAS;
+                    }
+                    break;
+
                 default:
                     break;
             }
@@ -604,8 +629,16 @@ log_audit_event(AuditEventStackItem *stackItem)
                 case T_SelectStmt:
                 case T_PrepareStmt:
                 case T_PlannedStmt:
-                    className = CLASS_READ;
-                    class = LOG_READ;
+                    if (stackItem->auditEvent.commandText[0] == '{')
+                    {
+                        className = CLASS_AST_SEL;
+                        class = LOG_AST_SEL;
+                    }
+                    else
+                    {
+                        className = CLASS_READ;
+                        class = LOG_READ;
+                    }
                     break;
 
                 /* FUNCTION statements */
@@ -1054,7 +1087,7 @@ log_select_dml(Oid auditOid, List *rangeTabls)
         }
 
         /* Use the relation type to assign object type */
-        switch (rte->relkind)
+        switch (get_rel_relkind(relOid))
         {
             case RELKIND_RELATION:
                 auditEventStack->auditEvent.objectType = OBJECT_TYPE_TABLE;
@@ -1155,6 +1188,7 @@ log_select_dml(Oid auditOid, List *rangeTabls)
         }
 
         pfree(auditEventStack->auditEvent.objectName);
+        auditEventStack->auditEvent.objectName = NULL;
     }
 
     /*
@@ -1165,7 +1199,6 @@ log_select_dml(Oid auditOid, List *rangeTabls)
     if (!found)
     {
         auditEventStack->auditEvent.granted = false;
-        auditEventStack->auditEvent.logged = false;
 
         log_audit_event(auditEventStack);
     }
@@ -1223,12 +1256,59 @@ log_function_execute(Oid objectId)
 }
 
 /*
+ * Push a new audit event for certain type of operation
+ */
+static AuditEventStackItem *
+stack_push_cmd(CmdType cmd)
+{
+    /* Push the audit event onto the stack */
+    AuditEventStackItem *stackItem = stack_push();
+
+    /* Initialize event using cmd */
+    switch (cmd)
+    {
+        case CMD_SELECT:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
+            stackItem->auditEvent.commandTag = T_SelectStmt;
+            stackItem->auditEvent.command = COMMAND_SELECT;
+            break;
+
+        case CMD_INSERT:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
+            stackItem->auditEvent.commandTag = T_InsertStmt;
+            stackItem->auditEvent.command = COMMAND_INSERT;
+            break;
+
+        case CMD_UPDATE:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
+            stackItem->auditEvent.commandTag = T_UpdateStmt;
+            stackItem->auditEvent.command = COMMAND_UPDATE;
+            break;
+
+        case CMD_DELETE:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
+            stackItem->auditEvent.commandTag = T_DeleteStmt;
+            stackItem->auditEvent.command = COMMAND_DELETE;
+            break;
+
+        default:
+            stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
+            stackItem->auditEvent.commandTag = T_Invalid;
+            stackItem->auditEvent.command = COMMAND_UNKNOWN;
+            break;
+    }
+
+    return stackItem;
+}
+
+/*
  * Hook functions
  */
 static ExecutorCheckPerms_hook_type next_ExecutorCheckPerms_hook = NULL;
 static ProcessUtility_hook_type next_ProcessUtility_hook = NULL;
 static object_access_hook_type next_object_access_hook = NULL;
 static ExecutorStart_hook_type next_ExecutorStart_hook = NULL;
+static planner_hook_type next_planner_hook = NULL;
 
 /*
  * Hook ExecutorStart to get the query text and basic command type for queries
@@ -1242,42 +1322,7 @@ pgaudit_ExecutorStart_hook(QueryDesc *queryDesc, int eflags)
 
     if (!internalStatement)
     {
-        /* Push the audit even onto the stack */
-        stackItem = stack_push();
-
-        /* Initialize command using queryDesc->operation */
-        switch (queryDesc->operation)
-        {
-            case CMD_SELECT:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
-                stackItem->auditEvent.commandTag = T_SelectStmt;
-                stackItem->auditEvent.command = COMMAND_SELECT;
-                break;
-
-            case CMD_INSERT:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
-                stackItem->auditEvent.commandTag = T_InsertStmt;
-                stackItem->auditEvent.command = COMMAND_INSERT;
-                break;
-
-            case CMD_UPDATE:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
-                stackItem->auditEvent.commandTag = T_UpdateStmt;
-                stackItem->auditEvent.command = COMMAND_UPDATE;
-                break;
-
-            case CMD_DELETE:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_MOD;
-                stackItem->auditEvent.commandTag = T_DeleteStmt;
-                stackItem->auditEvent.command = COMMAND_DELETE;
-                break;
-
-            default:
-                stackItem->auditEvent.logStmtLevel = LOGSTMT_ALL;
-                stackItem->auditEvent.commandTag = T_Invalid;
-                stackItem->auditEvent.command = COMMAND_UNKNOWN;
-                break;
-        }
+        stackItem = stack_push_cmd(queryDesc->operation);
 
         /* Initialize the audit event */
         stackItem->auditEvent.commandText = queryDesc->sourceText;
@@ -1314,7 +1359,7 @@ pgaudit_ExecutorCheckPerms_hook(List *rangeTabls, bool abort)
     auditOid = get_role_oid(auditRole, true);
 
     /* Log DML if the audit role is valid or session logging is enabled */
-    if ((auditOid != InvalidOid || auditLogBitmap != 0) &&
+    if ((auditOid != InvalidOid || auditLogBitmap != 0) &&  auditEventStack &&
         !IsAbortedTransactionBlockState())
         log_select_dml(auditOid, rangeTabls);
 
@@ -1456,6 +1501,31 @@ pgaudit_object_access_hook(ObjectAccessType access,
         (*next_object_access_hook) (access, classId, objectId, subId, arg);
 }
 
+static PlannedStmt *
+pgaudit_planner_hook(Query *parse, int cursorOptions, ParamListInfo boundParams)
+{
+    if (!internalStatement &&
+        (((auditLogBitmap & LOG_AST_SEL) &&
+            parse->commandType == CMD_SELECT &&
+            /* Don't log CTAS, because the AST is logged in
+             * pgaudit_ddl_command_end to log ASTs for successful CTASs only */
+            parse->parentStmtType != PARENTSTMTTYPE_CTAS) ||
+        ((auditLogBitmap & LOG_AST_MOD) &&
+            (parse->commandType == CMD_UPDATE ||
+             parse->commandType == CMD_INSERT ||
+             parse->commandType == CMD_DELETE))))
+    {
+        AuditEventStackItem *stackItem = stack_push_cmd(parse->commandType);
+        stackItem->auditEvent.commandText = nodeToString(parse);
+        log_audit_event(stackItem);
+    }
+
+    if (next_planner_hook)
+        return (*next_planner_hook) (parse, cursorOptions, boundParams);
+
+    return standard_planner(parse, cursorOptions, boundParams);
+}
+
 /*
  * Event trigger functions
  */
@@ -1478,7 +1548,10 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
     MemoryContext contextOld;
 
     /* Continue only if session DDL logging is enabled */
-    if (~auditLogBitmap & LOG_DDL && ~auditLogBitmap & LOG_ROLE)
+    if ((auditLogBitmap & (LOG_DDL | LOG_ROLE | LOG_AST_CTAS)) == 0)
+        PG_RETURN_NULL();
+
+    if (Gp_role == GP_ROLE_EXECUTE)
         PG_RETURN_NULL();
 
     /* Be sure the module was loaded */
@@ -1563,7 +1636,31 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
             auditEventStack->auditEvent.commandTag = currentCommandTag;
         }
         else
+        {
             log_audit_event(auditEventStack);
+            if (auditLogBitmap & LOG_AST_CTAS &&
+                IsA(eventData->parsetree, CreateTableAsStmt))
+            {
+                List *rewritten;
+                CreateTableAsStmt *ctas;
+
+                ctas = (CreateTableAsStmt*) eventData->parsetree;
+                if (!IsA(ctas->query, Query))
+                    continue;
+
+                rewritten = QueryRewrite((Query *) copyObject(ctas->query));
+                if (list_length(rewritten) != 1)
+                {
+                    elog(WARNING, "unexpected rewrite result for CTAS");
+                    continue;
+                }
+
+                auditEventStack->auditEvent.commandText =
+                    nodeToString(linitial(rewritten));
+                auditEventStack->auditEvent.logged = false;
+                log_audit_event(auditEventStack);
+            }
+        }
     }
 
     /* Complete the query */
@@ -1592,6 +1689,9 @@ pgaudit_sql_drop(PG_FUNCTION_ARGS)
     MemoryContext contextOld;
 
     if (~auditLogBitmap & LOG_DDL)
+        PG_RETURN_NULL();
+
+    if (Gp_role == GP_ROLE_EXECUTE)
         PG_RETURN_NULL();
 
     /* Be sure the module was loaded */
@@ -1729,6 +1829,12 @@ check_pgaudit_log(char **newVal, void **extra, GucSource source)
             class = LOG_ROLE;
         else if (pg_strcasecmp(token, CLASS_WRITE) == 0)
             class = LOG_WRITE;
+        else if (pg_strcasecmp(token, CLASS_AST_CTAS) == 0)
+            class = LOG_AST_CTAS;
+        else if (pg_strcasecmp(token, CLASS_AST_SEL) == 0)
+            class = LOG_AST_SEL;
+        else if (pg_strcasecmp(token, CLASS_AST_MOD) == 0)
+            class = LOG_AST_MOD;
         else
         {
             free(flags);
@@ -1835,7 +1941,7 @@ _PG_init(void)
     /* Be sure we do initialization only once */
     static bool inited = false;
 
-    if (inited)
+    if (inited || Gp_role == GP_ROLE_EXECUTE)
         return;
 
     /* Must be loaded with shared_preload_libraries */
@@ -1992,6 +2098,9 @@ _PG_init(void)
 
     next_object_access_hook = object_access_hook;
     object_access_hook = pgaudit_object_access_hook;
+
+    next_planner_hook = planner_hook;
+    planner_hook = pgaudit_planner_hook;
 
     /* Log that the extension has completed initialization */
 #ifndef EXEC_BACKEND

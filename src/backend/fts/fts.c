@@ -344,11 +344,13 @@ void FtsLoop()
 		if (SIMPLE_FAULT_INJECTOR("fts_probe") == FaultInjectorTypeSkip)
 			skipFtsProbe = true;
 
-		if (skipFtsProbe || !has_mirrors)
+		if (skipFtsProbe || !has_mirrors || gp_fts_maintenance) 
 		{
 			elogif(gp_log_fts >= GPVARS_VERBOSITY_VERBOSE, LOG,
 				   "skipping FTS probes due to %s",
-				   !has_mirrors ? "no mirrors" : "fts_probe fault");
+				   skipFtsProbe 
+				   	? "fts_probe fault" 
+					: (gp_fts_maintenance ? "fts maintenance mode" : "no mirrors"));
 
 		}
 		else

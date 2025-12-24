@@ -290,6 +290,7 @@ sub run_pg_rewind
 					"--debug",
 					"--source-pgdata=$test_standby_datadir",
 					"--target-pgdata=$test_master_datadir"],
+					"--no-sync",
 				   'pg_rewind local');
 	}
 	elsif ($test_mode eq "remote")
@@ -300,6 +301,7 @@ sub run_pg_rewind
 					"--source-server",
 					"port=$port_standby dbname=postgres",
 					"--target-pgdata=$test_master_datadir"],
+					"--no-sync",
 				   'pg_rewind remote');
 	}
 	else

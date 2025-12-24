@@ -60,6 +60,7 @@
 #include "postgres.h"
 
 #ifdef HAVE_LIBZSTD
+#define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #endif
 
@@ -72,10 +73,11 @@
 
 #include "cdb/cdbvars.h"
 #include "storage/gp_compress.h"
+#include "utils/gp_alloc.h"
 #include "utils/faultinjector.h"
 #include "utils/memutils.h"
 #include "utils/workfile_mgr.h"
-
+#include "utils/guc.h"
 /*
  * This data structure represents a buffered file that consists of one
  * physical file (accessed through a virtual file descriptor
@@ -121,6 +123,7 @@ struct BufFile
 
 	/* ZStandard compression support */
 #ifdef HAVE_LIBZSTD
+	MemoryContext pg_zstd_context;
 	zstd_context *zstd_context;	/* ZStandard library handles. */
 
 	/*
@@ -382,6 +385,8 @@ BufFileClose(BufFile *file)
 #ifdef HAVE_LIBZSTD
 	if (file->zstd_context)
 		zstd_free_context(file->zstd_context);
+	if (file->pg_zstd_context)
+		MemoryContextDelete(file->pg_zstd_context);
 #endif
 
 	pfree(file);
@@ -1030,6 +1035,17 @@ BufFilePledgeSequential(BufFile *buffile)
 #ifdef HAVE_LIBZSTD
 
 #define BUFFILE_ZSTD_COMPRESSION_LEVEL 1
+void *
+customAlloc(void *opaque, size_t size)
+{
+	return MemoryContextAlloc((MemoryContext)opaque, size);
+}
+
+void
+customFree(void *opaque, void *address)
+{
+	pfree(address);
+}
 
 /*
  * Temporary buffer used during compresion. It's used only within the
@@ -1045,7 +1061,12 @@ BufFileStartCompression(BufFile *file)
 {
 	ResourceOwner oldowner;
 	size_t ret;
+	ZSTD_customMem customMem;
+	file->pg_zstd_context = AllocSetContextCreate(TopMemoryContext,"zstd_context", ALLOCSET_DEFAULT_SIZES);
 
+	customMem.customAlloc = customAlloc;
+	customMem.customFree = customFree;
+	customMem.opaque = file->pg_zstd_context;
 	/*
 	 * When working with compressed files, we rely on libzstd's buffer,
 	 * and the BufFile's own buffer is unused. It's a bit silly that we
@@ -1071,7 +1092,13 @@ BufFileStartCompression(BufFile *file)
 	CurrentResourceOwner = file->resowner;
 
 	file->zstd_context = zstd_alloc_context();
-	file->zstd_context->cctx = ZSTD_createCStream();
+	if (gp_enable_zstd_memory_accounting)
+	{
+		file->zstd_context->cctx = ZSTD_createCStream_advanced(customMem);
+	}else{
+		file->zstd_context->cctx = ZSTD_createCStream();
+	}
+	
 	if (!file->zstd_context->cctx)
 		elog(ERROR, "out of memory");
 	ret = ZSTD_initCStream(file->zstd_context->cctx, BUFFILE_ZSTD_COMPRESSION_LEVEL);
@@ -1157,6 +1184,11 @@ BufFileEndCompression(BufFile *file)
 	ZSTD_outBuffer output;
 	size_t		ret;
 	int			wrote;
+	ZSTD_customMem customMem;
+
+	customMem.customAlloc = customAlloc;
+	customMem.customFree = customFree;
+	customMem.opaque = file->pg_zstd_context;
 
 	Assert(file->state == BFS_COMPRESSED_WRITING);
 
@@ -1182,7 +1214,11 @@ BufFileEndCompression(BufFile *file)
 		 file->uncompressed_bytes, file->maxoffset);
 
 	/* Done writing. Initialize for reading */
-	file->zstd_context->dctx = ZSTD_createDStream();
+	if (gp_enable_zstd_memory_accounting){
+		file->zstd_context->dctx = ZSTD_createDStream_advanced(customMem);
+	}else{
+		file->zstd_context->dctx = ZSTD_createDStream();
+	}
 	if (!file->zstd_context->dctx)
 		elog(ERROR, "out of memory");
 	ret = ZSTD_initDStream(file->zstd_context->dctx);

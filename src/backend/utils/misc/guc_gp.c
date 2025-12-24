@@ -159,7 +159,7 @@ bool		gp_enable_exchange_default_partition = false;
 int			dtx_phase2_retry_count = 0;
 bool		gp_log_suboverflow_statement = false;
 bool        gp_use_synchronize_seqscans_catalog_vacuum_full = false;
-
+bool 		gp_enable_zstd_memory_accounting = true;
 bool		log_dispatch_stats = false;
 bool		gp_keep_partition_children_locks = false;
 
@@ -560,6 +560,8 @@ static const struct config_enum_entry gp_autostats_modes[] = {
 static const struct config_enum_entry gp_interconnect_fc_methods[] = {
 	{"loss", INTERCONNECT_FC_METHOD_LOSS},
 	{"capacity", INTERCONNECT_FC_METHOD_CAPACITY},
+	{"loss_advance", INTERCONNECT_FC_METHOD_LOSS_ADVANCE},
+	{"loss_timer", INTERCONNECT_FC_METHOD_LOSS_TIMER},
 	{NULL, 0}
 };
 
@@ -3410,9 +3412,21 @@ struct config_bool ConfigureNamesBool_gp[] =
 		 NULL
 		},
 		&gp_use_synchronize_seqscans_catalog_vacuum_full,
+		true,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_enable_zstd_memory_accounting", PGC_USERSET, COMPAT_OPTIONS_PREVIOUS,
+		 gettext_noop("Enables normal memory counting in zstd (not using malloc)"),
+		 NULL
+		},
+		&gp_enable_zstd_memory_accounting,
 		false,
 		NULL, NULL, NULL
 	},
+
+	
 
 	{
 		{"gp_external_fail_on_eof", PGC_USERSET, EXTERNAL_TABLES,
@@ -3441,6 +3455,16 @@ struct config_bool ConfigureNamesBool_gp[] =
 		 NULL
 		},
 		&gp_keep_partition_children_locks,
+		false,
+		NULL, NULL, NULL
+	},
+
+		{
+		{"gp_fts_maintenance", PGC_SIGHUP, GP_ARRAY_TUNING,
+		 gettext_noop("Don't run FTS probes, the cluster ARRAY has known issues"),
+		 NULL
+		},
+		&gp_fts_maintenance,
 		false,
 		NULL, NULL, NULL
 	},
@@ -3826,6 +3850,16 @@ struct config_int ConfigureNamesInt_gp[] =
 		},
 		&Gp_interconnect_snd_queue_depth,
 		2, 1, 4096,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_interconnect_mem_size", PGC_USERSET, GP_ARRAY_TUNING,
+			gettext_noop("Sets the maximum size(in MB) of the send/recv queue memory for all connections in the UDP interconnect"),
+			NULL
+		},
+		&Gp_interconnect_mem_size,
+		10, 1, 1024,
 		NULL, NULL, NULL
 	},
 

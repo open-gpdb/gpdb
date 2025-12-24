@@ -5,10 +5,12 @@
 name: Greenplum Build
 
 on:
+  release:
+    types: [published]
   push:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "OPENGPDB_6_29_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   pull_request:
-    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_27_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
+    branches: [ "OPENGPDB_STABLE", "OPENGPDB_6_28_STABLE", "OPENGPDB_6_29_STABLE", "MDB_6_25_STABLE_YEZZEY" ]
   workflow_dispatch:
     inputs:
       test_selection:
@@ -51,7 +53,7 @@ jobs:
             },
             {
               "name": "test",
-              "extra_configure_flags": "--enable-debug-extensions"
+              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests --with-yagp-hooks-collector"
             }
           ]}'
           # Output the matrix for GitHub Actions
@@ -104,13 +106,20 @@ jobs:
                "make_configs":["src/test/regress:installcheck-good"],
                "pg_settings":{"optimizer":"on"}
               },
+              {"test":"ic-good-opt-pgaudit",
+               "make_configs":["src/test/regress:installcheck-good"],
+               "pg_settings":{"optimizer":"on"},
+               "extension":"pgaudit"
+              },
+              {"test":"gpcontrib-yagp-hooks-collector",
+               "make_configs":["gpcontrib/yagp_hooks_collector:installcheck"],
+               "extension":"yagp_hooks_collector"
+              },
               {"test":"ic-expandshrink",
                "make_configs":["src/test/isolation2:installcheck-expandshrink"]
               },
-              {"test":"ic-resgroup",
-               "make_configs":["src/test/isolation2:installcheck-resgroup"],
-               "enable_cgroups":true,
-               "runs_on":"self-hosted"
+              {"test":"ic-mdb",
+               "make_configs":["src/test/isolation2:installcheck-mdb"]
               },
               {"test":"ic-contrib",
                "install_target":true,
@@ -122,38 +131,57 @@ jobs:
                                "contrib/dict_int:installcheck",
                                "contrib/dict_xsyn:installcheck",
                                "contrib/extprotocol:installcheck",
+                               "contrib/file_fdw:installcheck",
                                "contrib/formatter_fixedwidth:installcheck",
                                "contrib/hstore:installcheck",
                                "contrib/indexscan:installcheck",
                                "contrib/intarray:installcheck",
                                "contrib/isn:installcheck",
                                "contrib/ltree:installcheck",
+                               "contrib/passwordcheck:installcheck",
                                "contrib/pg_trgm:installcheck",
                                "contrib/pgcrypto:installcheck",
                                "contrib/pgstattuple:installcheck",
+                               "contrib/postgres_fdw:installcheck",
                                "contrib/sslinfo:installcheck",
                                "contrib/tablefunc:installcheck",
                                "contrib/test_parser:installcheck",
                                "contrib/test_shm_mq:installcheck",
                                "contrib/try_convert:generate-tests,installcheck",
-                               "contrib/unaccent:installcheck"]
+                               "contrib/tsearch2:installcheck",
+                               "contrib/unaccent:installcheck",
+                               "contrib/xml2:installcheck"]
               },
               {"test":"ic-gpcontrib",
                "make_configs":["gpcontrib/gp_array_agg:installcheck",
                                "gpcontrib/gp_debug_numsegments:installcheck",
+                               "gpcontrib/gp_distribution_policy:installcheck",
                                "gpcontrib/gp_error_handling:installcheck",
                                "gpcontrib/gp_inject_fault:installcheck",
+                               "gpcontrib/gp_internal_tools:installcheck",
                                "gpcontrib/gp_legacy_string_agg:installcheck",
                                "gpcontrib/gp_percentile_agg:installcheck",
                                "gpcontrib/gp_sparse_vector:installcheck",
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
-                               "gpcontrib/orafce:installcheck"]
+                               "gpcontrib/gpmapreduce:installcheck",
+                               "gpcontrib/orafce:installcheck",
+                               "gpcontrib/pgaudit:installcheck"]
               },
               {"test":"ic-parallel-retrieve-cursor",
                "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
               },
+              {"test":"ic-temp_tables_stat",
+               "make_configs":["src/test/isolation2:installcheck-tts"]
+              },
               {"test":"ic-mirrorless",
                "make_configs":["src/test/isolation2:installcheck-mirrorless"]
+              },
+              {"test":"ic-recovery",
+               "install_target":true,
+               "make_configs":["src/test/recovery:installcheck"]
+              },
+              {"test":"ic-modules",
+               "make_configs":["src/test/modules:installcheck"]
               }
             ]
           }'
@@ -308,6 +336,8 @@ jobs:
             exit 1
           fi
 
+          apt install -y libprotobuf-dev protobuf-compiler
+
           export LOGS_DIR=build-logs
 
           mkdir -p "${LOGS_DIR}/details"
@@ -348,7 +378,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=${SRC_DIR}/debian/build
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS=${{ matrix.extra_configure_flags }} BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && SRC_DIR=${SRC_DIR} ENABLE_DEBUG=${{ env.ENABLE_DEBUG }} CONFIGURE_EXTRA_OPTS='${{ matrix.extra_configure_flags }}' BUILD_DESTINATION=${BUILD_DESTINATION} ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/configure-gpdb.sh"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -529,7 +559,7 @@ jobs:
 
   deb-install-test:
     name: Deb install test (${{ matrix.name }})
-    needs: [build]
+    needs: [prepare-build-matrix, build]
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -659,6 +689,9 @@ jobs:
               exit 1
             fi
 
+            # Change ownership back to gpadmin - it is needed for future tests
+            chown -R gpadmin:gpadmin /opt/greenplum-db-6
+
             echo "Installation completed successfully"
             dpkg-query -s greenplum-db-6
             echo "Installed files:"
@@ -668,7 +701,7 @@ jobs:
       - name: Upload install logs
         uses: actions/upload-artifact@v4
         with:
-          name: install-logs-${{ needs.build.outputs.build_timestamp }}
+          name: install-logs-${{ matrix.name }}-${{ needs.build.outputs.build_timestamp }}
           path: |
             install-logs/
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
@@ -767,7 +800,8 @@ jobs:
           fi
 
           apt update -y
-          apt install -y tzdata
+          apt install -y tzdata \
+                         libprotobuf-dev protobuf-compiler
           pip2 install pyyaml
 
           export LOGS_DIR=build-logs
@@ -940,6 +974,8 @@ jobs:
               exit 1
             fi
 
+            chown -R gpadmin:gpadmin /opt/greenplum-db-6
+
             echo "Installation completed successfully"
             dpkg-query -s greenplum-db-6
             echo "Installed files:"
@@ -987,6 +1023,20 @@ jobs:
 
             echo "Patching tests completed successfully"
           } 2>&1 | tee -a build-logs/details/patching-tests.log
+
+      - name: Run Greenplum configure script
+        env:
+          SRC_DIR: ${{ github.workspace }}
+        run: |
+          set -ex pipefail
+
+          # set env for debian build
+          export BUILD_DESTINATION=/opt/greenplum-db-6
+
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests --with-yagp-hooks-collector"; then
+            echo "::error::Configure script failed"
+            exit 1
+          fi
 
       - name: Create Greenplum demo cluster
         env:
@@ -1040,6 +1090,49 @@ jobs:
             PG_OPTS="$PG_OPTS -c optimizer=${{ matrix.pg_settings.optimizer }}"
           fi
 
+          # Create extension if required
+          if [[ "${{ matrix.extension != '' }}" == "true" ]]; then
+            case "${{ matrix.extension }}" in
+              pgaudit)
+                export BUILD_DESTINATION=/opt/greenplum-db-6
+
+                if ! su - gpadmin -c "source ${BUILD_DESTINATION}/greenplum_path.sh && \
+                  source ${SRC_DIR}/gpAux/gpdemo/gpdemo-env.sh && \
+                  gpconfig -c shared_preload_libraries -v 'pgaudit' --masteronly && \
+                  gpstop -ra && \
+                  echo 'CREATE EXTENSION IF NOT EXISTS gp_aux_catalog; \
+                        CREATE EXTENSION IF NOT EXISTS pgaudit; \
+                        SHOW shared_preload_libraries; \
+                        TABLE pg_extension;' | \
+                    psql postgres"
+                then
+                    echo "Error creating pgaudit extension"
+                    exit 1
+                fi
+                ;;
+              yagp_hooks_collector)
+                export BUILD_DESTINATION=/opt/greenplum-db-6
+
+                if ! su - gpadmin -c "source ${BUILD_DESTINATION}/greenplum_path.sh && \
+                  source ${SRC_DIR}/gpAux/gpdemo/gpdemo-env.sh && \
+                  gpconfig -c shared_preload_libraries -v 'yagp_hooks_collector' && \
+                  gpstop -ra && \
+                  echo 'CREATE EXTENSION IF NOT EXISTS yagp_hooks_collector; \
+                        SHOW shared_preload_libraries; \
+                        TABLE pg_extension;' | \
+                    psql postgres"
+                then
+                    echo "Error creating yagp_hooks_collector extension"
+                    exit 1
+                fi
+                ;;
+              *)
+                echo "Unknown extension: ${{ matrix.extension }}"
+                exit 1
+                ;;
+            esac
+          fi
+
           # Read configs into array
           IFS=' ' read -r -a configs <<< "${{ join(matrix.make_configs, ' ') }}"
           echo "=== Starting test execution for ${{ matrix.test }} ==="
@@ -1063,11 +1156,13 @@ jobs:
 
             cd ${SRC_DIR}
             if ! su - gpadmin -c "cd ${SRC_DIR} && \
+                 source ${SRC_DIR}/../gpdb/gpAux/gpdemo/gpdemo-env.sh && \
                  MAKE_NAME='${{ matrix.test }}-config$i' \
                  MAKE_TARGET='$target' \
                  MAKE_DIRECTORY='-C $dir' \
                  PGOPTIONS='${PG_OPTS}' \
                  SRC_DIR='${SRC_DIR}' \
+                 TEST_PGFDW=1 \
                  ${SRC_DIR}/../gpdb-devops/build_automation/gpdb/scripts/test-gpdb.sh" \
                  2>&1 | tee "$config_log";then
               echo "::warning::Test execution failed for configuration $((i+1)): make -C $dir $target"
@@ -1367,6 +1462,7 @@ jobs:
             **/regression.out
             **/regression.diffs
             **/results/
+            /home/gpadmin/gpAdminLogs/pg_rewind*
             gpAux/gpdemo/datadirs/standby/log/
             gpAux/gpdemo/datadirs/qddir/demoDataDir-1/log/
             gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/log/
@@ -1417,3 +1513,39 @@ jobs:
           echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           echo "Build Result: ${{ needs.build.result }}"
           echo "Test Result: ${{ needs.test.result }}"
+
+  ## ======================================================================
+  ## Job: upload_debian
+  ## ======================================================================
+
+  upload_debian:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    name: Upload Debian Package
+    needs: [build, deb-install-test]
+    permissions:
+      contents: write
+    steps:
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-build
+          path: ${{ github.workspace }}/deb_build_artifacts
+          merge-multiple: false
+
+      - name: Verify DEB artifacts
+        id: verify-artifacts
+        run: |
+          set -ex pipefail
+          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          if [ ! -f "${DEB_FILE}" ]; then
+            echo "::error::DEB file not found"
+            exit 1
+          fi
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: ${{ github.ref_name }}
+          files: ${{ steps.verify-artifacts.outputs.deb_file }}

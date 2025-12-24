@@ -181,19 +181,25 @@ vacuum(VacuumStmt *vacstmt, Oid relid, bool do_toast,
 				use_own_xacts;
 	List	   *vacuum_relations = NIL;
 	List	   *analyze_relations = NIL;
+	HeapTuple	proctup;
 
 	if ((vacstmt->options & VACOPT_VACUUM) &&
 		(vacstmt->options & VACOPT_ROOTONLY))
 		ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
 				 errmsg("ROOTPARTITION option cannot be used together with VACUUM, try ANALYZE ROOTPARTITION")));
-
-	if ((vacstmt->options & VACOPT_ROOTONLY) &&
-	    (vacstmt->options & VACOPT_NOWAIT))
-		ereport(ERROR,
+	if (vacstmt->options & VACOPT_NOWAIT)
+	{
+		proctup = SearchSysCache1(PROCOID, ObjectIdGetDatum(7214));
+		if (!HeapTupleIsValid(proctup)){
+			ereport(ERROR,
 				(errcode(ERRCODE_SYNTAX_ERROR),
-				 errmsg("ROOTPARTITION option cannot be used together with SKIP_LOCKED")));
-	
+				 errmsg("skip_locked is impossible without gp_aux_catalog"),
+				 errdetail("create and upgrade extension gp_aux_catalog to version 1.1")));
+			elog(ERROR, "cache lookup failed for function %u", 7214);
+		}
+		ReleaseSysCache(proctup);
+	}
 	
 	static bool in_vacuum = false;
 

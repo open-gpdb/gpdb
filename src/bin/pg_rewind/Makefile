@@ -41,10 +41,6 @@ pg_rewind: $(OBJS) | submake-libpq submake-libpgport
 xlogreader.c: % : $(top_srcdir)/src/backend/access/transam/%
 	rm -f $@ && $(LN_S) $< .
 
-# compat.c is symlinked from the PostgreSQL sources.
-compat.c: % : $(top_srcdir)/contrib/pg_xlogdump/%
-	rm -f $@ && $(LN_S) $< .
-
 install: all installdirs
 	$(INSTALL_PROGRAM) pg_rewind$(X) '$(DESTDIR)$(bindir)/pg_rewind$(X)'
 

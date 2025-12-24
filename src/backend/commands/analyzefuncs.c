@@ -16,7 +16,7 @@
 #include "utils/snapmgr.h"
 #include "miscadmin.h"
 #include "funcapi.h"
-
+#include "pgstat.h"
 /**
  * Statistics related parameters.
  */
@@ -48,65 +48,11 @@ typedef struct
 	bool		summary_sent;
 } gp_acquire_sample_rows_context;
 
-/*
- * gp_acquire_sample_rows - Acquire a sample set of rows from table.
- *
- * This is a SQL callable wrapper around the internal acquire_sample_rows()
- * function in analyze.c. It allows collecting a sample across all segments,
- * from the dispatcher.
- *
- * acquire_sample_rows() actually has three return values: the set of sample
- * rows, and two double values: 'totalrows' and 'totaldeadrows'. It's a bit
- * difficult to return that from a SQL function, so bear with me. This function
- * is a set-returning function, and returns the sample rows, as you might
- * expect. But to return the extra 'totalrows' and 'totaldeadrows' values,
- * it always also returns one extra row, the "summary row". The summary row
- * is all NULLs for the actual table columns, but contains two other columns
- * instead, "totalrows" and "totaldeadrows". Those columns are NULL in all
- * the actual sample rows.
- *
- * To make things even more complicated, each sample row contains one extra
- * column too: oversized_cols_bitmap. It's a bitmap indicating which attributes
- * on the sample row were omitted, because they were "too large". The omitted
- * attributes are returned as NULLs, and the bitmap can be used to distinguish
- * real NULLs from values that were too large to be included in the sample. The
- * bitmap is represented as a text column, with '0' or '1' for every column.
- *
- * So overall, this returns a result set like this:
- *
- * postgres=# select * from pg_catalog.gp_acquire_sample_rows('foo'::regclass, 400, 'f') as (
- *     -- special columns
- *     totalrows pg_catalog.float8,
- *     totaldeadrows pg_catalog.float8,
- *     oversized_cols_bitmap pg_catalog.text,
- *     -- columns matching the table
- *     id int4,
- *     t text
- *  );
- *  totalrows | totaldeadrows | oversized_cols_bitmap | id  |    t    
- * -----------+---------------+-----------------------+-----+---------
- *            |               |                       |   1 | foo
- *            |               |                       |   2 | bar
- *            |               | 01                    |  50 | 
- *            |               |                       | 100 | foo 100
- *          2 |             0 |                       |     | 
- *          1 |             0 |                       |     | 
- *          1 |             0 |                       |     | 
- * (7 rows)
- *
- * The first four rows form the actual sample. One of the columns contained
- * an oversized text datum. The function is marked as EXECUTE ON SEGMENTS in
- * the catalog so you get one summary row *for each segment*.
- */
 Datum
-gp_acquire_sample_rows(PG_FUNCTION_ARGS)
-{
+gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bool inherited,int32 vacopts){
 	FuncCallContext *funcctx = NULL;
 	gp_acquire_sample_rows_context *ctx;
 	MemoryContext oldcontext;
-	Oid			relOid = PG_GETARG_OID(0);
-	int32		targrows = PG_GETARG_INT32(1);
-	bool		inherited = PG_GETARG_BOOL(2);
 	HeapTuple  *sample_rows;
 	TupleDesc	relDesc;
 	TupleDesc	outDesc;
@@ -211,7 +157,7 @@ gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 			num_sample_rows =
 				acquire_inherited_sample_rows(onerel, DEBUG1,
 											  sample_rows, targrows,
-											  &totalrows, &totaldeadrows,0);
+											  &totalrows, &totaldeadrows,vacopts);
 		}
 		else
 		{
@@ -232,6 +178,7 @@ gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 
 		ctx->index = 0;
 		ctx->summary_sent = false;
+		pgstat_report_analyze(onerel, totalrows, totaldeadrows, true);
 
 		MemoryContextSwitchTo(oldcontext);
 	}
@@ -356,6 +303,67 @@ gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 
 	SRF_RETURN_DONE(funcctx);
 }
+
+/*
+ * gp_acquire_sample_rows - Acquire a sample set of rows from table.
+ *
+ * This is a SQL callable wrapper around the internal acquire_sample_rows()
+ * function in analyze.c. It allows collecting a sample across all segments,
+ * from the dispatcher.
+ *
+ * acquire_sample_rows() actually has three return values: the set of sample
+ * rows, and two double values: 'totalrows' and 'totaldeadrows'. It's a bit
+ * difficult to return that from a SQL function, so bear with me. This function
+ * is a set-returning function, and returns the sample rows, as you might
+ * expect. But to return the extra 'totalrows' and 'totaldeadrows' values,
+ * it always also returns one extra row, the "summary row". The summary row
+ * is all NULLs for the actual table columns, but contains two other columns
+ * instead, "totalrows" and "totaldeadrows". Those columns are NULL in all
+ * the actual sample rows.
+ *
+ * To make things even more complicated, each sample row contains one extra
+ * column too: oversized_cols_bitmap. It's a bitmap indicating which attributes
+ * on the sample row were omitted, because they were "too large". The omitted
+ * attributes are returned as NULLs, and the bitmap can be used to distinguish
+ * real NULLs from values that were too large to be included in the sample. The
+ * bitmap is represented as a text column, with '0' or '1' for every column.
+ *
+ * So overall, this returns a result set like this:
+ *
+ * postgres=# select * from pg_catalog.gp_acquire_sample_rows('foo'::regclass, 400, 'f') as (
+ *     -- special columns
+ *     totalrows pg_catalog.float8,
+ *     totaldeadrows pg_catalog.float8,
+ *     oversized_cols_bitmap pg_catalog.text,
+ *     -- columns matching the table
+ *     id int4,
+ *     t text
+ *  );
+ *  totalrows | totaldeadrows | oversized_cols_bitmap | id  |    t    
+ * -----------+---------------+-----------------------+-----+---------
+ *            |               |                       |   1 | foo
+ *            |               |                       |   2 | bar
+ *            |               | 01                    |  50 | 
+ *            |               |                       | 100 | foo 100
+ *          2 |             0 |                       |     | 
+ *          1 |             0 |                       |     | 
+ *          1 |             0 |                       |     | 
+ * (7 rows)
+ *
+ * The first four rows form the actual sample. One of the columns contained
+ * an oversized text datum. The function is marked as EXECUTE ON SEGMENTS in
+ * the catalog so you get one summary row *for each segment*.
+ */
+Datum
+gp_acquire_sample_rows(PG_FUNCTION_ARGS)
+{
+	
+	Oid			relOid = PG_GETARG_OID(0);
+	int32		targrows = PG_GETARG_INT32(1);
+	bool		inherited = PG_GETARG_BOOL(2);
+	return gp_acquire_sample_rows_int(fcinfo, relOid, targrows, inherited, 0);
+}
+
 
 /*
  * Companion to gp_acquire_sample_rows().

@@ -1592,7 +1592,7 @@ create_external_scan_uri_list(ExtTableEntry *ext, bool *ismasteronly)
 	 * protocols only */
 	on_clause = (char *) strVal(linitial(ext->execlocations));
 	if ((strcmp(on_clause, "MASTER_ONLY") == 0)
-		&& using_location && (uri->protocol != URI_CUSTOM)) {
+		&& using_location && (uri->protocol != URI_CUSTOM && uri->protocol != URI_FILE)) {
 		ereport(ERROR, (errcode(ERRCODE_INVALID_TABLE_DEFINITION),
 				errmsg("\'ON MASTER\' is not supported by this protocol yet")));
 	}
@@ -1670,6 +1670,12 @@ create_external_scan_uri_list(ExtTableEntry *ext, bool *ismasteronly)
 			found_candidate = false;
 			found_match = false;
 
+			if ((strcmp(on_clause, "MASTER_ONLY") == 0) && uri->protocol == URI_FILE)
+			{
+				found_match = true;
+				segdb_file_map[0] = pstrdup(uri_str);
+				*ismasteronly = true;
+			}
 			/*
 			 * look through our segment database list and try to find a
 			 * database that can handle this uri.
@@ -6589,12 +6595,15 @@ adjust_modifytable_flow(PlannerInfo *root, ModifyTable *node, List *is_split_upd
 				 * Obviously, tmp_tab in new segments can't get data if we don't
 				 * add a broadcast here. 
 				 */
-				if (optimizer_replicated_table_insert &&
-					subplan->flow->flotype == FLOW_SINGLETON &&
-					subplan->flow->locustype == CdbLocusType_SegmentGeneral &&
-					!contain_volatile_functions((Node *)subplan->targetlist))
+				if (subplan->flow->flotype == FLOW_SINGLETON &&
+					subplan->flow->locustype == CdbLocusType_SegmentGeneral)
 				{
-					if (subplan->flow->numsegments >= targetPolicy->numsegments)
+					if (contain_volatile_functions((Node *)subplan->targetlist))
+					{
+						subplan->flow->locustype = CdbLocusType_SingleQE;
+					}
+					else if (optimizer_replicated_table_insert &&
+							 subplan->flow->numsegments >= targetPolicy->numsegments)
 					{
 						/*
 						 * A query to reach here:

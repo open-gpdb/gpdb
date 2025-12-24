@@ -219,6 +219,7 @@ enable_orafce		= @enable_orafce@
 enable_mapreduce    = @enable_mapreduce@
 enable_gpcloud 	    = @enable_gpcloud@
 enable_yezzey 	    = @enable_yezzey@
+enable_pgaudit      = @enable_pgaudit@
 enable_sr_plan      = @enable_sr_plan@
 enable_gpperfmon    = @enable_gpperfmon@
 enable_ic_proxy     = @enable_ic_proxy@
@@ -249,6 +250,7 @@ PTHREAD_LIBS		= @PTHREAD_LIBS@
 have_yaml 		= @have_yaml@
 with_zstd 		= @with_zstd@
 with_quicklz		= @with_quicklz@
+with_yagp_hooks_collector 		= @with_yagp_hooks_collector@
 
 
 ##########################################################################

@@ -84,3 +84,28 @@ wait_result_to_str(int exitstatus)
 
 	return pstrdup(str);
 }
+
+
+
+/* XXX: from 34010ac2fa187ce032a7b243c829c7ef5f047e20 */
+/*
+ * Return true if a wait(2) result indicates that the child process
+ * died due to any signal.  We consider either direct child death
+ * or a shell report of child process death as matching the condition.
+ *
+ * If include_command_not_found is true, also return true for shell
+ * exit codes indicating "command not found" and the like
+ * (specifically, exit codes 126 and 127; see above).
+ */
+bool
+wait_result_is_any_signal(int exit_status, bool include_command_not_found)
+{
+	if (WIFSIGNALED(exit_status))
+		return true;
+
+	if (WIFEXITED(exit_status) &&
+		WEXITSTATUS(exit_status) > (include_command_not_found ? 125 : 128))
+		return true;
+
+	return false;
+}

@@ -7,6 +7,7 @@ EXTENSION = xml2
 DATA = xml2--1.0.sql xml2--unpackaged--1.0.sql
 
 REGRESS = xml2
+REGRESS_OPTS += --init-file=$(top_builddir)/src/test/regress/init_file
 
 SHLIB_LINK += $(filter -lxslt, $(LIBS)) -lxml2
 

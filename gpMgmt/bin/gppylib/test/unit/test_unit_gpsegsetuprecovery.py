@@ -23,6 +23,7 @@ class ValidationForFullRecoveryTestCase(GpTestCase):
         self.seg_recovery_info = RecoveryInfo(m.getSegmentDataDirectory(),
                                               m.getSegmentPort(),
                                               m.getSegmentDbId(),
+                                              m.getSegmentContentId(),
                                               p.getSegmentHostName(),
                                               p.getSegmentPort(),
                                               p.getSegmentDataDirectory(),
@@ -161,6 +162,7 @@ class SetupForIncrementalRecoveryTestCase(GpTestCase):
         self.seg_recovery_info = RecoveryInfo(m.getSegmentDataDirectory(),
                                               m.getSegmentPort(),
                                               m.getSegmentDbId(),
+                                              m.getSegmentContentId(),
                                               p.getSegmentHostName(),
                                               p.getSegmentPort(),
                                               p.getSegmentDataDirectory(),
@@ -228,6 +230,7 @@ class SetupForDifferentialRecoveryTestCase(GpTestCase):
         self.seg_recovery_info = RecoveryInfo(m.getSegmentDataDirectory(),
                                               m.getSegmentPort(),
                                               m.getSegmentDbId(),
+                                              m.getSegmentContentId(),
                                               p.getSegmentHostName(),
                                               p.getSegmentPort(),
                                               p.getSegmentDataDirectory(),
@@ -276,17 +279,17 @@ class SetupForDifferentialRecoveryTestCase(GpTestCase):
 class SegSetupRecoveryTestCase(GpTestCase):
     def setUp(self):
         self.mock_logger = Mock(spec=['log', 'info', 'debug', 'error', 'warn', 'exception'])
-        self.full_r1 = RecoveryInfo('target_data_dir1', 5001, 1, 'source_hostname1',
+        self.full_r1 = RecoveryInfo('target_data_dir1', 5001, 1, 1, 'source_hostname1',
                                     6001, 'source_datadir1', True, False, '/tmp/progress_file1')
-        self.incr_r1 = RecoveryInfo('target_data_dir2', 5002, 2, 'source_hostname2',
+        self.incr_r1 = RecoveryInfo('target_data_dir2', 5002, 2, 2, 'source_hostname2',
                                     6002, 'source_datadir2', False, False, '/tmp/progress_file2')
-        self.full_r2 = RecoveryInfo('target_data_dir3', 5003, 3, 'source_hostname3',
+        self.full_r2 = RecoveryInfo('target_data_dir3', 5003, 3, 3, 'source_hostname3',
                                     6003, 'source_datadir3', True, False, '/tmp/progress_file3')
-        self.incr_r2 = RecoveryInfo('target_data_dir4', 5004, 4, 'source_hostname4',
+        self.incr_r2 = RecoveryInfo('target_data_dir4', 5004, 4, 4, 'source_hostname4',
                                     6004, 'source_datadir4', False, False, '/tmp/progress_file4')
-        self.diff_r1 = RecoveryInfo('target_data_dir5', 5005, 5, 'source_hostname5',
+        self.diff_r1 = RecoveryInfo('target_data_dir5', 5005, 5, 5, 'source_hostname5',
                                     6005, 'source_datadir5', False, True, '/tmp/progress_file5')
-        self.diff_r2 = RecoveryInfo('target_data_dir6', 5006, 6, 'source_hostname6',
+        self.diff_r2 = RecoveryInfo('target_data_dir6', 5006, 6, 6, 'source_hostname6',
                                     6006, 'source_datadir6', False, True, '/tmp/progress_file6')
 
     def tearDown(self):

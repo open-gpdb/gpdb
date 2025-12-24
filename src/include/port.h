@@ -94,10 +94,11 @@ extern void pgfnames_cleanup(char **filenames);
 /* Portable locale initialization (in exec.c) */
 extern void set_pglocale_pgservice(const char *argv0, const char *app);
 
-/* Portable way to find binaries (in exec.c) */
+/* Portable way to find and execute binaries (in exec.c) */
 extern int	find_my_exec(const char *argv0, char *retpath);
 extern int find_other_exec(const char *argv0, const char *target,
 				const char *versionstr, char *retpath);
+extern char *pipe_read_line(char *cmd, char *line, int maxsize);
 
 /* Windows security token manipulation (in exec.c) */
 #ifdef WIN32
@@ -490,5 +491,7 @@ extern char *escape_single_quotes_ascii(const char *src);
 
 /* common/wait_error.c */
 extern char *wait_result_to_str(int exit_status);
+
+extern bool wait_result_is_any_signal(int exit_status, bool include_command_not_found);
 
 #endif   /* PG_PORT_H */

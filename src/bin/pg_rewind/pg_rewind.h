@@ -23,6 +23,7 @@
 extern char *datadir_target;
 extern char *datadir_source;
 extern char *connstr_source;
+extern char *restore_command;
 extern bool debug;
 extern bool showprogress;
 extern bool dry_run;
@@ -33,16 +34,20 @@ extern const char *progname;
 
 /* in parsexlog.c */
 extern void extractPageMap(const char *datadir, XLogRecPtr startpoint,
-			   TimeLineID tli, XLogRecPtr endpoint);
+			   TimeLineID tli, XLogRecPtr endpoint, const char *restoreCommand);
 extern void findLastCheckpoint(const char *datadir, XLogRecPtr searchptr,
 				   TimeLineID tli,
 				   XLogRecPtr *lastchkptrec, TimeLineID *lastchkpttli,
-				   XLogRecPtr *lastchkptredo);
+				   XLogRecPtr *lastchkptredo,
+				   const char *restoreCommand);
 extern XLogRecPtr readOneRecord(const char *datadir, XLogRecPtr ptr,
 			  TimeLineID tli);
 
 /* in timeline.c */
 extern TimeLineHistoryEntry *rewind_parseTimeLineHistory(char *buffer,
 							TimeLineID targetTLI, int *nentries);
+
+
+extern int instanceSegIndx;
 
 #endif   /* PG_REWIND_H */

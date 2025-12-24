@@ -59,7 +59,7 @@ SELECT '1&(2&(4&(5|!6)))'::tsquery;
 SELECT E'1&(''2''&('' 4''&(\\|5 | ''6 \\'' !|&'')))'::tsquery;
 SELECT '''the wether'':dc & '' sKies '':BC & a:d b:a';
 
-SELECT tsvector_in(tsvector_out($$'\\as' ab\c ab\\c AB\\\c ab\\\\c$$::tsvector)), tsquery_in(tsquery_out($$'\\as'$$::tsquery));
+SELECT tsvectorin(tsvectorout($$'\\as' ab\c ab\\c AB\\\c ab\\\\c$$::tsvector)), tsqueryin(tsqueryout($$'\\as'$$::tsquery));
 
 select 'a' < 'b & c'::tsquery;
 select 'a' > 'b & c'::tsquery;
@@ -71,7 +71,7 @@ select numnode( 'new'::tsquery );
 select numnode( 'new & york'::tsquery );
 select numnode( 'new & york | qwery'::tsquery );
 
-create table test_tsquery (txtkeyword text, txtsample text);
+create table test_tsquery (txtkeyword text, txtsample text) distributed replicated;
 \set ECHO none
 \copy test_tsquery from stdin
 'New York'	new & york | big & apple | nyc
@@ -85,6 +85,8 @@ alter table test_tsquery add column keyword tsquery;
 update test_tsquery set keyword = to_tsquery('english', txtkeyword);
 alter table test_tsquery add column sample tsquery;
 update test_tsquery set sample = to_tsquery('english', txtsample::text);
+
+analyze test_tsquery;
 
 create unique index bt_tsq on test_tsquery (keyword);
 
@@ -182,7 +184,7 @@ select 'a b:89  ca:23A,64b d:34c'::tsvector @@ 'd:AC & ca:A';
 select 'a b:89  ca:23A,64b d:34c'::tsvector @@ 'd:AC & ca:C';
 select 'a b:89  ca:23A,64b d:34c'::tsvector @@ 'd:AC & ca:CB';
 
-CREATE TABLE test_tsvector( t text, a tsvector );
+CREATE TABLE test_tsvector( t text, a tsvector ) DISTRIBUTED RANDOMLY;
 
 \copy test_tsvector from 'data/test_tsearch.data'
 

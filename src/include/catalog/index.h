@@ -46,7 +46,8 @@ extern bool relationHasPrimaryKey(Relation rel);
 extern bool relationHasUniqueIndex(Relation rel);
 extern void index_check_primary_key(Relation heapRel,
 						IndexInfo *indexInfo,
-						bool is_alter_table);
+						bool is_alter_table,
+						IndexStmt *stmt);
 
 extern Oid index_create(Relation heapRelation,
 			 const char *indexRelationName,
@@ -137,5 +138,16 @@ extern bool ReindexIsProcessingIndex(Oid indexOid);
 extern Oid	IndexGetRelation(Oid indexId, bool missing_ok);
 
 extern void IndexSetParentIndex(Relation idx, Oid parentOid);
+
+extern double
+IndexBuildHeapScan(Relation heapRelation,
+				   Relation indexRelation,
+				   struct IndexInfo *indexInfo,
+				   bool allow_sync,
+				   EState *estate,
+				   Snapshot snapshot,
+				   TransactionId OldestXmin,
+				   IndexBuildCallback callback,
+				   void *callback_state);
 
 #endif   /* INDEX_H */

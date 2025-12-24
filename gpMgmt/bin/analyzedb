@@ -42,7 +42,7 @@ logger = gplog.get_default_logger()
 WRITE_LOCK_FILE_NAME = "write_lock_semaphore"
 ANALYZE_GUCS = "set optimizer_analyze_enable_merge_of_leaf_stats=off; "
 ANALYZE_SQL = """analyze %s"""
-ANALYZE_SQL_SKIP_LOCKED = """begin; lock table %s in SHARE UPDATE EXCLUSIVE mode nowait; analyze %s; commit"""
+ANALYZE_SQL_SKIP_LOCKED = """analyze skip_locked %s;"""
 ANALYZE_ROOT_SQL = """analyze rootpartition %s"""
 REPORTS_ARE_STALE_AFTER_N_DAYS = 8
 NUM_REPORTS_TO_SAVE = 3
@@ -156,9 +156,11 @@ WHERE pp.parrelid = c.oid AND c.relnamespace = n.oid AND pp.paristemplate = fals
 """
 
 ORDER_CANDIDATES_BY_OID_SQL = """
-SELECT schemaname, tablename FROM
-(SELECT c.oid as tableoid, n.nspname as schemaname, c.relname as tablename FROM pg_class c, pg_namespace n where c.relnamespace=n.oid and c.oid in (%s)) AS foo
-ORDER BY tableoid DESC;
+SELECT foo.schemaname as schemaname, tablename 
+FROM (SELECT c.oid as tableoid, n.nspname as schemaname, c.relname as tablename FROM pg_class c, pg_namespace n where c.relnamespace=n.oid and c.oid in (%s)) AS foo
+JOIN (SELECT relname,schemaname, sum(n_mod_since_analyze)as msa FROM gp_dist_random('pg_stat_all_tables') GROUP BY relid, schemaname, relname) bar
+ON foo.schemaname = bar.schemaname and foo.tablename = bar.relname
+ORDER BY msa DESC, tableoid DESC;
 """
 
 def validate_schema_exists(dbname, schema, hostname, port):
@@ -492,7 +494,7 @@ class AnalyzeDb(Operation):
             if can in candidates:
                 target = self._get_tablename_with_cols(can_schema, can_table, input_col_dict)
                 if self.skip_locked:
-                    command = ANALYZE_SQL_SKIP_LOCKED % (target, target)
+                    command = ANALYZE_SQL_SKIP_LOCKED % target
                 else:
                     command = ANALYZE_SQL % target    
                 cmd = create_psql_command(self.dbname, self.hostname, self.port, self.analyze_gucs + command)

@@ -44,6 +44,7 @@
 #include "tcop/tcopprot.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
+#include "utils/metrics_utils.h"
 #include "utils/rel.h"
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
@@ -345,7 +346,7 @@ ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
 	 * it against access by any other process until commit (by which time it
 	 * will be gone).
 	 */
-	OIDNewHeap = make_new_heap(matviewOid, tableSpace, concurrent,
+	OIDNewHeap = make_new_heap(matviewOid, tableSpace, InvalidOid, concurrent,
 							   ExclusiveLock, createAoBlockDirectory, true);
 	LockRelationOid(OIDNewHeap, AccessExclusiveLock);
 	dest = CreateTransientRelDestReceiver(OIDNewHeap, matviewOid, concurrent, stmt->skipData);
@@ -478,6 +479,10 @@ refresh_matview_datafill(DestReceiver *dest, Query *query,
 				GetResqueuePriority(GetResQueueId()));
 	}
 
+	/* GPDB hook for collecting query info */
+	if (query_info_collect_hook)
+		(*query_info_collect_hook)(METRICS_QUERY_SUBMIT, queryDesc);
+
 	RestoreOidAssignments(saved_dispatch_oids);
 
 	/* call ExecutorStart to prepare the plan for execution */
@@ -563,7 +568,7 @@ transientrel_init(QueryDesc *queryDesc)
 	 * it against access by any other process until commit (by which time it
 	 * will be gone).
 	 */
-	OIDNewHeap = make_new_heap(matviewOid, tableSpace, concurrent,
+	OIDNewHeap = make_new_heap(matviewOid, tableSpace, InvalidOid, concurrent,
 							   ExclusiveLock, createAoBlockDirectory, false);
 	LockRelationOid(OIDNewHeap, AccessExclusiveLock);
 

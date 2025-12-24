@@ -149,6 +149,17 @@ int gp_fts_mark_mirror_down_grace_period = 30;
 int			gp_fts_replication_attempt_count = 10;
 
 /*
+ * Turn FTS off completely.
+ * Useful when cluster array has or is about to have known hardware issues which
+ * are a) temporary and b) likely will lead to a broken gp_segment_configuration.
+ * E.g, a whole DC went down and is about to restart or network temporarily became
+ * unreliable. In those situations we might opt to preserve gp_segment_configuration
+ * in the last known stable state instead of breaking it and manually recovering
+ * afterwards.
+*/
+bool		gp_fts_maintenance = false;
+
+/*
  * Polling interval for the dtx recovery. Checking in dtx recovery starts every
  * time this expires.
  */
@@ -205,6 +216,7 @@ int			Gp_interconnect_queue_depth = 4;	/* max number of messages
 												 * waiting in rx-queue before
 												 * we drop. */
 int			Gp_interconnect_snd_queue_depth = 2;
+int			Gp_interconnect_mem_size = 10;
 int			Gp_interconnect_cursor_ic_table_size = 128;
 int			Gp_interconnect_timer_period = 5;
 int			Gp_interconnect_timer_checking_period = 20;

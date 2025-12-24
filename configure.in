@@ -882,6 +882,20 @@ AS_IF([test "$enable_sr_plan" = yes],
 ]) # fi
 
 #
+# pgaudit, enabled by default
+#
+PGAC_ARG_BOOL(enable, pgaudit, yes, [disable pgaudit support],
+              [AC_DEFINE([USE_PGAUDIT], 1,
+                [Define to 1 to build with pgaudit (--enable-pgaudit)])])
+AC_MSG_RESULT([checking whether to build with pgaudit... $enable_pgaudit])
+AC_SUBST(enable_pgaudit)
+
+AS_IF([test "$enable_pgaudit" = yes],
+[ # then
+  AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+]) # fi
+
+#
 # ic-proxy
 #
 PGAC_ARG_BOOL(enable, ic-proxy, no,
@@ -1162,6 +1176,13 @@ AC_SUBST(with_libbz2)
 PGAC_ARG_BOOL(with, zstd, yes,
               [do not build with Zstandard])
 AC_SUBST(with_zstd)
+
+#
+# yagp_hooks_collector
+#
+PGAC_ARG_BOOL(with, yagp_hooks_collector, no,
+              [build with YAGP hooks collector extension])
+AC_SUBST(with_yagp_hooks_collector)
 
 #
 # quicklz
@@ -1452,7 +1473,7 @@ Use --without-zlib to disable zlib support.])])
 fi
 
 if test "$with_zstd" = yes; then
-  AC_CHECK_LIB(zstd, ZSTD_compressCCtx, [],
+  AC_CHECK_LIB(:libzstd.a, ZSTD_compressCCtx, [],
                [AC_MSG_ERROR([zstd library not found
 If you have libzstd already installed, see config.log for details on the
 failure.  It is possible the compiler isn't looking in the proper directory.

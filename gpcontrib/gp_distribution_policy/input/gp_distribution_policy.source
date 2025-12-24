@@ -29,7 +29,7 @@ SELECT gp_heap_distribution_check('nonfirst_distkey_table');
 -- Check that a table with the wrong distribution correctly displays a false
 CREATE TABLE some_other_table(id int, some_other_data int) distributed by (id);
 
-CREATE FUNCTION gp_execute_on_server(content smallint, query cstring) returns boolean
+CREATE OR REPLACE FUNCTION gp_execute_on_server(content int, query text) returns text
 language C as '@abs_builddir@/../../src/test/regress/regress.so', 'gp_execute_on_server';
 
 INSERT INTO some_other_table select i, i from generate_series(1,12)i;

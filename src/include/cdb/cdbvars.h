@@ -315,6 +315,7 @@ extern int	gp_fts_probe_timeout; /* GUC var - specifies probe timeout for FTS */
 extern int	gp_fts_probe_interval; /* GUC var - specifies polling interval for FTS */
 extern int	gp_fts_mark_mirror_down_grace_period;
 extern int	gp_fts_replication_attempt_count; /* GUC var - specifies replication max attempt count for FTS */
+extern bool gp_fts_maintenance; /* GUC var - turns off FTS for cluster maintenance */
 extern int	gp_dtx_recovery_interval;
 extern int	gp_dtx_recovery_prepared_period;
 
@@ -396,6 +397,8 @@ typedef enum GpVars_Interconnect_Method
 {
 	INTERCONNECT_FC_METHOD_CAPACITY = 0,
 	INTERCONNECT_FC_METHOD_LOSS = 2,
+	INTERCONNECT_FC_METHOD_LOSS_ADVANCE = 3,
+	INTERCONNECT_FC_METHOD_LOSS_TIMER = 4,
 } GpVars_Interconnect_Method;
 
 extern int Gp_interconnect_fc_method;
@@ -439,6 +442,7 @@ extern int	Gp_interconnect_min_rto;
 extern int  Gp_interconnect_transmit_timeout;
 extern int	Gp_interconnect_min_retries_before_timeout;
 extern int	Gp_interconnect_debug_retry_interval;
+extern int	Gp_interconnect_mem_size;
 
 /* UDP recv buf size in KB.  For testing */
 extern int 	Gp_udp_bufsize_k;

@@ -21,7 +21,7 @@
  */
 extern void NewRelationCreateToastTable(Oid relOid, Datum reloptions,
 									   bool is_part_child, bool is_part_parent);
-extern void NewHeapCreateToastTable(Oid relOid, Datum reloptions,
+extern void NewHeapCreateToastTable(Oid relOid, Oid tablespaceOid, Datum reloptions,
 									LOCKMODE lockmode,
 									bool is_part_child, bool is_part_parent);
 extern void AlterTableCreateToastTable(Oid relOid, Datum reloptions,
