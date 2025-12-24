@@ -1478,6 +1478,7 @@ class gpexpand:
                     select 'truncate only ' || oid::regclass::text
                       from pg_class
                      where relstorage = 'c'
+                       and relkind = 'r'
                 loop
                     execute cmd;
                 end loop; 
