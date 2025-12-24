@@ -2432,8 +2432,8 @@ keep_going:						/* We will come back to here until there is
 						 * deal with it.  Note we have *not* consumed the "E"
 						 * byte here.
 						 */
-						conn->status = CONNECTION_AWAITING_RESPONSE;
-						goto keep_going;
+						libpq_append_conn_error(conn, "server sent an error response during SSL exchange");
+						goto error_return;
 					}
 					else
 					{
