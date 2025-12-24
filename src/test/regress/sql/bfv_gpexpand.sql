@@ -58,7 +58,8 @@ alter table tp add b boolean;
 alter table tsp add b boolean;
 
 -- Expand tables, no error must happen
-\! gpexpand | grep ERROR | wc -l
+-- \! gpexpand | grep ERROR | wc -l
+\! gpexpand
 
 -- Check that the tables are expanded
 select numsegments
