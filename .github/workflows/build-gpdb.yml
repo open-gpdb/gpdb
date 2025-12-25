@@ -180,6 +180,10 @@ jobs:
                "install_target":true,
                "make_configs":["src/test/recovery:installcheck"]
               },
+              {"test":"ic-recovery",
+               "install_target":true,
+               "make_configs":["src/bin:installcheck"]
+              },
               {"test":"ic-modules",
                "make_configs":["src/test/modules:installcheck"]
               }
