@@ -5845,7 +5845,7 @@ ATExecCmd(List **wqueue, AlteredTableInfo *tab, Relation *rel_p,
 			break;
 
 		case AT_AddInherit:
-			address = ATExecAddInherit(rel, (RangeVar *) cmd->def, lockmode);
+			address = ATExecAddInherit(rel, cmd->def, lockmode);
 			break;
 		case AT_DropInherit:
 			address = ATExecDropInherit(rel, (RangeVar *) cmd->def, lockmode);
@@ -14004,6 +14004,7 @@ ATExecAddInherit(Relation child_rel, Node *node, LOCKMODE lockmode)
 	}
 	else
 	{
+		Assert(IsA(node, RangeVar));
 		parent = (RangeVar *) node;
 		is_partition = false;
 	}
