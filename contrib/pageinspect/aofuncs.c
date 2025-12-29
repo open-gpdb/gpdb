@@ -18,6 +18,11 @@
 PG_FUNCTION_INFO_V1(get_ao_headers_info);
 PG_FUNCTION_INFO_V1(get_aocs_headers_info);
 
+typedef struct AOCOHeadersInfoCxt {
+    AOCSScanDesc scan;
+    TupleTableSlot *slot;
+} AOCOHeadersInfoCxt;
+
 typedef struct AOHeadersInfoCxt {
     AppendOnlyScanDesc scan;
     TupleTableSlot *slot;
@@ -299,10 +304,10 @@ get_aocs_headers_info(PG_FUNCTION_ARGS)
 
         funcctx->tuple_desc = BlessTupleDesc(funcctx->tuple_desc);
 
-        funcctx->user_fctx = palloc(sizeof(AOHeadersInfoCxt));
+        funcctx->user_fctx = palloc(sizeof(AOCOHeadersInfoCxt));
 
-        ((AOHeadersInfoCxt*)funcctx->user_fctx)->scan = scan;
-        ((AOHeadersInfoCxt*)funcctx->user_fctx)->slot = slot;
+        ((AOCOHeadersInfoCxt*)funcctx->user_fctx)->scan = scan;
+        ((AOCOHeadersInfoCxt*)funcctx->user_fctx)->slot = slot;
 
         MemoryContextSwitchTo(oldcontext);
     }
@@ -310,8 +315,8 @@ get_aocs_headers_info(PG_FUNCTION_ARGS)
     /* stuff done on every call of the function */
     funcctx = SRF_PERCALL_SETUP();
 
-    scan = ((AOHeadersInfoCxt*)funcctx->user_fctx)->scan;
-    slot = ((AOHeadersInfoCxt*)funcctx->user_fctx)->slot;
+    scan = ((AOCOHeadersInfoCxt*)funcctx->user_fctx)->scan;
+    slot = ((AOCOHeadersInfoCxt*)funcctx->user_fctx)->slot;
 
 	while (1)
 	{
