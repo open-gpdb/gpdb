@@ -1,3 +1,8 @@
+-- start_ignore
+\! gpconfig -c shared_preload_libraries -v 'yagp_hooks_collector'
+\! gpstop -raiq
+\c
+-- end_ignore
 CREATE EXTENSION IF NOT EXISTS yagp_hooks_collector;
 
 CREATE OR REPLACE FUNCTION get_marked_query(marker TEXT)
@@ -43,3 +48,7 @@ RESET yagpcc.enable;
 RESET yagpcc.ignored_users_list;
 
 DROP EXTENSION yagp_hooks_collector;
+-- start_ignore
+\! gpconfig -r shared_preload_libraries
+\! gpstop -raiq
+-- end_ignore
