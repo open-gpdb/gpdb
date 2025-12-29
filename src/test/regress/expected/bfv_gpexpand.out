@@ -1,0 +1,104 @@
+-- Check that it is possible to add columns to AOCO tables in the period
+-- between adding new segments to a cluster and expanding the tables.
+-- Create table without partitions
+create table t (i int, j int)
+with (appendonly = true, orientation = column)
+distributed by (i);
+-- Create table with partitions
+create table tp (i int, j int)
+with (appendonly = true, orientation = column)
+distributed by (i)
+partition by range (j) (partition p start (0) end (2) every(1));
+NOTICE:  CREATE TABLE will create partition "tp_1_prt_p_1" for table "tp"
+NOTICE:  CREATE TABLE will create partition "tp_1_prt_p_2" for table "tp"
+-- Create table with subpartitions
+create table tsp (i int, j int, k int)
+with (appendonly = true, orientation = column)
+distributed by (i)
+partition by range (j)
+  subpartition by range (k)
+  subpartition template (subpartition sp start (0) end (2) every(1))
+(partition p start (0) end (2) every(1));
+NOTICE:  CREATE TABLE will create partition "tsp_1_prt_p_1" for table "tsp"
+NOTICE:  CREATE TABLE will create partition "tsp_1_prt_p_1_2_prt_sp_1" for table "tsp_1_prt_p_1"
+NOTICE:  CREATE TABLE will create partition "tsp_1_prt_p_1_2_prt_sp_2" for table "tsp_1_prt_p_1"
+NOTICE:  CREATE TABLE will create partition "tsp_1_prt_p_2" for table "tsp"
+NOTICE:  CREATE TABLE will create partition "tsp_1_prt_p_2_2_prt_sp_1" for table "tsp_1_prt_p_2"
+NOTICE:  CREATE TABLE will create partition "tsp_1_prt_p_2_2_prt_sp_2" for table "tsp_1_prt_p_2"
+-- Add tuples to the tables to fill their pg_aocsseg-s on master
+insert into t (i, j) values (1, 1);
+insert into tp (i, j) values (1, 1);
+insert into tsp (i, j, k) values (1, 1, 1);
+-- Check that pg_aocsseg-s contain tuples
+select string_agg('table ' || segrelid::regclass::text, ' union all ')
+         || ';' show_pg_aocssegs
+  from pg_appendonly
+ where relid in ('t'::regclass,
+                 'tp_1_prt_p_2'::regclass,
+                 'tsp_1_prt_p_2_2_prt_sp_2'::regclass) \gset
+:show_pg_aocssegs
+ segno | tupcount | varblockcount |                                                           vpinfo                                                           | modcount | formatversion | state 
+-------+----------+---------------+----------------------------------------------------------------------------------------------------------------------------+----------+---------------+-------
+     1 |        1 |             0 | \x0000000002000000000000000000000000000000000000000000000000000000000000000000000000000000                                 |        1 |             3 |     1
+     1 |        1 |             0 | \x0000000002000000000000000000000000000000000000000000000000000000000000000000000000000000                                 |        1 |             3 |     1
+     1 |        1 |             0 | \x000000000300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 |        1 |             3 |     1
+(3 rows)
+
+-- Add new segments
+\! echo "localhost|localhost|7008|/tmp/datadirs/dbfast4/demoDataDir3|9|3|p" > /tmp/testexpand
+\! echo "localhost|localhost|7009|/tmp/datadirs/dbfast_mirror4/demoDataDir3|10|3|m" >> /tmp/testexpand
+-- Add columns to the tables
+alter table t add b boolean;
+alter table tp add b boolean;
+alter table tsp add b boolean;
+-- Expand tables, no error must happen
+\! gpexpand | grep ERROR | wc -l
+0
+-- Check that the tables are expanded
+select numsegments
+  from gp_distribution_policy
+ where localoid in ('t'::regclass,
+                    'tp_1_prt_p_2'::regclass,
+                    'tsp_1_prt_p_2_2_prt_sp_2'::regclass);
+ numsegments 
+-------------
+           4
+           4
+           4
+(3 rows)
+
+\c postgres
+select status
+  from gpexpand.status_detail
+ where dbname = 'regression'
+   and fq_name in ('public.t',
+                   'public.tp_1_prt_p_2',
+                   'public.tsp_1_prt_p_2_2_prt_sp_2');
+  status   
+-----------
+ COMPLETED
+ COMPLETED
+ COMPLETED
+(3 rows)
+
+\c regression
+-- Cleanup
+-- Check that cluster is shrunk
+select count(*) from gp_segment_configuration;
+ count 
+-------
+     8
+(1 row)
+
+drop table t, tp, tsp;
+\c postgres
+drop schema gpexpand, gpshrink cascade;
+NOTICE:  drop cascades to 6 other objects
+DETAIL:  drop cascades to table gpshrink.status
+drop cascades to table gpshrink.status_detail
+drop cascades to view gpshrink.shrink_progress
+drop cascades to table gpexpand.status
+drop cascades to table gpexpand.status_detail
+drop cascades to view gpexpand.expansion_progress
+\c regression
+\! rm -rf /tmp/datadirs/dbfast_mirror4/ /tmp/datadirs/dbfast4/ /tmp/testexpand

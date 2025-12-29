@@ -261,6 +261,8 @@ from
 refresh materialized view sro_mv_issue_11999;
 ERROR:  division by zero
 CONTEXT:  SQL function "mv_action_select_issue_11999" during startup
+drop materialized view sro_mv_issue_11999;
+drop table t_sro_mv_issue_11999;
 -- CTAS into AOCS table with not crash
 -- See github issue: https://github.com/greenplum-db/gpdb/issues/12936
 set gp_default_storage_options to 'appendonly=true,blocksize=32768,compresstype=zstd,compresslevel=1,checksum=true,orientation=column';
