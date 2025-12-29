@@ -161,6 +161,8 @@ from
 -- then refresh should error out
 refresh materialized view sro_mv_issue_11999;
 
+drop materialized view sro_mv_issue_11999;
+drop table t_sro_mv_issue_11999;
 
 -- CTAS into AOCS table with not crash
 -- See github issue: https://github.com/greenplum-db/gpdb/issues/12936
