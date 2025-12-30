@@ -734,9 +734,11 @@ DefineIndex(Oid relationId,
 			   accessMethodName)));
 
     if  (stmt->unique && RelationIsAppendOptimized(rel))
+    {
         ereport(ERROR,
                 (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
                  errmsg("append-only tables do not support unique indexes")));
+    }
 
 	amcanorder = accessMethodForm->amcanorder;
 	amoptions = accessMethodForm->amoptions;
