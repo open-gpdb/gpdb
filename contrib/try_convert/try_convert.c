@@ -1,14 +1,12 @@
 #include "postgres.h"
 
 #include "catalog/pg_cast.h"
+#include "funcapi.h"
+#include "executor/spi.h"
 #include "utils/syscache.h"
 #include "utils/lsyscache.h"
 #include "nodes/nodeFuncs.h"
 #include "nodes/miscnodes.h"
-
-#include "executor/spi.h"
-
-#include "funcapi.h"
 
 // #define USE_PG_TRY_CATCH
 
@@ -16,6 +14,21 @@ PG_MODULE_MAGIC;
 
 PG_FUNCTION_INFO_V1(try_convert);
 
+static Datum
+convert_from_function(Datum value, int32 typmod, Oid funcId, bool *is_failed);
+
+static Datum
+convert_type_typmod(Datum value, int32 sourceTypMod, Oid targetTypeId, int32 targetTypMod, bool *is_failed);
+
+static int32
+get_call_expr_argtypmod(Node *expr, int argnum);
+
+static Oid
+get_fn_expr_argtypmod(FmgrInfo *flinfo, int argnum);
+
+
+static Datum
+convert_via_io(Datum value, Oid sourceTypeId, Oid targetTypeId, int32 targetTypMod, bool *is_failed);
 
 typedef enum ConversionType
 {
@@ -26,8 +39,17 @@ typedef enum ConversionType
     CONVERSION_TYPE_NONE	
 } ConversionType;
 
+static ConversionType
+find_typmod_conversion_function(Oid typeId, Oid *funcId);
 
-ConversionType
+static ConversionType
+find_conversion_way(Oid targetTypeId, Oid sourceTypeId, Oid *funcId);
+
+static Datum
+convert(Datum value, ConversionType conversion_type, Oid funcId, Oid sourceTypeId, Oid targetTypeId, int32 targetTypMod, bool *is_failed);
+
+
+static ConversionType
 find_conversion_way(Oid targetTypeId, Oid sourceTypeId, Oid *funcId)
 {
 	ConversionType result = CONVERSION_TYPE_NONE;
@@ -142,7 +164,7 @@ find_conversion_way(Oid targetTypeId, Oid sourceTypeId, Oid *funcId)
 	return result;
 }
 
-ConversionType
+static ConversionType
 find_typmod_conversion_function(Oid typeId, Oid *funcId)
 {
 	ConversionType result;
@@ -170,10 +192,10 @@ find_typmod_conversion_function(Oid typeId, Oid *funcId)
 	return result;
 }
 
-Datum
+static Datum
 convert_from_function(Datum value, int32 typmod, Oid funcId, bool *is_failed)
 {
-    Datum res = 0;
+	Datum res = 0;
 
 	ErrorSaveContext escontext = {T_ErrorSaveContext, false};
 
@@ -182,7 +204,7 @@ convert_from_function(Datum value, int32 typmod, Oid funcId, bool *is_failed)
 	{
 #endif
 
-	res = OidFunctionCall3Safe(funcId, value, typmod, true, &escontext);
+	res = OidFunctionCall3Safe(funcId, value, typmod, true, (Node *) &escontext);
 
 	if (escontext.error_occurred) {
 		*is_failed = true;
@@ -203,7 +225,7 @@ convert_from_function(Datum value, int32 typmod, Oid funcId, bool *is_failed)
 }
 
 
-Datum
+static Datum
 convert_via_io(Datum value, Oid sourceTypeId, Oid targetTypeId, int32 targetTypMod, bool *is_failed)
 {
 	FmgrInfo outfunc;
@@ -245,8 +267,8 @@ convert_via_io(Datum value, Oid sourceTypeId, Oid targetTypeId, int32 targetTypM
 							   CStringGetDatum(string),
 							   ObjectIdGetDatum(intypioparam),
 							   Int32GetDatum(-1),
+							   (Node *)&escontext);
 
-							   &escontext);
 	SPI_pop_conditional(pushed);
 
 	if (escontext.error_occurred) {
@@ -273,7 +295,7 @@ convert_via_io(Datum value, Oid sourceTypeId, Oid targetTypeId, int32 targetTypM
  *
  * Returns -1 if information is not available
  */
-int32
+static int32
 get_call_expr_argtypmod(Node *expr, int argnum)
 {
 	List	   *args;
@@ -312,7 +334,7 @@ get_call_expr_argtypmod(Node *expr, int argnum)
  *
  * Returns -1 if information is not available
  */
-Oid
+static Oid
 get_fn_expr_argtypmod(FmgrInfo *flinfo, int argnum)
 {
 	/*
@@ -326,7 +348,7 @@ get_fn_expr_argtypmod(FmgrInfo *flinfo, int argnum)
 }
 
 
-Datum
+static Datum
 convert(Datum value, ConversionType conversion_type, Oid funcId, Oid sourceTypeId, Oid targetTypeId, int32 targetTypMod, bool *is_failed) {
 	
 	switch (conversion_type)
@@ -359,7 +381,8 @@ convert(Datum value, ConversionType conversion_type, Oid funcId, Oid sourceTypeI
 	return 0;
 }
 
-Datum convert_type_typmod(Datum value, int32 sourceTypMod, Oid targetTypeId, int32 targetTypMod, bool *is_failed) {
+static Datum
+convert_type_typmod(Datum value, int32 sourceTypMod, Oid targetTypeId, int32 targetTypMod, bool *is_failed) {
 	if (targetTypMod < 0 || targetTypMod == sourceTypMod)
 		return value;
 
