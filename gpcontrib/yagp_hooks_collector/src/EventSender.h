@@ -14,6 +14,7 @@ extern "C" {
 #undef typeid
 
 #include "memory/gpdbwrappers.h"
+#include "Config.h"
 
 class UDSConnector;
 struct QueryDesc;
@@ -106,8 +107,8 @@ private:
     explicit QueryItem(QueryState st);
   };
 
-  static bool log_query_req(const yagpcc::SetQueryReq &req,
-                            const std::string &event, bool utility);
+  bool log_query_req(const yagpcc::SetQueryReq &req, const std::string &event,
+                     bool utility);
   bool verify_query(QueryDesc *query_desc, QueryState state, bool utility);
   void update_query_state(QueryItem &query, QueryState new_state, bool utility,
                           bool success = true);
@@ -130,4 +131,6 @@ private:
   ICStatistics ic_statistics;
 #endif
   std::unordered_map<QueryKey, QueryItem> queries;
+
+  Config config;
 };
