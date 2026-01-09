@@ -10,6 +10,8 @@ SET yagpcc.ignored_users_list TO '';
 SET yagpcc.enable TO TRUE;
 SET yagpcc.logging_mode TO 'UDS';
 
+\! sleep 1
+
 -- Trigger sending
 SELECT 1;
 
