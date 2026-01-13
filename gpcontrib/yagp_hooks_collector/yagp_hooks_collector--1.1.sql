@@ -93,3 +93,18 @@ BEGIN
     PERFORM yagpcc.__truncate_log_on_segments();
 END;
 $$ LANGUAGE plpgsql VOLATILE;
+
+CREATE FUNCTION yagpcc.__test_uds_start_server(path text)
+RETURNS void
+AS 'MODULE_PATHNAME', 'yagp_test_uds_start_server'
+LANGUAGE C STRICT VOLATILE EXECUTE ON MASTER;
+
+CREATE FUNCTION yagpcc.__test_uds_receive(timeout_ms int DEFAULT 2000)
+RETURNS bigint
+AS 'MODULE_PATHNAME', 'yagp_test_uds_receive'
+LANGUAGE C STRICT VOLATILE EXECUTE ON MASTER;
+
+CREATE FUNCTION yagpcc.__test_uds_stop_server()
+RETURNS void
+AS 'MODULE_PATHNAME', 'yagp_test_uds_stop_server'
+LANGUAGE C STRICT VOLATILE EXECUTE ON MASTER;

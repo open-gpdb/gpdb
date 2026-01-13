@@ -1,23 +1,27 @@
 -- Test UDS socket
 CREATE EXTENSION yagp_hooks_collector;
 
--- Start receiver with 3 second timeout, args are <socket> <output> <timeout_sec>
-\! python3 sql/uds_test_receiver.py /tmp/yagpcc_test.sock /tmp/yagpcc_result.txt 3 &
+\set UDS_PATH '/tmp/yagpcc_test.sock'
 
 -- Configure extension to send via UDS
-SET yagpcc.uds_path TO '/tmp/yagpcc_test.sock';
+SET yagpcc.uds_path TO :'UDS_PATH';
 SET yagpcc.ignored_users_list TO '';
 SET yagpcc.enable TO TRUE;
 SET yagpcc.logging_mode TO 'UDS';
 
-\! sleep 1
+-- Start receiver
+SELECT yagpcc.__test_uds_start_server(:'UDS_PATH');
 
--- Trigger sending
+-- Send
 SELECT 1;
 
--- Wait for 4s and show results
-\! sleep 4 && cat /tmp/yagpcc_result.txt
+-- Receive
+SELECT yagpcc.__test_uds_receive() > 0 as received;
 
+-- Stop receiver
+SELECT yagpcc.__test_uds_stop_server();
+
+-- Cleanup
 DROP EXTENSION yagp_hooks_collector;
 RESET yagpcc.uds_path;
 RESET yagpcc.ignored_users_list;
