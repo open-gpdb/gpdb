@@ -117,6 +117,9 @@ jobs:
               {"test":"ic-mdb",
                "make_configs":["src/test/isolation2:installcheck-mdb"]
               },
+              {"test":"ic-isolation2",
+               "make_configs":["src/test/isolation2:installcheck"]
+              },
               {"test":"ic-contrib",
                "install_target":true,
                "make_configs":["contrib/amcheck:installcheck",
@@ -162,9 +165,6 @@ jobs:
                                "gpcontrib/gpmapreduce:installcheck",
                                "gpcontrib/orafce:installcheck",
                                "gpcontrib/pgaudit:installcheck"]
-              },
-              {"test":"ic-parallel-retrieve-cursor",
-               "make_configs":["src/test/isolation2:installcheck-parallel-retrieve-cursor"]
               },
               {"test":"ic-temp_tables_stat",
                "make_configs":["src/test/isolation2:installcheck-tts"]
