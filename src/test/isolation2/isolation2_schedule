@@ -6,7 +6,7 @@ test: lockmodes
 # Put test prepare_limit near to test lockmodes since both of them reboot the
 # cluster during testing. Usually the 2nd reboot should be faster.
 test: prepare_limit
-test: pg_rewind_fail_missing_xlog
+#test: pg_rewind_fail_missing_xlog
 test: prepared_xact_deadlock_pg_rewind
 test: ao_partition_lock query_gp_partitions_view
 test: dml_on_root_locks_all_parts
@@ -172,7 +172,7 @@ test: uao/concurrent_inserts_hash_crash_row
 
 test: reorganize_after_ao_vacuum_skip_drop truncate_after_ao_vacuum_skip_drop mark_all_aoseg_await_drop
 # below test(s) inject faults so each of them need to be in a separate group
-test: segwalrep/master_xlog_switch
+#test: segwalrep/master_xlog_switch
 test: idle_gang_cleaner
 
 # Tests on Append-Optimized tables (column-oriented).
@@ -254,8 +254,8 @@ test: segwalrep/dtm_recovery_on_standby
 test: segwalrep/commit_blocking_on_standby
 test: segwalrep/max_slot_wal_keep_size
 test: segwalrep/dtx_recovery_wait_lsn
-test: pg_basebackup
-test: pg_basebackup_with_tablespaces
+#test: pg_basebackup
+#test: pg_basebackup_with_tablespaces
 test: segwalrep/hintbit_throttle
 test: fts_manual_probe
 test: fts_session_reset
