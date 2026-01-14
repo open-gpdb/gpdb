@@ -69,7 +69,7 @@ Datum yagp_test_uds_start_server(PG_FUNCTION_ARGS) {
   if (strlen(path) >= sizeof(addr.sun_path))
     ereport(ERROR, (errmsg("path too long")));
 
-  yagp_test_uds_stop_server(fcinfo);
+  yagp_test_uds_stop_server(NULL);
 
   strlcpy(addr.sun_path, path, sizeof(addr.sun_path));
   sock_path = MemoryContextStrdup(TopMemoryContext, path);
