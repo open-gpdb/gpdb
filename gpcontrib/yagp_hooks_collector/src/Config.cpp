@@ -27,7 +27,6 @@ static const struct config_enum_entry logging_mode_options[] = {
     {"tbl", LOG_MODE_TBL, false},
     {NULL, 0, false}};
 
-static constexpr char default_uds_path[] = "/tmp/yagpcc_agent.sock";
 static bool ignored_users_guc_dirty = false;
 
 static void assign_ignored_users_hook(const char *, void *) {
@@ -37,7 +36,7 @@ static void assign_ignored_users_hook(const char *, void *) {
 void Config::init_gucs() {
   DefineCustomStringVariable(
       "yagpcc.uds_path", "Sets filesystem path of the agent socket", 0LL,
-      &guc_uds_path, default_uds_path, PGC_SUSET,
+      &guc_uds_path, "/tmp/yagpcc_agent.sock", PGC_SUSET,
       GUC_NOT_IN_SAMPLE | GUC_GPDB_NEED_SYNC, 0LL, 0LL, 0LL);
 
   DefineCustomBoolVariable(
