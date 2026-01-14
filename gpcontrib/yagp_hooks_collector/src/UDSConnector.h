@@ -6,6 +6,6 @@ class Config;
 
 class UDSConnector {
 public:
-  static bool report_query(const yagpcc::SetQueryReq &req,
+  bool static report_query(const yagpcc::SetQueryReq &req,
                            const std::string &event, const Config &config);
 };

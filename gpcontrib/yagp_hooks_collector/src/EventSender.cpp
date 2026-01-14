@@ -47,7 +47,7 @@ bool EventSender::verify_query(QueryDesc *query_desc, QueryState state,
 
     // Register qkey for a nested query we won't report,
     // so we can detect nesting_level > 0 and skip reporting at end/done.
-    if (!need_report_nested_query(config) && nesting_level > 0) {
+    if (!need_report_nested_query() && nesting_level > 0) {
       QueryKey::register_qkey(query_desc, nesting_level);
       return false;
     }
@@ -69,10 +69,10 @@ bool EventSender::verify_query(QueryDesc *query_desc, QueryState state,
     break;
   }
 
-  if (filter_query(query_desc, config)) {
+  if (filter_query(query_desc)) {
     return false;
   }
-  if (!nesting_is_valid(query_desc, nesting_level, config)) {
+  if (!nesting_is_valid(query_desc, nesting_level)) {
     return false;
   }
 
@@ -315,7 +315,7 @@ void EventSender::collect_query_done(QueryDesc *query_desc, bool utility,
 
   report_query_done(query_desc, query, status, utility, edata);
 
-  if (need_report_nested_query(config))
+  if (need_report_nested_query())
     update_nested_counters(query_desc);
 
   queries.erase(QueryKey::from_qdesc(query_desc));
@@ -484,6 +484,20 @@ bool EventSender::qdesc_submitted(QueryDesc *query_desc) {
     return false;
   }
   return queries.find(QueryKey::from_qdesc(query_desc)) != queries.end();
+}
+
+bool EventSender::nesting_is_valid(QueryDesc *query_desc, int nesting_level) {
+  return need_report_nested_query() ||
+         is_top_level_query(query_desc, nesting_level);
+}
+
+bool EventSender::need_report_nested_query() {
+  return config.report_nested_queries() && Gp_session_role == GP_ROLE_DISPATCH;
+}
+
+bool EventSender::filter_query(QueryDesc *query_desc) {
+  return gp_command_count == 0 || query_desc->sourceText == nullptr ||
+         !config.enable_collector() || config.filter_user(get_user_name());
 }
 
 EventSender::QueryItem::QueryItem(QueryState st)

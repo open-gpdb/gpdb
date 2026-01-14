@@ -122,6 +122,9 @@ private:
                           QueryMetricsStatus status, ErrorData *edata = NULL);
   void update_nested_counters(QueryDesc *query_desc);
   bool qdesc_submitted(QueryDesc *query_desc);
+  bool nesting_is_valid(QueryDesc *query_desc, int nesting_level);
+  bool need_report_nested_query();
+  bool filter_query(QueryDesc *query_desc);
 
   bool proto_verified = false;
   int nesting_level = 0;

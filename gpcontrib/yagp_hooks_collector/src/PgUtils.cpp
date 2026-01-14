@@ -65,18 +65,3 @@ bool is_top_level_query(QueryDesc *query_desc, int nesting_level) {
   }
   return query_desc->yagp_query_key->nesting_level == 0;
 }
-
-bool nesting_is_valid(QueryDesc *query_desc, int nesting_level,
-                      const Config &config) {
-  return need_report_nested_query(config) ||
-         is_top_level_query(query_desc, nesting_level);
-}
-
-bool need_report_nested_query(const Config &config) {
-  return config.report_nested_queries() && Gp_session_role == GP_ROLE_DISPATCH;
-}
-
-bool filter_query(QueryDesc *query_desc, const Config &config) {
-  return gp_command_count == 0 || query_desc->sourceText == nullptr ||
-         !config.enable_collector() || config.filter_user(get_user_name());
-}
