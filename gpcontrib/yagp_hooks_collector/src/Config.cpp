@@ -16,9 +16,9 @@ static bool guc_enable_cdbstats = true;
 static bool guc_enable_collector = true;
 static bool guc_report_nested_queries = true;
 static char *guc_ignored_users = nullptr;
-static int guc_max_text_size = 1 << 20;  // in bytes (1MB)
-static int guc_max_plan_size = 1024;     // in KB
-static int guc_min_analyze_time = 10000; // in ms
+static int guc_max_text_size = 1 << 20;     // in bytes (1MB)
+static int guc_max_plan_size = 1024;        // in KB
+static int guc_min_analyze_time = 10000;    // in ms
 static int guc_logging_mode = LOG_MODE_UDS;
 static bool guc_enable_utility = false;
 
@@ -27,7 +27,7 @@ static const struct config_enum_entry logging_mode_options[] = {
     {"tbl", LOG_MODE_TBL, false},
     {NULL, 0, false}};
 
-static constexpr std::string_view default_uds_path = "/tmp/yagpcc_agent.sock";
+static constexpr char default_uds_path[] = "/tmp/yagpcc_agent.sock";
 static bool ignored_users_guc_dirty = false;
 
 static void assign_ignored_users_hook(const char *, void *) {
@@ -37,7 +37,7 @@ static void assign_ignored_users_hook(const char *, void *) {
 void Config::init_gucs() {
   DefineCustomStringVariable(
       "yagpcc.uds_path", "Sets filesystem path of the agent socket", 0LL,
-      &guc_uds_path, default_uds_path.data(), PGC_SUSET,
+      &guc_uds_path, default_uds_path, PGC_SUSET,
       GUC_NOT_IN_SAMPLE | GUC_GPDB_NEED_SYNC, 0LL, 0LL, 0LL);
 
   DefineCustomBoolVariable(
