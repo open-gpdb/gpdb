@@ -774,7 +774,7 @@ gp_hyperloglog_add_item(GpHLLCounter hllcounter, Datum element, int16 typlen, bo
 	else if (typlen == -2)
 	{
 		/* cstring */
-		hyperloglog = gp_hll_add_element(hyperloglog, DatumGetCString(element), strlen(element));
+		hyperloglog = gp_hll_add_element(hyperloglog, DatumGetCString(element), strlen(DatumGetCString(element)));
 	}
 	else if (typbyval)
 	{
