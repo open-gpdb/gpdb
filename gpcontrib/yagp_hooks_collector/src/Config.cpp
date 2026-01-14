@@ -138,7 +138,7 @@ void Config::sync() {
     update_ignored_users(guc_ignored_users);
     ignored_users_guc_dirty = false;
   }
-  uds_path_ = guc_uds_path ? guc_uds_path : default_uds_path;
+  uds_path_ = guc_uds_path;
   enable_analyze_ = guc_enable_analyze;
   enable_cdbstats_ = guc_enable_cdbstats;
   enable_collector_ = guc_enable_collector;
