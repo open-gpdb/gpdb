@@ -9,6 +9,7 @@
 -- This is due to query being actually executed between SUBMIT and DONE.
 -- start_ignore
 CREATE EXTENSION IF NOT EXISTS yagp_hooks_collector;
+SELECT yagpcc.truncate_log();
 -- end_ignore
 CREATE OR REPLACE FUNCTION print_last_query(query text)
 RETURNS TABLE(query_status text) AS $$
