@@ -1,5 +1,7 @@
 -- Test UDS socket
-CREATE EXTENSION yagp_hooks_collector;
+-- start_ignore
+CREATE EXTENSION IF NOT EXISTS yagp_hooks_collector;
+-- end_ignore
 
 \set UDS_PATH '/tmp/yagpcc_test.sock'
 
