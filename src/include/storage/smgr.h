@@ -150,6 +150,7 @@ typedef struct f_smgr_ao {
 	int	        (*smgr_FileSync)(SMGRFile file);
 } f_smgr_ao;
 
+extern SMGRFile AORelOpenSegFile(Oid oid, const char * nspname, char * relname, FileName fileName, int fileFlags, int fileMode, int64 modcount);
 
 typedef void (*smgr_init_hook_type) (void);
 typedef void (*smgrao_init_hook_type) (void);
@@ -160,7 +161,6 @@ extern PGDLLIMPORT smgrao_init_hook_type smgrao_init_hook;
 extern PGDLLIMPORT smgr_init_hook_type smgr_init_hook;
 extern PGDLLIMPORT smgr_shutdown_hook_type smgr_shutdown_hook;
 extern void smgr_init_standard(void);
-extern void smgr_shutdown_standard(void);
 
 
 typedef const f_smgr *(*smgr_hook_type) (BackendId backend, RelFileNode rnode);
@@ -168,6 +168,7 @@ typedef const f_smgr_ao *(*smgrao_hook_type)();
 extern PGDLLIMPORT smgr_hook_type smgr_hook;
 extern PGDLLIMPORT smgrao_hook_type smgrao_hook;
 extern const f_smgr *smgr_standard(BackendId backend, RelFileNode rnode);
+extern const f_smgr_ao *smgrao_standard();
 
 extern const f_smgr *smgr(BackendId backend, RelFileNode rnode);
 extern const f_smgr_ao *smgrao(void);
