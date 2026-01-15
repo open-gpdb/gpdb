@@ -139,8 +139,8 @@ typedef struct f_smgr_ao {
 	int         (*smgr_FileTruncate) (SMGRFile file, int64 offset);
 	SMGRFile    (*smgr_AORelOpenSegFile) (
 		Oid reloid,
-		char * nspname, 
-		char * relname,
+		const char * nspname, 
+		const char * relname,
 		FileName fileName,
 		int fileFlags,
 		int fileMode,
@@ -150,7 +150,7 @@ typedef struct f_smgr_ao {
 	int	        (*smgr_FileSync)(SMGRFile file);
 } f_smgr_ao;
 
-extern SMGRFile AORelOpenSegFile(Oid oid, const char * nspname, char * relname, FileName fileName, int fileFlags, int fileMode, int64 modcount);
+extern SMGRFile AORelOpenSegFile(Oid oid, const char * nspname, const char * relname, FileName fileName, int fileFlags, int fileMode, int64 modcount);
 
 typedef void (*smgr_init_hook_type) (void);
 typedef void (*smgrao_init_hook_type) (void);
@@ -168,7 +168,7 @@ typedef const f_smgr_ao *(*smgrao_hook_type)();
 extern PGDLLIMPORT smgr_hook_type smgr_hook;
 extern PGDLLIMPORT smgrao_hook_type smgrao_hook;
 extern const f_smgr *smgr_standard(BackendId backend, RelFileNode rnode);
-extern const f_smgr_ao *smgrao_standard();
+extern const f_smgr_ao *smgrao_standard(void);
 
 extern const f_smgr *smgr(BackendId backend, RelFileNode rnode);
 extern const f_smgr_ao *smgrao(void);
