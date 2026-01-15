@@ -32,15 +32,13 @@ static int server_fd = -1;
 static char *sock_path = NULL;
 
 void _PG_init(void) {
-  if (Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE) {
+  if (Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE)
     hooks_init();
-  }
 }
 
 void _PG_fini(void) {
-  if (Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE) {
+  if (Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE)
     hooks_deinit();
-  }
 }
 
 Datum yagp_stat_messages_reset(PG_FUNCTION_ARGS) {
@@ -79,7 +77,7 @@ Datum yagp_test_uds_start_server(PG_FUNCTION_ARGS) {
   if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0 ||
       bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0 ||
       listen(server_fd, TEST_MAX_CONNECTIONS) < 0) {
-    yagp_test_uds_stop_server(fcinfo);
+    yagp_test_uds_stop_server(NULL);
     ereport(ERROR, (errmsg("socket setup failed: %m")));
   }
 
@@ -89,14 +87,14 @@ Datum yagp_test_uds_start_server(PG_FUNCTION_ARGS) {
 Datum yagp_test_uds_receive(PG_FUNCTION_ARGS) {
   int timeout_ms = PG_GETARG_INT32(0);
   int64 total = 0;
-  char buf[TEST_RCV_BUF_SIZE];
-  int rc;
   struct pollfd pfd = {.fd = server_fd, .events = POLLIN};
 
   if (server_fd < 0)
     ereport(ERROR, (errmsg("server not started")));
 
   for (;;) {
+    int rc;
+
     CHECK_FOR_INTERRUPTS();
     rc = poll(&pfd, 1, Min(timeout_ms, TEST_POLL_TIMEOUT_MS));
     if (rc > 0)
@@ -109,9 +107,11 @@ Datum yagp_test_uds_receive(PG_FUNCTION_ARGS) {
   }
 
   if (pfd.revents & POLLIN) {
-    int client = accept(server_fd, NULL, NULL);
+    char buf[TEST_RCV_BUF_SIZE];
+    int client;
     ssize_t n;
 
+    client = accept(server_fd, NULL, NULL);
     if (client < 0)
       ereport(ERROR, (errmsg("accept: %m")));
 
