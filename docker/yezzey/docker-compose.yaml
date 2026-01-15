@@ -38,7 +38,7 @@ services:
         secretAccessKey: some_key
         bucketName: gpyezzey
         s3endpoint: "http:\\/\\/minio:9000"
-        yezzeyRef: ${GITHUB_REF:-v1.8_opengpdb}
+        yezzeyRef: ${YEZZEY_GITHUB_REF:-v1.8_opengpdb}
     depends_on:
       minio:
         condition: service_healthy
