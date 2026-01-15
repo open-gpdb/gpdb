@@ -56,11 +56,14 @@ gpdb_binary_upgrade_insert_pro_tup(
     bool		nulls[Natts_pg_proc];
 	Datum		values[Natts_pg_proc];
     HeapTuple tuple;
+	NameData pname;
 
 	memset(values, 0, sizeof(values));
 	memset(nulls, false, sizeof(nulls));
 
-    values[Anum_pg_proc_proname - 1] = NameGetDatum(proname);
+	namestrcpy(&pname, proname);
+
+    values[Anum_pg_proc_proname - 1] = NameGetDatum(&pname);
 	values[Anum_pg_proc_pronamespace - 1] = ObjectIdGetDatum(PG_CATALOG_NAMESPACE);
 	values[Anum_pg_proc_proowner - 1] = ObjectIdGetDatum(BOOTSTRAP_SUPERUSERID);
 	values[Anum_pg_proc_prolang - 1] = ObjectIdGetDatum(ClanguageId);
@@ -161,10 +164,5 @@ gpdb_binary_upgrade_catalog_1_0_to_1_1(PG_FUNCTION_ARGS)
 Datum
 gp_acquire_sample_rows_vac(PG_FUNCTION_ARGS)
 {
-	
-	Oid			relOid = PG_GETARG_OID(0);
-	int32		targrows = PG_GETARG_INT32(1);
-	bool		inherited = PG_GETARG_BOOL(2);
-	int32		vacopts = PG_GETARG_INT32(3);
-	return gp_acquire_sample_rows_int(fcinfo,relOid,targrows,inherited,vacopts);
+	return gp_acquire_sample_rows_int(fcinfo);
 }
