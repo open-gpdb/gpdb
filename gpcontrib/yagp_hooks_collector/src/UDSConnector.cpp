@@ -37,7 +37,7 @@ bool UDSConnector::report_query(const yagpcc::SetQueryReq &req,
     YagpStat::report_error();
     return false;
   }
-  std::strcpy(address.sun_path, uds_path.c_str());
+  strcpy(address.sun_path, uds_path.c_str());
 
   const auto sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
   if (sockfd == -1) {
