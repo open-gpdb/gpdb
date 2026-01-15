@@ -49,7 +49,8 @@ typedef struct
 } gp_acquire_sample_rows_context;
 
 Datum
-gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bool inherited,int32 vacopts){
+gp_acquire_sample_rows_int(PG_FUNCTION_ARGS)
+{
 	FuncCallContext *funcctx = NULL;
 	gp_acquire_sample_rows_context *ctx;
 	MemoryContext oldcontext;
@@ -57,6 +58,13 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 	TupleDesc	relDesc;
 	TupleDesc	outDesc;
 	int			live_natts;
+	Oid			relOid = PG_GETARG_OID(0);
+	int32		targrows = PG_GETARG_INT32(1);
+	bool		inherited = PG_GETARG_BOOL(2);
+	int32		vacopts = 0;
+
+	if (PG_NARGS() > 3)
+		vacopts = PG_GETARG_INT32(3);
 
 	if (targrows < 1)
 		elog(ERROR, "invalid targrows argument");
@@ -357,11 +365,7 @@ gp_acquire_sample_rows_int(FunctionCallInfo fcinfo, Oid relOid,int32 targrows,bo
 Datum
 gp_acquire_sample_rows(PG_FUNCTION_ARGS)
 {
-	
-	Oid			relOid = PG_GETARG_OID(0);
-	int32		targrows = PG_GETARG_INT32(1);
-	bool		inherited = PG_GETARG_BOOL(2);
-	return gp_acquire_sample_rows_int(fcinfo, relOid, targrows, inherited, 0);
+	return gp_acquire_sample_rows_int(fcinfo);
 }
 
 
