@@ -31,56 +31,41 @@ PG_FUNCTION_INFO_V1(yagp_test_uds_stop_server);
 static int server_fd = -1;
 static char *sock_path = NULL;
 
-void
-_PG_init(void)
-{
+void _PG_init(void) {
   if (Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE)
     hooks_init();
 }
 
-void
-_PG_fini(void)
-{
+void _PG_fini(void) {
   if (Gp_role == GP_ROLE_DISPATCH || Gp_role == GP_ROLE_EXECUTE)
     hooks_deinit();
 }
 
-Datum
-yagp_stat_messages_reset(PG_FUNCTION_ARGS)
-{
+Datum yagp_stat_messages_reset(PG_FUNCTION_ARGS) {
   yagp_functions_reset();
   PG_RETURN_VOID();
 }
 
-Datum
-yagp_stat_messages(PG_FUNCTION_ARGS)
-{
+Datum yagp_stat_messages(PG_FUNCTION_ARGS) {
   return yagp_functions_get(fcinfo);
 }
 
-Datum
-yagp_init_log(PG_FUNCTION_ARGS)
-{
+Datum yagp_init_log(PG_FUNCTION_ARGS) {
   init_log();
   PG_RETURN_VOID();
 }
 
-Datum
-yagp_truncate_log(PG_FUNCTION_ARGS)
-{
+Datum yagp_truncate_log(PG_FUNCTION_ARGS) {
   truncate_log();
   PG_RETURN_VOID();
 }
 
-Datum
-yagp_test_uds_start_server(PG_FUNCTION_ARGS)
-{
+Datum yagp_test_uds_start_server(PG_FUNCTION_ARGS) {
   char *path = text_to_cstring(PG_GETARG_TEXT_PP(0));
   struct sockaddr_un addr = {.sun_family = AF_UNIX};
 
   if (strlen(path) >= sizeof(addr.sun_path))
-    ereport(ERROR,
-            (errmsg("path too long")));
+    ereport(ERROR, (errmsg("path too long")));
 
   yagp_test_uds_stop_server(NULL);
 
@@ -91,29 +76,23 @@ yagp_test_uds_start_server(PG_FUNCTION_ARGS)
 
   if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0 ||
       bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0 ||
-      listen(server_fd, TEST_MAX_CONNECTIONS) < 0)
-  {
+      listen(server_fd, TEST_MAX_CONNECTIONS) < 0) {
     yagp_test_uds_stop_server(NULL);
-    ereport(ERROR,
-            (errmsg("socket setup failed: %m")));
+    ereport(ERROR, (errmsg("socket setup failed: %m")));
   }
 
   PG_RETURN_VOID();
 }
 
-Datum
-yagp_test_uds_receive(PG_FUNCTION_ARGS)
-{
+Datum yagp_test_uds_receive(PG_FUNCTION_ARGS) {
   int timeout_ms = PG_GETARG_INT32(0);
   int64 total = 0;
   struct pollfd pfd = {.fd = server_fd, .events = POLLIN};
 
   if (server_fd < 0)
-    ereport(ERROR,
-            (errmsg("server not started")));
+    ereport(ERROR, (errmsg("server not started")));
 
-  for (;;)
-  {
+  for (;;) {
     int rc;
 
     CHECK_FOR_INTERRUPTS();
@@ -121,26 +100,22 @@ yagp_test_uds_receive(PG_FUNCTION_ARGS)
     if (rc > 0)
       break;
     if (rc < 0 && errno != EINTR)
-      ereport(ERROR,
-              (errmsg("poll: %m")));
+      ereport(ERROR, (errmsg("poll: %m")));
     timeout_ms -= TEST_POLL_TIMEOUT_MS;
     if (timeout_ms <= 0)
       PG_RETURN_INT64(0);
   }
 
-  if (pfd.revents & POLLIN)
-  {
+  if (pfd.revents & POLLIN) {
     char buf[TEST_RCV_BUF_SIZE];
     int client;
     ssize_t n;
 
     client = accept(server_fd, NULL, NULL);
     if (client < 0)
-      ereport(ERROR,
-              (errmsg("accept: %m")));
+      ereport(ERROR, (errmsg("accept: %m")));
 
-    while ((n = recv(client, buf, sizeof(buf), 0)) != 0)
-    {
+    while ((n = recv(client, buf, sizeof(buf), 0)) != 0) {
       if (n > 0)
         total += n;
       else if (errno != EINTR)
@@ -153,16 +128,12 @@ yagp_test_uds_receive(PG_FUNCTION_ARGS)
   PG_RETURN_INT64(total);
 }
 
-Datum
-yagp_test_uds_stop_server(PG_FUNCTION_ARGS)
-{
-  if (server_fd >= 0)
-  {
+Datum yagp_test_uds_stop_server(PG_FUNCTION_ARGS) {
+  if (server_fd >= 0) {
     close(server_fd);
     server_fd = -1;
   }
-  if (sock_path)
-  {
+  if (sock_path) {
     unlink(sock_path);
     pfree(sock_path);
     sock_path = NULL;
