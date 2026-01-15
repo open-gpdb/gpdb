@@ -194,7 +194,7 @@ main(int argc, char **argv)
 				connstr_source = pg_strdup(optarg);
 				break;
 			case 4:             /* --source-segment-id */
-				instanceSegIndx = strtoll(optarg, optarg + strlen(optarg), 10);
+				instanceSegIndx = strtoll(optarg, NULL, 10);
 				break;
 		}
 	}
