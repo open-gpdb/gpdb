@@ -1604,7 +1604,7 @@ register_dirty_segment(SMgrRelation reln, ForkNumber forknum, MdfdVec *seg)
  * for AO segment files.
  */
 void
-register_dirty_segment_ao(RelFileNode rnode, int segno, File vfd, struct f_smgr_ao *smgrao)
+register_dirty_segment_ao(RelFileNode rnode, int segno, File vfd, const struct f_smgr_ao *smgrao)
 {
 	if (pendingOpsTable)
 	{
