@@ -68,7 +68,7 @@ static const f_smgr smgrsw[] = {
 	},
 };
 
-SMGRFile AORelOpenSegFile(Oid oid, char * nspname, char * relname, FileName fileName, int fileFlags, int fileMode, int64 modcount) {
+SMGRFile AORelOpenSegFile(Oid oid, const char * nspname, char * relname, FileName fileName, int fileFlags, int fileMode, int64 modcount) {
 	return PathNameOpenFile(fileName, fileFlags, fileMode);
 }
 
