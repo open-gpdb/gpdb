@@ -31,7 +31,7 @@ from gp_segment_configuration where role = 'p' and content = 0;
 -- sometimes process of calling abort() (which is issued by the injection
 -- of 'panic' fault in the next lines of this test) and abortion itself can
 -- take a long time to complete. So, sometimes this test can give unexpected
--- results, when you think that commands sended after issuing panic fault
+-- results, when you think that commands sent after issuing panic fault
 -- should fail, but they are being executed without any errors.
 select gp_inject_fault('backend_abort_handling', 'skip', dbid)
 from gp_segment_configuration where role = 'p' and content = 0;
@@ -47,8 +47,8 @@ from gp_segment_configuration where role = 'p' AND content = 0;
 -- error because we couldn't send command because seg0 already restarting;
 -- error because reaper killed backend on seg0 because it started reaping
 -- backends (previous panic fault injection)
--- no error, because we managed to overrun reaper and sendeed results
--- of wait_until_triggered back
+-- no error, because we managed to overrun reaper and sent results
+-- of gp_wait_until_triggered_fault back
 -- start_ignore
 select gp_wait_until_triggered_fault('backend_abort_handling', 1, dbid)
 from gp_segment_configuration where role = 'p' and content = 0;
