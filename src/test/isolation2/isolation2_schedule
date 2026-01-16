@@ -260,7 +260,7 @@ test: segwalrep/hintbit_throttle
 test: fts_manual_probe
 test: fts_session_reset
 #test: fts_segment_reset
-#test: fts_maintenance
+test: fts_maintenance
 
 # Reindex tests
 test: reindex/abort_reindex

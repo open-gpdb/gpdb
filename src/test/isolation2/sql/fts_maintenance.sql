@@ -1,5 +1,13 @@
 -- Faster FTS probes
 -- Let FTS detect/declare failure sooner 
+
+-- start_matchsubs
+-- m/Is the server running on host "\d+.\d+.\d+.\d+" and accepting/
+-- s/Is the server running on host "\d+.\d+.\d+.\d+" and accepting/Is the server running on host "X.X.X.X" and accepting/
+-- m/seg1 \d+.\d+.\d+.\d+:/
+-- s/seg1 \d+.\d+.\d+.\d+:/seg1 X.X.X.X:/
+-- end_matchsubs
+
 !\retcode gpconfig -c gp_fts_probe_interval -v 10 --masteronly;
 !\retcode gpconfig -c gp_fts_probe_retries -v 2 --masteronly;
 !\retcode gpconfig -c statement_timeout -v 2min;
