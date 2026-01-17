@@ -71,4 +71,12 @@ extern BufFile *BufFileCreateNamedTemp_ForceDefaultSpace(const char *fileName, b
 extern BufFile *BufFileOpenNamedTemp_ForceDefaultSpace(const char *fileName,
 													   bool interXact);
 
+#ifdef HAVE_LIBZSTD
+
+extern void *customAlloc(void *opaque, size_t size);
+
+extern void customFree(void *opaque, void *address);
+
+#endif		/* HAVE_ZSTD */
+
 #endif   /* BUFFILE_H */
