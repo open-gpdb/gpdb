@@ -1588,8 +1588,18 @@ GetRestoreCommandHint(PQExpBufferData conninfo_buf)
 	PGconn   *regular_conn;
 	PGresult *restore_cmd_hint_res;
 	char	 *restore_cmd_hint = NULL;
+	PQExpBufferData conninfo_buf_copy;
 
-	regular_conn = PQconnectdb(conninfo_buf.data);
+	/*
+	 * conninfo_buf doesn't include dbname. Without it, libpq defaults to connecting
+	 * to a database with the same name as the username, which may not exist.
+	 * Use the 'postgres' database which always exists. Also use utility mode
+	 * to connect to primary segments.
+	 */
+	initPQExpBuffer(&conninfo_buf_copy);
+	appendPQExpBuffer(&conninfo_buf_copy, "%s dbname=postgres options='-c gp_session_role=utility'", conninfo_buf.data);
+	regular_conn = PQconnectdb(conninfo_buf_copy.data);
+	termPQExpBuffer(&conninfo_buf_copy);
 
 	if (PQstatus(regular_conn) != CONNECTION_OK)
 	{
