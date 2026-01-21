@@ -810,6 +810,7 @@ jobs:
         run: |
           set -eux
           cat > vm-home/cloud-init <<EOF0
+          sudo apt update
           sudo apt -y install /home/gpadmin/*.deb
           EOF0
 
