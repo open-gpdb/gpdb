@@ -812,15 +812,16 @@ jobs:
           cat > vm-home/cloud-init <<EOF0
           sudo apt update
           sudo apt -y install /home/gpadmin/*.deb
+          sudo chown -R gpadmin:gpadmin /opt/greenplum-db-6
+          sudo chown -R gpadmin:gpadmin /home/gpadmin/gpdb
+          cd /home/gpadmin/gpdb/
+          ls -l
           EOF0
 
       - name: Create VM disk and cloud-init config
         run: |
           set -eux
           mkdir vm-work
-
-          # Move image to VM Home folder
-          #mv ${IMAGE_FILE} vm-home/
 
           # Copy virtual disk to VM Work folder
           cp ubuntu-22.04.img vm-work/vm-disk.qcow2
@@ -862,6 +863,7 @@ jobs:
         run: |
           set -eux
           rm -f vm-home/logs/.exitcode
+          tar xf vm-home/*.tar.xz -C vm-home
           cd vm-work
           sudo qemu-system-x86_64 \
             -machine type=pc,accel=kvm \
