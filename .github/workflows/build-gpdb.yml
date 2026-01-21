@@ -793,6 +793,97 @@ jobs:
 
           } 2>&1 | tee -a install-logs/details/deb-verification.log
 
+      - name: Setup QEMU
+        run: |
+          set -eux
+          sudo apt update
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils libguestfs-tools
+
+      - name: Download Ubuntu cloud image
+        if: steps.cache-qemu.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          wget -q -O ubuntu-22.04.img \
+            https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+
+      - name: Create cloud-init script
+        run: |
+          set -eux
+          mkdir -p vm-home
+
+          cat > vm-home/cloud-init <<EOF0
+          sudo apt -y install /deb_build_artifacts/*.deb
+          EOF0
+
+      - name: Create VM disk and cloud-init config
+        run: |
+          set -eux
+          mkdir -p vm-work
+
+          # Move image to VM Home folder
+          #mv ${IMAGE_FILE} vm-home/
+
+          # Copy virtual disk to VM Work folder
+          cp ubuntu-22.04.img vm-work/vm-disk.qcow2
+
+          cd vm-work
+
+          # Extract kernel from cloud image for usin as external
+          sudo virt-get-kernel --add vm-disk.qcow2
+          sudo chmod -R a+rwX .
+
+          # Make clear links to kernel files
+          for f in initrd vmlinuz ; do
+            find . -maxdepth 1 -type f -name "$f*" -exec ln -sf {} $f \;
+          done
+
+          qemu-img resize vm-disk.qcow2 20G
+
+          # Create cloud-init user-data
+          cat > user-data <<EOF1
+          #cloud-config
+          users:
+            - name: gpadmin
+              sudo: ALL=(ALL) NOPASSWD:ALL
+              shell: /bin/bash
+              uid: $UID
+          runcmd:
+            - mount -t 9p -o trans=virtio,version=9p2000.L,rw hostshare /home/gpadmin
+            - bash /home/gpadmin/cloud-init
+            - shutdown -h now
+          EOF1
+
+          # Create meta-data
+          echo "instance-id: github-actions-vm" > meta-data
+
+          # Create cloud-init ISO
+          cloud-localds seed.img user-data meta-data
+
+      - name: Start QEMU VM with shared volume and cgroups v1
+        run: |
+          set -eux
+          rm -f vm-home/logs/.exitcode
+          cd vm-work
+          sudo qemu-system-x86_64 \
+            -machine type=pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 8192 \
+            -pidfile qemu.pid \
+            -drive file=vm-disk.qcow2,format=qcow2,if=virtio \
+            -drive file=seed.img,format=raw,if=virtio \
+            -netdev user,id=net0 \
+            -device virtio-net-pci,netdev=net0 \
+            -fsdev local,security_model=passthrough,id=fsdev0,path=../vm-home \
+            -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare \
+            -kernel vmlinuz \
+            -initrd initrd \
+            -append "root=/dev/vda1 ro console=tty1 console=ttyS0 systemd.unified_cgroup_hierarchy=0" \
+            -display none \
+            -serial stdio
+          exit_code=$(cat ../vm-home/logs/.exitcode)
+          exit ${exit_code:-255} # unknown or absent exit code is error
+
       - name: Install Greenplum DEB
         env:
           DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
