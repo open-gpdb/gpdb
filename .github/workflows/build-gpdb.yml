@@ -732,7 +732,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: debian-packages-test
-          path: ${{ github.workspace }}/deb_build_artifacts
+          path: vm-home
           merge-multiple: false
 
       - name: Environment Initialization
@@ -749,8 +749,8 @@ jobs:
         run: |
           set -ex pipefail
 
-          ls -l "${GITHUB_WORKSPACE}"/deb_build_artifacts/
-          DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
+          ls -l vm-home
+          DEB_FILE=$(ls vm-home/*.deb)
           if [ ! -f "${DEB_FILE}" ]; then
             echo "::error::DEB file not found"
             exit 1
@@ -809,10 +809,11 @@ jobs:
       - name: Create cloud-init script
         run: |
           set -eux
-          mkdir -p vm-home
+          mkdir vm-home
+          
 
           cat > vm-home/cloud-init <<EOF0
-          sudo apt -y install /deb_build_artifacts/*.deb
+          sudo apt -y install /home/gpadmin/*.deb
           EOF0
 
       - name: Create VM disk and cloud-init config
