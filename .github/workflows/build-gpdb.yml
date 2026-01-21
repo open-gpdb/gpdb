@@ -816,6 +816,13 @@ jobs:
           sudo chown -R gpadmin:gpadmin /home/gpadmin/gpdb
           cd /home/gpadmin/gpdb/
           ls -l
+          cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+          ssh $(hostname) 'whoami; hostname'
+          source /opt/greenplum-db-6/greenplum_path.sh
+          make create-demo-cluster
+          source gpAux/gpdemo/gpdemo-env.sh
+          cd src/test/isolation2/
+          make installcheck-resgroup
           EOF0
 
       - name: Create VM disk and cloud-init config
