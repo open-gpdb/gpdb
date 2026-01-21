@@ -740,12 +740,6 @@ jobs:
         env:
           LOGS_DIR: install-logs
         run: |
-          set -ex pipefail
-          if ! su - gpadmin -c "/tmp/init_system.sh"; then
-            echo "::error::Container initialization failed"
-            exit 1
-          fi
-
           export LOGS_DIR=install-logs
 
           mkdir -p "${LOGS_DIR}/details"
@@ -771,6 +765,7 @@ jobs:
         run: |
           set -ex pipefail
 
+          ls -l "${GITHUB_WORKSPACE}"/deb_build_artifacts/
           DEB_FILE=$(ls "${GITHUB_WORKSPACE}"/deb_build_artifacts/*.deb)
           if [ ! -f "${DEB_FILE}" ]; then
             echo "::error::DEB file not found"
