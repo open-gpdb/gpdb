@@ -743,22 +743,6 @@ jobs:
           export LOGS_DIR=install-logs
 
           mkdir -p "${LOGS_DIR}/details"
-          chown -R gpadmin:gpadmin .
-          chmod -R 755 .
-          chmod 777 "${LOGS_DIR}"
-
-          df -h | tee -a "${LOGS_DIR}/details/disk-usage.log"
-          free -h | tee -a "${LOGS_DIR}/details/memory-usage.log"
-
-          {
-            echo "=== Environment Information ==="
-            uname -a
-            df -h
-            free -h
-            env
-          } | tee -a "${LOGS_DIR}/details/environment.log"
-
-          echo "SRC_DIR=${GITHUB_WORKSPACE}" | tee -a "$GITHUB_ENV"
 
       - name: Verify DEB artifacts
         id: verify-artifacts
