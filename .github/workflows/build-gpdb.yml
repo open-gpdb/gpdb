@@ -809,9 +809,6 @@ jobs:
       - name: Create cloud-init script
         run: |
           set -eux
-          mkdir vm-home
-          
-
           cat > vm-home/cloud-init <<EOF0
           sudo apt -y install /home/gpadmin/*.deb
           EOF0
@@ -819,7 +816,7 @@ jobs:
       - name: Create VM disk and cloud-init config
         run: |
           set -eux
-          mkdir -p vm-work
+          mkdir vm-work
 
           # Move image to VM Home folder
           #mv ${IMAGE_FILE} vm-home/
