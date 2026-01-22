@@ -1706,7 +1706,7 @@ static struct config_int ConfigureNamesInt[] =
 						 "list of no more than this many items would result.")
 		},
 		&join_collapse_limit,
-		20, 1, INT_MAX,
+		13, 1, INT_MAX,
 		NULL, NULL, NULL
 	},
 	{
