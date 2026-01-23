@@ -829,19 +829,22 @@ jobs:
           mkdir -p /__w/gpdb/gpdb/debian/build/bin/
           ln -s /opt/greenplum-db-6/bin/psql /__w/gpdb/gpdb/debian/build/bin/psql
 
-          su - gpadmin
-          ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
-          cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
-          ssh -o StrictHostKeyChecking=no $(hostname) 'whoami; hostname'
+          su - gpadmin -c '
+            ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""; 
+            cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys;
+            ssh -o StrictHostKeyChecking=no \$(hostname) "whoami; hostname";
 
-          source /opt/greenplum-db-6/greenplum_path.sh
-          ulimit -n 65535
+            source /opt/greenplum-db-6/greenplum_path.sh;
+            ulimit -n 65535;
 
-          cd /home/gpadmin/gpdb/
-          make create-demo-cluster
-          source gpAux/gpdemo/gpdemo-env.sh
-          make -C src/test/regress
-          make -C src/test/isolation2 installcheck-resgroup
+            cd /home/gpadmin/gpdb;
+            make create-demo-cluster;
+            source gpAux/gpdemo/gpdemo-env.sh;
+            gpconfig -c gp_resource_manager -v group;
+            gpstop -ar;
+
+            make -C src/test/regress;
+            make -C src/test/isolation2 installcheck-resgroup;'
           EOF0
 
       - name: Create VM disk and cloud-init config
