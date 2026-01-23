@@ -810,19 +810,39 @@ jobs:
         run: |
           set -eux
           cat > vm-home/cloud-init <<EOF0
-          sudo apt update
-          sudo apt -y install /home/gpadmin/*.deb
-          sudo chown -R gpadmin:gpadmin /opt/greenplum-db-6
-          sudo chown -R gpadmin:gpadmin /home/gpadmin/gpdb
-          cd /home/gpadmin/gpdb/
-          ls -l
-          cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-          ssh $(hostname) 'whoami; hostname'
+          apt update
+          DEBIAN_FRONTEND=noninteractive apt -y install libssl-dev libkrb5-dev libldap2-dev /home/gpadmin/*.deb
+          ln -s /bin/python2.7 /usr/bin/python
+          pip2 install psutil conan
+          chmod 750 /home/gpadmin
+
+          for cgroup_dir in cpu cpuacct cpuset memory
+          do
+            chmod -R 777 /sys/fs/cgroup/$cgroup_dir
+            chown -R gpadmin /sys/fs/cgroup/$cgroup_dir
+
+            mkdir -p /sys/fs/cgroup/$cgroup_dir/gpdb/
+            chmod -R 777 /sys/fs/cgroup/$cgroup_dir/gpdb/
+            chown -R gpadmin /sys/fs/cgroup/$cgroup_dir/gpdb/
+            ls -l /sys/fs/cgroup/$cgroup_dir/gpdb/
+          done
+
+          mkdir -p /__w/gpdb/gpdb/debian/build/bin/
+          ln -s /opt/greenplum-db-6/bin/psql /__w/gpdb/gpdb/debian/build/bin/psql
+
+          su - gpadmin
+          ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+          cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+          ssh -o StrictHostKeyChecking=no $(hostname) 'whoami; hostname'
+
           source /opt/greenplum-db-6/greenplum_path.sh
+          ulimit -n 65535
+
+          cd /home/gpadmin/gpdb/
           make create-demo-cluster
           source gpAux/gpdemo/gpdemo-env.sh
-          cd src/test/isolation2/
-          make installcheck-resgroup
+          make -C src/test/regress
+          make -C src/test/isolation2 installcheck-resgroup
           EOF0
 
       - name: Create VM disk and cloud-init config
