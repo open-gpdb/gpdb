@@ -863,7 +863,7 @@ jobs:
 
       - name: Check results
         run: |
-          [ -f vm-home/gpdb/src/test/isolation2/regression.diff ] && exit 1
+          [ -f vm-home/gpdb/src/test/isolation2/regression.diff ] || exit 1
           grep FAILED vm-home/gpdb/src/test/isolation2/regression.out && exit 1
 
 
