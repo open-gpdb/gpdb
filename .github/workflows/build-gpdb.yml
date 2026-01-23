@@ -719,7 +719,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY" || true
 
   resgroup-test:
-    name: Resgroup test
+    name: isolation2 installcheck-resgroup
     needs: [prepare-build-matrix, build]
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -735,64 +735,6 @@ jobs:
           path: vm-home
           merge-multiple: false
 
-      - name: Environment Initialization
-        if: needs.check-skip.outputs.should_skip != 'true'
-        env:
-          LOGS_DIR: install-logs
-        run: |
-          export LOGS_DIR=install-logs
-
-          mkdir -p "${LOGS_DIR}/details"
-
-      - name: Verify DEB artifacts
-        id: verify-artifacts
-        run: |
-          set -ex pipefail
-
-          ls -l vm-home
-          DEB_FILE=$(ls vm-home/*.deb)
-          if [ ! -f "${DEB_FILE}" ]; then
-            echo "::error::DEB file not found"
-            exit 1
-          fi
-
-          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
-
-          echo "Verifying DEB artifacts..."
-          {
-            echo "=== DEB Verification Summary ==="
-            echo "Timestamp: $(date -u)"
-            echo "DEB File: ${DEB_FILE}"
-
-            # Get DEB metadata and verify contents
-            echo "Package Information:"
-            dpkg-deb -f "${DEB_FILE}"
-
-            # Get key DEB attributes for verification
-            DEB_VERSION=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 1)
-            DEB_RELEASE=$(dpkg-deb -f "${DEB_FILE}" Version | cut -d'-' -f 3)
-            echo "version=${DEB_VERSION}" >> "$GITHUB_OUTPUT"
-            echo "release=${DEB_RELEASE}" >> "$GITHUB_OUTPUT"
-
-            # Verify expected binaries are in the DEB
-            echo "Verifying critical files in DEB..."
-            for binary in "bin/postgres" "bin/psql"; do
-              if ! dpkg-deb -c "${DEB_FILE}" | grep "${binary}" > /dev/null; then
-                echo "::error::Critical binary '${binary}' not found in DEB"
-                exit 1
-              fi
-            done
-
-            echo "DEB Details:"
-            echo "- Version: ${DEB_VERSION}"
-            echo "- Release: ${DEB_RELEASE}"
-
-            # Calculate and store checksum
-            echo "Checksum:"
-            sha256sum "${DEB_FILE}"
-
-          } 2>&1 | tee -a install-logs/details/deb-verification.log
-
       - name: Setup QEMU
         run: |
           set -eux
@@ -800,7 +742,6 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils libguestfs-tools
 
       - name: Download Ubuntu cloud image
-        if: steps.cache-qemu.outputs.cache-hit != 'true'
         run: |
           set -eux
           wget -q -O ubuntu-22.04.img \
@@ -879,7 +820,7 @@ jobs:
           runcmd:
             - mount -t 9p -o trans=virtio,version=9p2000.L,rw hostshare /home/gpadmin
             - bash /home/gpadmin/cloud-init
-            - shutdown -h now
+            - poweroff
           EOF1
 
           # Create meta-data
@@ -888,10 +829,9 @@ jobs:
           # Create cloud-init ISO
           cloud-localds seed.img user-data meta-data
 
-      - name: Start QEMU VM with shared volume and cgroups v1
+      - name: Start QEMU VM with cgroups v1
         run: |
           set -eux
-          rm -f vm-home/logs/.exitcode
           tar xf vm-home/*.tar.xz -C vm-home
           cd vm-work
           sudo qemu-system-x86_64 \
@@ -911,67 +851,21 @@ jobs:
             -append "root=/dev/vda1 ro console=tty1 console=ttyS0 systemd.unified_cgroup_hierarchy=0" \
             -display none \
             -serial stdio
-          exit_code=$(cat ../vm-home/logs/.exitcode)
-          exit ${exit_code:-255} # unknown or absent exit code is error
 
-      - name: Install Greenplum DEB
-        env:
-          DEB_FILE: ${{ steps.verify-artifacts.outputs.deb_file }}
-          DEB_VERSION: ${{ steps.verify-artifacts.outputs.version }}
-          DEB_RELEASE: ${{ steps.verify-artifacts.outputs.release }}
-        run: |
-          set -ex pipefail
-
-          if [ -z "${DEB_FILE}" ]; then
-            echo "::error::DEB_FILE environment variable is not set"
-            exit 1
-          fi
-
-          {
-            echo "=== DEB Installation Log ==="
-            echo "Timestamp: $(date -u)"
-            echo "DEB File: ${DEB_FILE}"
-            echo "Version: ${DEB_VERSION}"
-            echo "Release: ${DEB_RELEASE}"
-
-            # Clean install location
-            rm -rf /opt/greenplum-db-6
-
-            # Install DEB
-            echo "Starting installation..."
-            if ! apt -y install "${DEB_FILE}"; then
-              echo "::error::DEB installation failed"
-              exit 1
-            fi
-
-            # Change ownership back to gpadmin - it is needed for future tests
-            chown -R gpadmin:gpadmin /opt/greenplum-db-6
-
-            echo "Installation completed successfully"
-            dpkg-query -s greenplum-db-6
-            echo "Installed files:"
-            dpkg-query -L greenplum-db-6
-          } 2>&1 | tee -a install-logs/details/deb-installation.log
-
-      - name: Upload install logs
+      - name: Upload logs
         uses: actions/upload-artifact@v4
         with:
-          name: install-logs-${{ matrix.name }}-${{ needs.build.outputs.build_timestamp }}
+          name: resgroup-test-logs-${{ needs.build.outputs.build_timestamp }}
           path: |
-            install-logs/
+            vm-home/gpdb/src/test/isolation2/regression*
+            vm-home/gpdb/src/test/isolation2/results/resgroup
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
 
-      - name: Generate Install Test Job Summary End
-        if: always()
-        shell: bash {0}
+      - name: Check results
         run: |
-          {
-            echo "# Installed Package Summary"
-            echo "\`\`\`"
+          [ -f vm-home/gpdb/src/test/isolation2/regression.diff ] && exit 1
+          grep FAILED vm-home/gpdb/src/test/isolation2/regression.out && exit 1
 
-            dpkg-query -s greenplum-db-6
-            echo "\`\`\`"
-          } >> "$GITHUB_STEP_SUMMARY" || true
 
   ## ======================================================================
   ## Job: test
