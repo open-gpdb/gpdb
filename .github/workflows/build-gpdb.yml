@@ -818,13 +818,12 @@ jobs:
 
           for cgroup_dir in cpu cpuacct cpuset memory
           do
-            chmod -R 777 /sys/fs/cgroup/$cgroup_dir
-            chown -R gpadmin /sys/fs/cgroup/$cgroup_dir
+            chmod -R 777 /sys/fs/cgroup/\$cgroup_dir
+            chown -R gpadmin /sys/fs/cgroup/\$cgroup_dir
 
-            mkdir -p /sys/fs/cgroup/$cgroup_dir/gpdb/
-            chmod -R 777 /sys/fs/cgroup/$cgroup_dir/gpdb/
-            chown -R gpadmin /sys/fs/cgroup/$cgroup_dir/gpdb/
-            ls -l /sys/fs/cgroup/$cgroup_dir/gpdb/
+            mkdir -p /sys/fs/cgroup/\$cgroup_dir/gpdb/
+            chmod -R 777 /sys/fs/cgroup/\$cgroup_dir/gpdb/
+            chown -R gpadmin /sys/fs/cgroup/\$cgroup_dir/gpdb/
           done
 
           mkdir -p /__w/gpdb/gpdb/debian/build/bin/
