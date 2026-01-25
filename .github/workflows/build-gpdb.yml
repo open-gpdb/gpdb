@@ -739,7 +739,7 @@ jobs:
         run: |
           set -eux
           sudo apt update
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils libguestfs-tools
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils
 
       - name: Download Ubuntu cloud image
         run: |
@@ -799,7 +799,7 @@ jobs:
 
           cd vm-work
 
-          # Extract kernel from cloud image for usin as external
+          # Extract kernel from cloud image for using as external
           sudo virt-get-kernel --add vm-disk.qcow2
           sudo chmod -R a+rwX .
 
@@ -810,7 +810,6 @@ jobs:
 
           qemu-img resize vm-disk.qcow2 20G
 
-          # Create cloud-init user-data
           cat > user-data <<EOF1
           #cloud-config
           users:
@@ -824,11 +823,7 @@ jobs:
             - poweroff
           EOF1
 
-          # Create meta-data
-          echo "instance-id: github-actions-vm" > meta-data
-
-          # Create cloud-init ISO
-          cloud-localds seed.img user-data meta-data
+          cloud-localds seed.img user-data
 
       - name: Start QEMU VM with cgroups v1
         run: |
@@ -865,16 +860,41 @@ jobs:
             vm-home/gpdb/src/test/isolation2/results/resgroup
           retention-days: ${{ env.LOG_RETENTION_DAYS }}
 
+      - name: Cleanup VM
+        run: |
+          set -e
+          PIDFILE=vm-work/qemu.pid
+          if [ -f $PIDFILE ]; then
+            # Read PID safely
+            pid=$(cat $PIDFILE) && {
+              # Graceful shutdown first
+              sudo kill $pid 2>/dev/null || true
+              sleep 3
+              # Check if process still exists with the same PID and name
+              if ps -p $pid >/dev/null && [ "$(ps -p $pid -o comm=)" = "qemu-system-x86" ]; then
+                echo "Force killing QEMU process $pid"
+                sudo kill -9 $pid 2>/dev/null || true
+              fi
+            }
+            # Cleanup PID file
+            rm -f $PIDFILE
+          fi
+          # Additional cleanup
+          sudo pkill -f "qemu-system-x86_64" || true
+
       - name: Check results
         run: |
-          if [ -f vm-home/gpdb/src/test/isolation2/regression.diff ]; then
-            cat vm-home/gpdb/src/test/isolation2/regression.diff
-            grep FAILED vm-home/gpdb/src/test/isolation2/regression.out
+          REG_OUT=vm-home/gpdb/src/test/isolation2/regression.out
+          REG_DIFF=vm-home/gpdb/src/test/isolation2/regression.diff
+
+          if [ -f $REG_DIFF ]; then
+            cat $REG_DIFF
+            grep FAILED $REG_OUT
             exit 1
           fi
 
-          if [ -f vm-home/gpdb/src/test/isolation2/regression.out ]; then
-            grep FAILED vm-home/gpdb/src/test/isolation2/regression.out && exit 1
+          if [ -f $REG_OUT ]; then
+            grep FAILED $REG_OUT && exit 1
           fi
 
 
