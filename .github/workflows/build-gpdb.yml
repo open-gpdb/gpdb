@@ -785,7 +785,8 @@ jobs:
             gpstop -ar;
 
             make -C src/test/regress;
-            make -C src/test/isolation2 installcheck-resgroup;'
+            make -C src/test/isolation2 installcheck-resgroup;
+            echo $? > /home/gpadmin/exit_code'
           EOF0
 
       - name: Create VM disk and cloud-init config
@@ -851,6 +852,9 @@ jobs:
             -append "root=/dev/vda1 ro console=tty1 console=ttyS0 systemd.unified_cgroup_hierarchy=0" \
             -display none \
             -serial stdio
+          [ -f ../vm-home/exit_code ] || exit 1
+          exit_code=$(cat ../vm-home/exit_code)
+          [ "$exit_code" = "0" ] || exit 1
 
       - name: Upload logs
         uses: actions/upload-artifact@v4
@@ -863,7 +867,12 @@ jobs:
 
       - name: Check results
         run: |
-          [ -f vm-home/gpdb/src/test/isolation2/regression.diff ] || exit 1
+          if [ -f vm-home/gpdb/src/test/isolation2/regression.diff ]; then
+            cat vm-home/gpdb/src/test/isolation2/regression.diff
+            grep FAILED vm-home/gpdb/src/test/isolation2/regression.out
+            exit 1
+          fi
+
           grep FAILED vm-home/gpdb/src/test/isolation2/regression.out && exit 1
 
 
