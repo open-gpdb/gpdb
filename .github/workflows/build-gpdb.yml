@@ -873,7 +873,7 @@ jobs:
             exit 1
           fi
 
-          grep FAILED vm-home/gpdb/src/test/isolation2/regression.out && exit 1
+          [ -f vm-home/gpdb/src/test/isolation2/regression.out ] && grep FAILED vm-home/gpdb/src/test/isolation2/regression.out && exit 1
 
 
   ## ======================================================================
