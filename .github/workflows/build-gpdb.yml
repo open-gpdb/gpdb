@@ -718,6 +718,163 @@ jobs:
             echo "\`\`\`"
           } >> "$GITHUB_STEP_SUMMARY" || true
 
+  resgroup-test:
+    name: isolation2 installcheck-resgroup
+    needs: [prepare-build-matrix, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false  # Continue with other tests if one fails
+
+    steps:
+      - name: Download Greenplum debian build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: debian-packages-test
+          path: vm-home
+          merge-multiple: false
+
+      - name: Setup QEMU
+        run: |
+          set -eux
+          sudo apt update
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils guestfs-tools
+
+          wget -q -O ubuntu-22.04.img https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+
+          cat > vm-home/cloud-init <<EOF0
+            apt update
+            DEBIAN_FRONTEND=noninteractive apt -y install libssl-dev libkrb5-dev libldap2-dev /home/gpadmin/*.deb
+            ln -s /bin/python2.7 /usr/bin/python
+            pip2 install psutil conan
+            chmod 750 /home/gpadmin
+
+            for cgroup_dir in cpu cpuacct cpuset memory
+            do
+              chmod -R 777 /sys/fs/cgroup/\$cgroup_dir
+              chown -R gpadmin /sys/fs/cgroup/\$cgroup_dir
+
+              mkdir -p /sys/fs/cgroup/\$cgroup_dir/gpdb/
+              chmod -R 777 /sys/fs/cgroup/\$cgroup_dir/gpdb/
+              chown -R gpadmin /sys/fs/cgroup/\$cgroup_dir/gpdb/
+            done
+
+            mkdir -p /__w/gpdb/gpdb/debian/build/bin/
+            ln -s /opt/greenplum-db-6/bin/psql /__w/gpdb/gpdb/debian/build/bin/psql
+
+            su - gpadmin -c '
+              ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""; 
+              cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys;
+              ssh -o StrictHostKeyChecking=no \$(hostname) "whoami; hostname";
+
+              source /opt/greenplum-db-6/greenplum_path.sh;
+              ulimit -n 65535;
+
+              cd /home/gpadmin/gpdb;
+              make create-demo-cluster;
+              source gpAux/gpdemo/gpdemo-env.sh;
+              gpconfig -c gp_resource_manager -v group;
+              gpstop -ar;
+
+              make -C src/test/regress;
+              make -C src/test/isolation2 installcheck-resgroup;
+              echo \$? > /home/gpadmin/exit_code'
+          EOF0
+
+          # Extract kernel from cloud image for using as external
+          sudo virt-get-kernel --add ubuntu-22.04.img
+
+          qemu-img resize ubuntu-22.04.img 20G
+
+          cat > user-data <<EOF1
+          #cloud-config
+          users:
+            - name: gpadmin
+              sudo: ALL=(ALL) NOPASSWD:ALL
+              shell: /bin/bash
+              uid: $UID
+          runcmd:
+            - mount -t 9p -o trans=virtio,version=9p2000.L,rw hostshare /home/gpadmin
+            - bash /home/gpadmin/cloud-init
+            - poweroff
+          EOF1
+
+          cloud-localds seed.img user-data
+
+          tar xf vm-home/*.tar.xz -C vm-home
+
+      - name: Start QEMU VM with cgroups v1
+        run: |
+          set -eux
+          sudo qemu-system-x86_64 \
+            -machine type=pc,accel=kvm \
+            -cpu host \
+            -smp 4 \
+            -m 8192 \
+            -pidfile qemu.pid \
+            -drive file=ubuntu-22.04.img,format=qcow2,if=virtio \
+            -drive file=seed.img,format=raw,if=virtio \
+            -netdev user,id=net0 \
+            -device virtio-net-pci,netdev=net0 \
+            -fsdev local,security_model=passthrough,id=fsdev0,path=vm-home \
+            -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare \
+            -kernel vmlinuz* \
+            -initrd initrd* \
+            -append "root=/dev/vda1 ro console=tty1 console=ttyS0 systemd.unified_cgroup_hierarchy=0" \
+            -display none \
+            -serial stdio
+          [ -f vm-home/exit_code ] || exit 1
+          exit_code=$(cat vm-home/exit_code)
+          [ "$exit_code" = "0" ] || exit 1
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: resgroup-test-logs-${{ needs.build.outputs.build_timestamp }}
+          path: |
+            vm-home/gpdb/src/test/isolation2/regression*
+            vm-home/gpdb/src/test/isolation2/results/resgroup
+          retention-days: ${{ env.LOG_RETENTION_DAYS }}
+
+      - name: Cleanup VM
+        run: |
+          set -eux
+          PIDFILE=qemu.pid
+          if [ -f $PIDFILE ]; then
+            # Read PID safely
+            pid=$(cat $PIDFILE) && {
+              # Graceful shutdown first
+              sudo kill $pid 2>/dev/null || true
+              sleep 3
+              # Check if process still exists with the same PID and name
+              if ps -p $pid >/dev/null && [ "$(ps -p $pid -o comm=)" = "qemu-system-x86" ]; then
+                echo "Force killing QEMU process $pid"
+                sudo kill -9 $pid 2>/dev/null || true
+              fi
+            }
+            # Cleanup PID file
+            rm -f $PIDFILE
+          fi
+          # Additional cleanup
+          sudo pkill -f "qemu-system-x86_64" || true
+
+      - name: Check results
+        run: |
+          REG_OUT=vm-home/gpdb/src/test/isolation2/regression.out
+          REG_DIFF=vm-home/gpdb/src/test/isolation2/regression.diff
+
+          if [ -f $REG_DIFF ]; then
+            cat $REG_DIFF
+            grep FAILED $REG_OUT
+            exit 1
+          fi
+
+          if [ -f $REG_OUT ]; then
+            grep FAILED $REG_OUT && exit 1
+          fi
+
+
   ## ======================================================================
   ## Job: test
   ## ======================================================================
