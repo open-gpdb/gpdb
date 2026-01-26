@@ -779,7 +779,7 @@ jobs:
 
               make -C src/test/regress;
               make -C src/test/isolation2 installcheck-resgroup;
-              echo $? > /home/gpadmin/exit_code'
+              echo \$? > /home/gpadmin/exit_code'
           EOF0
 
           # Extract kernel from cloud image for using as external
