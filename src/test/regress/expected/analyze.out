@@ -1016,3 +1016,17 @@ select relhassubclass from gp_dist_random('pg_class') where relname = 'test_tb_1
  f
 (3 rows)
 
+-- Check than gp_acquire_sample_rows works without errors when
+-- gp_use_fastanalyze is enabled and AOCS table contains large values
+set gp_use_fastanalyze = on;
+create table t1
+with (appendoptimized = true, orientation = column)
+as select i, repeat('A', 40000) from generate_series(1, 500) i
+distributed by (i);
+select count(*)
+from (select pg_catalog.gp_acquire_sample_rows('t1'::regclass, 10, 'f')) a;
+ count 
+-------
+    33
+(1 row)
+
