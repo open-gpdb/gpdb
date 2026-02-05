@@ -777,19 +777,26 @@ WalRcvSigUsr1Handler(SIGNAL_ARGS)
 static void
 WalRcvShutdownHandler(SIGNAL_ARGS)
 {
-	int			save_errno = errno;
-
 	got_SIGTERM = true;
 
 	/*
-	 * The call of SetLatch(&WalRcv->latch) in SIGTERM handler
-	 * is changed to SetLatch(&MyProc->procLatch) due to it
-	 * can't be protected by SpinLock in the signal handler as
-	 * it could cause a deadlock.
+	 * MyProc is NULL when the process has already run the AuxiliaryProcKill
+	 * exit handler
 	 */
-	SetLatch(&MyProc->procLatch);
+	if (MyProc != NULL)
+	{
+		int			save_errno = errno;
 
-	errno = save_errno;
+		/*
+		 * The call of SetLatch(&WalRcv->latch) in SIGTERM handler
+		 * is changed to SetLatch(&MyProc->procLatch) due to it
+		 * can't be protected by SpinLock in the signal handler as
+		 * it could cause a deadlock.
+		 */
+		SetLatch(&MyProc->procLatch);
+
+		errno = save_errno;
+	}
 }
 
 /*
