@@ -99,25 +99,24 @@ open_datumstreamread_segfile(
  * the block directory.
  */
 static void
-open_all_datumstreamread_segfiles(AOCSScanDesc scan, AOCSFileSegInfo *segInfo)
+open_all_datumstreamread_segfiles(Relation rel,
+								  AOCSFileSegInfo *segInfo,
+								  DatumStreamRead **ds,
+								  int *proj_atts,
+								  int num_proj_atts,
+								  AppendOnlyBlockDirectory *blockDirectory)
 {
-	Relation	rel = scan->aos_rel;
 	char	   *basepath = relpathbackend(rel->rd_node, rel->rd_backend, MAIN_FORKNUM);
 	int			i;
 
-	Assert(scan->proj_atts);
+	Assert(proj_atts);
 
-	for (i = 0; i < scan->num_proj_atts; i++)
+	for (i = 0; i < num_proj_atts; i++)
 	{
-		int			attno = scan->proj_atts[i];
+		int			attno = proj_atts[i];
 
-		open_datumstreamread_segfile(basepath, rel->rd_node, segInfo, scan->ds[attno], attno);
-
-		/* skip reading block for ANALYZE */
-		if (scan->targrow >= 0)
-			continue;
-
-		datumstreamread_block(scan->ds[attno], scan->blockDirectory, attno);
+		open_datumstreamread_segfile(basepath, rel->rd_node, segInfo, ds[attno], attno);
+		datumstreamread_block(ds[attno], blockDirectory, attno);
 	}
 
 	pfree(basepath);
@@ -399,7 +398,12 @@ open_next_scan_seg(AOCSScanDesc scan)
 											firstSequence);
 				}
 
-				open_all_datumstreamread_segfiles(scan, curSegInfo);
+				open_all_datumstreamread_segfiles(scan->aos_rel,
+												  curSegInfo,
+												  scan->ds,
+												  scan->proj_atts,
+												  scan->num_proj_atts,
+												  scan->blockDirectory);
 
 				return scan->cur_seg;
 			}
@@ -546,7 +550,6 @@ aocs_beginscan_internal(Relation relation,
 	aocs_initscan(scan);
 
 	scan->blockDirectory = NULL;
-	scan->targrow = -1;
 
 	AppendOnlyVisimap_Init(&scan->visibilityMap,
 						   relation->rd_appendonly->visimaprelid,

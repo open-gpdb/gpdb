@@ -164,7 +164,6 @@ typedef struct AOCSScanDescData
 	 * which starts from 0.
 	 * In other words, if we have seg0 rownums: [1, 100], seg1 rownums: [1, 200]
 	 * If targrow = 150, then we are referring to seg1's rownum=51.
-	 * -1 means that targrow is not set.
 	 */
 	int64			targrow;
 
