@@ -144,3 +144,4 @@ installcheck:
 	$(MAKE) -C gp_subtransaction_overflow installcheck
 	$(MAKE) -C gp_check_functions installcheck
 	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit installcheck; fi
+	$(MAKE) -C temp_tables_stat installcheck
