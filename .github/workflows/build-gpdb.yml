@@ -164,10 +164,8 @@ jobs:
                                "gpcontrib/gp_subtransaction_overflow:installcheck",
                                "gpcontrib/gpmapreduce:installcheck",
                                "gpcontrib/orafce:installcheck",
-                               "gpcontrib/pgaudit:installcheck"]
-              },
-              {"test":"ic-temp_tables_stat",
-               "make_configs":["src/test/isolation2:installcheck-tts"]
+                               "gpcontrib/pgaudit:installcheck",
+                               "gpcontrib/temp_tables_stat:installcheck"]
               },
               {"test":"ic-mirrorless",
                "make_configs":["src/test/isolation2:installcheck-mirrorless"]
