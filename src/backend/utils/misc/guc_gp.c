@@ -3417,7 +3417,7 @@ struct config_bool ConfigureNamesBool_gp[] =
 	},
 
 	{
-		{"gp_enable_zstd_memory_accounting", PGC_USERSET, COMPAT_OPTIONS_PREVIOUS,
+		{"gp_enable_zstd_memory_accounting", PGC_BACKEND, COMPAT_OPTIONS_PREVIOUS,
 		 gettext_noop("Enables normal memory counting in zstd (not using malloc)"),
 		 NULL
 		},
