@@ -35,8 +35,7 @@ apt-get install -y \
   python3-pip \
   python-psutil \
   python-yaml \
-  zlib1g-dev \
-  libpstreams-dev
+  zlib1g-dev
 
 
 pip install conan
