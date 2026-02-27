@@ -114,6 +114,16 @@ static struct
 
 /* Last archived WAL segment file obtained from the primary */
 static char primary_last_archived[MAX_XFN_CHARS + 1];
+static TimeLineID primary_last_archived_tli = 0;
+static XLogSegNo primary_last_archived_segno = 0;
+
+/*
+ * Last segment we successfully marked as .done. Used to optimize
+ * ProcessArchivalReport() by generating expected filenames instead
+ * of scanning the archive_status directory.
+ */
+static TimeLineID last_processed_tli = 0;
+static XLogSegNo last_processed_segno = 0;
 
 static StringInfoData reply_message;
 static StringInfoData incoming_message;
@@ -1116,10 +1126,32 @@ XLogWalRcvClose(XLogRecPtr recptr)
 	 * wal_sender_archiving_status_interval is non-zero and archiving is
 	 * enabled. This will enable creation of .ready files instead of .done.
 	 * The .ready files will be transitioned to .done files after receiving
-	 * WAL archiving status update messages from the primary segment.
+	 * WAL archiving status update messages from the primary segment. We
+	 * optimize by checking if this segment is already covered by the last
+	 * archival report from the primary. If so, create .done directly.
+	 * Otherwise, create .ready.
 	 */
-	if (XLogArchivingStatusReportingActive())
-		XLogArchiveNotify(xlogfname);
+	if (XLogArchivingStatusReportingActive()) {
+		/*
+		 * Check if this segment is already archived on primary.
+		 * If we're on the same timeline and this segment is <= last archived,
+		 * mark it .done immediately. Otherwise create .ready.
+		 *
+		 * We don't check ancestor timeline cases here to avoid reading timeline
+		 * history files on every segment close. ProcessArchivalReport() will
+		 * handle marking ancestor timeline segments as .done when it scans
+		 * the archive_status directory.
+		 */
+		if (primary_last_archived_tli == recvFileTLI &&
+			recvSegNo <= primary_last_archived_segno)
+		{
+			XLogArchiveForceDone(xlogfname);
+		}
+		else
+		{
+			XLogArchiveNotify(xlogfname);
+		}
+	}
 	else
 		XLogArchiveForceDone(xlogfname);
 
@@ -1364,13 +1396,20 @@ ProcessWalSndrMessage(XLogRecPtr walEnd, TimestampTz sendTime)
 }
 
 /*
- * Create .done files, based on the primary's last archival report.
+ * Process archival report from primary.
+ *
+ * The primary sends us the last WAL segment it has archived. We scan the
+ * archive_status directory for .ready files and mark segments on the same
+ * timeline as .done if they're <= the reported segment.
  */
 static void
 ProcessArchivalReport(void)
 {
-	DIR		   *xldir;
-	struct dirent *xlde;
+	TimeLineID	reported_tli;
+	XLogSegNo	reported_segno;
+	char		status_path[MAXPGPATH];
+	bool		use_direct_check = false;
+	XLogSegNo	start_segno;
 
 	elog(DEBUG2, "received archival report from primary: %s", primary_last_archived);
 
@@ -1378,34 +1417,164 @@ ProcessArchivalReport(void)
 		return;
 
 	/* Check that the wal filename reported by primary looks valid */
-	if (strlen(primary_last_archived) < 24 ||
-		strspn(primary_last_archived, "0123456789ABCDEF") != 24)
+	if (!IsXLogFileName(primary_last_archived))
+	{
+		elog(DEBUG2, "invalid WAL filename in archival report: %s",
+			 primary_last_archived);
 		return;
+	}
 
-	xldir = AllocateDir(XLOGDIR);
-	if (xldir == NULL)
-		ereport(ERROR,
-			(errcode_for_file_access(),
-			errmsg("could not open transaction log directory \"%s\": %m",
-				XLOGDIR)));
-	while ((xlde = ReadDir(xldir, XLOGDIR)) != NULL)
+	XLogFromFileName(primary_last_archived, &reported_tli, &reported_segno);
+
+	/* Remember the last archived segment for XLogWalRcvClose() */
+	primary_last_archived_tli = reported_tli;
+	primary_last_archived_segno = reported_segno;
+
+	/*
+	 * Optimization: If the new report is on the same timeline as the last
+	 * processed segment and moves forward, we can directly check for .ready
+	 * files for segments between last_processed_segno and reported_segno
+	 * instead of scanning the entire archive_status directory.
+	 *
+	 * Fall back to directory scan if:
+	 * - Timeline changed (need to handle ancestor timelines)
+	 * - This is the first report (last_processed_tli == 0)
+	 * - Reported segment is not ahead (nothing new to process)
+	 */
+	if (last_processed_tli == reported_tli &&
+		last_processed_tli != 0 &&
+		reported_segno > last_processed_segno)
+	{
+		use_direct_check = true;
+		start_segno = last_processed_segno + 1;
+	}
+
+	if (use_direct_check)
 	{
 		/*
-		 * We ignore the timeline part of the XLOG segment identifiers in
-		 * deciding whether a segment is still needed.  This ensures that we
-		 * won't prematurely remove a segment from a parent timeline.
-		 *
-		 * We use the alphanumeric sorting property of the filenames to decide
-		 * which ones are earlier than the lastoff segment.
+		 * Direct check: generate filenames for expected segments.
+		 * XLogArchiveForceDone() will handle the case where .ready doesn't
+		 * exist or .done already exists, so no need to stat() first.
 		 */
-		if (strlen(xlde->d_name) == 24 &&
-			strspn(xlde->d_name, "0123456789ABCDEF") == 24 &&
-			strcmp(xlde->d_name + 8, primary_last_archived + 8) <= 0)
+		XLogSegNo	segno;
+
+		for (segno = start_segno; segno <= reported_segno; segno++)
 		{
-			XLogArchiveForceDone(xlde->d_name);
+			char		walfile[MAXFNAMELEN];
+
+			/* Generate WAL filename and mark as archived */
+			XLogFileName(walfile, reported_tli, segno);
+			XLogArchiveForceDone(walfile);
+			elog(DEBUG3, "marked WAL segment %s as archived (primary archived up to %s)",
+				 walfile, primary_last_archived);
+
+			/* Track the last segment we processed */
+			last_processed_tli = reported_tli;
+			last_processed_segno = segno;
 		}
 	}
-	FreeDir(xldir);
+	else
+	{
+		/*
+		 * Directory scan: needed when timeline changed or first report.
+		 * This handles both same-timeline and ancestor-timeline cases.
+		 */
+		DIR		   *status_dir;
+		struct dirent *status_de;
+		List	   *tli_history = NIL;
+
+		snprintf(status_path, MAXPGPATH, XLOGDIR "/archive_status");
+		status_dir = AllocateDir(status_path);
+		if (status_dir == NULL)
+		{
+			elog(DEBUG2, "could not open archive_status directory: %m");
+			return;
+		}
+
+		while ((status_de = ReadDir(status_dir, status_path)) != NULL)
+		{
+			char	   *ready_suffix;
+			char		walfile[MAXPGPATH];
+			TimeLineID	file_tli;
+			XLogSegNo	file_segno;
+
+			/* Look for .ready files only */
+			ready_suffix = strstr(status_de->d_name, ".ready");
+			if (ready_suffix == NULL || ready_suffix[6] != '\0')
+				continue;
+
+			/* Extract WAL filename (remove .ready suffix) */
+			strlcpy(walfile, status_de->d_name, ready_suffix - status_de->d_name + 1);
+
+			/* Parse the WAL filename */
+			if (!IsXLogFileName(walfile))
+				continue;
+
+			XLogFromFileName(walfile, &file_tli, &file_segno);
+
+			/*
+			 * Mark as .done if:
+			 * 1. Same timeline and segment <= reported segment, OR
+			 * 2. Ancestor timeline and segment is before the timeline switch point
+			 *
+			 * For ancestor timelines: if primary archived segment X on timeline T,
+			 * then all segments on ancestor timelines before the switch to T must
+			 * have been archived (they're required to reach timeline T).
+			 */
+			if (file_tli == reported_tli && file_segno <= reported_segno)
+			{
+				/* Same timeline, segment already archived */
+				XLogArchiveForceDone(walfile);
+				elog(DEBUG3, "marked WAL segment %s as archived (primary archived up to %s)",
+					 walfile, primary_last_archived);
+			}
+			else if (file_tli != reported_tli)
+			{
+				/*
+				 * Different timeline - check if it's an ancestor and if this
+				 * segment is before the timeline switch point. Only read timeline
+				 * history if we haven't already (lazy loading).
+				 *
+				 * Note: Timelines form a tree structure, not a linear sequence,
+				 * so we can't use < or > to compare them.
+				 */
+				if (tli_history == NIL)
+					tli_history = readTimeLineHistory(reported_tli);
+
+				if (tliInHistory(file_tli, tli_history))
+				{
+					XLogRecPtr	switchpoint;
+					XLogSegNo	switchpoint_segno;
+
+					/* Get the point where we switched away from this timeline */
+					switchpoint = tliSwitchPoint(file_tli, tli_history, NULL);
+
+					/*
+					 * If the segment is at or before the switch point, it must have
+					 * been archived (it's required to reach the reported timeline).
+					 * The segment containing the switch point belongs to the old
+					 * timeline up to the switch point and should be archived.
+					 */
+					XLByteToSeg(switchpoint, switchpoint_segno);
+					if (file_segno <= switchpoint_segno)
+					{
+						XLogArchiveForceDone(walfile);
+						elog(DEBUG3, "marked ancestor timeline segment %s as archived (before switch to timeline %u)",
+							 walfile, reported_tli);
+					}
+				}
+			}
+		}
+
+		FreeDir(status_dir);
+
+		/*
+		 * After a full directory scan following a timeline change, update
+		 * our tracking to the newly reported position for future optimizations.
+		 */
+		last_processed_tli = reported_tli;
+		last_processed_segno = reported_segno;
+	}
 
 	/*
 	 * Remember this location in pgstat as well. This makes it visible in

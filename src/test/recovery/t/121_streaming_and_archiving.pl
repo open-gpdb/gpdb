@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use PostgresNode;
 use TestLib;
-use Test::More tests => 17;
+use Test::More tests => 19;
 use File::Copy;
 
 my $node_master;
@@ -218,4 +218,102 @@ ok( !-f "$standby_data/$walfile_ready3",
 	".ready file does not exist on standby for WAL segment $current_walfile3 when wal_sender_archiving_status_interval=50ms"
 );
 
-done_testing();
+##################### Timeline switch: divergent segment not marked .done #####################
+# After promotion (TLI 1 -> 2), a .ready for a TLI1 segment whose number
+# falls past the switch point must NOT be marked .done by TLI2 archive
+# status reports.
+
+# Setup primary with feature enabled
+my $node_master_tli = get_new_node('master_tli');
+$node_master_tli->init(has_archiving => 1, allows_streaming => 1);
+$node_master_tli->append_conf('postgresql.conf',
+	'wal_sender_archiving_status_interval = 100ms');
+$node_master_tli->start;
+
+# Setup standby with feature enabled
+$node_master_tli->backup('my_backup_tli');
+my $node_standby_tli = get_new_node('standby_tli');
+$node_standby_tli->init_from_backup($node_master_tli, 'my_backup_tli',
+	has_streaming => 1);
+$node_standby_tli->append_conf('postgresql.conf',
+	'wal_sender_archiving_status_interval = 100ms');
+$node_standby_tli->start;
+
+# Generate WAL on TLI 1, let standby catch up
+$node_master_tli->safe_psql('postgres', 'CREATE TABLE t(a int)');
+$node_master_tli->safe_psql('postgres', 'SELECT pg_switch_xlog()');
+$node_master_tli->wait_for_catchup($node_standby_tli, 'write',
+	$node_master_tli->lsn('insert'));
+
+# Promote to TLI2
+$node_standby_tli->promote;
+$node_standby_tli->poll_query_until('postgres',
+	"SELECT NOT pg_is_in_recovery()")
+	or die "Timed out waiting for promotion";
+$node_master_tli->stop;
+
+# Fix archive on promoted standby
+my $archive_dir_tli = $node_master_tli->archive_dir;
+$node_standby_tli->safe_psql('postgres', qq{
+	ALTER SYSTEM SET archive_command TO 'cp %p $archive_dir_tli/%f';
+	SELECT pg_reload_conf();
+});
+
+# Advance WAL past the switch point
+for my $i (1..3) {
+	$node_standby_tli->safe_psql('postgres', 'INSERT INTO t VALUES(1)');
+	$node_standby_tli->safe_psql('postgres', 'SELECT pg_switch_xlog()');
+}
+
+# Archive segment from TLI2
+my $tli2_segment = $node_standby_tli->safe_psql('postgres',
+	"SELECT pg_xlogfile_name(pg_switch_xlog())");
+$node_standby_tli->safe_psql('postgres', 'CHECKPOINT');
+wait_until_file_exists("$archive_dir_tli/$tli2_segment",
+	"TLI 2 segment archived");
+
+# Create a new standby from the promoted node.  We plant a .ready file for
+# a fake TLI-1 segment with the same segment number as the archived TLI-2
+# segment -- that number is past the switch point, simulating a divergent
+# WAL segment from the old timeline branch.
+$node_standby_tli->backup('my_backup_tli2');
+my $node_new_standby_tli = get_new_node('new_standby_tli');
+$node_new_standby_tli->init_from_backup($node_standby_tli, 'my_backup_tli2',
+	has_streaming => 1);
+$node_new_standby_tli->append_conf('postgresql.conf',
+	'wal_sender_archiving_status_interval = 100ms');
+
+my $divergent_seg = $tli2_segment;
+$divergent_seg =~ s/^00000002/00000001/;
+my $new_standby_tli_data = $node_new_standby_tli->data_dir;
+my $divergent_ready = "$new_standby_tli_data/pg_xlog/archive_status/$divergent_seg.ready";
+my $divergent_done  = "$new_standby_tli_data/pg_xlog/archive_status/$divergent_seg.done";
+
+# Plant both the .ready marker and a dummy WAL file.
+open(my $fh, '>', $divergent_ready) or die "Cannot create .ready: $!";
+close $fh;
+open($fh, '>', "$new_standby_tli_data/pg_xlog/$divergent_seg") or die "Cannot create WAL file: $!";
+close $fh;
+
+$node_new_standby_tli->start;
+
+# Generate another TLI2 segment and archive it. Then wait for the new
+# standby to show .done for that segment -- it received and processed
+# the archival report, so any effect on the divergent .ready would
+# already have happened.
+$node_standby_tli->safe_psql('postgres', 'INSERT INTO t VALUES(1)');
+my $probe_seg = $node_standby_tli->safe_psql('postgres',
+	"SELECT pg_xlogfile_name(pg_switch_xlog())");
+$node_standby_tli->safe_psql('postgres', 'CHECKPOINT');
+wait_until_file_exists("$archive_dir_tli/$probe_seg",
+	"probe segment archived on promoted node");
+my $probe_done = "$new_standby_tli_data/pg_xlog/archive_status/$probe_seg.done";
+wait_until_file_exists($probe_done,
+	".done for probe segment on new standby (proves report was processed)");
+
+# The divergent TLI1 wal (past switch point) and its .ready file
+# must survive TLI2 reports.
+ok(-f $divergent_ready,
+	"divergent TLI-1 .ready not removed by TLI-2 archive reports");
+ok(!-f $divergent_done,
+	"divergent TLI-1 .done not created by TLI-2 archive reports");

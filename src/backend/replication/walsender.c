@@ -3502,12 +3502,6 @@ WalSndKeepaliveIfNecessary(void)
 	TimestampTz ping_time;
 
 	/*
-	 * Send an archival status message, if necessary.
-	 */
-	if (XLogArchivingStatusReportingActive())
-		WalSndArchivalReportIfNecessary(GetCurrentTimestamp());
-
-	/*
 	 * Don't send keepalive messages if timeouts are globally disabled or
 	 * we're doing something not partaking in timeouts.
 	 */
@@ -3533,6 +3527,15 @@ WalSndKeepaliveIfNecessary(void)
 		if (pq_flush_if_writable() != 0)
 			WalSndShutdown();
 	}
+
+	/*
+	 * Send an archival status message, if feature is enabled and
+	 * not during backup.
+	 */
+	if (XLogArchivingStatusReportingActive() &&
+		(MyWalSnd->state == WALSNDSTATE_CATCHUP ||
+		 MyWalSnd->state == WALSNDSTATE_STREAMING))
+		WalSndArchivalReportIfNecessary(GetCurrentTimestamp());
 }
 
 /*
@@ -3594,7 +3597,12 @@ WalSndArchivalReportIfNecessary(TimestampTz now)
 
 		last_archival_report_timestamp = global_stats->stats_timestamp;
 
-		if (strcmp(last_archived_file, archiver_stats->last_archived_wal) != 0)
+		/*
+	 	 * Only send a report if the last archived WAL has changed AND
+	 	 * it is a WAL segments, not backup history file or other archived file.
+	 	 */
+		if (strcmp(last_archived_file, archiver_stats->last_archived_wal) != 0 &&
+			IsXLogFileName(archiver_stats->last_archived_wal))
 		{
 			strlcpy(last_archived_file, archiver_stats->last_archived_wal,
 										sizeof(last_archived_file));
