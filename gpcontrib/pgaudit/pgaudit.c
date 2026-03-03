@@ -23,6 +23,7 @@
 #include "commands/event_trigger.h"
 #include "executor/executor.h"
 #include "executor/spi.h"
+#include "funcapi.h"
 #include "miscadmin.h"
 #include "libpq/auth.h"
 #include "nodes/nodes.h"
@@ -1501,6 +1502,181 @@ pgaudit_object_access_hook(ObjectAccessType access,
         (*next_object_access_hook) (access, classId, objectId, subId, arg);
 }
 
+/* Fill in the list with oids of relations and functions used in the query */
+static bool
+walker_rel_and_func(Node *node, List **oids)
+{
+    if (node == NULL)
+        return false;
+
+    if (IsA(node, Query))
+        return query_tree_walker((Query *) node, walker_rel_and_func, oids,
+                                 QTW_EXAMINE_RTES);
+
+    if (IsA(node, RangeTblEntry))
+    {
+        RangeTblEntry *rte = (RangeTblEntry *) node;
+        if (rte->rtekind == RTE_RELATION)
+            *oids = list_append_unique_oid(*oids, rte->relid);
+        return false;
+    }
+
+    if (IsA(node, FuncExpr))
+        *oids = list_append_unique_oid(*oids, ((FuncExpr *) node)->funcid);
+
+    return expression_tree_walker(node, walker_rel_and_func, oids);
+}
+
+static void
+append_func_out_args(StringInfo str, HeapTuple htFunc)
+{
+    Form_pg_proc func = (Form_pg_proc) GETSTRUCT(htFunc);
+
+    if (func->prorettype == RECORDOID)
+    {
+        Oid *argtypes;
+        char **argnames;
+        char *argmodes;
+        int numargs = get_func_arg_info(htFunc, &argtypes,
+                                        &argnames, &argmodes);
+        pfree(argtypes);
+
+        if (argmodes != NULL && argnames != NULL)
+        {
+            bool printComma = false;
+            for (int i = 0; i < numargs; i++)
+                if (argmodes[i] == PROARGMODE_OUT ||
+                    argmodes[i] == PROARGMODE_TABLE)
+                {
+                    if (printComma)
+                        appendStringInfoChar(str, ',');
+
+                    if (argnames[i] != NULL)
+                        appendStringInfoString(str, argnames[i]);
+
+                    printComma = true;
+                }
+        }
+
+        if (argnames != NULL)
+            pfree(argnames);
+        if (argmodes != NULL)
+            pfree(argmodes);
+        return;
+    }
+
+    HeapTuple htType = SearchSysCache1(TYPEOID,
+                                       ObjectIdGetDatum(func->prorettype));
+    if (!HeapTupleIsValid(htType))
+        return;
+
+    Form_pg_type type = (Form_pg_type) GETSTRUCT(htType);
+    Oid typrelid = type->typrelid;
+    ReleaseSysCache(htType);
+
+    if (typrelid == 0)
+        return;
+
+    HeapTuple htRel = SearchSysCache1(RELOID, ObjectIdGetDatum(typrelid));
+    if (!HeapTupleIsValid(htRel))
+        return;
+
+    Form_pg_class rel = (Form_pg_class) GETSTRUCT(htRel);
+    for (AttrNumber n = 1; n <= rel->relnatts; n++)
+    {
+        char *att = get_attname(typrelid, n);
+        if (att == NULL)
+            break;
+
+        if (n > 1)
+            appendStringInfoChar(str, ',');
+
+        appendStringInfoString(str, att);
+        pfree(att);
+    }
+    ReleaseSysCache(htRel);
+}
+
+static void
+append_rel_attrs(StringInfo str, Oid relOid, int16 natts)
+{
+    for (AttrNumber n = 1; n <= natts; n++)
+    {
+        char *att = get_attname(relOid, n);
+        if (att == NULL)
+            break;
+
+        if (n > 1)
+            appendStringInfoChar(str, ',');
+
+        appendStringInfoString(str, att);
+        pfree(att);
+    }
+}
+
+static void
+append_name(StringInfo str, char type, Oid oid, Oid namespace, Name name)
+{
+    appendStringInfo(str, "{%c %u ", type, oid);
+    char *strNS = get_namespace_name(namespace);
+    if (strNS != NULL)
+    {
+        appendStringInfo(str, "%s.", strNS);
+        pfree(strNS);
+    }
+    appendStringInfo(str, "%s {", NameStr(*name));
+}
+
+static char *
+query_to_text(Query *parse)
+{
+    const ListCell *cell;
+    StringInfoData str;
+    List *oids = NIL;
+    char *parseStr = nodeToString(parse);
+
+    query_tree_walker(parse, walker_rel_and_func, &oids, QTW_EXAMINE_RTES);
+    if (oids == NIL)
+        return parseStr;
+
+    initStringInfo(&str);
+    appendStringInfoString(&str, parseStr);
+    pfree(parseStr);
+
+    foreach(cell, oids)
+    {
+        Oid oid = lfirst_oid(cell);
+        HeapTuple htFunc = SearchSysCache1(PROCOID, ObjectIdGetDatum(oid));
+
+        if (HeapTupleIsValid(htFunc))
+        {
+            Form_pg_proc func = (Form_pg_proc) GETSTRUCT(htFunc);
+            append_name(&str, 'f', oid, func->pronamespace, &func->proname);
+
+            if (func->proretset)
+                append_func_out_args(&str, htFunc);
+
+            appendStringInfoString(&str, "}}");
+            ReleaseSysCache(htFunc);
+        }
+        else
+        {
+            HeapTuple htRel = SearchSysCache1(RELOID, ObjectIdGetDatum(oid));
+            if (!HeapTupleIsValid(htRel))
+                continue;
+
+            Form_pg_class reltup = (Form_pg_class) GETSTRUCT(htRel);
+            append_name(&str, 'r', oid, reltup->relnamespace, &reltup->relname);
+            append_rel_attrs(&str, oid, reltup->relnatts);
+            appendStringInfoString(&str, "}}");
+            ReleaseSysCache(htRel);
+        }
+    }
+
+    list_free(oids);
+    return str.data;
+}
+
 static PlannedStmt *
 pgaudit_planner_hook(Query *parse, int cursorOptions, ParamListInfo boundParams)
 {
@@ -1516,7 +1692,7 @@ pgaudit_planner_hook(Query *parse, int cursorOptions, ParamListInfo boundParams)
              parse->commandType == CMD_DELETE))))
     {
         AuditEventStackItem *stackItem = stack_push_cmd(parse->commandType);
-        stackItem->auditEvent.commandText = nodeToString(parse);
+        stackItem->auditEvent.commandText = query_to_text(parse);
         log_audit_event(stackItem);
     }
 
@@ -1656,7 +1832,7 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
                 }
 
                 auditEventStack->auditEvent.commandText =
-                    nodeToString(linitial(rewritten));
+                    query_to_text(linitial(rewritten));
                 auditEventStack->auditEvent.logged = false;
                 log_audit_event(auditEventStack);
             }
