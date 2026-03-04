@@ -1,4 +1,12 @@
 -- start_matchsubs
+-- m/{QUERY .*}\{r /
+-- s/{QUERY .*}\{r /{QUERY...}{r /
+-- m/}\{r \d+ /
+-- s/}\{r \d+ /}{r XXXX /
+-- m/{QUERY .*}\{f /
+-- s/{QUERY .*}\{f /{QUERY...}{f /
+-- m/}\{f \d+ /
+-- s/}\{f \d+ /}{f XXXX /
 -- m/{QUERY .*}",/
 -- s/{QUERY .*}",/{QUERY...}",/
 -- m/{QUERY .*},<none>/

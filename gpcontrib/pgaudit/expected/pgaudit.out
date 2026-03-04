@@ -1,4 +1,12 @@
 -- start_matchsubs
+-- m/{QUERY .*}\{r /
+-- s/{QUERY .*}\{r /{QUERY...}{r /
+-- m/}\{r \d+ /
+-- s/}\{r \d+ /}{r XXXX /
+-- m/{QUERY .*}\{f /
+-- s/{QUERY .*}\{f /{QUERY...}{f /
+-- m/}\{f \d+ /
+-- s/}\{f \d+ /}{f XXXX /
 -- m/{QUERY .*}",/
 -- s/{QUERY .*}",/{QUERY...}",/
 -- m/{QUERY .*},<none>/
@@ -607,8 +615,8 @@ SELECT *
   FROM account
  WHERE id = $1;",<none>
 EXECUTE pgclassstmt (1);
-NOTICE:  AUDIT: SESSION,12,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,12,1,AST_SEL,SELECT,TABLE,public.account,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,12,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.account {id,name,password,description}}",<none>
+NOTICE:  AUDIT: SESSION,12,1,AST_SEL,SELECT,TABLE,public.account,"{QUERY...}{r XXXX public.account {id,name,password,description}}",<none>
 NOTICE:  AUDIT: SESSION,12,2,READ,SELECT,TABLE,public.account,"PREPARE pgclassstmt (oid) AS
 SELECT *
   FROM account
@@ -633,7 +641,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
 NOTICE:  AUDIT: SESSION,15,2,READ,SELECT,TABLE,pg_catalog.pg_class,"DECLARE ctest SCROLL CURSOR FOR
 SELECT count(*)
   FROM
@@ -672,7 +680,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
  count 
 -------
      1
@@ -695,8 +703,8 @@ NOTICE:  AUDIT: SESSION,22,1,WRITE,PREPARE,,,"PREPARE pgclassstmt (oid) AS
 INSERT INTO test.test_insert (id)
 					  VALUES ($1);",<none>
 EXECUTE pgclassstmt (1);
-NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,TABLE,test.test_insert,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX test.test_insert {id}}",<none>
+NOTICE:  AUDIT: SESSION,23,1,AST_MOD,INSERT,TABLE,test.test_insert,"{QUERY...}{r XXXX test.test_insert {id}}",<none>
 NOTICE:  AUDIT: SESSION,23,2,WRITE,INSERT,TABLE,test.test_insert,"PREPARE pgclassstmt (oid) AS
 INSERT INTO test.test_insert (id)
 					  VALUES ($1);",1
@@ -739,8 +747,8 @@ NOTICE:  AUDIT: SESSION,26,1,ROLE,GRANT,TABLE,,"GRANT SELECT
   TO PUBLIC;",<none>
 SELECT *
   FROM test;
-NOTICE:  AUDIT: SESSION,27,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,27,1,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,27,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,27,1,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,27,2,READ,SELECT,TABLE,public.test,"SELECT *
   FROM test;",<none>
  id | name | description 
@@ -750,8 +758,8 @@ NOTICE:  AUDIT: SESSION,27,2,READ,SELECT,TABLE,public.test,"SELECT *
 -- Check that statements without columns log
 SELECT
   FROM test;
-NOTICE:  AUDIT: SESSION,28,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,28,1,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,28,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,28,1,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,28,2,READ,SELECT,TABLE,public.test,"SELECT
   FROM test;",<none>
 --
@@ -759,7 +767,7 @@ NOTICE:  AUDIT: SESSION,28,2,READ,SELECT,TABLE,public.test,"SELECT
 
 SELECT 1,
 	   substring('Thomas' from 2 for 3);
-NOTICE:  AUDIT: SESSION,29,1,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,29,1,AST_SEL,SELECT,,,{QUERY...}{f XXXX pg_catalog.substring {}},<none>
 NOTICE:  AUDIT: SESSION,29,2,READ,SELECT,,,"SELECT 1,
 	   substring('Thomas' from 2 for 3);",<none>
  ?column? | substring 
@@ -798,20 +806,20 @@ NOTICE:  AUDIT: SESSION,31,3,MISC,EXPLAIN,,,explain select 1;,<none>
 -- Test that looks inside of do blocks log
 INSERT INTO TEST (id)
 		  VALUES (1);
-NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,32,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,32,2,WRITE,INSERT,TABLE,public.test,"INSERT INTO TEST (id)
 		  VALUES (1);",<none>
 INSERT INTO TEST (id)
 		  VALUES (2);
-NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,33,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,33,2,WRITE,INSERT,TABLE,public.test,"INSERT INTO TEST (id)
 		  VALUES (2);",<none>
 INSERT INTO TEST (id)
 		  VALUES (3);
-NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,34,1,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,34,2,WRITE,INSERT,TABLE,public.test,"INSERT INTO TEST (id)
 		  VALUES (3);",<none>
 DO $$
@@ -840,21 +848,21 @@ BEGIN
 			 VALUES (result.id + 100);
 	END LOOP;
 END $$;",<none>
-NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,35,2,AST_SEL,SELECT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,35,3,READ,SELECT,TABLE,public.test,"SELECT id
 		  FROM test
 		ORDER BY id",<none>
-NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,35,4,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,35,5,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
 			 VALUES (result.id + 100)",",,1"
-NOTICE:  AUDIT: SESSION,35,6,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,35,6,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,6,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,35,6,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,35,7,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
 			 VALUES (result.id + 100)",",,2"
-NOTICE:  AUDIT: SESSION,35,8,AST_MOD,INSERT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,35,8,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,35,8,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
+NOTICE:  AUDIT: SESSION,35,8,AST_MOD,INSERT,TABLE,public.test,"{QUERY...}{r XXXX public.test {id,name,description}}",<none>
 NOTICE:  AUDIT: SESSION,35,9,WRITE,INSERT,TABLE,public.test,"INSERT INTO test (id)
 			 VALUES (result.id + 100)",",,3"
 --
@@ -962,7 +970,7 @@ BEGIN
 	return a + b;
 END $$;",<none>
 SELECT int_add(1, 1);
-NOTICE:  AUDIT: SESSION,46,1,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,46,1,AST_SEL,SELECT,,,{QUERY...}{f XXXX public.int_add {}},<none>
 NOTICE:  AUDIT: SESSION,46,2,READ,SELECT,,,"SELECT int_add(1, 1);",<none>
 NOTICE:  AUDIT: SESSION,46,3,FUNCTION,EXECUTE,FUNCTION,public.int_add,"SELECT int_add(1, 1);",<none>
 NOTICE:  AUDIT: SESSION,46,4,AST_SEL,SELECT,,,{QUERY...},<none>
@@ -1077,13 +1085,13 @@ BEGIN
 END $$
 LANGUAGE plpgsql ;",<none>
 SELECT test();
-NOTICE:  AUDIT: SESSION,60,1,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,60,1,AST_SEL,SELECT,,,{QUERY...}{f XXXX public.test {}},<none>
 NOTICE:  AUDIT: SESSION,60,2,READ,SELECT,,,SELECT test();,<none>
 NOTICE:  AUDIT: SESSION,60,3,FUNCTION,EXECUTE,FUNCTION,public.test,SELECT test();,<none>
 NOTICE:  AUDIT: SESSION,60,4,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  AUDIT: SESSION,60,5,READ,SELECT,,,SELECT 'cur1'::pg_catalog.refcursor,<none>
-NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,,,"{QUERY...}",<none>
-NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,TABLE,public.hoge,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.hoge {id}}",<none>
+NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,TABLE,public.hoge,"{QUERY...}{r XXXX public.hoge {id}}",<none>
 NOTICE:  AUDIT: SESSION,60,7,READ,SELECT,TABLE,public.hoge,select * from hoge,<none>
 NOTICE:  AUDIT: SESSION,60,8,AST_SEL,SELECT,,,{QUERY...},<none>
  test 
@@ -1145,7 +1153,7 @@ CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 -- AST for independent select is logged
 SELECT id FROM tmp2;
-NOTICE:  AUDIT: SESSION,69,1,AST_SEL,SELECT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,69,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
  id 
 ----
 (0 rows)
@@ -1158,11 +1166,11 @@ SET pgaudit.log_relation = OFF;
 CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
 CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
 INSERT INTO dst SELECT * FROM src;
-NOTICE:  AUDIT: SESSION,70,1,AST_MOD,INSERT,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,70,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
 UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
-NOTICE:  AUDIT: SESSION,71,1,AST_MOD,UPDATE,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,71,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
 DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
-NOTICE:  AUDIT: SESSION,72,1,AST_MOD,DELETE,,,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,72,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
 DROP TABLE src, dst;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
