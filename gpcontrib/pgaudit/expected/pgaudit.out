@@ -21,7 +21,7 @@ CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 NOTICE:  AUDIT: SESSION,5,1,DDL,CREATE TABLE AS,,,CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);,<not logged>
 NOTICE:  AUDIT: SESSION,5,2,READ,SELECT,,,CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);,<not logged>
 NOTICE:  AUDIT: SESSION,5,1,DDL,CREATE TABLE AS,TABLE,public.tmp2,CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);,<not logged>
-NOTICE:  AUDIT: SESSION,5,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}",<not logged>
+NOTICE:  AUDIT: SESSION,5,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<not logged>
 -- Reset log_client first to show that audits logs are not set to client
 RESET pgaudit.log_client;
 DROP TABLE tmp;
@@ -599,7 +599,7 @@ NOTICE:  AUDIT: SESSION,9,1,DDL,CREATE TABLE AS,TABLE,test.account_copy,"CREATE 
 SELECT *
   FROM account
 DISTRIBUTED BY (id);",<none>
-NOTICE:  AUDIT: SESSION,9,1,AST_CTAS,CREATE TABLE AS,TABLE,test.account_copy,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,9,1,AST_CTAS,CREATE TABLE AS,TABLE,test.account_copy,"{QUERY...}{r XXXX public.account {id,name,password,description}}",<none>
 --
 -- Copy from stdin to account copy
 COPY test.account_copy from stdin;
@@ -1140,9 +1140,9 @@ NOTICE:  AUDIT: SESSION,66,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
 SET pgaudit.log = 'ast_ctas';
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,67,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,67,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,68,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}",<none>
+NOTICE:  AUDIT: SESSION,68,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 DROP TABLE tmp, tmp2, tmp3;
 --
 -- Test logging AST for SELECT
