@@ -1,16 +1,14 @@
 -- start_matchsubs
--- m/{QUERY .*}\{r /
--- s/{QUERY .*}\{r /{QUERY...}{r /
+-- m/{QUERY .* (false|true)}\{/
+-- s/{QUERY .* (false|true)}\{/{QUERY...}{/
 -- m/}\{r \d+ /
 -- s/}\{r \d+ /}{r XXXX /
--- m/{QUERY .*}\{f /
--- s/{QUERY .*}\{f /{QUERY...}{f /
 -- m/}\{f \d+ /
 -- s/}\{f \d+ /}{f XXXX /
--- m/{QUERY .*}",/
--- s/{QUERY .*}",/{QUERY...}",/
--- m/{QUERY .*},<none>/
--- s/{QUERY .*},<none>/{QUERY...},<none>/
+-- m/{QUERY .* (false|true)}",/
+-- s/{QUERY .* (false|true)}",/{QUERY...}",/
+-- m/{QUERY .* (false|true)},<none>/
+-- s/{QUERY .* (false|true)},<none>/{QUERY...},<none>/
 -- m/pg_temp_\d+/
 -- s/pg_temp_\d+/pg_temp_XX/
 -- end_matchsubs
@@ -641,7 +639,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
+NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX pg_catalog.int8 {}}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
 NOTICE:  AUDIT: SESSION,15,2,READ,SELECT,TABLE,pg_catalog.pg_class,"DECLARE ctest SCROLL CURSOR FOR
 SELECT count(*)
   FROM
@@ -680,7 +678,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
+NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX pg_catalog.int8 {}}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
  count 
 -------
      1
@@ -1289,9 +1287,9 @@ NOTICE:  AUDIT: SESSION,74,8,AST_SEL,SELECT,,,{QUERY...},<none>
 CREATE TABLE t2 (id2 int, txt2 text) DISTRIBUTED BY (id2);
 NOTICE:  AUDIT: SESSION,76,1,DDL,CREATE TABLE,TABLE,public.t2,"CREATE TABLE t2 (id2 int, txt2 text) DISTRIBUTED BY (id2);",<none>
 SELECT * FROM t1, t2, get_table(1), get_out_args(1);
-NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
-NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
-NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,TABLE,public.t2,"{QUERY...}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t1 {id,txt}}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t1 {id,txt}}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,TABLE,public.t2,"{QUERY...}{r XXXX public.t1 {id,txt}}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
 NOTICE:  AUDIT: SESSION,77,2,READ,SELECT,TABLE,public.t1,"SELECT * FROM t1, t2, get_table(1), get_out_args(1);",<none>
 NOTICE:  AUDIT: SESSION,77,2,READ,SELECT,TABLE,public.t2,"SELECT * FROM t1, t2, get_table(1), get_out_args(1);",<none>
  id | txt | id2 | txt2 | col_t1 | col_t2 | col_o1 | col_o2 
@@ -1382,11 +1380,11 @@ SET pgaudit.log_relation = OFF;
 CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
 CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
 INSERT INTO dst SELECT * FROM src;
-NOTICE:  AUDIT: SESSION,95,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,95,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
-NOTICE:  AUDIT: SESSION,96,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,96,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
-NOTICE:  AUDIT: SESSION,97,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,97,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 DROP TABLE src, dst;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;

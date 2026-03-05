@@ -1,16 +1,14 @@
 -- start_matchsubs
--- m/{QUERY .*}\{r /
--- s/{QUERY .*}\{r /{QUERY...}{r /
+-- m/{QUERY .* (false|true)}\{/
+-- s/{QUERY .* (false|true)}\{/{QUERY...}{/
 -- m/}\{r \d+ /
 -- s/}\{r \d+ /}{r XXXX /
--- m/{QUERY .*}\{f /
--- s/{QUERY .*}\{f /{QUERY...}{f /
 -- m/}\{f \d+ /
 -- s/}\{f \d+ /}{f XXXX /
--- m/{QUERY .*}",/
--- s/{QUERY .*}",/{QUERY...}",/
--- m/{QUERY .*},<none>/
--- s/{QUERY .*},<none>/{QUERY...},<none>/
+-- m/{QUERY .* (false|true)}",/
+-- s/{QUERY .* (false|true)}",/{QUERY...}",/
+-- m/{QUERY .* (false|true)},<none>/
+-- s/{QUERY .* (false|true)},<none>/{QUERY...},<none>/
 -- m/pg_temp_\d+/
 -- s/pg_temp_\d+/pg_temp_XX/
 -- end_matchsubs
