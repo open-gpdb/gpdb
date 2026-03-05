@@ -1559,7 +1559,12 @@ append_func_out_args(StringInfo str, HeapTuple htFunc)
         }
 
         if (argnames != NULL)
+        {
+            for (int i = 0; i < numargs; i++)
+                pfree(argnames[i]);
             pfree(argnames);
+        }
+
         if (argmodes != NULL)
             pfree(argmodes);
         return;
