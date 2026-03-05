@@ -719,6 +719,114 @@ LANGUAGE plpgsql ;
 SELECT test();
 
 --
+-- Test function oid mapping with name
+
+-- Function returns SETOF <tablename>
+-- start_ignore
+DROP TABLE IF EXISTS t1;
+-- end_ignore
+CREATE TABLE t1 (id int, txt text) DISTRIBUTED BY (id);
+
+CREATE OR REPLACE FUNCTION get_t1_by_id(p_id int)
+RETURNS SETOF t1 AS $$
+DECLARE
+	r t1%rowtype;
+BEGIN
+	FOR r IN
+		SELECT * FROM t1 WHERE id < p_id
+	LOOP
+		RETURN NEXT r;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_t1_by_id(10);
+
+-- Function returns SETOF composite type
+-- start_ignore
+DROP TYPE IF EXISTS tc;
+-- end_ignore
+
+CREATE TYPE tc AS (i int, d numeric(10,2));
+
+CREATE OR REPLACE FUNCTION get_tc()
+RETURNS SETOF tc AS $$
+BEGIN
+	RETURN NEXT ROW(1, 1.1)::tc;
+	RETURN NEXT ROW(2, 2.2)::tc;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_tc();
+
+-- pgaudit logs a function name only, if the function returns SETOF record
+CREATE OR REPLACE FUNCTION get_records()
+RETURNS SETOF record AS $$
+DECLARE
+	r t1%rowtype;
+BEGIN
+	FOR r IN
+		SELECT * FROM t1
+	LOOP
+		RETURN NEXT (r.id, r.txt, 5::int)::record;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_records() a (id int, txt text, extra int);
+
+-- Function returns SETOF record and has output arguments
+CREATE OR REPLACE FUNCTION get_out_args (x int, OUT col_o1 int, OUT col_o2 int)
+RETURNS SETOF record
+AS $$
+BEGIN
+	FOR i IN 1..x
+	LOOP
+		col_o1 := i * 2;
+		col_o2 := i * 2 + 1;
+		RETURN NEXT;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_out_args(3);
+
+-- Function returns TABLE
+CREATE OR REPLACE FUNCTION get_table (x int)
+RETURNS TABLE(col_t1 int, col_t2 int)
+AS $$
+BEGIN
+	FOR i IN 1..x
+	LOOP
+		col_t1 := i * 2;
+		col_t2 := i * 2 + 1;
+		RETURN NEXT;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM get_table(2);
+
+-- More than one table and function
+-- start_ignore
+DROP TABLE IF EXISTS t2;
+-- end_ignore
+CREATE TABLE t2 (id2 int, txt2 text) DISTRIBUTED BY (id2);
+
+SELECT * FROM t1, t2, get_table(1), get_out_args(1);
+
+-- Cleanup
+DROP FUNCTION get_t1_by_id(int);
+DROP FUNCTION get_tc();
+DROP FUNCTION get_records();
+DROP FUNCTION get_out_args(int);
+DROP FUNCTION get_table(int);
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TYPE tc;
+
+
+--
 -- Delete all rows then delete 1 row
 SET pgaudit.log = 'write';
 SET pgaudit.role = 'auditor';

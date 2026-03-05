@@ -1100,6 +1100,222 @@ NOTICE:  AUDIT: SESSION,60,8,AST_SEL,SELECT,,,{QUERY...},<none>
 (1 row)
 
 --
+-- Test function oid mapping with name
+-- Function returns SETOF <tablename>
+CREATE TABLE t1 (id int, txt text) DISTRIBUTED BY (id);
+NOTICE:  AUDIT: SESSION,62,1,DDL,CREATE TABLE,TABLE,public.t1,"CREATE TABLE t1 (id int, txt text) DISTRIBUTED BY (id);",<none>
+CREATE OR REPLACE FUNCTION get_t1_by_id(p_id int)
+RETURNS SETOF t1 AS $$
+DECLARE
+	r t1%rowtype;
+BEGIN
+	FOR r IN
+		SELECT * FROM t1 WHERE id < p_id
+	LOOP
+		RETURN NEXT r;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+NOTICE:  AUDIT: SESSION,63,1,DDL,CREATE FUNCTION,FUNCTION,public.get_t1_by_id(integer),"CREATE OR REPLACE FUNCTION get_t1_by_id(p_id int)
+RETURNS SETOF t1 AS $$
+DECLARE
+	r t1%rowtype;
+BEGIN
+	FOR r IN
+		SELECT * FROM t1 WHERE id < p_id
+	LOOP
+		RETURN NEXT r;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;",<none>
+SELECT * FROM get_t1_by_id(10);
+NOTICE:  AUDIT: SESSION,64,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_t1_by_id {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,64,2,READ,SELECT,,,SELECT * FROM get_t1_by_id(10);,<none>
+NOTICE:  AUDIT: SESSION,64,3,FUNCTION,EXECUTE,FUNCTION,public.get_t1_by_id,SELECT * FROM get_t1_by_id(10);,<none>
+NOTICE:  AUDIT: SESSION,64,4,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t1 {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,64,4,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t1 {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,64,5,READ,SELECT,TABLE,public.t1,SELECT * FROM t1 WHERE id < p_id,"10,,,,"
+ id | txt 
+----+-----
+(0 rows)
+
+-- Function returns SETOF composite type
+CREATE TYPE tc AS (i int, d numeric(10,2));
+NOTICE:  AUDIT: SESSION,66,1,DDL,CREATE TYPE,TYPE,public.tc,"CREATE TYPE tc AS (i int, d numeric(10,2));",<none>
+CREATE OR REPLACE FUNCTION get_tc()
+RETURNS SETOF tc AS $$
+BEGIN
+	RETURN NEXT ROW(1, 1.1)::tc;
+	RETURN NEXT ROW(2, 2.2)::tc;
+END;
+$$ LANGUAGE plpgsql;
+NOTICE:  AUDIT: SESSION,67,1,DDL,CREATE FUNCTION,FUNCTION,public.get_tc(),"CREATE OR REPLACE FUNCTION get_tc()
+RETURNS SETOF tc AS $$
+BEGIN
+	RETURN NEXT ROW(1, 1.1)::tc;
+	RETURN NEXT ROW(2, 2.2)::tc;
+END;
+$$ LANGUAGE plpgsql;",<none>
+SELECT * FROM get_tc();
+NOTICE:  AUDIT: SESSION,68,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_tc {i,d}}",<none>
+NOTICE:  AUDIT: SESSION,68,2,READ,SELECT,,,SELECT * FROM get_tc();,<none>
+NOTICE:  AUDIT: SESSION,68,3,FUNCTION,EXECUTE,FUNCTION,public.get_tc,SELECT * FROM get_tc();,<none>
+NOTICE:  AUDIT: SESSION,68,4,AST_SEL,SELECT,,,{QUERY...}{f XXXX pg_catalog.numeric {}},<none>
+NOTICE:  AUDIT: SESSION,68,5,AST_SEL,SELECT,,,{QUERY...}{f XXXX pg_catalog.numeric {}},<none>
+ i |  d   
+---+------
+ 1 | 1.10
+ 2 | 2.20
+(2 rows)
+
+-- pgaudit logs a function name only, if the function returns SETOF record
+CREATE OR REPLACE FUNCTION get_records()
+RETURNS SETOF record AS $$
+DECLARE
+	r t1%rowtype;
+BEGIN
+	FOR r IN
+		SELECT * FROM t1
+	LOOP
+		RETURN NEXT (r.id, r.txt, 5::int)::record;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+NOTICE:  AUDIT: SESSION,69,1,DDL,CREATE FUNCTION,FUNCTION,public.get_records(),"CREATE OR REPLACE FUNCTION get_records()
+RETURNS SETOF record AS $$
+DECLARE
+	r t1%rowtype;
+BEGIN
+	FOR r IN
+		SELECT * FROM t1
+	LOOP
+		RETURN NEXT (r.id, r.txt, 5::int)::record;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;",<none>
+SELECT * FROM get_records() a (id int, txt text, extra int);
+NOTICE:  AUDIT: SESSION,70,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_records {}}",<none>
+NOTICE:  AUDIT: SESSION,70,2,READ,SELECT,,,"SELECT * FROM get_records() a (id int, txt text, extra int);",<none>
+NOTICE:  AUDIT: SESSION,70,3,FUNCTION,EXECUTE,FUNCTION,public.get_records,"SELECT * FROM get_records() a (id int, txt text, extra int);",<none>
+NOTICE:  AUDIT: SESSION,70,4,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t1 {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,70,4,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t1 {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,70,5,READ,SELECT,TABLE,public.t1,SELECT * FROM t1,<none>
+ id | txt | extra 
+----+-----+-------
+(0 rows)
+
+-- Function returns SETOF record and has output arguments
+CREATE OR REPLACE FUNCTION get_out_args (x int, OUT col_o1 int, OUT col_o2 int)
+RETURNS SETOF record
+AS $$
+BEGIN
+	FOR i IN 1..x
+	LOOP
+		col_o1 := i * 2;
+		col_o2 := i * 2 + 1;
+		RETURN NEXT;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+NOTICE:  AUDIT: SESSION,71,1,DDL,CREATE FUNCTION,FUNCTION,public.get_out_args(integer),"CREATE OR REPLACE FUNCTION get_out_args (x int, OUT col_o1 int, OUT col_o2 int)
+RETURNS SETOF record
+AS $$
+BEGIN
+	FOR i IN 1..x
+	LOOP
+		col_o1 := i * 2;
+		col_o2 := i * 2 + 1;
+		RETURN NEXT;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;",<none>
+SELECT * FROM get_out_args(3);
+NOTICE:  AUDIT: SESSION,72,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,72,2,READ,SELECT,,,SELECT * FROM get_out_args(3);,<none>
+NOTICE:  AUDIT: SESSION,72,3,FUNCTION,EXECUTE,FUNCTION,public.get_out_args,SELECT * FROM get_out_args(3);,<none>
+NOTICE:  AUDIT: SESSION,72,4,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,72,5,READ,SELECT,,,SELECT 1,<none>
+NOTICE:  AUDIT: SESSION,72,6,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,72,7,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,72,8,AST_SEL,SELECT,,,{QUERY...},<none>
+ col_o1 | col_o2 
+--------+--------
+      2 |      3
+      4 |      5
+      6 |      7
+(3 rows)
+
+-- Function returns TABLE
+CREATE OR REPLACE FUNCTION get_table (x int)
+RETURNS TABLE(col_t1 int, col_t2 int)
+AS $$
+BEGIN
+	FOR i IN 1..x
+	LOOP
+		col_t1 := i * 2;
+		col_t2 := i * 2 + 1;
+		RETURN NEXT;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+NOTICE:  AUDIT: SESSION,73,1,DDL,CREATE FUNCTION,FUNCTION,public.get_table(integer),"CREATE OR REPLACE FUNCTION get_table (x int)
+RETURNS TABLE(col_t1 int, col_t2 int)
+AS $$
+BEGIN
+	FOR i IN 1..x
+	LOOP
+		col_t1 := i * 2;
+		col_t2 := i * 2 + 1;
+		RETURN NEXT;
+	END LOOP;
+END;
+$$ LANGUAGE plpgsql;",<none>
+SELECT * FROM get_table(2);
+NOTICE:  AUDIT: SESSION,74,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_table {col_t1,col_t2}}",<none>
+NOTICE:  AUDIT: SESSION,74,2,READ,SELECT,,,SELECT * FROM get_table(2);,<none>
+NOTICE:  AUDIT: SESSION,74,3,FUNCTION,EXECUTE,FUNCTION,public.get_table,SELECT * FROM get_table(2);,<none>
+NOTICE:  AUDIT: SESSION,74,4,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,74,5,READ,SELECT,,,SELECT 1,<none>
+NOTICE:  AUDIT: SESSION,74,6,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,74,7,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,74,8,AST_SEL,SELECT,,,{QUERY...},<none>
+ col_t1 | col_t2 
+--------+--------
+      2 |      3
+      4 |      5
+(2 rows)
+
+-- More than one table and function
+CREATE TABLE t2 (id2 int, txt2 text) DISTRIBUTED BY (id2);
+NOTICE:  AUDIT: SESSION,76,1,DDL,CREATE TABLE,TABLE,public.t2,"CREATE TABLE t2 (id2 int, txt2 text) DISTRIBUTED BY (id2);",<none>
+SELECT * FROM t1, t2, get_table(1), get_out_args(1);
+NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,77,1,AST_SEL,SELECT,TABLE,public.t2,"{QUERY...}{r XXXX public.t2 {id2,txt2}}{f XXXX public.get_table {col_t1,col_t2}}{f XXXX public.get_out_args {col_o1,col_o2}}",<none>
+NOTICE:  AUDIT: SESSION,77,2,READ,SELECT,TABLE,public.t1,"SELECT * FROM t1, t2, get_table(1), get_out_args(1);",<none>
+NOTICE:  AUDIT: SESSION,77,2,READ,SELECT,TABLE,public.t2,"SELECT * FROM t1, t2, get_table(1), get_out_args(1);",<none>
+ id | txt | id2 | txt2 | col_t1 | col_t2 | col_o1 | col_o2 
+----+-----+-----+------+--------+--------+--------+--------
+(0 rows)
+
+-- Cleanup
+DROP FUNCTION get_t1_by_id(int);
+NOTICE:  AUDIT: SESSION,78,1,DDL,DROP FUNCTION,FUNCTION,public.get_t1_by_id(integer),DROP FUNCTION get_t1_by_id(int);,<none>
+DROP FUNCTION get_tc();
+NOTICE:  AUDIT: SESSION,79,1,DDL,DROP FUNCTION,FUNCTION,public.get_tc(),DROP FUNCTION get_tc();,<none>
+DROP FUNCTION get_records();
+NOTICE:  AUDIT: SESSION,80,1,DDL,DROP FUNCTION,FUNCTION,public.get_records(),DROP FUNCTION get_records();,<none>
+DROP FUNCTION get_out_args(int);
+NOTICE:  AUDIT: SESSION,81,1,DDL,DROP FUNCTION,FUNCTION,public.get_out_args(integer),DROP FUNCTION get_out_args(int);,<none>
+DROP FUNCTION get_table(int);
+NOTICE:  AUDIT: SESSION,82,1,DDL,DROP FUNCTION,FUNCTION,public.get_table(integer),DROP FUNCTION get_table(int);,<none>
+DROP TABLE t1;
+NOTICE:  AUDIT: SESSION,83,1,DDL,DROP TABLE,TABLE,public.t1,DROP TABLE t1;,<none>
+DROP TABLE t2;
+NOTICE:  AUDIT: SESSION,84,1,DDL,DROP TABLE,TABLE,public.t2,DROP TABLE t2;,<none>
+DROP TYPE tc;
+NOTICE:  AUDIT: SESSION,85,1,DDL,DROP TYPE,COMPOSITE TYPE,public.tc,DROP TYPE tc;,<none>
+--
 -- Delete all rows then delete 1 row
 SET pgaudit.log = 'write';
 SET pgaudit.role = 'auditor';
@@ -1112,37 +1328,37 @@ grant delete
    to auditor;
 insert into bar (col)
 		 values (1);
-NOTICE:  AUDIT: SESSION,61,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
+NOTICE:  AUDIT: SESSION,86,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
 		 values (1);",<none>
 delete from bar;
-NOTICE:  AUDIT: OBJECT,62,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
-NOTICE:  AUDIT: SESSION,62,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
+NOTICE:  AUDIT: OBJECT,87,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
+NOTICE:  AUDIT: SESSION,87,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
 insert into bar (col)
 		 values (1);
-NOTICE:  AUDIT: SESSION,63,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
+NOTICE:  AUDIT: SESSION,88,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
 		 values (1);",<none>
 delete from bar
  where col = 1;
-NOTICE:  AUDIT: OBJECT,64,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
+NOTICE:  AUDIT: OBJECT,89,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
  where col = 1;",<none>
-NOTICE:  AUDIT: SESSION,64,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
+NOTICE:  AUDIT: SESSION,89,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
  where col = 1;",<none>
 drop table bar;
 --
 -- Grant roles to each other
 SET pgaudit.log = 'role';
 GRANT user1 TO user2;
-NOTICE:  AUDIT: SESSION,65,1,ROLE,GRANT ROLE,,,GRANT user1 TO user2;,<none>
+NOTICE:  AUDIT: SESSION,90,1,ROLE,GRANT ROLE,,,GRANT user1 TO user2;,<none>
 REVOKE user1 FROM user2;
-NOTICE:  AUDIT: SESSION,66,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
+NOTICE:  AUDIT: SESSION,91,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
 --
 -- Test logging AST for CTAS
 SET pgaudit.log = 'ast_ctas';
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,67,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,92,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,68,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,93,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 DROP TABLE tmp, tmp2, tmp3;
 --
 -- Test logging AST for SELECT
@@ -1153,7 +1369,7 @@ CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 -- AST for independent select is logged
 SELECT id FROM tmp2;
-NOTICE:  AUDIT: SESSION,69,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,94,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
  id 
 ----
 (0 rows)
@@ -1166,11 +1382,11 @@ SET pgaudit.log_relation = OFF;
 CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
 CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
 INSERT INTO dst SELECT * FROM src;
-NOTICE:  AUDIT: SESSION,70,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,95,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
 UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
-NOTICE:  AUDIT: SESSION,71,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,96,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
 DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
-NOTICE:  AUDIT: SESSION,72,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,97,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.src {id,txt}}",<none>
 DROP TABLE src, dst;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
@@ -1197,9 +1413,9 @@ SET search_path = public, pg_catalog;
 -- If there was a vulnerability, these would fail with division by zero error
 CREATE TABLE wombat () DISTRIBUTED RANDOMLY;
 WARNING:  creating a table with no columns.
-NOTICE:  AUDIT: SESSION,73,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
+NOTICE:  AUDIT: SESSION,98,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
 DROP TABLE wombat;
-NOTICE:  AUDIT: SESSION,74,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
+NOTICE:  AUDIT: SESSION,99,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
 SET pgaudit.log = 'NONE';
 DROP EXTENSION pgaudit;
 DROP OPERATOR <> (text, text);
