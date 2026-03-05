@@ -639,7 +639,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX pg_catalog.int8 {}}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
+NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}{f XXXX pg_catalog.int8 {}}",<none>
 NOTICE:  AUDIT: SESSION,15,2,READ,SELECT,TABLE,pg_catalog.pg_class,"DECLARE ctest SCROLL CURSOR FOR
 SELECT count(*)
   FROM
@@ -678,7 +678,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX pg_catalog.int8 {}}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}",<none>
+NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}{f XXXX pg_catalog.int8 {}}",<none>
  count 
 -------
      1

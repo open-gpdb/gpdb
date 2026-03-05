@@ -229,6 +229,12 @@ char *auditRole = NULL;
 #define TOKEN_PASSWORD             "password"
 #define TOKEN_REDACTED             "<REDACTED>"
 
+typedef struct
+{
+    List *rel_oids;
+    List *func_oids;
+} QueryOids;
+
 /*
  * An AuditEvent represents an operation that potentially affects a single
  * object.  If a statement affects multiple objects then multiple AuditEvents
@@ -1504,7 +1510,7 @@ pgaudit_object_access_hook(ObjectAccessType access,
 
 /* Fill in the list with oids of relations and functions used in the query */
 static bool
-walker_rel_and_func(Node *node, List **oids)
+walker_rel_and_func(Node *node, QueryOids *oids)
 {
     if (node == NULL)
         return false;
@@ -1517,12 +1523,12 @@ walker_rel_and_func(Node *node, List **oids)
     {
         RangeTblEntry *rte = (RangeTblEntry *) node;
         if (rte->rtekind == RTE_RELATION)
-            *oids = list_append_unique_oid(*oids, rte->relid);
+            oids->rel_oids = list_append_unique_oid(oids->rel_oids, rte->relid);
         return false;
     }
 
     if (IsA(node, FuncExpr))
-        *oids = list_append_unique_oid(*oids, ((FuncExpr *) node)->funcid);
+        oids->func_oids = list_append_unique_oid(oids->func_oids, ((FuncExpr *) node)->funcid);
 
     return expression_tree_walker(node, walker_rel_and_func, oids);
 }
@@ -1637,18 +1643,33 @@ query_to_text(Query *parse)
 {
     const ListCell *cell;
     StringInfoData str;
-    List *oids = NIL;
+    QueryOids oids = {NIL, NIL};
     char *parseStr = nodeToString(parse);
 
     query_tree_walker(parse, walker_rel_and_func, &oids, QTW_EXAMINE_RTES);
-    if (oids == NIL)
+    if (oids.rel_oids == NIL && oids.func_oids == NIL)
         return parseStr;
 
     initStringInfo(&str);
     appendStringInfoString(&str, parseStr);
     pfree(parseStr);
 
-    foreach(cell, oids)
+    foreach(cell, oids.rel_oids)
+    {
+        Oid oid = lfirst_oid(cell);
+        HeapTuple htRel = SearchSysCache1(RELOID, ObjectIdGetDatum(oid));
+
+        if (HeapTupleIsValid(htRel))
+        {
+            Form_pg_class reltup = (Form_pg_class) GETSTRUCT(htRel);
+            append_name(&str, 'r', oid, reltup->relnamespace, &reltup->relname);
+            append_rel_attrs(&str, oid, reltup->relnatts);
+            appendStringInfoString(&str, "}}");
+            ReleaseSysCache(htRel);
+        }
+    }
+
+    foreach(cell, oids.func_oids)
     {
         Oid oid = lfirst_oid(cell);
         HeapTuple htFunc = SearchSysCache1(PROCOID, ObjectIdGetDatum(oid));
@@ -1664,21 +1685,10 @@ query_to_text(Query *parse)
             appendStringInfoString(&str, "}}");
             ReleaseSysCache(htFunc);
         }
-        else
-        {
-            HeapTuple htRel = SearchSysCache1(RELOID, ObjectIdGetDatum(oid));
-            if (!HeapTupleIsValid(htRel))
-                continue;
-
-            Form_pg_class reltup = (Form_pg_class) GETSTRUCT(htRel);
-            append_name(&str, 'r', oid, reltup->relnamespace, &reltup->relname);
-            append_rel_attrs(&str, oid, reltup->relnatts);
-            appendStringInfoString(&str, "}}");
-            ReleaseSysCache(htRel);
-        }
     }
 
-    list_free(oids);
+    list_free(oids.rel_oids);
+    list_free(oids.func_oids);
     return str.data;
 }
 
