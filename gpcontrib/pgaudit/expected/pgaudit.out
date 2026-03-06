@@ -639,7 +639,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}{f XXXX pg_catalog.int8 {}}",<none>
+NOTICE:  AUDIT: SESSION,15,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}{f XXXX pg_catalog.count {}}{f XXXX pg_catalog.int8 {}}",<none>
 NOTICE:  AUDIT: SESSION,15,2,READ,SELECT,TABLE,pg_catalog.pg_class,"DECLARE ctest SCROLL CURSOR FOR
 SELECT count(*)
   FROM
@@ -678,7 +678,7 @@ SELECT count(*)
 	  FROM pg_class
 	 LIMIT 1
  ) subquery;
-NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}{f XXXX pg_catalog.int8 {}}",<none>
+NOTICE:  AUDIT: SESSION,20,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX pg_catalog.pg_class {relname,relnamespace,reltype,reloftype,relowner,relam,relfilenode,reltablespace,relpages,reltuples,relallvisible,reltoastrelid,relhasindex,relisshared,relpersistence,relkind,relstorage,relnatts,relchecks,relhasoids,relhaspkey,relhasrules,relhastriggers,relhassubclass,relispopulated,relreplident,relfrozenxid,relminmxid,relacl,reloptions}}{f XXXX pg_catalog.count {}}{f XXXX pg_catalog.int8 {}}",<none>
  count 
 -------
      1
@@ -1296,23 +1296,42 @@ NOTICE:  AUDIT: SESSION,77,2,READ,SELECT,TABLE,public.t2,"SELECT * FROM t1, t2, 
 ----+-----+-----+------+--------+--------+--------+--------
 (0 rows)
 
+-- Aggregate function
+SELECT max(id) FROM t1;
+NOTICE:  AUDIT: SESSION,78,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t1 {id,txt}}{f XXXX pg_catalog.max {}}",<none>
+NOTICE:  AUDIT: SESSION,78,1,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t1 {id,txt}}{f XXXX pg_catalog.max {}}",<none>
+NOTICE:  AUDIT: SESSION,78,2,READ,SELECT,TABLE,public.t1,SELECT max(id) FROM t1;,<none>
+ max 
+-----
+    
+(1 row)
+
+-- Window function
+SELECT max(id) OVER(PARTITION BY txt) FROM t1;
+NOTICE:  AUDIT: SESSION,79,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.t1 {id,txt}}{f XXXX pg_catalog.max {}}",<none>
+NOTICE:  AUDIT: SESSION,79,1,AST_SEL,SELECT,TABLE,public.t1,"{QUERY...}{r XXXX public.t1 {id,txt}}{f XXXX pg_catalog.max {}}",<none>
+NOTICE:  AUDIT: SESSION,79,2,READ,SELECT,TABLE,public.t1,SELECT max(id) OVER(PARTITION BY txt) FROM t1;,<none>
+ max 
+-----
+(0 rows)
+
 -- Cleanup
 DROP FUNCTION get_t1_by_id(int);
-NOTICE:  AUDIT: SESSION,78,1,DDL,DROP FUNCTION,FUNCTION,public.get_t1_by_id(integer),DROP FUNCTION get_t1_by_id(int);,<none>
+NOTICE:  AUDIT: SESSION,80,1,DDL,DROP FUNCTION,FUNCTION,public.get_t1_by_id(integer),DROP FUNCTION get_t1_by_id(int);,<none>
 DROP FUNCTION get_tc();
-NOTICE:  AUDIT: SESSION,79,1,DDL,DROP FUNCTION,FUNCTION,public.get_tc(),DROP FUNCTION get_tc();,<none>
+NOTICE:  AUDIT: SESSION,81,1,DDL,DROP FUNCTION,FUNCTION,public.get_tc(),DROP FUNCTION get_tc();,<none>
 DROP FUNCTION get_records();
-NOTICE:  AUDIT: SESSION,80,1,DDL,DROP FUNCTION,FUNCTION,public.get_records(),DROP FUNCTION get_records();,<none>
+NOTICE:  AUDIT: SESSION,82,1,DDL,DROP FUNCTION,FUNCTION,public.get_records(),DROP FUNCTION get_records();,<none>
 DROP FUNCTION get_out_args(int);
-NOTICE:  AUDIT: SESSION,81,1,DDL,DROP FUNCTION,FUNCTION,public.get_out_args(integer),DROP FUNCTION get_out_args(int);,<none>
+NOTICE:  AUDIT: SESSION,83,1,DDL,DROP FUNCTION,FUNCTION,public.get_out_args(integer),DROP FUNCTION get_out_args(int);,<none>
 DROP FUNCTION get_table(int);
-NOTICE:  AUDIT: SESSION,82,1,DDL,DROP FUNCTION,FUNCTION,public.get_table(integer),DROP FUNCTION get_table(int);,<none>
+NOTICE:  AUDIT: SESSION,84,1,DDL,DROP FUNCTION,FUNCTION,public.get_table(integer),DROP FUNCTION get_table(int);,<none>
 DROP TABLE t1;
-NOTICE:  AUDIT: SESSION,83,1,DDL,DROP TABLE,TABLE,public.t1,DROP TABLE t1;,<none>
+NOTICE:  AUDIT: SESSION,85,1,DDL,DROP TABLE,TABLE,public.t1,DROP TABLE t1;,<none>
 DROP TABLE t2;
-NOTICE:  AUDIT: SESSION,84,1,DDL,DROP TABLE,TABLE,public.t2,DROP TABLE t2;,<none>
+NOTICE:  AUDIT: SESSION,86,1,DDL,DROP TABLE,TABLE,public.t2,DROP TABLE t2;,<none>
 DROP TYPE tc;
-NOTICE:  AUDIT: SESSION,85,1,DDL,DROP TYPE,COMPOSITE TYPE,public.tc,DROP TYPE tc;,<none>
+NOTICE:  AUDIT: SESSION,87,1,DDL,DROP TYPE,COMPOSITE TYPE,public.tc,DROP TYPE tc;,<none>
 --
 -- Delete all rows then delete 1 row
 SET pgaudit.log = 'write';
@@ -1326,37 +1345,37 @@ grant delete
    to auditor;
 insert into bar (col)
 		 values (1);
-NOTICE:  AUDIT: SESSION,86,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
+NOTICE:  AUDIT: SESSION,88,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
 		 values (1);",<none>
 delete from bar;
-NOTICE:  AUDIT: OBJECT,87,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
-NOTICE:  AUDIT: SESSION,87,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
+NOTICE:  AUDIT: OBJECT,89,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
+NOTICE:  AUDIT: SESSION,89,1,WRITE,DELETE,TABLE,public.bar,delete from bar;,<none>
 insert into bar (col)
 		 values (1);
-NOTICE:  AUDIT: SESSION,88,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
+NOTICE:  AUDIT: SESSION,90,1,WRITE,INSERT,TABLE,public.bar,"insert into bar (col)
 		 values (1);",<none>
 delete from bar
  where col = 1;
-NOTICE:  AUDIT: OBJECT,89,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
+NOTICE:  AUDIT: OBJECT,91,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
  where col = 1;",<none>
-NOTICE:  AUDIT: SESSION,89,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
+NOTICE:  AUDIT: SESSION,91,1,WRITE,DELETE,TABLE,public.bar,"delete from bar
  where col = 1;",<none>
 drop table bar;
 --
 -- Grant roles to each other
 SET pgaudit.log = 'role';
 GRANT user1 TO user2;
-NOTICE:  AUDIT: SESSION,90,1,ROLE,GRANT ROLE,,,GRANT user1 TO user2;,<none>
+NOTICE:  AUDIT: SESSION,92,1,ROLE,GRANT ROLE,,,GRANT user1 TO user2;,<none>
 REVOKE user1 FROM user2;
-NOTICE:  AUDIT: SESSION,91,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
+NOTICE:  AUDIT: SESSION,93,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
 --
 -- Test logging AST for CTAS
 SET pgaudit.log = 'ast_ctas';
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,92,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,94,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,93,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,95,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 DROP TABLE tmp, tmp2, tmp3;
 --
 -- Test logging AST for SELECT
@@ -1367,7 +1386,7 @@ CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 -- AST for independent select is logged
 SELECT id FROM tmp2;
-NOTICE:  AUDIT: SESSION,94,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,96,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
  id 
 ----
 (0 rows)
@@ -1380,11 +1399,11 @@ SET pgaudit.log_relation = OFF;
 CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
 CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
 INSERT INTO dst SELECT * FROM src;
-NOTICE:  AUDIT: SESSION,95,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,97,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
-NOTICE:  AUDIT: SESSION,96,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,98,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
-NOTICE:  AUDIT: SESSION,97,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,99,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 DROP TABLE src, dst;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
@@ -1411,9 +1430,9 @@ SET search_path = public, pg_catalog;
 -- If there was a vulnerability, these would fail with division by zero error
 CREATE TABLE wombat () DISTRIBUTED RANDOMLY;
 WARNING:  creating a table with no columns.
-NOTICE:  AUDIT: SESSION,98,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
+NOTICE:  AUDIT: SESSION,100,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
 DROP TABLE wombat;
-NOTICE:  AUDIT: SESSION,99,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
+NOTICE:  AUDIT: SESSION,101,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
 SET pgaudit.log = 'NONE';
 DROP EXTENSION pgaudit;
 DROP OPERATOR <> (text, text);

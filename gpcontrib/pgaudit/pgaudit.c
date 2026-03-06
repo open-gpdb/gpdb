@@ -1527,8 +1527,17 @@ walker_rel_and_func(Node *node, QueryOids *oids)
         return false;
     }
 
+    if (IsA(node, Aggref))
+        oids->func_oids = list_append_unique_oid(oids->func_oids,
+                                                 ((Aggref *) node)->aggfnoid);
+
+    if (IsA(node, WindowFunc))
+        oids->func_oids = list_append_unique_oid(oids->func_oids,
+                                               ((WindowFunc *) node)->winfnoid);
+
     if (IsA(node, FuncExpr))
-        oids->func_oids = list_append_unique_oid(oids->func_oids, ((FuncExpr *) node)->funcid);
+        oids->func_oids = list_append_unique_oid(oids->func_oids,
+                                                 ((FuncExpr *) node)->funcid);
 
     return expression_tree_walker(node, walker_rel_and_func, oids);
 }

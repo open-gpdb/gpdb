@@ -813,6 +813,12 @@ CREATE TABLE t2 (id2 int, txt2 text) DISTRIBUTED BY (id2);
 
 SELECT * FROM t1, t2, get_table(1), get_out_args(1);
 
+-- Aggregate function
+SELECT max(id) FROM t1;
+
+-- Window function
+SELECT max(id) OVER(PARTITION BY txt) FROM t1;
+
 -- Cleanup
 DROP FUNCTION get_t1_by_id(int);
 DROP FUNCTION get_tc();
