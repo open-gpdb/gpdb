@@ -649,7 +649,7 @@ cross join lateral
 do $$
 begin 
   for i in 1..20 loop
-    execute 'create table tj' ||  i ||  '(id int)';
+    execute 'create table tj' ||  i ||  '(id int) distributed by (id)';
   end loop; 
 end
 $$;
