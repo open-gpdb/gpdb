@@ -55,6 +55,10 @@
 #include "cdb/cdbicudpfaultinjection.h"
 #include "cdb/ic_udpifc.h"
 
+#ifdef USE_VPP
+#include "gpvpp_shim.h"
+#endif
+
 #include <fcntl.h>
 #include <limits.h>
 #include <unistd.h>
@@ -683,6 +687,26 @@ static ICStatisticsShmem *pICStatisticsShmem = NULL;
 
 /* Cached sockaddr of the listening udp socket */
 static struct sockaddr_storage udp_dummy_packet_sockaddr;
+
+#ifdef USE_VPP
+/* Eventfd used to wake rxThreadFunc from poll, replacing SendDummyPacket */
+static int	vpp_wakeup_fd = -1;
+
+/* Composite epoll fd for rx thread (watches MQ eventfd + wakeup fd) */
+static int	vpp_rx_epoll_fd = -1;
+
+/*
+ * Synchronization for deferred listener creation.
+ *
+ * VPP session handles encode the creating thread's worker index,
+ * so the listener session MUST be created on the rx thread (worker 1).
+ * The main thread uses a pthread barrier to wait for the rx thread to
+ * create + bind the listener and report back the assigned port.
+ */
+static pthread_barrier_t vpp_listener_barrier;
+static volatile uint16	 vpp_listener_port_result = 0;
+static volatile int		 vpp_listener_init_error = 0;
+#endif
 
 /*=========================================================================
  * STATIC FUNCTIONS declarations
@@ -1882,8 +1906,78 @@ InitMotionUDPIFC(int *listenerSocketFd, uint16 *listenerPort)
 	/*
 	 * setup listening socket and sending socket for Interconnect.
 	 */
+#ifdef USE_VPP
+	{
+		/*
+		 * VPP session handles encode the creating thread's worker index.
+		 * The sender socket is used by the main thread, so create it here.
+		 * The listener socket must be created on the rx thread — we use
+		 * a pthread barrier to wait for the rx thread to do that.
+		 */
+		if (gpvpp_init() < 0)
+			ereport(FATAL,
+					(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
+					 errmsg("VPP: failed to attach to VPP application")));
+
+		/* Create and bind sender socket (main thread owns this) */
+		ICSenderSocket = gpvpp_socket();
+		if (ICSenderSocket < 0)
+			ereport(FATAL,
+					(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
+					 errmsg("VPP: failed to create sender session")));
+
+		if (gpvpp_bind(ICSenderSocket, NULL, 0) < 0)
+			ereport(FATAL,
+					(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
+					 errmsg("VPP: failed to bind sender session")));
+
+		{
+			struct sockaddr_storage sender_addr;
+			socklen_t sender_addr_len = sizeof(sender_addr);
+
+			if (gpvpp_getsockname(ICSenderSocket,
+								  (struct sockaddr *) &sender_addr,
+								  &sender_addr_len) < 0)
+				ereport(FATAL,
+						(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
+						 errmsg("VPP: failed to get sender address")));
+
+			if (sender_addr.ss_family == AF_INET6)
+				ICSenderPort = ntohs(((struct sockaddr_in6 *) &sender_addr)->sin6_port);
+			else
+				ICSenderPort = ntohs(((struct sockaddr_in *) &sender_addr)->sin_port);
+
+			ICSenderFamily = sender_addr.ss_family;
+		}
+
+		/* Create wakeup eventfd (replaces SendDummyPacket) */
+		vpp_wakeup_fd = gpvpp_create_wakeup_fd();
+		if (vpp_wakeup_fd < 0)
+			ereport(FATAL,
+					(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
+					 errmsg("VPP: failed to create wakeup eventfd")));
+
+		/*
+		 * Initialize the barrier for rx thread listener synchronization.
+		 * Count = 2: main thread + rx thread.
+		 */
+		pthread_barrier_init(&vpp_listener_barrier, NULL, 2);
+		vpp_listener_port_result = 0;
+		vpp_listener_init_error = 0;
+
+		/*
+		 * Listener fd and port are NOT set yet — they will be set by
+		 * the rx thread and reported back via barrier synchronization.
+		 * We set temporary values that will be overwritten.
+		 */
+		*listenerSocketFd = -1;
+		*listenerPort = 0;
+		txFamily = ICSenderFamily; /* assume same family */
+	}
+#else
 	setupUDPListeningSocket(listenerSocketFd, listenerPort, &txFamily, &udp_dummy_packet_sockaddr);
 	setupUDPListeningSocket(&ICSenderSocket, &ICSenderPort, &ICSenderFamily, NULL);
+#endif
 
 	/* Initialize receive control data. */
 	resetMainThreadWaiting(&rx_control_info.mainWaitingState);
@@ -1934,6 +2028,24 @@ InitMotionUDPIFC(int *listenerSocketFd, uint16 *listenerPort)
 	}
 
 	ic_control_info.threadCreated = true;
+
+#ifdef USE_VPP
+	/*
+	 * Wait for the rx thread to create the listener session and report
+	 * the assigned port.  The rx thread calls pthread_barrier_wait()
+	 * after creating + binding the listener session (or on error).
+	 */
+	pthread_barrier_wait(&vpp_listener_barrier);
+
+	if (vpp_listener_init_error)
+		ereport(FATAL,
+				(errcode(ERRCODE_GP_INTERCONNECTION_ERROR),
+				 errmsg("VPP: rx-thread failed to create listener session")));
+
+	/* Now the rx thread has set UDP_listenerFd and the port */
+	*listenerPort = vpp_listener_port_result;
+#endif
+
 	return;
 }
 
@@ -1955,6 +2067,12 @@ CleanupMotionUDPIFC(void)
 
 	/* Shutdown rx thread. */
 	pg_atomic_write_u32(&ic_control_info.shutdown, 1);
+
+#ifdef USE_VPP
+	/* Signal the wakeup eventfd to unblock rxThreadFunc's poll */
+	if (vpp_wakeup_fd >= 0)
+		gpvpp_signal_wakeup(vpp_wakeup_fd);
+#endif
 
 	if (ic_control_info.threadCreated)
 		pthread_join(ic_control_info.threadHandle, NULL);
@@ -1979,8 +2097,29 @@ CleanupMotionUDPIFC(void)
 
 	MemoryContextDelete(ic_control_info.memContext);
 
+#ifdef USE_VPP
+	/*
+	 * Close the sender session (owned by main thread — safe to close here).
+	 * The listener session was already closed by rxThreadFunc before it
+	 * exited (required because session handles are worker-affine).
+	 */
+	gpvpp_close(ICSenderSocket);
+
+	/* Close the composite epoll fd and wakeup eventfd */
+	if (vpp_rx_epoll_fd >= 0)
+		close(vpp_rx_epoll_fd);
+	vpp_rx_epoll_fd = -1;
+
+	gpvpp_close_wakeup_fd(vpp_wakeup_fd);
+	vpp_wakeup_fd = -1;
+
+	pthread_barrier_destroy(&vpp_listener_barrier);
+
+	gpvpp_destroy();
+#else
 	if (ICSenderSocket >= 0)
 		closesocket(ICSenderSocket);
+#endif
 	ICSenderSocket = -1;
 	ICSenderPort = 0;
 	ICSenderFamily = 0;
@@ -2247,7 +2386,11 @@ sendControlMessage(icpkthdr *pkt, int fd, struct sockaddr *addr, socklen_t peerL
 	if (gp_interconnect_full_crc)
 		addCRC(pkt);
 
+#ifdef USE_VPP
+	n = gpvpp_sendto(fd, (const char *) pkt, pkt->len, 0, addr, peerLen);
+#else
 	n = sendto(fd, (const char *) pkt, pkt->len, 0, addr, peerLen);
+#endif
 
 	/*
 	 * No need to handle EAGAIN here: no-space just means that we dropped the
@@ -4873,8 +5016,13 @@ handleAcks(ChunkTransportState *transportStates, ChunkTransportStateEntry *pEntr
 
 		/* ready to read on our socket ? */
 		peerlen = sizeof(peer);
+#ifdef USE_VPP
+		n = gpvpp_recvfrom(pEntry->txfd, (char *) pkt, MIN_PACKET_SIZE, 0,
+						   (struct sockaddr *) &peer, &peerlen);
+#else
 		n = recvfrom(pEntry->txfd, (char *) pkt, MIN_PACKET_SIZE, 0,
 					 (struct sockaddr *) &peer, &peerlen);
+#endif
 
 		if (n < 0)
 		{
@@ -5153,8 +5301,13 @@ sendOnce(ChunkTransportState *transportStates, ChunkTransportStateEntry *pEntry,
 #endif
 
 xmit_retry:
+#ifdef USE_VPP
+	n = gpvpp_sendto(pEntry->txfd, buf->pkt, buf->pkt->len, 0,
+					 (struct sockaddr *) &conn->peer, conn->peer_len);
+#else
 	n = sendto(pEntry->txfd, buf->pkt, buf->pkt->len, 0,
 			   (struct sockaddr *) &conn->peer, conn->peer_len);
+#endif
 	if (n < 0)
 	{
 		if (errno == EINTR)
@@ -6015,6 +6168,11 @@ checkDeadlock(ChunkTransportStateEntry *pEntry, MotionConn *conn)
 static inline bool
 pollAcks(ChunkTransportState *transportStates, int fd, int timeout)
 {
+#ifdef USE_VPP
+	int			n;
+
+	n = gpvpp_poll(fd, timeout);
+#else
 	struct pollfd nfd;
 	int			n;
 
@@ -6022,6 +6180,7 @@ pollAcks(ChunkTransportState *transportStates, int fd, int timeout)
 	nfd.events = POLLIN;
 
 	n = poll(&nfd, 1, timeout);
+#endif
 	if (n < 0)
 	{
 		ML_CHECK_FOR_INTERRUPTS(transportStates->teardownActive);
@@ -6958,6 +7117,82 @@ rxThreadFunc(void *arg)
 	icpkthdr   *pkt = NULL;
 	bool		skip_poll = false;
 
+#ifdef USE_VPP
+	/*
+	 * Register this thread as a VPP worker.  VPPCOM uses __thread
+	 * (thread-local) storage for worker state, so each thread that
+	 * calls VPPCOM APIs must register first.
+	 */
+	if (gpvpp_worker_register() < 0)
+	{
+		if (DEBUG1 >= log_min_messages)
+			write_log("VPP: rx-thread failed to register as VPP worker");
+		vpp_listener_init_error = 1;
+		pthread_barrier_wait(&vpp_listener_barrier);
+		setRxThreadError(ENOMEM);
+		return NULL;
+	}
+
+	/*
+	 * Create the listener session ON THIS THREAD.  VPP session handles
+	 * encode the worker index, so the session must be created by the
+	 * thread that will use it.
+	 */
+	{
+		struct sockaddr_storage listener_addr;
+		socklen_t listener_addr_len = sizeof(listener_addr);
+
+		UDP_listenerFd = gpvpp_socket();
+		if (UDP_listenerFd < 0)
+		{
+			write_log("VPP: rx-thread failed to create listener session");
+			vpp_listener_init_error = 1;
+			pthread_barrier_wait(&vpp_listener_barrier);
+			setRxThreadError(errno);
+			return NULL;
+		}
+
+		if (gpvpp_bind(UDP_listenerFd, NULL, 0) < 0)
+		{
+			write_log("VPP: rx-thread failed to bind listener session");
+			vpp_listener_init_error = 1;
+			pthread_barrier_wait(&vpp_listener_barrier);
+			setRxThreadError(errno);
+			return NULL;
+		}
+
+		if (gpvpp_getsockname(UDP_listenerFd,
+							  (struct sockaddr *) &listener_addr,
+							  &listener_addr_len) < 0)
+		{
+			write_log("VPP: rx-thread failed to get listener address");
+			vpp_listener_init_error = 1;
+			pthread_barrier_wait(&vpp_listener_barrier);
+			setRxThreadError(errno);
+			return NULL;
+		}
+
+		if (listener_addr.ss_family == AF_INET6)
+			vpp_listener_port_result = ntohs(((struct sockaddr_in6 *) &listener_addr)->sin6_port);
+		else
+			vpp_listener_port_result = ntohs(((struct sockaddr_in *) &listener_addr)->sin_port);
+	}
+
+	/* Create composite epoll fd for this thread (reused for all polls) */
+	vpp_rx_epoll_fd = gpvpp_create_rx_epoll(vpp_wakeup_fd);
+	if (vpp_rx_epoll_fd < 0)
+	{
+		write_log("VPP: rx-thread failed to create composite epoll fd");
+		vpp_listener_init_error = 1;
+		pthread_barrier_wait(&vpp_listener_barrier);
+		setRxThreadError(errno);
+		return NULL;
+	}
+
+	/* Signal main thread: listener is ready */
+	pthread_barrier_wait(&vpp_listener_barrier);
+#endif
+
 	for (;;)
 	{
 		struct pollfd nfd;
@@ -6989,11 +7224,23 @@ rxThreadFunc(void *arg)
 
 		if (!skip_poll)
 		{
+#ifdef USE_VPP
+			n = gpvpp_poll_with_wakeup(UDP_listenerFd, vpp_rx_epoll_fd,
+									   vpp_wakeup_fd, RX_THREAD_POLL_TIMEOUT);
+			if (n == -2)
+			{
+				/* Woken up by shutdown eventfd */
+				if (DEBUG1 >= log_min_messages)
+					write_log("udp-ic: rx-thread woken by eventfd");
+				break;
+			}
+#else
 			/* Do we have inbound traffic to handle ? */
 			nfd.fd = UDP_listenerFd;
 			nfd.events = POLLIN;
 
 			n = poll(&nfd, 1, RX_THREAD_POLL_TIMEOUT);
+#endif
 
 			if (pg_atomic_read_u32(&ic_control_info.shutdown) == 1)
 			{
@@ -7037,8 +7284,13 @@ rxThreadFunc(void *arg)
 			socklen_t	peerlen;
 
 			peerlen = sizeof(peer);
+#ifdef USE_VPP
+			read_count = gpvpp_recvfrom(UDP_listenerFd, (char *) pkt, Gp_max_packet_size, 0,
+										(struct sockaddr *) &peer, &peerlen);
+#else
 			read_count = recvfrom(UDP_listenerFd, (char *) pkt, Gp_max_packet_size, 0,
 								  (struct sockaddr *) &peer, &peerlen);
+#endif
 
 			if (pg_atomic_read_u32(&ic_control_info.shutdown) == 1)
 			{
@@ -7204,6 +7456,16 @@ rxThreadFunc(void *arg)
 		pkt = NULL;
 		pthread_mutex_unlock(&ic_control_info.lock);
 	}
+
+#ifdef USE_VPP
+	/*
+	 * Close the listener session on this thread (the one that owns it).
+	 * VPP session handles encode the worker index, so the session MUST
+	 * be closed by the thread that created it.
+	 */
+	gpvpp_close(UDP_listenerFd);
+	UDP_listenerFd = -1;
+#endif
 
 	/* nothing to return */
 	return NULL;
@@ -7762,6 +8024,15 @@ ConvertIPv6WildcardToLoopback(struct sockaddr_storage* dest)
 static void
 SendDummyPacket(void)
 {
+#ifdef USE_VPP
+	/*
+	 * With VPP, we use an eventfd to wake the rx thread instead of
+	 * sending a UDP packet to ourselves (which would require VPP
+	 * intra-process loopback routing).
+	 */
+	if (vpp_wakeup_fd >= 0)
+		gpvpp_signal_wakeup(vpp_wakeup_fd);
+#else
 	int					ret;
 	char				*dummy_pkt = "stop it";
 	int					counter;
@@ -7819,7 +8090,7 @@ SendDummyPacket(void)
 
 	if (counter >= 10)
 		ereport(LOG, (errmsg("send dummy packet failed, sendto failed with 10 times: %m")));
-
+#endif /* USE_VPP */
 }
 
 uint32

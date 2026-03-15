@@ -34,4 +34,14 @@ OBJS += ic_proxy_pkt_cache.o
 OBJS += ic_proxy_iobuf.o
 endif  # enable_ic_proxy
 
+ifdef USE_VPP
+OBJS += gpvpp_shim.o
+override CPPFLAGS += -DUSE_VPP
+# VPP VPPCOM headers and library.
+# Set VPP_PREFIX if VPP is not installed in /usr.
+VPP_PREFIX ?= /usr
+override CPPFLAGS += -I$(VPP_PREFIX)/include
+override LDFLAGS += -L$(VPP_PREFIX)/lib -lvppcom
+endif  # USE_VPP
+
 include $(top_srcdir)/src/backend/common.mk
