@@ -1,146 +1,88 @@
-# protect the default target for this file from the targets in Makefile.global
-default: all
+# gpcontrib/Makefile
 
+subdir = gpcontrib
 top_builddir = ..
 include $(top_builddir)/src/Makefile.global
 
-.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan
+SUBDIRS = \
+		gp_array_agg				\
+		gp_aux_catalog				\
+		gp_check_functions			\
+		gp_distribution_policy 		\
+		gp_error_handling			\
+		gp_interconnect_stats		\
+		gp_internal_tools			\
+		gp_legacy_string_agg		\
+		gp_parallel_retrieve_cursor	\
+		gp_parser					\
+		gp_percentile_agg			\
+		gp_pitr						\
+		gp_sparse_vector 			\
+		gp_subtransaction_overflow	\
+		jsonlog-gpdb				\
+		temp_tables_stat
 
-#
-# targets built via top_builddir/GNUmakefile
-#
-recurse_targets = ""
-
-ifeq "$(enable_debug_extensions)" "yes"
-	recurse_targets = gp_sparse_vector \
-               gp_distribution_policy \
-               gp_parallel_retrieve_cursor \
-               gp_internal_tools \
-               gp_pitr \
-               gp_debug_numsegments \
-               gp_inject_fault \
-               gp_replica_check \
-               gp_legacy_string_agg \
-               gp_array_agg \
-               gp_percentile_agg \
-               gp_error_handling \
-               gp_subtransaction_overflow \
-               gp_check_functions \
-               gp_aux_catalog \
-               gp_interconnect_stats \
-               temp_tables_stat
+ifeq ($(enable_debug_extensions),yes)
+SUBDIRS += gp_debug_numsegments gp_inject_fault gp_replica_check
 else
-	recurse_targets = gp_sparse_vector \
-               gp_distribution_policy \
-               gp_parallel_retrieve_cursor \
-               gp_internal_tools \
-               gp_pitr \
-               gp_parser \
-               jsonlog-gpdb \
-               gp_legacy_string_agg \
-               gp_array_agg \
-               gp_percentile_agg \
-               gp_error_handling \
-               gp_subtransaction_overflow \
-               gp_check_functions \
-               gp_aux_catalog \
-               gp_interconnect_stats \
-               temp_tables_stat
+ALWAYS_SUBDIRS += gp_debug_numsegments gp_inject_fault gp_replica_check
 endif
 
 ifeq "$(with_yagp_hooks_collector)" "yes"
-	recurse_targets += yagp_hooks_collector
+SUBDIRS += yagp_hooks_collector
+else
+ALWAYS_SUBDIRS += yagp_hooks_collector
 endif
+
 ifeq "$(with_zstd)" "yes"
-	recurse_targets += zstd
+SUBDIRS += zstd
+else
+ALWAYS_SUBDIRS += zstd
 endif
+
 ifeq "$(with_quicklz)" "yes"
-	recurse_targets += quicklz
+SUBDIRS += quicklz
+else
+ALWAYS_SUBDIRS += quicklz
 endif
-$(call recurse,all install clean distclean, $(recurse_targets))
 
-all: gpcloud mapreduce orafce yezzey sr_plan pgaudit
+ifeq "$(enable_yezzey)" "yes"
+SUBDIRS += yezzey
+else
+ALWAYS_SUBDIRS += yezzey
+endif
 
-yezzey:
-	@if [ "$(enable_yezzey)" = "yes" ]; then \
-		$(MAKE) -C yezzey
-	fi
+ifeq "$(enable_mapreduce)" "yes"
+SUBDIRS += gpmapreduce
+else
+ALWAYS_SUBDIRS += gpmapreduce
+endif
 
-gpcloud:
-	@if [ "$(enable_gpcloud)" = "yes" ]; then \
-		$(MAKE) -C gpcloud && \
-		$(MAKE) -C gpcloud/bin/gpcheckcloud; \
-	fi
+ifeq "$(enable_orafce)" "yes"
+SUBDIRS += orafce
+else
+ALWAYS_SUBDIRS += orafce
+endif
 
-mapreduce:
-	@if [ "$(enable_mapreduce)" = "yes" ]; then \
-		$(MAKE) -C gpmapreduce; \
-	fi
+ifeq "$(enable_sr_plan)" "yes"
+SUBDIRS += sr_plan
+else
+ALWAYS_SUBDIRS += sr_plan
+endif
 
-orafce:
-	@if [ "$(enable_orafce)" = "yes" ]; then \
-		$(MAKE) -C orafce NO_PGXS=true; \
-	fi
+ifeq "$(enable_pgaudit)" "yes"
+SUBDIRS += pgaudit
+else
+ALWAYS_SUBDIRS += pgaudit
+endif
 
-sr_plan:
-	@if [ "$(enable_sr_plan)" = "yes" ]; then \
-  		$(MAKE) -C sr_plan NO_PGXS=true; \
- 	fi
-
-pgaudit:
-	@if [ "$(enable_pgaudit)" = "yes" ]; then \
-  		$(MAKE) -C pgaudit NO_PGXS=true; \
- 	fi
-
-
-install:
-	@if [ "$(enable_gpcloud)" = "yes" ]; then \
-		$(MAKE) -C gpcloud install && \
-		$(MAKE) -C gpcloud/bin/gpcheckcloud install; \
-	fi
-	@if [ "$(enable_yezzey)" = "yes" ]; then \
-		$(MAKE) -C yezzey install; \
-	fi
-	@if [ "$(enable_mapreduce)" = "yes" ]; then \
-		$(MAKE) -C gpmapreduce install; \
-	fi
-	@if [ "$(enable_orafce)" = "yes" ]; then \
-		$(MAKE) -C orafce NO_PGXS=true install; \
-	fi
-	@if [ "$(enable_pgaudit)" = "yes" ]; then \
-                $(MAKE) -C pgaudit NO_PGXS=true install; \
-        fi
-	@if [ "$(enable_sr_plan)" = "yes" ]; then \
-                $(MAKE) -C sr_plan NO_PGXS=true install; \
-        fi
-
-clean:
-	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce clean; fi
-	if [ "$(enable_gpcloud)" = "yes" ]; then $(MAKE) -C gpcloud cleanall; fi
-	if [ "$(enable_yezzey)" = "yes" ]; then $(MAKE) -C yezzey cleanall; fi
-	if [ "${enable_orafce}" = "yes" ]; then $(MAKE) -C orafce NO_PGXS=true clean; fi
-	if [ "${enable_sr_plan}" = "yes" ]; then $(MAKE) -C sr_plan clean; fi
-	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit clean; fi
+ifeq "$(enable_gpcloud)" "yes"
+SUBDIRS += gpcloud gpcloud/bin/gpcheckcloud
+else
+ALWAYS_SUBDIRS += gpcloud gpcloud/bin/gpcheckcloud
+endif
 
 
-distclean:
-	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce distclean; fi
-	if [ "$(enable_gpcloud)" = "yes" ]; then $(MAKE) -C gpcloud distclean; fi
-	if [ "$(enable_yezzey)" = "yes" ]; then $(MAKE) -C yezzey distclean; fi
-	if [ "${enable_orafce}" = "yes" ]; then $(MAKE) -C orafce NO_PGXS=true distclean; fi
-
-installcheck:
-	$(MAKE) -C gp_internal_tools installcheck
-	$(MAKE) -C gp_array_agg installcheck
-	$(MAKE) -C gp_aux_catalog installcheck
-	if [ "$(enable_mapreduce)" = "yes" ]; then \
-		$(MAKE) -C gpmapreduce installcheck; \
-	fi
-	if [ "$(enable_orafce)" = "yes" ]; then $(MAKE) -C orafce installcheck; fi
-	if [ "$(with_zstd)" = "yes" ]; then $(MAKE) -C zstd installcheck; fi
-	if [ "$(with_quicklz)" = "yes" ]; then $(MAKE) -C quicklz installcheck; fi
-	$(MAKE) -C gp_sparse_vector installcheck
-	$(MAKE) -C gp_percentile_agg installcheck
-	$(MAKE) -C gp_subtransaction_overflow installcheck
-	$(MAKE) -C gp_check_functions installcheck
-	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit installcheck; fi
+$(call recurse,all install clean distclean)
+$(call recurse,installcheck,$(filter-out yezzey, $(SUBDIRS)))
+$(recurse_always)

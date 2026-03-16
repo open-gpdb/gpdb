@@ -1,3 +1,8 @@
+-- start_ignore
+\! gpconfig -c shared_preload_libraries -v 'yagp_hooks_collector'
+\! gpstop -raiq
+\c
+-- end_ignore
 CREATE EXTENSION yagp_hooks_collector;
 
 CREATE FUNCTION yagp_status_order(status text)
@@ -83,3 +88,7 @@ RESET yagpcc.enable;
 RESET yagpcc.report_nested_queries;
 RESET yagpcc.enable_utility;
 RESET yagpcc.ignored_users_list;
+-- start_ignore
+\! gpconfig -r shared_preload_libraries
+\! gpstop -raiq
+-- end_ignore

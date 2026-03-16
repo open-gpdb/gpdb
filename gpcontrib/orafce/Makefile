@@ -19,15 +19,15 @@ EXTRA_CLEAN = sqlparse.c sqlparse.h sqlscan.c y.tab.c y.tab.h
 
 #override CFLAGS += -pedantic
 
-ifdef NO_PGXS
+ifdef USE_PGXS
+PG_CONFIG = pg_config
+PGXS := $(shell $(PG_CONFIG) --pgxs)
+include $(PGXS)
+else
 subdir = contrib/$(MODULE_big)
 top_builddir = ../../
 include $(top_builddir)/src/Makefile.global
 include $(top_srcdir)/contrib/contrib-global.mk
-else
-PG_CONFIG = pg_config
-PGXS := $(shell $(PG_CONFIG) --pgxs)
-include $(PGXS)
 endif
 
 # Disable -Wimplicit-fallthrough for this module, since it is hard to change some
