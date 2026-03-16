@@ -12,7 +12,8 @@ include $(top_builddir)/src/Makefile.global
 recurse_targets = ""
 
 ifeq "$(enable_debug_extensions)" "yes"
-	recurse_targets = gp_sparse_vector \
+	recurse_targets = access_log \
+               gp_sparse_vector \
                gp_distribution_policy \
                gp_parallel_retrieve_cursor \
                gp_internal_tools \
@@ -30,7 +31,8 @@ ifeq "$(enable_debug_extensions)" "yes"
                gp_interconnect_stats \
                temp_tables_stat
 else
-	recurse_targets = gp_sparse_vector \
+	recurse_targets = access_log \
+               gp_sparse_vector \
                gp_distribution_policy \
                gp_parallel_retrieve_cursor \
                gp_internal_tools \
@@ -130,6 +132,7 @@ distclean:
 	if [ "${enable_orafce}" = "yes" ]; then $(MAKE) -C orafce NO_PGXS=true distclean; fi
 
 installcheck:
+	$(MAKE) -C access_log installcheck
 	$(MAKE) -C gp_internal_tools installcheck
 	$(MAKE) -C gp_array_agg installcheck
 	$(MAKE) -C gp_aux_catalog installcheck

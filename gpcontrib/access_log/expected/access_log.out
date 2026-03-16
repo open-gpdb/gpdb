@@ -1,0 +1,527 @@
+-- Create external table to read log files from segments
+do
+$$ 
+declare
+  seg text;
+  locations text := '';
+begin 
+  for seg in
+    select hostname || ':' || port || datadir
+      from gp_segment_configuration
+     where role = 'p' and content >= 0
+  loop
+    if locations != '' then
+      locations = locations || ',';
+    end if;
+
+    locations = locations || '''file://' || seg || '/pg_log/access.log''';
+  end loop;
+
+  execute 'create external table access_log (logtime timestamp with time zone, loguser text, tbl text)
+location (' || locations || ') format ''csv''';
+end $$;
+-- Start logging
+load '$libdir/access_log.so';
+create or replace function show_log(before_query text)
+  returns table(gp_segment_id int, date_ok bool, user_ok bool, tbl text)
+as $$
+  select gp_segment_id,
+    logtime between before_query::timestamp with time zone and now() date_ok,
+    loguser=current_user user_ok,
+    tbl
+  from access_log;
+$$ language sql;
+--
+-- Heap table
+-- Partitioned table
+create table t_heap_part(a int, b int, c int)
+distributed by (a)
+partition by range (b)
+  subpartition by range (c)
+    subpartition template (start (40) end (46) every (3))
+(start (0) end (4) every (2));
+NOTICE:  CREATE TABLE will create partition "t_heap_part_1_prt_1" for table "t_heap_part"
+NOTICE:  CREATE TABLE will create partition "t_heap_part_1_prt_1_2_prt_1" for table "t_heap_part_1_prt_1"
+NOTICE:  CREATE TABLE will create partition "t_heap_part_1_prt_1_2_prt_2" for table "t_heap_part_1_prt_1"
+NOTICE:  CREATE TABLE will create partition "t_heap_part_1_prt_2" for table "t_heap_part"
+NOTICE:  CREATE TABLE will create partition "t_heap_part_1_prt_2_2_prt_1" for table "t_heap_part_1_prt_2"
+NOTICE:  CREATE TABLE will create partition "t_heap_part_1_prt_2_2_prt_2" for table "t_heap_part_1_prt_2"
+-- All partitions
+select now() as before_query \gset
+select * from t_heap_part;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |                tbl                 
+---------------+---------+---------+------------------------------------
+             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             2 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             2 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             0 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             0 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+(12 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+-- Read partitions selected by condition in WHERE
+select now() as before_query \gset
+select * from t_heap_part where c = 40;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |                tbl                 
+---------------+---------+---------+------------------------------------
+             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+(6 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+select now() as before_query \gset
+select * from t_heap_part where b = 0;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
+ gp_segment_id | user_ok |                tbl                 
+---------------+---------+------------------------------------
+             0 | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | public.t_heap_part_1_prt_1_2_prt_2
+             2 | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | t       | public.t_heap_part_1_prt_1_2_prt_2
+(6 rows)
+
+-- Don't delete files, because the next select will lead to adding log records
+-- on one segment only. Reading from an external table fails when log file does
+-- not exist on any segment.
+-- One segment
+select now() as before_query \gset
+select * from t_heap_part where a = 1;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |                tbl                 
+---------------+---------+---------+------------------------------------
+             0 | f       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | f       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             2 | f       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | f       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | f       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | f       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+(10 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+-- Table without partitions
+create table t_heap(a int)
+distributed by (a);
+select now() as before_query \gset
+select * from t_heap;
+ a 
+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |      tbl      
+---------------+---------+---------+---------------
+             2 | t       | t       | public.t_heap
+             0 | t       | t       | public.t_heap
+             1 | t       | t       | public.t_heap
+(3 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+--
+-- AO table
+-- Partitioned table
+create table t_ao_part(a int, b int, c int)
+with (appendonly = true)
+distributed by (a)
+partition by range (b)
+  subpartition by range (c)
+    subpartition template (start (40) end (46) every (3))
+(start (0) end (4) every (2));
+NOTICE:  CREATE TABLE will create partition "t_ao_part_1_prt_1" for table "t_ao_part"
+NOTICE:  CREATE TABLE will create partition "t_ao_part_1_prt_1_2_prt_1" for table "t_ao_part_1_prt_1"
+NOTICE:  CREATE TABLE will create partition "t_ao_part_1_prt_1_2_prt_2" for table "t_ao_part_1_prt_1"
+NOTICE:  CREATE TABLE will create partition "t_ao_part_1_prt_2" for table "t_ao_part"
+NOTICE:  CREATE TABLE will create partition "t_ao_part_1_prt_2_2_prt_1" for table "t_ao_part_1_prt_2"
+NOTICE:  CREATE TABLE will create partition "t_ao_part_1_prt_2_2_prt_2" for table "t_ao_part_1_prt_2"
+-- All partitions
+select now() as before_query \gset
+select * from t_ao_part;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |               tbl                
+---------------+---------+---------+----------------------------------
+             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             0 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             2 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+(12 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+-- Read partitions selected by condition in WHERE
+select now() as before_query \gset
+select * from t_ao_part where c = 40;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |               tbl                
+---------------+---------+---------+----------------------------------
+             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+(6 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+select now() as before_query \gset
+select * from t_ao_part where b = 0;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
+ gp_segment_id | user_ok |               tbl                
+---------------+---------+----------------------------------
+             1 | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | public.t_ao_part_1_prt_1_2_prt_2
+             2 | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | t       | public.t_ao_part_1_prt_1_2_prt_2
+             0 | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | t       | public.t_ao_part_1_prt_1_2_prt_2
+(6 rows)
+
+-- One segment
+select now() as before_query \gset
+select * from t_ao_part where a = 1;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |               tbl                
+---------------+---------+---------+----------------------------------
+             0 | f       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | f       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             1 | f       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | f       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+             2 | f       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | f       | t       | public.t_ao_part_1_prt_1_2_prt_2
+(10 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+-- Table without partitions
+create table t_ao(a int, b int)
+distributed by (a);
+select now() as before_query \gset
+select * from t_ao;
+ a | b 
+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |     tbl     
+---------------+---------+---------+-------------
+             2 | t       | t       | public.t_ao
+             1 | t       | t       | public.t_ao
+             0 | t       | t       | public.t_ao
+(3 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+--
+-- AOCO table
+-- Partitioned table
+create table t_aoco_part(a int, b int, c int)
+with (appendonly = true, orientation = column)
+distributed by (a)
+partition by range (b)
+  subpartition by range (c)
+    subpartition template (start (40) end (46) every (3))
+(start (0) end (4) every (2));
+NOTICE:  CREATE TABLE will create partition "t_aoco_part_1_prt_1" for table "t_aoco_part"
+NOTICE:  CREATE TABLE will create partition "t_aoco_part_1_prt_1_2_prt_1" for table "t_aoco_part_1_prt_1"
+NOTICE:  CREATE TABLE will create partition "t_aoco_part_1_prt_1_2_prt_2" for table "t_aoco_part_1_prt_1"
+NOTICE:  CREATE TABLE will create partition "t_aoco_part_1_prt_2" for table "t_aoco_part"
+NOTICE:  CREATE TABLE will create partition "t_aoco_part_1_prt_2_2_prt_1" for table "t_aoco_part_1_prt_2"
+NOTICE:  CREATE TABLE will create partition "t_aoco_part_1_prt_2_2_prt_2" for table "t_aoco_part_1_prt_2"
+-- All partitions
+select now() as before_query \gset
+select * from t_aoco_part;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |                tbl                 
+---------------+---------+---------+------------------------------------
+             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             2 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             0 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+(12 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+-- Read partitions selected by condition in WHERE
+select now() as before_query \gset
+select * from t_aoco_part where c = 40;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |                tbl                 
+---------------+---------+---------+------------------------------------
+             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+(6 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+select now() as before_query \gset
+select * from t_aoco_part where b = 0;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
+ gp_segment_id | user_ok |                tbl                 
+---------------+---------+------------------------------------
+             1 | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             2 | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             0 | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | t       | public.t_aoco_part_1_prt_1_2_prt_2
+(6 rows)
+
+-- One segment
+select now() as before_query \gset
+select * from t_aoco_part where a = 1;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |                tbl                 
+---------------+---------+---------+------------------------------------
+             2 | f       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | f       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             0 | f       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | f       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             1 | f       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | f       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+(10 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+-- Table without partitions
+create table t_aoco(a int, b int)
+distributed by (a);
+select now() as before_query \gset
+select * from t_aoco;
+ a | b 
+---+---
+(0 rows)
+
+select * from show_log(:'before_query');
+ gp_segment_id | date_ok | user_ok |      tbl      
+---------------+---------+---------+---------------
+             1 | t       | t       | public.t_aoco
+             2 | t       | t       | public.t_aoco
+             0 | t       | t       | public.t_aoco
+(3 rows)
+
+select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+ pg_file_unlink 
+----------------
+ t
+ t
+ t
+(3 rows)
+
+--
+-- Check user name logging
+-- start_ignore
+drop role if exists user1;
+-- end_ignore
+create role user1 login resource queue pg_default;
+grant select on t_ao_part to user1;
+grant select on t_aoco to user1;
+select '\! cp "' || setting || '/pg_hba.conf" "'  || setting || '/pg_hba.conf.backup"' as cp_backup
+from pg_settings
+where name = 'data_directory' \gset
+:cp_backup
+select '\! echo "local all user1 trust" >> ' || setting || '/pg_hba.conf' as add_user
+from pg_settings
+where name = 'data_directory' \gset
+:add_user
+select current_user \gset
+\c - user1
+select * from t_ao_part;
+ a | b | c 
+---+---+---
+(0 rows)
+
+select * from t_aoco;
+ a | b 
+---+---
+(0 rows)
+
+\c - :"current_user"
+select gp_segment_id, loguser, tbl from access_log;
+ gp_segment_id | loguser |               tbl                
+---------------+---------+----------------------------------
+             2 | user1   | public.t_ao_part_1_prt_1_2_prt_2
+             2 | user1   | public.t_ao_part_1_prt_2_2_prt_1
+             2 | user1   | public.t_ao_part_1_prt_2_2_prt_2
+             2 | user1   | public.t_ao_part_1_prt_1_2_prt_1
+             2 | user1   | public.t_aoco
+             0 | user1   | public.t_ao_part_1_prt_1_2_prt_2
+             0 | user1   | public.t_ao_part_1_prt_2_2_prt_1
+             0 | user1   | public.t_ao_part_1_prt_2_2_prt_2
+             0 | user1   | public.t_ao_part_1_prt_1_2_prt_1
+             0 | user1   | public.t_aoco
+             1 | user1   | public.t_ao_part_1_prt_1_2_prt_2
+             1 | user1   | public.t_ao_part_1_prt_2_2_prt_1
+             1 | user1   | public.t_ao_part_1_prt_2_2_prt_2
+             1 | user1   | public.t_ao_part_1_prt_1_2_prt_1
+             1 | user1   | public.t_aoco
+(15 rows)
+
+--
+-- Cleanup
+drop function show_log(text);
+drop external table access_log;
+drop table t_heap_part, t_heap, t_ao_part, t_ao, t_aoco_part, t_aoco;
