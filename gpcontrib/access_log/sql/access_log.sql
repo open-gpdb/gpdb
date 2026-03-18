@@ -77,7 +77,7 @@ select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
 
 -- One segment
 select now() as before_query \gset
-select * from t_heap_part where a = 1;
+select * from t_heap_part where a is null;
 select * from show_log(:'before_query');
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
@@ -122,7 +122,7 @@ select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
 
 -- One segment
 select now() as before_query \gset
-select * from t_ao_part where a = 1;
+select * from t_ao_part where a is null;
 select * from show_log(:'before_query');
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
@@ -167,7 +167,7 @@ select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
 
 -- One segment
 select now() as before_query \gset
-select * from t_aoco_part where a = 1;
+select * from t_aoco_part where a is null;
 select * from show_log(:'before_query');
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
