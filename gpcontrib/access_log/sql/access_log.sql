@@ -26,8 +26,9 @@ begin
     locations = locations || '''file://' || seg || '/pg_log/access.log''';
   end loop;
 
-  execute 'create external table access_log (logtime timestamp with time zone, loguser text, tbl text)
-location (' || locations || ') format ''csv''';
+  execute 'create external table access_log
+           (logtime timestamp with time zone, loguser text, tbl text)
+           location (' || locations || ') format ''csv''';
 end $$;
 
 -- Start logging
@@ -70,15 +71,17 @@ select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 select now() as before_query \gset
 select * from t_heap_part where b = 0;
-select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
+select * from show_log(:'before_query');
 -- Don't delete files, because the next select will lead to adding log records
 -- on one segment only. Reading from an external table fails when log file does
 -- not exist on any segment.
 
 -- One segment
 select now() as before_query \gset
-select * from t_heap_part where a is null;
-select * from show_log(:'before_query');
+select * from t_heap_part where a = 0;
+select count(distinct gp_segment_id), string_agg(tbl, ',' order by tbl)
+  from show_log(:'before_query')
+ where date_ok and user_ok;
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 
@@ -118,12 +121,14 @@ select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 select now() as before_query \gset
 select * from t_ao_part where b = 0;
-select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
+select * from show_log(:'before_query');
 
 -- One segment
 select now() as before_query \gset
-select * from t_ao_part where a is null;
-select * from show_log(:'before_query');
+select * from t_ao_part where a = 0;
+select count(distinct gp_segment_id), string_agg(tbl, ',' order by tbl)
+  from show_log(:'before_query')
+ where date_ok and user_ok;
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 
@@ -163,12 +168,14 @@ select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 select now() as before_query \gset
 select * from t_aoco_part where b = 0;
-select gp_segment_id, loguser=current_user user_ok, tbl from access_log;
+select * from show_log(:'before_query');
 
 -- One segment
 select now() as before_query \gset
-select * from t_aoco_part where a is null;
-select * from show_log(:'before_query');
+select * from t_aoco_part where a = 0;
+select count(distinct gp_segment_id), string_agg(tbl, ',' order by tbl)
+  from show_log(:'before_query')
+ where date_ok and user_ok;
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 
