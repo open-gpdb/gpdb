@@ -211,7 +211,7 @@ $$ LANGUAGE SQL;
 
 
 --
--- AO tables, on commit drop 
+-- AOCO tables, on commit drop 
 
 -- We can see tables created in the current session
 1: BEGIN;
