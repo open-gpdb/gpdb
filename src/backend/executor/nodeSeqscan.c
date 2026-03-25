@@ -33,6 +33,8 @@
 #include "cdb/cdbaocsam.h"
 #include "utils/snapmgr.h"
 
+init_scan_hook_type init_scan_hook = NULL;
+
 static void InitScanRelation(SeqScanState *node, EState *estate, int eflags, Relation currentRelation);
 static TupleTableSlot *SeqNext(SeqScanState *node);
 
@@ -141,6 +143,9 @@ ExecSeqScan(SeqScanState *node)
 static void
 InitScanRelation(SeqScanState *node, EState *estate, int eflags, Relation currentRelation)
 {
+	if (init_scan_hook)
+		init_scan_hook(currentRelation);
+
 	/* initialize a heapscan */
 	if (RelationIsAoRows(currentRelation))
 	{
