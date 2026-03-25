@@ -24,7 +24,8 @@ write_to_log(const char* str)
 	 * the end of the file before writing. The adjustment of the file offset and
 	 * the write operation are performed as an atomic step."
 	 */
-	int f = open(LOG_FILE_NAME, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
+	int f = OpenTransientFile(LOG_FILE_NAME, O_WRONLY | O_APPEND | O_CREAT,
+							  S_IRUSR | S_IWUSR);
 	if (f < 0 )
 	{
 		ereport(WARNING, (errcode_for_file_access(),
@@ -32,7 +33,7 @@ write_to_log(const char* str)
 		return;
 	}
 	write(f, str, strlen(str));
-	close(f);
+	CloseTransientFile(f);
 }
 
 static void
