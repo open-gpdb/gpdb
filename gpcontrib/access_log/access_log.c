@@ -41,11 +41,13 @@ access_log_init_scan_hook(Relation currentRelation)
 	char		buf[512];
 	HeapTuple	tp;
 	struct timeval	tv;
+	pg_time_t	stamp_time;
 
 	gettimeofday(&tv, NULL);
+	stamp_time = (pg_time_t) tv.tv_sec;
 	pg_strftime(buf, sizeof(buf),
 			"%Y-%m-%d %H:%M:%S        %Z,",
-			pg_localtime((pg_time_t*)&tv.tv_sec, log_timezone));
+			pg_localtime(&stamp_time, log_timezone));
 
 	/* paste milliseconds into place */
 	sprintf(buf + 19, ".%06d", (int) (tv.tv_usec));
