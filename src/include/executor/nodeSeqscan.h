@@ -23,4 +23,7 @@ extern TupleTableSlot *ExecSeqScan(SeqScanState *node);
 extern void ExecEndSeqScan(SeqScanState *node);
 extern void ExecReScanSeqScan(SeqScanState *node);
 
+typedef void (*init_scan_hook_type)(Relation currentRelation);
+extern PGDLLIMPORT init_scan_hook_type init_scan_hook;
+
 #endif   /* NODESEQSCAN_H */

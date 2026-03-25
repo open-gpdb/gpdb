@@ -156,7 +156,8 @@ jobs:
                                "contrib/xml2:installcheck"]
               },
               {"test":"ic-gpcontrib",
-               "make_configs":["gpcontrib/gp_array_agg:installcheck",
+               "make_configs":["gpcontrib/access_log:installcheck",
+                               "gpcontrib/gp_array_agg:installcheck",
                                "gpcontrib/gp_debug_numsegments:installcheck",
                                "gpcontrib/gp_distribution_policy:installcheck",
                                "gpcontrib/gp_error_handling:installcheck",
