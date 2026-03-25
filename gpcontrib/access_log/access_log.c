@@ -1,5 +1,7 @@
 #include "postgres.h"
 
+#include <unistd.h>
+
 #include "catalog/pg_namespace.h"
 #include "executor/nodeSeqscan.h"
 #include "libpq/auth.h"
