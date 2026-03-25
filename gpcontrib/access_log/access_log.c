@@ -29,7 +29,7 @@ write_to_log(const char* str)
 	if (f < 0 )
 	{
 		ereport(WARNING, (errcode_for_file_access(),
-				errmsg("could not open file " LOG_FILE_NAME)));
+				errmsg("could not open file " LOG_FILE_NAME ": %m")));
 		return;
 	}
 	write(f, str, strlen(str));
