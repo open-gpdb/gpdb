@@ -64,7 +64,7 @@ R cpp_call(T *obj, R (T::*func)(Args...), Args... args) {
   try {
     return (obj->*func)(args...);
   } catch (const std::exception &e) {
-    ereport(FATAL, (errmsg("Unexpected exception in yagpcc %s", e.what())));
+    ereport(ERROR, (errmsg("Unexpected exception in yagpcc %s", e.what())));
   }
 }
 
