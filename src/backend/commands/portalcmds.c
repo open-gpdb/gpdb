@@ -386,11 +386,23 @@ PortalCleanup(Portal portal)
 			}
 			PG_END_TRY();
 			CurrentResourceOwner = saveResourceOwner;
-		} else {
-			/* GPDB hook for collecting query info */
-			if (queryDesc->yagp_query_key && query_info_collect_hook)
-				(*query_info_collect_hook)(METRICS_QUERY_ERROR, queryDesc);
 		}
+		else
+  		{
+        	/* GPDB hook for collecting query info */
+        	if (queryDesc->yagp_query_key && query_info_collect_hook)
+        	{
+        	    PG_TRY();
+        	    {
+					(*query_info_collect_hook)(METRICS_QUERY_ERROR, queryDesc);
+        	    }
+        	    PG_CATCH();
+        	    {
+					FlushErrorState();
+        	    }
+        	    PG_END_TRY();
+        	}
+  		}
 	}
 
 	if (PortalIsParallelRetrieveCursor(portal) && pg_atomic_read_u32((pg_atomic_uint32 *) parallelCursorCount) > 0)
