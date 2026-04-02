@@ -41,6 +41,10 @@ bool EventSender::verify_query(QueryDesc *query_desc, QueryState state,
     // not executed yet, causing DONE to be skipped/added.
     config.sync();
 
+    if (!config.enable_collector()) {
+      return false;
+    }
+
     if (utility && !config.enable_utility()) {
       return false;
     }
@@ -123,7 +127,7 @@ void EventSender::query_metrics_collect(QueryMetricsStatus status, void *arg,
     collect_query_done(query_desc, utility, status, edata);
     break;
   default:
-    ereport(FATAL, (errmsg("Unknown query status: %d", status)));
+    ereport(ERROR, (errmsg("Unknown query status: %d", status)));
   }
 }
 
@@ -253,7 +257,7 @@ void EventSender::report_query_done(QueryDesc *query_desc, QueryItem &query,
     msg = "cancelled";
     break;
   default:
-    ereport(FATAL,
+    ereport(ERROR,
             (errmsg("Unexpected query status in query_done hook: %d", status)));
   }
   auto prev_state = query.state;
@@ -382,13 +386,11 @@ EventSender::EventSender() {
   // Perform initial sync to get default GUC values
   config.sync();
 
-  if (config.enable_collector()) {
-    try {
-      GOOGLE_PROTOBUF_VERIFY_VERSION;
-      proto_verified = true;
-    } catch (const std::exception &e) {
-      ereport(INFO, (errmsg("Unable to start query tracing %s", e.what())));
-    }
+  try {
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+    proto_verified = true;
+  } catch (const std::exception &e) {
+    ereport(INFO, (errmsg("Unable to start query tracing %s", e.what())));
   }
 #ifdef IC_TEARDOWN_HOOK
   memset(&ic_statistics, 0, sizeof(ICStatistics));
