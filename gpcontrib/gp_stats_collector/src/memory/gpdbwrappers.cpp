@@ -14,7 +14,7 @@ extern "C" {
 #include "access/htup.h"
 #include "utils/elog.h"
 #include "cdb/cdbexplain.h"
-#include "stat_statements_parser/pg_stat_statements_ya_parser.h"
+#include "stat_statements_parser/pg_stat_statements_parser.h"
 }
 
 namespace {
