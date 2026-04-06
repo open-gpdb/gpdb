@@ -53,7 +53,7 @@ jobs:
             },
             {
               "name": "test",
-              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests --with-yagp-hooks-collector"
+              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests --with-gp-stats-collector"
             }
           ]}'
           # Output the matrix for GitHub Actions
@@ -111,9 +111,9 @@ jobs:
                "pg_settings":{"optimizer":"on"},
                "extension":"pgaudit"
               },
-              {"test":"gpcontrib-yagp-hooks-collector",
-               "make_configs":["gpcontrib/yagp_hooks_collector:installcheck"],
-               "extension":"yagp_hooks_collector"
+              {"test":"gpcontrib-gp-stats-collector",
+               "make_configs":["gpcontrib/gp_stats_collector:installcheck"],
+               "extension":"gp_stats_collector"
               },
               {"test":"ic-expandshrink",
                "make_configs":["src/test/isolation2:installcheck-expandshrink"]
@@ -1189,7 +1189,7 @@ jobs:
           # set env for debian build
           export BUILD_DESTINATION=/opt/greenplum-db-6
 
-          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests --with-yagp-hooks-collector"; then
+          if ! su - gpadmin -c "cd ${SRC_DIR} && ./configure --with-perl --with-python --with-libxml --enable-mapreduce --with-gssapi  --prefix=${BUILD_DESTINATION} --with-ldap --enable-gpperfmon --with-pam --with-openssl --disable-pxf --enable-ic-proxy  --enable-orafce --without-mdblocales --with-zstd --enable-tap-tests --with-gp-stats-collector"; then
             echo "::error::Configure script failed"
             exit 1
           fi
@@ -1266,19 +1266,19 @@ jobs:
                     exit 1
                 fi
                 ;;
-              yagp_hooks_collector)
+              gp_stats_collector)
                 export BUILD_DESTINATION=/opt/greenplum-db-6
 
                 if ! su - gpadmin -c "source ${BUILD_DESTINATION}/greenplum_path.sh && \
                   source ${SRC_DIR}/gpAux/gpdemo/gpdemo-env.sh && \
-                  gpconfig -c shared_preload_libraries -v 'yagp_hooks_collector' && \
+                  gpconfig -c shared_preload_libraries -v 'gp_stats_collector' && \
                   gpstop -ra && \
-                  echo 'CREATE EXTENSION IF NOT EXISTS yagp_hooks_collector; \
+                  echo 'CREATE EXTENSION IF NOT EXISTS gp_stats_collector; \
                         SHOW shared_preload_libraries; \
                         TABLE pg_extension;' | \
                     psql postgres"
                 then
-                    echo "Error creating yagp_hooks_collector extension"
+                    echo "Error creating gp_stats_collector extension"
                     exit 1
                 fi
                 ;;
