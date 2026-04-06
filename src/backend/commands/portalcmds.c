@@ -390,7 +390,7 @@ PortalCleanup(Portal portal)
 		else
   		{
         	/* GPDB hook for collecting query info */
-        	if (queryDesc->yagp_query_key && query_info_collect_hook)
+        	if (queryDesc->gpsc_query_key && query_info_collect_hook)
         	{
         	    PG_TRY();
         	    {
