@@ -24,7 +24,7 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
-#include "pg_stat_statements_ya_parser.h"
+#include "pg_stat_statements_parser.h"
 
 static post_parse_analyze_hook_type prev_post_parse_analyze_hook = NULL;
 
