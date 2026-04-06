@@ -126,8 +126,8 @@ CreateQueryDesc(PlannedStmt *plannedstmt,
 		gpmon_qlog_packet_init(qd->gpmon_pkt);
 	}
 
-	/* null this field until set by YAGP Hooks collector */
-	qd->yagp_query_key = NULL;
+	/* null this field until set by GP Stats Collector */
+	qd->gpsc_query_key = NULL;
 
 	return qd;
 }
@@ -164,8 +164,8 @@ CreateUtilityQueryDesc(Node *utilitystmt,
 	qd->portal_name = NULL;
 	qd->showstatctx = NULL;
 
-	/* null this field until set by YAGP Hooks collector */
-	qd->yagp_query_key = NULL;
+	/* null this field until set by GP Stats Collector */
+	qd->gpsc_query_key = NULL;
 
 	return qd;
 }
