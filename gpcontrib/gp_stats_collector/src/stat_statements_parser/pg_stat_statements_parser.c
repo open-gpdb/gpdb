@@ -7,8 +7,8 @@
 #include <unistd.h>
 
 #include "access/hash.h"
-#include "executor/instrument.h"
 #include "executor/execdesc.h"
+#include "executor/instrument.h"
 #include "funcapi.h"
 #include "mb/pg_wchar.h"
 #include "miscadmin.h"
@@ -16,6 +16,7 @@
 #include "parser/parsetree.h"
 #include "parser/scanner.h"
 #include "parser/gram.h"
+
 #include "pgstat.h"
 #include "storage/fd.h"
 #include "storage/ipc.h"
@@ -64,27 +65,31 @@ typedef struct pgssJumbleState
 	int highest_extern_param_id;
 } pgssJumbleState;
 
-static void AppendJumble(pgssJumbleState *jstate,
-						 const unsigned char *item, Size size);
+static void AppendJumble(pgssJumbleState *jstate, const unsigned char *item,
+						 Size size);
 static void JumbleQuery(pgssJumbleState *jstate, Query *query);
 static void JumbleRangeTable(pgssJumbleState *jstate, List *rtable);
 static void JumbleExpr(pgssJumbleState *jstate, Node *node);
 static void RecordConstLocation(pgssJumbleState *jstate, int location);
-static void fill_in_constant_lengths(pgssJumbleState *jstate, const char *query);
+static void fill_in_constant_lengths(pgssJumbleState *jstate,
+									 const char *query);
 static int comp_location(const void *a, const void *b);
 StringInfo gen_normplan(const char *execution_plan);
 static bool need_replace(int token);
 void pgss_post_parse_analyze(ParseState *pstate, Query *query);
-static char *generate_normalized_query(pgssJumbleState *jstate, const char *query,
-									   int *query_len_p, int encoding);
+static char *generate_normalized_query(pgssJumbleState *jstate,
+									   const char *query, int *query_len_p,
+									   int encoding);
 
-	void stat_statements_parser_init()
+void
+stat_statements_parser_init()
 {
 	prev_post_parse_analyze_hook = post_parse_analyze_hook;
 	post_parse_analyze_hook = pgss_post_parse_analyze;
 }
 
-void stat_statements_parser_deinit()
+void
+stat_statements_parser_deinit()
 {
 	post_parse_analyze_hook = prev_post_parse_analyze_hook;
 }
@@ -129,9 +134,9 @@ AppendJumble(pgssJumbleState *jstate, const unsigned char *item, Size size)
  * of individual local variable elements.
  */
 #define APP_JUMB(item) \
-	AppendJumble(jstate, (const unsigned char *)&(item), sizeof(item))
+	AppendJumble(jstate, (const unsigned char *) &(item), sizeof(item))
 #define APP_JUMB_STRING(str) \
-	AppendJumble(jstate, (const unsigned char *)(str), strlen(str) + 1)
+	AppendJumble(jstate, (const unsigned char *) (str), strlen(str) + 1)
 
 /*
  * JumbleQuery: Selectively serialize the query tree, appending significant
@@ -142,23 +147,24 @@ AppendJumble(pgssJumbleState *jstate, const unsigned char *item, Size size)
  * be deduced from child nodes (else we'd just be double-hashing that piece
  * of information).
  */
-void JumbleQuery(pgssJumbleState *jstate, Query *query)
+void
+JumbleQuery(pgssJumbleState *jstate, Query *query)
 {
 	Assert(IsA(query, Query));
 	Assert(query->utilityStmt == NULL);
 
 	APP_JUMB(query->commandType);
 	/* resultRelation is usually predictable from commandType */
-	JumbleExpr(jstate, (Node *)query->cteList);
+	JumbleExpr(jstate, (Node *) query->cteList);
 	JumbleRangeTable(jstate, query->rtable);
-	JumbleExpr(jstate, (Node *)query->jointree);
-	JumbleExpr(jstate, (Node *)query->targetList);
-	JumbleExpr(jstate, (Node *)query->returningList);
-	JumbleExpr(jstate, (Node *)query->groupClause);
+	JumbleExpr(jstate, (Node *) query->jointree);
+	JumbleExpr(jstate, (Node *) query->targetList);
+	JumbleExpr(jstate, (Node *) query->returningList);
+	JumbleExpr(jstate, (Node *) query->groupClause);
 	JumbleExpr(jstate, query->havingQual);
-	JumbleExpr(jstate, (Node *)query->windowClause);
-	JumbleExpr(jstate, (Node *)query->distinctClause);
-	JumbleExpr(jstate, (Node *)query->sortClause);
+	JumbleExpr(jstate, (Node *) query->windowClause);
+	JumbleExpr(jstate, (Node *) query->distinctClause);
+	JumbleExpr(jstate, (Node *) query->sortClause);
 	JumbleExpr(jstate, query->limitOffset);
 	JumbleExpr(jstate, query->limitCount);
 	/* we ignore rowMarks */
@@ -175,46 +181,47 @@ JumbleRangeTable(pgssJumbleState *jstate, List *rtable)
 
 	foreach (lc, rtable)
 	{
-		RangeTblEntry *rte = (RangeTblEntry *)lfirst(lc);
+		RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
 
 		Assert(IsA(rte, RangeTblEntry));
 		APP_JUMB(rte->rtekind);
 		switch (rte->rtekind)
 		{
-		case RTE_RELATION:
-			APP_JUMB(rte->relid);
-			break;
-		case RTE_SUBQUERY:
-			JumbleQuery(jstate, rte->subquery);
-			break;
-		case RTE_JOIN:
-			APP_JUMB(rte->jointype);
-			break;
-		case RTE_FUNCTION:
-			JumbleExpr(jstate, (Node *)rte->functions);
-			break;
-		case RTE_VALUES:
-			JumbleExpr(jstate, (Node *)rte->values_lists);
-			break;
-		case RTE_CTE:
+			case RTE_RELATION:
+				APP_JUMB(rte->relid);
+				break;
+			case RTE_SUBQUERY:
+				JumbleQuery(jstate, rte->subquery);
+				break;
+			case RTE_JOIN:
+				APP_JUMB(rte->jointype);
+				break;
+			case RTE_FUNCTION:
+				JumbleExpr(jstate, (Node *) rte->functions);
+				break;
+			case RTE_VALUES:
+				JumbleExpr(jstate, (Node *) rte->values_lists);
+				break;
+			case RTE_CTE:
 
-			/*
+				/*
 			 * Depending on the CTE name here isn't ideal, but it's the
 			 * only info we have to identify the referenced WITH item.
 			 */
-			APP_JUMB_STRING(rte->ctename);
-			APP_JUMB(rte->ctelevelsup);
-			break;
-		/* GPDB RTEs */
-		case RTE_VOID:
-			break;
-		case RTE_TABLEFUNCTION:
-			JumbleQuery(jstate, rte->subquery);
-			JumbleExpr(jstate, (Node *)rte->functions);
-			break;
-		default:
-			ereport(ERROR, (errmsg("unrecognized RTE kind: %d", (int)rte->rtekind)));
-			break;
+				APP_JUMB_STRING(rte->ctename);
+				APP_JUMB(rte->ctelevelsup);
+				break;
+			/* GPDB RTEs */
+			case RTE_VOID:
+				break;
+			case RTE_TABLEFUNCTION:
+				JumbleQuery(jstate, rte->subquery);
+				JumbleExpr(jstate, (Node *) rte->functions);
+				break;
+			default:
+				ereport(ERROR, (errmsg("unrecognized RTE kind: %d",
+									   (int) rte->rtekind)));
+				break;
 		}
 	}
 }
@@ -252,416 +259,416 @@ JumbleExpr(pgssJumbleState *jstate, Node *node)
 
 	switch (nodeTag(node))
 	{
-	case T_Var:
-	{
-		Var *var = (Var *)node;
-
-		APP_JUMB(var->varno);
-		APP_JUMB(var->varattno);
-		APP_JUMB(var->varlevelsup);
-	}
-	break;
-	case T_Const:
-	{
-		Const *c = (Const *)node;
-
-		/* We jumble only the constant's type, not its value */
-		APP_JUMB(c->consttype);
-		/* Also, record its parse location for query normalization */
-		RecordConstLocation(jstate, c->location);
-	}
-	break;
-	case T_Param:
-	{
-		Param *p = (Param *)node;
-
-		APP_JUMB(p->paramkind);
-		APP_JUMB(p->paramid);
-		APP_JUMB(p->paramtype);
-	}
-	break;
-	case T_Aggref:
-	{
-		Aggref *expr = (Aggref *)node;
-
-		APP_JUMB(expr->aggfnoid);
-		JumbleExpr(jstate, (Node *)expr->aggdirectargs);
-		JumbleExpr(jstate, (Node *)expr->args);
-		JumbleExpr(jstate, (Node *)expr->aggorder);
-		JumbleExpr(jstate, (Node *)expr->aggdistinct);
-		JumbleExpr(jstate, (Node *)expr->aggfilter);
-	}
-	break;
-	case T_WindowFunc:
-	{
-		WindowFunc *expr = (WindowFunc *)node;
-
-		APP_JUMB(expr->winfnoid);
-		APP_JUMB(expr->winref);
-		JumbleExpr(jstate, (Node *)expr->args);
-		JumbleExpr(jstate, (Node *)expr->aggfilter);
-	}
-	break;
-	case T_ArrayRef:
-	{
-		ArrayRef *aref = (ArrayRef *)node;
-
-		JumbleExpr(jstate, (Node *)aref->refupperindexpr);
-		JumbleExpr(jstate, (Node *)aref->reflowerindexpr);
-		JumbleExpr(jstate, (Node *)aref->refexpr);
-		JumbleExpr(jstate, (Node *)aref->refassgnexpr);
-	}
-	break;
-	case T_FuncExpr:
-	{
-		FuncExpr *expr = (FuncExpr *)node;
-
-		APP_JUMB(expr->funcid);
-		JumbleExpr(jstate, (Node *)expr->args);
-	}
-	break;
-	case T_NamedArgExpr:
-	{
-		NamedArgExpr *nae = (NamedArgExpr *)node;
-
-		APP_JUMB(nae->argnumber);
-		JumbleExpr(jstate, (Node *)nae->arg);
-	}
-	break;
-	case T_OpExpr:
-	case T_DistinctExpr: /* struct-equivalent to OpExpr */
-	case T_NullIfExpr:	 /* struct-equivalent to OpExpr */
-	{
-		OpExpr *expr = (OpExpr *)node;
-
-		APP_JUMB(expr->opno);
-		JumbleExpr(jstate, (Node *)expr->args);
-	}
-	break;
-	case T_ScalarArrayOpExpr:
-	{
-		ScalarArrayOpExpr *expr = (ScalarArrayOpExpr *)node;
-
-		APP_JUMB(expr->opno);
-		APP_JUMB(expr->useOr);
-		JumbleExpr(jstate, (Node *)expr->args);
-	}
-	break;
-	case T_BoolExpr:
-	{
-		BoolExpr *expr = (BoolExpr *)node;
-
-		APP_JUMB(expr->boolop);
-		JumbleExpr(jstate, (Node *)expr->args);
-	}
-	break;
-	case T_SubLink:
-	{
-		SubLink *sublink = (SubLink *)node;
-
-		APP_JUMB(sublink->subLinkType);
-		JumbleExpr(jstate, (Node *)sublink->testexpr);
-		JumbleQuery(jstate, (Query *)sublink->subselect);
-	}
-	break;
-	case T_FieldSelect:
-	{
-		FieldSelect *fs = (FieldSelect *)node;
-
-		APP_JUMB(fs->fieldnum);
-		JumbleExpr(jstate, (Node *)fs->arg);
-	}
-	break;
-	case T_FieldStore:
-	{
-		FieldStore *fstore = (FieldStore *)node;
-
-		JumbleExpr(jstate, (Node *)fstore->arg);
-		JumbleExpr(jstate, (Node *)fstore->newvals);
-	}
-	break;
-	case T_RelabelType:
-	{
-		RelabelType *rt = (RelabelType *)node;
-
-		APP_JUMB(rt->resulttype);
-		JumbleExpr(jstate, (Node *)rt->arg);
-	}
-	break;
-	case T_CoerceViaIO:
-	{
-		CoerceViaIO *cio = (CoerceViaIO *)node;
-
-		APP_JUMB(cio->resulttype);
-		JumbleExpr(jstate, (Node *)cio->arg);
-	}
-	break;
-	case T_ArrayCoerceExpr:
-	{
-		ArrayCoerceExpr *acexpr = (ArrayCoerceExpr *)node;
-
-		APP_JUMB(acexpr->resulttype);
-		JumbleExpr(jstate, (Node *)acexpr->arg);
-	}
-	break;
-	case T_ConvertRowtypeExpr:
-	{
-		ConvertRowtypeExpr *crexpr = (ConvertRowtypeExpr *)node;
-
-		APP_JUMB(crexpr->resulttype);
-		JumbleExpr(jstate, (Node *)crexpr->arg);
-	}
-	break;
-	case T_CollateExpr:
-	{
-		CollateExpr *ce = (CollateExpr *)node;
-
-		APP_JUMB(ce->collOid);
-		JumbleExpr(jstate, (Node *)ce->arg);
-	}
-	break;
-	case T_CaseExpr:
-	{
-		CaseExpr *caseexpr = (CaseExpr *)node;
-
-		JumbleExpr(jstate, (Node *)caseexpr->arg);
-		foreach (temp, caseexpr->args)
+		case T_Var:
 		{
-			CaseWhen *when = (CaseWhen *)lfirst(temp);
+			Var *var = (Var *) node;
 
-			Assert(IsA(when, CaseWhen));
-			JumbleExpr(jstate, (Node *)when->expr);
-			JumbleExpr(jstate, (Node *)when->result);
-		}
-		JumbleExpr(jstate, (Node *)caseexpr->defresult);
-	}
-	break;
-	case T_CaseTestExpr:
-	{
-		CaseTestExpr *ct = (CaseTestExpr *)node;
-
-		APP_JUMB(ct->typeId);
-	}
-	break;
-	case T_ArrayExpr:
-		JumbleExpr(jstate, (Node *)((ArrayExpr *)node)->elements);
-		break;
-	case T_RowExpr:
-		JumbleExpr(jstate, (Node *)((RowExpr *)node)->args);
-		break;
-	case T_RowCompareExpr:
-	{
-		RowCompareExpr *rcexpr = (RowCompareExpr *)node;
-
-		APP_JUMB(rcexpr->rctype);
-		JumbleExpr(jstate, (Node *)rcexpr->largs);
-		JumbleExpr(jstate, (Node *)rcexpr->rargs);
-	}
-	break;
-	case T_CoalesceExpr:
-		JumbleExpr(jstate, (Node *)((CoalesceExpr *)node)->args);
-		break;
-	case T_MinMaxExpr:
-	{
-		MinMaxExpr *mmexpr = (MinMaxExpr *)node;
-
-		APP_JUMB(mmexpr->op);
-		JumbleExpr(jstate, (Node *)mmexpr->args);
-	}
-	break;
-	case T_XmlExpr:
-	{
-		XmlExpr *xexpr = (XmlExpr *)node;
-
-		APP_JUMB(xexpr->op);
-		JumbleExpr(jstate, (Node *)xexpr->named_args);
-		JumbleExpr(jstate, (Node *)xexpr->args);
-	}
-	break;
-	case T_NullTest:
-	{
-		NullTest *nt = (NullTest *)node;
-
-		APP_JUMB(nt->nulltesttype);
-		JumbleExpr(jstate, (Node *)nt->arg);
-	}
-	break;
-	case T_BooleanTest:
-	{
-		BooleanTest *bt = (BooleanTest *)node;
-
-		APP_JUMB(bt->booltesttype);
-		JumbleExpr(jstate, (Node *)bt->arg);
-	}
-	break;
-	case T_CoerceToDomain:
-	{
-		CoerceToDomain *cd = (CoerceToDomain *)node;
-
-		APP_JUMB(cd->resulttype);
-		JumbleExpr(jstate, (Node *)cd->arg);
-	}
-	break;
-	case T_CoerceToDomainValue:
-	{
-		CoerceToDomainValue *cdv = (CoerceToDomainValue *)node;
-
-		APP_JUMB(cdv->typeId);
-	}
-	break;
-	case T_SetToDefault:
-	{
-		SetToDefault *sd = (SetToDefault *)node;
-
-		APP_JUMB(sd->typeId);
-	}
-	break;
-	case T_CurrentOfExpr:
-	{
-		CurrentOfExpr *ce = (CurrentOfExpr *)node;
-
-		APP_JUMB(ce->cvarno);
-		if (ce->cursor_name)
-			APP_JUMB_STRING(ce->cursor_name);
-		APP_JUMB(ce->cursor_param);
-	}
-	break;
-	case T_TargetEntry:
-	{
-		TargetEntry *tle = (TargetEntry *)node;
-
-		APP_JUMB(tle->resno);
-		APP_JUMB(tle->ressortgroupref);
-		JumbleExpr(jstate, (Node *)tle->expr);
-	}
-	break;
-	case T_RangeTblRef:
-	{
-		RangeTblRef *rtr = (RangeTblRef *)node;
-
-		APP_JUMB(rtr->rtindex);
-	}
-	break;
-	case T_JoinExpr:
-	{
-		JoinExpr *join = (JoinExpr *)node;
-
-		APP_JUMB(join->jointype);
-		APP_JUMB(join->isNatural);
-		APP_JUMB(join->rtindex);
-		JumbleExpr(jstate, join->larg);
-		JumbleExpr(jstate, join->rarg);
-		JumbleExpr(jstate, join->quals);
-	}
-	break;
-	case T_FromExpr:
-	{
-		FromExpr *from = (FromExpr *)node;
-
-		JumbleExpr(jstate, (Node *)from->fromlist);
-		JumbleExpr(jstate, from->quals);
-	}
-	break;
-	case T_List:
-		foreach (temp, (List *)node)
-		{
-			JumbleExpr(jstate, (Node *)lfirst(temp));
+			APP_JUMB(var->varno);
+			APP_JUMB(var->varattno);
+			APP_JUMB(var->varlevelsup);
 		}
 		break;
-	case T_SortGroupClause:
-	{
-		SortGroupClause *sgc = (SortGroupClause *)node;
+		case T_Const:
+		{
+			Const *c = (Const *) node;
 
-		APP_JUMB(sgc->tleSortGroupRef);
-		APP_JUMB(sgc->eqop);
-		APP_JUMB(sgc->sortop);
-		APP_JUMB(sgc->nulls_first);
-	}
-	break;
-	case T_WindowClause:
-	{
-		WindowClause *wc = (WindowClause *)node;
-
-		APP_JUMB(wc->winref);
-		APP_JUMB(wc->frameOptions);
-		JumbleExpr(jstate, (Node *)wc->partitionClause);
-		JumbleExpr(jstate, (Node *)wc->orderClause);
-		JumbleExpr(jstate, wc->startOffset);
-		JumbleExpr(jstate, wc->endOffset);
-	}
-	break;
-	case T_CommonTableExpr:
-	{
-		CommonTableExpr *cte = (CommonTableExpr *)node;
-
-		/* we store the string name because RTE_CTE RTEs need it */
-		APP_JUMB_STRING(cte->ctename);
-		JumbleQuery(jstate, (Query *)cte->ctequery);
-	}
-	break;
-	case T_SetOperationStmt:
-	{
-		SetOperationStmt *setop = (SetOperationStmt *)node;
-
-		APP_JUMB(setop->op);
-		APP_JUMB(setop->all);
-		JumbleExpr(jstate, setop->larg);
-		JumbleExpr(jstate, setop->rarg);
-	}
-	break;
-	case T_RangeTblFunction:
-	{
-		RangeTblFunction *rtfunc = (RangeTblFunction *)node;
-
-		JumbleExpr(jstate, rtfunc->funcexpr);
-	}
-	break;
-	/* GPDB nodes */
-	case T_GroupingClause:
-	{
-		GroupingClause *grpnode = (GroupingClause *)node;
-
-		JumbleExpr(jstate, (Node *)grpnode->groupsets);
-	}
-	break;
-	case T_GroupingFunc:
-	{
-		GroupingFunc *grpnode = (GroupingFunc *)node;
-
-		JumbleExpr(jstate, (Node *)grpnode->args);
-	}
-	break;
-	case T_Grouping:
-	case T_GroupId:
-	case T_Integer:
-	case T_Value:
-		// TODO:seems like nothing to do with it
+			/* We jumble only the constant's type, not its value */
+			APP_JUMB(c->consttype);
+			/* Also, record its parse location for query normalization */
+			RecordConstLocation(jstate, c->location);
+		}
 		break;
-	/* GPDB-only additions, nothing to do */
-	case T_PartitionBy:
-	case T_PartitionElem:
-	case T_PartitionRangeItem:
-	case T_PartitionBoundSpec:
-	case T_PartitionSpec:
-	case T_PartitionValuesSpec:
-	case T_AlterPartitionId:
-	case T_AlterPartitionCmd:
-	case T_InheritPartitionCmd:
-	case T_CreateFileSpaceStmt:
-	case T_FileSpaceEntry:
-	case T_DropFileSpaceStmt:
-	case T_TableValueExpr:
-	case T_DenyLoginInterval:
-	case T_DenyLoginPoint:
-	case T_AlterTypeStmt:
-	case T_SetDistributionCmd:
-	case T_ExpandStmtSpec:
+		case T_Param:
+		{
+			Param *p = (Param *) node;
+
+			APP_JUMB(p->paramkind);
+			APP_JUMB(p->paramid);
+			APP_JUMB(p->paramtype);
+		}
 		break;
-	default:
-		/* Only a warning, since we can stumble along anyway */
-		ereport(WARNING, (errmsg("unrecognized node type: %d",
-			 (int)nodeTag(node))));
+		case T_Aggref:
+		{
+			Aggref *expr = (Aggref *) node;
+
+			APP_JUMB(expr->aggfnoid);
+			JumbleExpr(jstate, (Node *) expr->aggdirectargs);
+			JumbleExpr(jstate, (Node *) expr->args);
+			JumbleExpr(jstate, (Node *) expr->aggorder);
+			JumbleExpr(jstate, (Node *) expr->aggdistinct);
+			JumbleExpr(jstate, (Node *) expr->aggfilter);
+		}
 		break;
+		case T_WindowFunc:
+		{
+			WindowFunc *expr = (WindowFunc *) node;
+
+			APP_JUMB(expr->winfnoid);
+			APP_JUMB(expr->winref);
+			JumbleExpr(jstate, (Node *) expr->args);
+			JumbleExpr(jstate, (Node *) expr->aggfilter);
+		}
+		break;
+		case T_ArrayRef:
+		{
+			ArrayRef *aref = (ArrayRef *) node;
+
+			JumbleExpr(jstate, (Node *) aref->refupperindexpr);
+			JumbleExpr(jstate, (Node *) aref->reflowerindexpr);
+			JumbleExpr(jstate, (Node *) aref->refexpr);
+			JumbleExpr(jstate, (Node *) aref->refassgnexpr);
+		}
+		break;
+		case T_FuncExpr:
+		{
+			FuncExpr *expr = (FuncExpr *) node;
+
+			APP_JUMB(expr->funcid);
+			JumbleExpr(jstate, (Node *) expr->args);
+		}
+		break;
+		case T_NamedArgExpr:
+		{
+			NamedArgExpr *nae = (NamedArgExpr *) node;
+
+			APP_JUMB(nae->argnumber);
+			JumbleExpr(jstate, (Node *) nae->arg);
+		}
+		break;
+		case T_OpExpr:
+		case T_DistinctExpr: /* struct-equivalent to OpExpr */
+		case T_NullIfExpr:	 /* struct-equivalent to OpExpr */
+		{
+			OpExpr *expr = (OpExpr *) node;
+
+			APP_JUMB(expr->opno);
+			JumbleExpr(jstate, (Node *) expr->args);
+		}
+		break;
+		case T_ScalarArrayOpExpr:
+		{
+			ScalarArrayOpExpr *expr = (ScalarArrayOpExpr *) node;
+
+			APP_JUMB(expr->opno);
+			APP_JUMB(expr->useOr);
+			JumbleExpr(jstate, (Node *) expr->args);
+		}
+		break;
+		case T_BoolExpr:
+		{
+			BoolExpr *expr = (BoolExpr *) node;
+
+			APP_JUMB(expr->boolop);
+			JumbleExpr(jstate, (Node *) expr->args);
+		}
+		break;
+		case T_SubLink:
+		{
+			SubLink *sublink = (SubLink *) node;
+
+			APP_JUMB(sublink->subLinkType);
+			JumbleExpr(jstate, (Node *) sublink->testexpr);
+			JumbleQuery(jstate, (Query *) sublink->subselect);
+		}
+		break;
+		case T_FieldSelect:
+		{
+			FieldSelect *fs = (FieldSelect *) node;
+
+			APP_JUMB(fs->fieldnum);
+			JumbleExpr(jstate, (Node *) fs->arg);
+		}
+		break;
+		case T_FieldStore:
+		{
+			FieldStore *fstore = (FieldStore *) node;
+
+			JumbleExpr(jstate, (Node *) fstore->arg);
+			JumbleExpr(jstate, (Node *) fstore->newvals);
+		}
+		break;
+		case T_RelabelType:
+		{
+			RelabelType *rt = (RelabelType *) node;
+
+			APP_JUMB(rt->resulttype);
+			JumbleExpr(jstate, (Node *) rt->arg);
+		}
+		break;
+		case T_CoerceViaIO:
+		{
+			CoerceViaIO *cio = (CoerceViaIO *) node;
+
+			APP_JUMB(cio->resulttype);
+			JumbleExpr(jstate, (Node *) cio->arg);
+		}
+		break;
+		case T_ArrayCoerceExpr:
+		{
+			ArrayCoerceExpr *acexpr = (ArrayCoerceExpr *) node;
+
+			APP_JUMB(acexpr->resulttype);
+			JumbleExpr(jstate, (Node *) acexpr->arg);
+		}
+		break;
+		case T_ConvertRowtypeExpr:
+		{
+			ConvertRowtypeExpr *crexpr = (ConvertRowtypeExpr *) node;
+
+			APP_JUMB(crexpr->resulttype);
+			JumbleExpr(jstate, (Node *) crexpr->arg);
+		}
+		break;
+		case T_CollateExpr:
+		{
+			CollateExpr *ce = (CollateExpr *) node;
+
+			APP_JUMB(ce->collOid);
+			JumbleExpr(jstate, (Node *) ce->arg);
+		}
+		break;
+		case T_CaseExpr:
+		{
+			CaseExpr *caseexpr = (CaseExpr *) node;
+
+			JumbleExpr(jstate, (Node *) caseexpr->arg);
+			foreach (temp, caseexpr->args)
+			{
+				CaseWhen *when = (CaseWhen *) lfirst(temp);
+
+				Assert(IsA(when, CaseWhen));
+				JumbleExpr(jstate, (Node *) when->expr);
+				JumbleExpr(jstate, (Node *) when->result);
+			}
+			JumbleExpr(jstate, (Node *) caseexpr->defresult);
+		}
+		break;
+		case T_CaseTestExpr:
+		{
+			CaseTestExpr *ct = (CaseTestExpr *) node;
+
+			APP_JUMB(ct->typeId);
+		}
+		break;
+		case T_ArrayExpr:
+			JumbleExpr(jstate, (Node *) ((ArrayExpr *) node)->elements);
+			break;
+		case T_RowExpr:
+			JumbleExpr(jstate, (Node *) ((RowExpr *) node)->args);
+			break;
+		case T_RowCompareExpr:
+		{
+			RowCompareExpr *rcexpr = (RowCompareExpr *) node;
+
+			APP_JUMB(rcexpr->rctype);
+			JumbleExpr(jstate, (Node *) rcexpr->largs);
+			JumbleExpr(jstate, (Node *) rcexpr->rargs);
+		}
+		break;
+		case T_CoalesceExpr:
+			JumbleExpr(jstate, (Node *) ((CoalesceExpr *) node)->args);
+			break;
+		case T_MinMaxExpr:
+		{
+			MinMaxExpr *mmexpr = (MinMaxExpr *) node;
+
+			APP_JUMB(mmexpr->op);
+			JumbleExpr(jstate, (Node *) mmexpr->args);
+		}
+		break;
+		case T_XmlExpr:
+		{
+			XmlExpr *xexpr = (XmlExpr *) node;
+
+			APP_JUMB(xexpr->op);
+			JumbleExpr(jstate, (Node *) xexpr->named_args);
+			JumbleExpr(jstate, (Node *) xexpr->args);
+		}
+		break;
+		case T_NullTest:
+		{
+			NullTest *nt = (NullTest *) node;
+
+			APP_JUMB(nt->nulltesttype);
+			JumbleExpr(jstate, (Node *) nt->arg);
+		}
+		break;
+		case T_BooleanTest:
+		{
+			BooleanTest *bt = (BooleanTest *) node;
+
+			APP_JUMB(bt->booltesttype);
+			JumbleExpr(jstate, (Node *) bt->arg);
+		}
+		break;
+		case T_CoerceToDomain:
+		{
+			CoerceToDomain *cd = (CoerceToDomain *) node;
+
+			APP_JUMB(cd->resulttype);
+			JumbleExpr(jstate, (Node *) cd->arg);
+		}
+		break;
+		case T_CoerceToDomainValue:
+		{
+			CoerceToDomainValue *cdv = (CoerceToDomainValue *) node;
+
+			APP_JUMB(cdv->typeId);
+		}
+		break;
+		case T_SetToDefault:
+		{
+			SetToDefault *sd = (SetToDefault *) node;
+
+			APP_JUMB(sd->typeId);
+		}
+		break;
+		case T_CurrentOfExpr:
+		{
+			CurrentOfExpr *ce = (CurrentOfExpr *) node;
+
+			APP_JUMB(ce->cvarno);
+			if (ce->cursor_name)
+				APP_JUMB_STRING(ce->cursor_name);
+			APP_JUMB(ce->cursor_param);
+		}
+		break;
+		case T_TargetEntry:
+		{
+			TargetEntry *tle = (TargetEntry *) node;
+
+			APP_JUMB(tle->resno);
+			APP_JUMB(tle->ressortgroupref);
+			JumbleExpr(jstate, (Node *) tle->expr);
+		}
+		break;
+		case T_RangeTblRef:
+		{
+			RangeTblRef *rtr = (RangeTblRef *) node;
+
+			APP_JUMB(rtr->rtindex);
+		}
+		break;
+		case T_JoinExpr:
+		{
+			JoinExpr *join = (JoinExpr *) node;
+
+			APP_JUMB(join->jointype);
+			APP_JUMB(join->isNatural);
+			APP_JUMB(join->rtindex);
+			JumbleExpr(jstate, join->larg);
+			JumbleExpr(jstate, join->rarg);
+			JumbleExpr(jstate, join->quals);
+		}
+		break;
+		case T_FromExpr:
+		{
+			FromExpr *from = (FromExpr *) node;
+
+			JumbleExpr(jstate, (Node *) from->fromlist);
+			JumbleExpr(jstate, from->quals);
+		}
+		break;
+		case T_List:
+			foreach (temp, (List *) node)
+			{
+				JumbleExpr(jstate, (Node *) lfirst(temp));
+			}
+			break;
+		case T_SortGroupClause:
+		{
+			SortGroupClause *sgc = (SortGroupClause *) node;
+
+			APP_JUMB(sgc->tleSortGroupRef);
+			APP_JUMB(sgc->eqop);
+			APP_JUMB(sgc->sortop);
+			APP_JUMB(sgc->nulls_first);
+		}
+		break;
+		case T_WindowClause:
+		{
+			WindowClause *wc = (WindowClause *) node;
+
+			APP_JUMB(wc->winref);
+			APP_JUMB(wc->frameOptions);
+			JumbleExpr(jstate, (Node *) wc->partitionClause);
+			JumbleExpr(jstate, (Node *) wc->orderClause);
+			JumbleExpr(jstate, wc->startOffset);
+			JumbleExpr(jstate, wc->endOffset);
+		}
+		break;
+		case T_CommonTableExpr:
+		{
+			CommonTableExpr *cte = (CommonTableExpr *) node;
+
+			/* we store the string name because RTE_CTE RTEs need it */
+			APP_JUMB_STRING(cte->ctename);
+			JumbleQuery(jstate, (Query *) cte->ctequery);
+		}
+		break;
+		case T_SetOperationStmt:
+		{
+			SetOperationStmt *setop = (SetOperationStmt *) node;
+
+			APP_JUMB(setop->op);
+			APP_JUMB(setop->all);
+			JumbleExpr(jstate, setop->larg);
+			JumbleExpr(jstate, setop->rarg);
+		}
+		break;
+		case T_RangeTblFunction:
+		{
+			RangeTblFunction *rtfunc = (RangeTblFunction *) node;
+
+			JumbleExpr(jstate, rtfunc->funcexpr);
+		}
+		break;
+		/* GPDB nodes */
+		case T_GroupingClause:
+		{
+			GroupingClause *grpnode = (GroupingClause *) node;
+
+			JumbleExpr(jstate, (Node *) grpnode->groupsets);
+		}
+		break;
+		case T_GroupingFunc:
+		{
+			GroupingFunc *grpnode = (GroupingFunc *) node;
+
+			JumbleExpr(jstate, (Node *) grpnode->args);
+		}
+		break;
+		case T_Grouping:
+		case T_GroupId:
+		case T_Integer:
+		case T_Value:
+			// TODO:seems like nothing to do with it
+			break;
+		/* GPDB-only additions, nothing to do */
+		case T_PartitionBy:
+		case T_PartitionElem:
+		case T_PartitionRangeItem:
+		case T_PartitionBoundSpec:
+		case T_PartitionSpec:
+		case T_PartitionValuesSpec:
+		case T_AlterPartitionId:
+		case T_AlterPartitionCmd:
+		case T_InheritPartitionCmd:
+		case T_CreateFileSpaceStmt:
+		case T_FileSpaceEntry:
+		case T_DropFileSpaceStmt:
+		case T_TableValueExpr:
+		case T_DenyLoginInterval:
+		case T_DenyLoginPoint:
+		case T_AlterTypeStmt:
+		case T_SetDistributionCmd:
+		case T_ExpandStmtSpec:
+			break;
+		default:
+			/* Only a warning, since we can stumble along anyway */
+			ereport(WARNING, (errmsg("unrecognized node type: %d",
+									 (int) nodeTag(node))));
+			break;
 	}
 }
 
@@ -679,10 +686,9 @@ RecordConstLocation(pgssJumbleState *jstate, int location)
 		if (jstate->clocations_count >= jstate->clocations_buf_size)
 		{
 			jstate->clocations_buf_size *= 2;
-			jstate->clocations = (pgssLocationLen *)
-				repalloc(jstate->clocations,
-						 jstate->clocations_buf_size *
-							 sizeof(pgssLocationLen));
+			jstate->clocations = (pgssLocationLen *) repalloc(
+				jstate->clocations,
+				jstate->clocations_buf_size * sizeof(pgssLocationLen));
 		}
 		jstate->clocations[jstate->clocations_count].location = location;
 		/* initialize lengths to -1 to simplify fill_in_constant_lengths */
@@ -695,7 +701,8 @@ RecordConstLocation(pgssJumbleState *jstate, int location)
 static bool
 need_replace(int token)
 {
-	return (token == FCONST) || (token == ICONST) || (token == SCONST) || (token == BCONST) || (token == XCONST);
+	return (token == FCONST) || (token == ICONST) || (token == SCONST) ||
+		   (token == BCONST) || (token == XCONST);
 }
 
 /*
@@ -717,14 +724,11 @@ gen_normplan(const char *execution_plan)
 	StringInfo plan_out = makeStringInfo();
 	;
 
-	yyscanner = scanner_init(execution_plan,
-							 &yyextra,
+	yyscanner = scanner_init(execution_plan, &yyextra,
 #if PG_VERSION_NUM >= 120000
-							 &ScanKeywords,
-							 ScanKeywordTokens
+							 &ScanKeywords, ScanKeywordTokens
 #else
-							 ScanKeywords,
-							 NumScanKeywords
+							 ScanKeywords, NumScanKeywords
 #endif
 	);
 
@@ -751,7 +755,8 @@ gen_normplan(const char *execution_plan)
 		else
 		{
 			/* do not change - just copy as-is */
-			tmp_str = strndup((char *)execution_plan + last_yylloc, yylloc - last_yylloc);
+			tmp_str = strndup((char *) execution_plan + last_yylloc,
+							  yylloc - last_yylloc);
 			appendStringInfoString(plan_out, tmp_str);
 			free(tmp_str);
 		}
@@ -770,7 +775,8 @@ gen_normplan(const char *execution_plan)
 /*
  * Post-parse-analysis hook: mark query with a queryId
  */
-void pgss_post_parse_analyze(ParseState *pstate, Query *query)
+void
+pgss_post_parse_analyze(ParseState *pstate, Query *query)
 {
 	pgssJumbleState jstate;
 
@@ -795,11 +801,11 @@ void pgss_post_parse_analyze(ParseState *pstate, Query *query)
 	}
 
 	/* Set up workspace for query jumbling */
-	jstate.jumble = (unsigned char *)palloc(JUMBLE_SIZE);
+	jstate.jumble = (unsigned char *) palloc(JUMBLE_SIZE);
 	jstate.jumble_len = 0;
 	jstate.clocations_buf_size = 32;
-	jstate.clocations = (pgssLocationLen *)
-		palloc(jstate.clocations_buf_size * sizeof(pgssLocationLen));
+	jstate.clocations = (pgssLocationLen *) palloc(jstate.clocations_buf_size *
+												   sizeof(pgssLocationLen));
 	jstate.clocations_count = 0;
 
 	/* Compute query ID and mark the Query node with it */
@@ -820,8 +826,8 @@ void pgss_post_parse_analyze(ParseState *pstate, Query *query)
 static int
 comp_location(const void *a, const void *b)
 {
-	int			l = ((const pgssLocationLen *) a)->location;
-	int			r = ((const pgssLocationLen *) b)->location;
+	int l = ((const pgssLocationLen *) a)->location;
+	int r = ((const pgssLocationLen *) b)->location;
 
 	if (l < r)
 		return -1;
@@ -860,9 +866,9 @@ fill_in_constant_lengths(pgssJumbleState *jstate, const char *query)
 	core_yyscan_t yyscanner;
 	core_yy_extra_type yyextra;
 	core_YYSTYPE yylval;
-	YYLTYPE		yylloc;
-	int			last_loc = -1;
-	int			i;
+	YYLTYPE yylloc;
+	int last_loc = -1;
+	int i;
 
 	/*
 	 * Sort the records by location so that we can process them in order while
@@ -874,21 +880,18 @@ fill_in_constant_lengths(pgssJumbleState *jstate, const char *query)
 	locs = jstate->clocations;
 
 	/* initialize the flex scanner --- should match raw_parser() */
-	yyscanner = scanner_init(query,
-							 &yyextra,
-							 ScanKeywords,
-							 NumScanKeywords);
+	yyscanner = scanner_init(query, &yyextra, ScanKeywords, NumScanKeywords);
 
 	/* Search for each constant, in sequence */
 	for (i = 0; i < jstate->clocations_count; i++)
 	{
-		int			loc = locs[i].location;
-		int			tok;
+		int loc = locs[i].location;
+		int tok;
 
 		Assert(loc >= 0);
 
 		if (loc <= last_loc)
-			continue;			/* Duplicate constant, ignore */
+			continue; /* Duplicate constant, ignore */
 
 		/* Lex tokens until we find the desired constant */
 		for (;;)
@@ -897,7 +900,7 @@ fill_in_constant_lengths(pgssJumbleState *jstate, const char *query)
 
 			/* We should not hit end-of-string, but if we do, behave sanely */
 			if (tok == 0)
-				break;			/* out of inner for-loop */
+				break; /* out of inner for-loop */
 
 			/*
 			 * We should find the token position exactly, but if we somehow
@@ -921,7 +924,7 @@ fill_in_constant_lengths(pgssJumbleState *jstate, const char *query)
 					 */
 					tok = core_yylex(&yylval, &yylloc, yyscanner);
 					if (tok == 0)
-						break;	/* out of inner for-loop */
+						break; /* out of inner for-loop */
 				}
 
 				/*
@@ -929,7 +932,7 @@ fill_in_constant_lengths(pgssJumbleState *jstate, const char *query)
 				 * byte after the text of the current token in scanbuf.
 				 */
 				locs[i].length = strlen(yyextra.scanbuf + loc);
-				break;			/* out of inner for-loop */
+				break; /* out of inner for-loop */
 			}
 		}
 
@@ -960,14 +963,13 @@ static char *
 generate_normalized_query(pgssJumbleState *jstate, const char *query,
 						  int *query_len_p, int encoding)
 {
-	char	   *norm_query;
-	int			query_len = *query_len_p;
-	int			i,
-				len_to_wrt,		/* Length (in bytes) to write */
-				quer_loc = 0,	/* Source query byte location */
-				n_quer_loc = 0, /* Normalized query byte location */
-				last_off = 0,	/* Offset from start for previous tok */
-				last_tok_len = 0;		/* Length (in bytes) of that tok */
+	char *norm_query;
+	int query_len = *query_len_p;
+	int i, len_to_wrt,	  /* Length (in bytes) to write */
+		quer_loc = 0,	  /* Source query byte location */
+		n_quer_loc = 0,	  /* Normalized query byte location */
+		last_off = 0,	  /* Offset from start for previous tok */
+		last_tok_len = 0; /* Length (in bytes) of that tok */
 
 	/*
 	 * Get constants' lengths (core system only gives us locations).  Note
@@ -980,14 +982,14 @@ generate_normalized_query(pgssJumbleState *jstate, const char *query,
 
 	for (i = 0; i < jstate->clocations_count; i++)
 	{
-		int			off,		/* Offset from start for cur tok */
-					tok_len;	/* Length (in bytes) of that tok */
+		int off,	 /* Offset from start for cur tok */
+			tok_len; /* Length (in bytes) of that tok */
 
 		off = jstate->clocations[i].location;
 		tok_len = jstate->clocations[i].length;
 
 		if (tok_len < 0)
-			continue;			/* ignore any duplicates */
+			continue; /* ignore any duplicates */
 
 		/* Copy next chunk (what precedes the next constant) */
 		len_to_wrt = off - last_off;
@@ -1022,18 +1024,21 @@ generate_normalized_query(pgssJumbleState *jstate, const char *query,
 	return norm_query;
 }
 
-char *gen_normquery(const char *query)
+char *
+gen_normquery(const char *query)
 {
-	if (!query) {
+	if (!query)
+	{
 		return NULL;
 	}
 	pgssJumbleState jstate;
-	jstate.jumble = (unsigned char *)palloc(JUMBLE_SIZE);
+	jstate.jumble = (unsigned char *) palloc(JUMBLE_SIZE);
 	jstate.jumble_len = 0;
 	jstate.clocations_buf_size = 32;
-	jstate.clocations = (pgssLocationLen *)
-		palloc(jstate.clocations_buf_size * sizeof(pgssLocationLen));
+	jstate.clocations = (pgssLocationLen *) palloc(jstate.clocations_buf_size *
+												   sizeof(pgssLocationLen));
 	jstate.clocations_count = 0;
 	int query_len = strlen(query);
-	return generate_normalized_query(&jstate, query, &query_len, GetDatabaseEncoding());
+	return generate_normalized_query(&jstate, query, &query_len,
+									 GetDatabaseEncoding());
 }

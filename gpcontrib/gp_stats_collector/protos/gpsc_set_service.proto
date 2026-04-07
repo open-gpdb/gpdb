@@ -6,8 +6,6 @@ import "protos/gpsc_metrics.proto";
 import "protos/gpsc_plan.proto";
 
 package gpsc;
-option java_outer_classname = "SegmentGPSCAS";
-option go_package = "a.yandex-team.ru/cloud/mdb/gpsc/api/proto/agent_segment;greenplum";
 
 service SetQueryInfo {
     rpc SetMetricPlanNode (SetPlanNodeReq) returns (MetricResponse) {}
