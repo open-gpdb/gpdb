@@ -4,8 +4,9 @@
 
 class Config;
 
-class UDSConnector {
+class UDSConnector
+{
 public:
-  bool static report_query(const gpsc::SetQueryReq &req,
-                           const std::string &event, const Config &config);
+	bool static report_query(const gpsc::SetQueryReq &req,
+							 const std::string &event, const Config &config);
 };

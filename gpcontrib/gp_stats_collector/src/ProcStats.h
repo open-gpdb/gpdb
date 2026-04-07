@@ -1,6 +1,7 @@
 #pragma once
 
-namespace gpsc {
+namespace gpsc
+{
 class SystemStat;
 }
 
