@@ -1,0 +1,11 @@
+id,name,department,salary,hired_on
+1,Alice,Engineering,95000.00,2021-03-14
+2,Bob,Engineering,88500.50,2019-07-01
+3,"Carol, Jr.",Sales,72000.00,2022-11-23
+4,Dave,Marketing,,2023-01-15
+5,"Eve ""the Architect""",Engineering,120000.00,2018-05-30
+6,Frank,Support,54000.00,2024-02-02
+7,Grace,Research,110250.75,2017-09-10
+8,Heidi,Sales,67500.00,2020-12-05
+9,Ivan,Engineering,99800.00,2016-04-18
+10,Judy,Marketing,81000.00,2022-08-08

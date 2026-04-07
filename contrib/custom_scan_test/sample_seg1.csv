@@ -1,0 +1,5 @@
+id,name,department,salary,hired_on
+4,Dave,Marketing,,2023-01-15
+5,"Eve ""the Architect""",Engineering,120000.00,2018-05-30
+6,Frank,Support,54000.00,2024-02-02
+7,Grace,Research,110250.75,2017-09-10
