@@ -568,6 +568,8 @@ plannode_type(Plan *p)
 			return "REPEAT";
 		case T_ForeignScan:
 			return "FOREIGNSCAN";
+		case T_CustomScan:
+			return "CUSTOMSCAN";
 		case T_SplitUpdate:
 			return "SPLITUPDATE";
 		default:

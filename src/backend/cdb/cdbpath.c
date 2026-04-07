@@ -1972,6 +1972,7 @@ cdbpath_dedup_fixup_walker(Path *path, void *context)
 		case T_ValuesScan:
 		case T_CteScan:
 		case T_ForeignScan:
+		case T_CustomScan:
 			cdbpath_dedup_fixup_baserel(path, ctx);
 			break;
 

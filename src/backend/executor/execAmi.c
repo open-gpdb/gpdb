@@ -24,6 +24,7 @@
 #include "executor/nodeDynamicBitmapIndexscan.h"
 #include "executor/nodeBitmapOr.h"
 #include "executor/nodeCtescan.h"
+#include "executor/nodeCustom.h"
 #include "executor/nodeForeignscan.h"
 #include "executor/nodeFunctionscan.h"
 #include "executor/nodeHash.h"
@@ -238,6 +239,10 @@ ExecReScan(PlanState *node)
 			ExecReScanForeignScan((ForeignScanState *) node);
 			break;
 
+		case T_CustomScanState:
+			ExecReScanCustomScan((CustomScanState *) node);
+			break;
+
 		case T_NestLoopState:
 			ExecReScanNestLoop((NestLoopState *) node);
 			break;
@@ -377,6 +382,10 @@ ExecMarkPos(PlanState *node)
 			elog(ERROR, "Marking scan position for foreign relation is not supported");
 			break;
 
+		case T_CustomScanState:
+			ExecCustomMarkPos((CustomScanState *) node);
+			break;
+
 		default:
 			/* don't make hard error unless caller asks to restore... */
 			elog(DEBUG2, "unrecognized node type: %d", (int) nodeTag(node));
@@ -443,6 +452,10 @@ ExecRestrPos(PlanState *node)
 
 		case T_ForeignScanState:
 			elog(ERROR, "Restoring scan position is not yet supported for foreign relation scan");
+			break;
+
+		case T_CustomScanState:
+			ExecCustomRestrPos((CustomScanState *) node);
 			break;
 
 		default:
@@ -671,6 +684,7 @@ ExecSquelchNode(PlanState *node)
 		case T_DynamicBitmapIndexScanState:
 		case T_BitmapIndexScanState:
 		case T_ForeignScanState:
+		case T_CustomScanState:
 		case T_ValuesScanState:
 		case T_TidScanState:
 		case T_TableFunctionState:

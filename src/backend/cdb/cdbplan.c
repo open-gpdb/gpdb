@@ -857,6 +857,29 @@ plan_tree_mutator(Node *node,
 			}
 			break;
 
+		case T_CustomScan:
+			{
+				CustomScan *cscan = (CustomScan *) node;
+				CustomScan *newcscan;
+
+				FLATCOPY(newcscan, cscan, CustomScan);
+				SCANMUTATE(newcscan, cscan);
+
+				MUTATE(newcscan->custom_exprs, cscan->custom_exprs, List *);
+				MUTATE(newcscan->custom_plans, cscan->custom_plans, List *);
+
+				/*
+				 * Don't mutate custom_private, it's private to the provider.
+				 * Must make a copy of it, though.
+				 */
+				newcscan->custom_private = copyObject(cscan->custom_private);
+				newcscan->custom_scan_tlist = (List *) copyObject(cscan->custom_scan_tlist);
+				newcscan->custom_relids = bms_copy(cscan->custom_relids);
+
+				return (Node *) newcscan;
+			}
+			break;
+
 		case T_SplitUpdate:
 			{
 				SplitUpdate	*splitUpdate = (SplitUpdate *) node;

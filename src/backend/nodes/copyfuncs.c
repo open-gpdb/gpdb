@@ -27,6 +27,7 @@
 #include "catalog/gp_policy.h"
 #include "catalog/heap.h"
 #include "miscadmin.h"
+#include "nodes/extensible.h"
 #include "nodes/plannodes.h"
 #include "nodes/relation.h"
 #include "utils/datum.h"
@@ -863,6 +864,58 @@ _copyForeignScan(const ForeignScan *from)
 	COPY_NODE_FIELD(fdw_exprs);
 	COPY_NODE_FIELD(fdw_private);
 	COPY_SCALAR_FIELD(fsSystemCol);
+
+	return newnode;
+}
+
+/*
+ * _copyCustomScan
+ */
+static CustomScan *
+_copyCustomScan(const CustomScan *from)
+{
+	CustomScan *newnode = makeNode(CustomScan);
+
+	/*
+	 * copy node superclass fields
+	 */
+	CopyScanFields((const Scan *) from, (Scan *) newnode);
+
+	/*
+	 * copy remainder of node
+	 */
+	COPY_SCALAR_FIELD(flags);
+	COPY_NODE_FIELD(custom_plans);
+	COPY_NODE_FIELD(custom_exprs);
+	COPY_NODE_FIELD(custom_private);
+	COPY_NODE_FIELD(custom_scan_tlist);
+	COPY_BITMAPSET_FIELD(custom_relids);
+
+	/*
+	 * methods is a pointer to a static table of callback function pointers,
+	 * not a palloc'd object, so just copy the pointer.
+	 */
+	newnode->methods = from->methods;
+
+	return newnode;
+}
+
+/*
+ * _copyExtensibleNode
+ */
+static ExtensibleNode *
+_copyExtensibleNode(const ExtensibleNode *from)
+{
+	ExtensibleNode *newnode;
+	const ExtensibleNodeMethods *methods;
+
+	methods = GetExtensibleNodeMethods(from->extnodename, false);
+
+	newnode = (ExtensibleNode *) newNode(methods->node_size, T_ExtensibleNode);
+	newnode->extnodename = pstrdup(from->extnodename);
+
+	/* copy the private fields */
+	methods->nodeCopy(newnode, from);
 
 	return newnode;
 }
@@ -5241,6 +5294,9 @@ copyObject(const void *from)
 		case T_ForeignScan:
 			retval = _copyForeignScan(from);
 			break;
+		case T_CustomScan:
+			retval = _copyCustomScan(from);
+			break;
 		case T_Join:
 			retval = _copyJoin(from);
 			break;
@@ -6078,6 +6134,10 @@ copyObject(const void *from)
 
 		case T_DistributedBy:
 			retval = _copyDistributedBy(from);
+			break;
+
+		case T_ExtensibleNode:
+			retval = _copyExtensibleNode(from);
 			break;
 
 		default:
