@@ -10,26 +10,29 @@ extern "C" {
 #include "access/htup_details.h"
 #include "access/tupdesc.h"
 #include "catalog/pg_type.h"
-#include "utils/timestamp.h"
 #include "utils/builtins.h"
+#include "utils/timestamp.h"
 }
 
-namespace google {
-namespace protobuf {
+namespace google
+{
+namespace protobuf
+{
 class FieldDescriptor;
 class Message;
 class Reflection;
 class Timestamp;
-} // namespace protobuf
-} // namespace google
+}  // namespace protobuf
+}  // namespace google
 
 inline constexpr std::string_view schema_name = "gpsc";
 inline constexpr std::string_view log_relname = "__log";
 
-struct LogDesc {
-  std::string_view pg_att_name;
-  std::string_view proto_field_name;
-  Oid type_oid;
+struct LogDesc
+{
+	std::string_view pg_att_name;
+	std::string_view proto_field_name;
+	Oid type_oid;
 };
 
 /*
@@ -148,14 +151,14 @@ TupleDesc DescribeTuple();
 Datum protots_to_timestamptz(const google::protobuf::Timestamp &ts);
 
 Datum field_to_datum(const google::protobuf::FieldDescriptor *field,
-                     const google::protobuf::Reflection *reflection,
-                     const google::protobuf::Message &msg);
+					 const google::protobuf::Reflection *reflection,
+					 const google::protobuf::Message &msg);
 
 /* Process a single proto field and store in values/nulls arrays */
 void process_field(const google::protobuf::FieldDescriptor *field,
-                   const google::protobuf::Reflection *reflection,
-                   const google::protobuf::Message &msg,
-                   const std::string &field_name, Datum *values, bool *nulls);
+				   const google::protobuf::Reflection *reflection,
+				   const google::protobuf::Message &msg,
+				   const std::string &field_name, Datum *values, bool *nulls);
 
 /*
  * Extracts values from msg into values/nulls arrays. Caller must
@@ -163,4 +166,4 @@ void process_field(const google::protobuf::FieldDescriptor *field,
  * to true for nested messages if parent message is missing).
  */
 void extract_query_req(const google::protobuf::Message &msg,
-                       const std::string &prefix, Datum *values, bool *nulls);
+					   const std::string &prefix, Datum *values, bool *nulls);
