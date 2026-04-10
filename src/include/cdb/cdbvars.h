@@ -813,6 +813,8 @@ extern bool gp_dynamic_partition_pruning;
 
 /* Sharing of plan fragments for common table expressions */
 extern bool gp_cte_sharing;
+/* Inline simple CTEs as subqueries before planning */
+extern bool gp_enable_cte_inlining;
 /* Enable RECURSIVE clauses in common table expressions */
 extern bool gp_recursive_cte;
 /* Enable shared scan in three stage agg */

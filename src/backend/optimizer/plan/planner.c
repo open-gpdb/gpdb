@@ -218,6 +218,15 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	MemoryAccountIdType curMemoryAccountId;
 
 	/*
+	 * Inline non-recursive, non-volatile CTEs as subqueries before any
+	 * optimizer (ORCA or Postgres planner) sees the query.  This avoids
+	 * cross-slice Shared Scan deadlocks that ORCA can produce when CTE
+	 * references appear as scalar subqueries.
+	 */
+	if (gp_enable_cte_inlining && parse->cteList != NIL)
+		inline_cte(parse);
+
+	/*
 	 * Use ORCA only if it is enabled and we are in a master QD process.
 	 *
 	 * ORCA excels in complex queries, most of which will access distributed

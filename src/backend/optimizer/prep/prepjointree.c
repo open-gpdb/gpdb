@@ -115,6 +115,158 @@ static void fix_append_rel_relids(List *append_rel_list, int varno,
 static Node *find_jointree_node_for_rel(Node *jtnode, int relid);
 static bool is_simple_union_all_recurse(Node *setOp, Query *setOpQuery, List *colTypes);
 
+/* CTE inlining helper context */
+typedef struct inline_cte_walker_context
+{
+	const char *ctename;		/* name of CTE to inline */
+	Query	   *ctequery;		/* query tree of the CTE */
+	int			levelsup;		/* current nesting depth relative to CTE's owner */
+} inline_cte_walker_context;
+
+static bool inline_cte_walker(Node *node, inline_cte_walker_context *context);
+
+/*
+ * inline_cte
+ *		Inline non-recursive, non-volatile CTEs as subqueries.
+ *
+ * For each CTE defined in the query's WITH list, if the CTE is a simple
+ * SELECT (not recursive, not containing volatile functions, not a DML
+ * statement), replace every RTE_CTE reference to it with an RTE_SUBQUERY
+ * containing a copy of the CTE's query tree.  This allows the planner to
+ * optimize the CTE body together with the outer query (push down predicates,
+ * choose better join strategies, etc.).
+ *
+ * Must be called before pull_up_sublinks so that the inlined subqueries
+ * can participate in subsequent optimization steps.
+ */
+void
+inline_cte(Query *parse)
+{
+	ListCell   *lc;
+	ListCell   *prev;
+	ListCell   *next;
+
+	/* Nothing to do if no CTEs */
+	if (parse->cteList == NIL)
+		return;
+
+	prev = NULL;
+	for (lc = list_head(parse->cteList); lc != NULL; lc = next)
+	{
+		CommonTableExpr *cte = (CommonTableExpr *) lfirst(lc);
+		Query	   *ctequery;
+		inline_cte_walker_context context;
+
+		next = lnext(lc);
+
+		/* Skip recursive CTEs */
+		if (cte->cterecursive)
+		{
+			prev = lc;
+			continue;
+		}
+
+		ctequery = castNode(Query, cte->ctequery);
+
+		/* Only inline SELECT statements, not INSERT/UPDATE/DELETE */
+		if (ctequery->commandType != CMD_SELECT)
+		{
+			prev = lc;
+			continue;
+		}
+
+		/* Don't inline volatile CTEs — they must execute exactly once */
+		if (contain_volatile_functions((Node *) ctequery))
+		{
+			prev = lc;
+			continue;
+		}
+
+		/*
+		 * Walk the query tree and replace all RTE_CTE references to this CTE
+		 * with RTE_SUBQUERY entries containing a copy of the CTE's query.
+		 */
+		context.ctename = cte->ctename;
+		context.ctequery = ctequery;
+		context.levelsup = 0;
+
+		inline_cte_walker((Node *) parse, &context);
+
+		/* Remove the CTE from cteList since it's now fully inlined */
+		parse->cteList = list_delete_cell(parse->cteList, lc, prev);
+
+		/* Don't advance prev since we deleted current cell */
+	}
+}
+
+/*
+ * inline_cte_walker
+ *		Recursively walk a query tree, replacing RTE_CTE references
+ *		to the specified CTE with RTE_SUBQUERY entries.
+ */
+static bool
+inline_cte_walker(Node *node, inline_cte_walker_context *context)
+{
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, Query))
+	{
+		Query	   *query = (Query *) node;
+		ListCell   *lc;
+
+		/*
+		 * Scan the range table looking for CTE references to inline.
+		 */
+		foreach(lc, query->rtable)
+		{
+			RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
+
+			if (rte->rtekind != RTE_CTE)
+				continue;
+
+			if (strcmp(rte->ctename, context->ctename) != 0)
+				continue;
+
+			if (rte->ctelevelsup != context->levelsup)
+				continue;
+
+			/*
+			 * Found a matching CTE reference. Replace it with a subquery.
+			 */
+			rte->rtekind = RTE_SUBQUERY;
+			rte->subquery = copyObject(context->ctequery);
+			rte->security_barrier = false;
+
+			/*
+			 * If the CTE was defined higher up, adjust Var levels in the
+			 * inlined subquery so they point to the right query level.
+			 */
+			if (context->levelsup > 0)
+				IncrementVarSublevelsUp((Node *) rte->subquery,
+										context->levelsup, 1);
+
+			/* Clear CTE-specific fields */
+			rte->ctename = NULL;
+			rte->ctelevelsup = 0;
+			rte->self_reference = false;
+			rte->ctecoltypes = NIL;
+			rte->ctecoltypmods = NIL;
+			rte->ctecolcollations = NIL;
+		}
+
+		/* Recurse into subqueries with bumped levelsup */
+		context->levelsup++;
+		query_tree_walker(query, inline_cte_walker, context,
+						  QTW_IGNORE_CTE_SUBQUERIES);
+		context->levelsup--;
+
+		return false;
+	}
+
+	return expression_tree_walker(node, inline_cte_walker, context);
+}
+
 
 /*
  * pull_up_sublinks

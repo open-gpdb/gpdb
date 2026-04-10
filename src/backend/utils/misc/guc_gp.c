@@ -294,6 +294,7 @@ bool		gp_enable_groupext_distinct_gather = true;
 bool		gp_dynamic_partition_pruning = true;
 bool		gp_log_dynamic_partition_pruning = false;
 bool		gp_cte_sharing = false;
+bool		gp_enable_cte_inlining = true;
 bool		gp_enable_relsize_collection = false;
 bool		gp_recursive_cte = true;
 bool		gp_enable_mdqa_shared_scan = true;
@@ -2008,6 +2009,18 @@ struct config_bool ConfigureNamesBool_gp[] =
 		},
 		&gp_cte_sharing,
 		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_enable_cte_inlining", PGC_USERSET, QUERY_TUNING_METHOD,
+			gettext_noop("Enables inlining of non-recursive, non-volatile CTEs as subqueries."),
+			gettext_noop("When enabled, simple CTEs are replaced with subqueries "
+						 "before planning, allowing the optimizer to optimize "
+						 "CTE bodies together with the outer query.")
+		},
+		&gp_enable_cte_inlining,
+		true,
 		NULL, NULL, NULL
 	},
 

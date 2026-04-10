@@ -1314,3 +1314,81 @@ explain (costs off) select (select b from bar)[(select 1)][1:3] from bar;
 select (select b from bar)[(select 1)][1:3] from bar;
 
 drop table bar;
+
+-- Test: CTE inlining avoids cross-slice shared scan deadlock.
+-- When the same CTE is referenced multiple times as scalar subqueries,
+-- without inlining the planner may produce a shared scan that spans
+-- multiple slices, causing the query to hang.  With CTE inlining each
+-- reference becomes an independent subquery and the hang disappears.
+CREATE TABLE ss_t1 (id int) DISTRIBUTED BY (id);
+INSERT INTO ss_t1 SELECT i FROM generate_series(1, 10) i;
+CREATE TABLE ss_t2 (id int, v int) DISTRIBUTED REPLICATED;
+INSERT INTO ss_t2 VALUES (1, 10), (2, 20);
+ANALYZE ss_t1;
+ANALYZE ss_t2;
+
+EXPLAIN (costs off)
+WITH
+  cte1 AS (SELECT v FROM ss_t2 WHERE id = 1),
+  cte2 AS (SELECT v FROM ss_t2 WHERE id = 2)
+SELECT DISTINCT
+       (SELECT v FROM cte1) + (SELECT v FROM cte2) +
+       (SELECT v FROM cte1) + (SELECT v FROM cte2) AS result
+FROM ss_t1;
+
+WITH
+  cte1 AS (SELECT v FROM ss_t2 WHERE id = 1),
+  cte2 AS (SELECT v FROM ss_t2 WHERE id = 2)
+SELECT DISTINCT
+       (SELECT v FROM cte1) + (SELECT v FROM cte2) +
+       (SELECT v FROM cte1) + (SELECT v FROM cte2) AS result
+FROM ss_t1;
+
+DROP TABLE ss_t1;
+DROP TABLE ss_t2;
+
+-- Test: Recursive CTE must NOT be inlined — verify it still works correctly.
+WITH RECURSIVE r(n) AS (
+  VALUES (1)
+  UNION ALL
+  SELECT n + 1 FROM r WHERE n < 5
+)
+SELECT * FROM r ORDER BY n;
+
+-- Test: Volatile CTE is skipped by early CTE inlining (inline_cte),
+-- but may still be inlined later by the optimizer's own CTE handling.
+WITH cte_vol AS (SELECT random() AS r)
+SELECT (SELECT r FROM cte_vol) = (SELECT r FROM cte_vol) AS same_value;
+
+-- Test: CTE with multiple references in a JOIN — should be inlined and
+-- produce correct results.
+CREATE TABLE ss_t3 (a int, b text) DISTRIBUTED BY (a);
+INSERT INTO ss_t3 VALUES (1, 'x'), (2, 'y'), (3, 'z');
+ANALYZE ss_t3;
+
+WITH cte AS (SELECT a, b FROM ss_t3 WHERE a <= 2)
+SELECT t1.a AS a1, t2.a AS a2, t1.b || t2.b AS combined
+FROM cte t1 JOIN cte t2 ON t1.a < t2.a
+ORDER BY t1.a, t2.a;
+
+DROP TABLE ss_t3;
+
+-- Test: gp_enable_cte_inlining GUC controls early CTE inlining.
+-- With inlining disabled and ORCA, EXPLAIN shows Shared Scan nodes.
+-- With inlining enabled (default), CTE references become subqueries.
+CREATE TABLE ss_t4 (id int) DISTRIBUTED BY (id);
+INSERT INTO ss_t4 VALUES (1), (2), (3);
+ANALYZE ss_t4;
+
+SET gp_enable_cte_inlining = off;
+EXPLAIN (costs off)
+WITH cte AS (SELECT id FROM ss_t4 WHERE id <= 2)
+SELECT * FROM cte t1 JOIN cte t2 ON t1.id = t2.id;
+
+SET gp_enable_cte_inlining = on;
+EXPLAIN (costs off)
+WITH cte AS (SELECT id FROM ss_t4 WHERE id <= 2)
+SELECT * FROM cte t1 JOIN cte t2 ON t1.id = t2.id;
+
+RESET gp_enable_cte_inlining;
+DROP TABLE ss_t4;

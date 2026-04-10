@@ -23,6 +23,7 @@
 /*
  * prototypes for prepjointree.c
  */
+extern void inline_cte(Query *parse);
 extern void pull_up_sublinks(PlannerInfo *root);
 extern void inline_set_returning_functions(PlannerInfo *root);
 extern Node *pull_up_subqueries(PlannerInfo *root, Node *jtnode);
