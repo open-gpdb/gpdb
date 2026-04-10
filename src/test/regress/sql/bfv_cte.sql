@@ -267,6 +267,7 @@ insert into dist1 select 1, generate_series(1,10);
 insert into dist2 select 1, generate_series(1,20);
 insert into rep select 1, 1;
 
+set gp_enable_scalar_sublink_pullup = off;
 explain (analyze off, costs off, verbose off)
 with t1_cte as (select b from dist1),
 rep_cte as (select a from rep)
@@ -283,6 +284,7 @@ case when (dist2.b in (1,2)) then (select rep_cte.a from rep_cte)
 when (dist2.b in (1,2)) then (select rep_cte.a from rep_cte)
 end as rep_cte_a
 from t1_cte join dist2 on t1_cte.b = dist2.b;
+reset gp_enable_scalar_sublink_pullup;
 drop table dist1, dist2, rep;
 
 --

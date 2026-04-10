@@ -235,6 +235,14 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 		IS_QUERY_DISPATCHER() &&
 		(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) == 0)
 	{
+		/*
+		 * Pull up uncorrelated scalar subqueries from the target list into
+		 * LEFT JOINs before handing the query to ORCA, so it sees a plain
+		 * join tree rather than SubLinks, enabling Shared Scan reuse.
+		 */
+		if (parse->hasSubLinks)
+			pull_up_scalar_sublinks_in_targetlist(parse);
+
 		if (gp_log_optimization_time)
 			INSTR_TIME_SET_CURRENT(starttime);
 
@@ -612,9 +620,11 @@ subquery_planner(PlannerGlobal *glob, Query *parse,
 
 	/*
 	 * Look for ANY and EXISTS SubLinks in WHERE and JOIN/ON clauses, and try
-	 * to transform them into joins.  Note that this step does not descend
-	 * into subqueries; if we pull up any subqueries below, their SubLinks are
-	 * processed just before pulling them up.
+	 * to transform them into joins.  Also pulls up uncorrelated scalar CTE
+	 * subqueries from the target list into LEFT JOINs (via the jointree
+	 * recursion).  Note that this step does not descend into subqueries; if
+	 * we pull up any subqueries below, their SubLinks are processed just
+	 * before pulling them up.
 	 */
 	if (parse->hasSubLinks)
 		pull_up_sublinks(root);

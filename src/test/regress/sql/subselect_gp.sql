@@ -276,6 +276,91 @@ explain SELECT * FROM csq_r WHERE a IN (SELECT csq_f FROM csq_f(csq_r.a),csq_r);
 SELECT * FROM csq_r WHERE a IN (SELECT csq_f FROM csq_f(csq_r.a),csq_r);
 
 --
+-- Test pullup of scalar CTE subqueries in target list to LEFT JOIN
+-- (only subqueries whose FROM is a single CTE reference are eligible)
+--
+
+drop table if exists scalar_subq_t1;
+drop table if exists scalar_subq_t2;
+create table scalar_subq_t1(a int) distributed by (a);
+create table scalar_subq_t2(id int, v int) distributed by (id);
+insert into scalar_subq_t1 select i from generate_series(1, 100) i;
+insert into scalar_subq_t2 values (1, 10), (2, 20), (3, 30);
+
+-- Positive: uncorrelated scalar CTE subqueries -> should become LEFT JOINs
+explain (costs off) with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 where id = 1) + (select v from cte1 where id = 2)
+from scalar_subq_t1;
+
+with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 where id = 1) + (select v from cte1 where id = 2)
+from scalar_subq_t1
+limit 3;
+
+-- Positive: CTE subquery returning NULL (no matching rows)
+with cte1 as (select id, v from scalar_subq_t2)
+select a, (select v from cte1 where id = 999)
+from scalar_subq_t1
+limit 3;
+
+-- Positive: multiple CTE subqueries in separate target list entries
+with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 where id = 1),
+       (select v from cte1 where id = 2),
+       (select v from cte1 where id = 3)
+from scalar_subq_t1
+limit 1;
+
+-- Positive: duplicate CTE subqueries should reuse the same RTE
+explain (costs off) with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 where id = 1),
+       (select v from cte1 where id = 1)
+from scalar_subq_t1;
+
+with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 where id = 1),
+       (select v from cte1 where id = 1)
+from scalar_subq_t1
+limit 1;
+
+-- Positive: CTE subquery nested inside a CASE expression
+with cte1 as (select id, v from scalar_subq_t2)
+select case when a < 50
+            then (select v from cte1 where id = 1)
+            else (select v from cte1 where id = 2)
+       end
+from scalar_subq_t1
+where a in (1, 50, 100);
+
+-- Negative: subquery from regular table should NOT be pulled up
+explain (costs off)
+select (select v from scalar_subq_t2 where id = 1)
+from scalar_subq_t1;
+
+-- Negative: correlated CTE subquery should NOT be pulled up
+explain (costs off) with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 where id = scalar_subq_t1.a)
+from scalar_subq_t1;
+
+-- Negative: CTE subquery with aggregate should NOT be pulled up
+explain (costs off) with cte1 as (select id, v from scalar_subq_t2)
+select (select count(*) from cte1)
+from scalar_subq_t1;
+
+-- Negative: CTE subquery with LIMIT should NOT be pulled up
+explain (costs off) with cte1 as (select id, v from scalar_subq_t2)
+select (select v from cte1 limit 1)
+from scalar_subq_t1;
+
+-- Negative: subquery without FROM should NOT be pulled up
+explain (costs off)
+select (select 42) from scalar_subq_t1;
+
+-- cleanup
+drop table scalar_subq_t1;
+drop table scalar_subq_t2;
+
+--
 -- Test pullup of expr CSQs to joins
 --
 

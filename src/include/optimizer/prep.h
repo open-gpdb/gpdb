@@ -24,6 +24,7 @@
  * prototypes for prepjointree.c
  */
 extern void pull_up_sublinks(PlannerInfo *root);
+extern void pull_up_scalar_sublinks_in_targetlist(Query *parse);
 extern void inline_set_returning_functions(PlannerInfo *root);
 extern Node *pull_up_subqueries(PlannerInfo *root, Node *jtnode);
 extern void flatten_simple_union_all(PlannerInfo *root);
