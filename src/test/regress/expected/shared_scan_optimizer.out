@@ -297,3 +297,32 @@ select gp_inject_fault('inject_many_fds_for_shareinputscan', 'reset', dbid) from
 (1 row)
 
 \! rm -rf /tmp/_gpdb_fault_inject_tmp_dir/
+-- A CTE over a replicated table referenced from multiple scalar
+-- subqueries used to hang because ORCA placed the SharedScan consumer
+-- on a different slice than the producer. Fixed by inlining the
+-- producer locally in apply_shareinput_xslice.
+-- ss_t1 needs enough rows (40000) to push ORCA to the cross-slice
+-- plan; with fewer rows the bug does not manifest and the test would
+-- silently pass even without the fix.
+CREATE TABLE ss_t1 AS
+  SELECT generate_series(1, 40000) id
+  DISTRIBUTED BY (id);
+CREATE TABLE ss_t2 AS
+  SELECT * FROM (VALUES (1, 10), (2, 20)) AS v(id, v)
+  DISTRIBUTED REPLICATED;
+ANALYZE ss_t1;
+ANALYZE ss_t2;
+SET statement_timeout = '15s';
+WITH
+    cte1 AS (SELECT v FROM ss_t2 WHERE id = 1),
+    cte2 AS (SELECT v FROM ss_t2 WHERE id = 2)
+  SELECT (SELECT v FROM cte1) + (SELECT v FROM cte2) +
+         (SELECT v FROM cte1) + (SELECT v FROM cte2) AS result
+  FROM ss_t1
+  LIMIT 1;
+ result
+--------
+     60
+(1 row)
+
+RESET statement_timeout;

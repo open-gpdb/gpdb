@@ -2437,6 +2437,12 @@ shareinput_mutator_xslice_1(Node *node, PlannerInfo *root, bool fPop)
 			ctxt->producers[sisc->share_id] = sisc;
 			ctxt->sliceMarks[sisc->share_id] = motId;
 		}
+		else
+		{
+			/* Consumer: count references to original producers */
+			if (sisc->share_id < ctxt->orig_producer_count)
+				ctxt->consumer_counts[sisc->share_id]++;
+		}
 	}
 
 	return true;
@@ -2487,13 +2493,170 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 
 			if (shareSliceId != motId)
 			{
-				ShareType	stype = get_plan_share_type(plan_slicemark.plan);
+				/*
+				 * Check for cross-slice SharedScan with a replicated
+				 * table inside a SubPlan.  When the producer runs on
+				 * fewer segments than the consumer, the temp file does
+				 * not exist on all consumer segments.
+				 *
+				 * Fix: give this consumer its own copy of the
+				 * producer's underlying plan (Materialize + Scan) and
+				 * convert it to an intra-slice SHARE_MATERIAL with a
+				 * new share_id.  The consumer then materializes data
+				 * locally instead of reading cross-slice temp files.
+				 */
+				bool		inlined = false;
 
-				if (stype == SHARE_MATERIAL || stype == SHARE_SORT)
-					set_plan_share_type_xslice(plan_slicemark.plan);
+				if (ctxt->walking_subplan)
+				{
+					int			origShareId = sisc->share_id;
+					int			existingNewId = -1;
+					int			k;
 
-				incr_plan_nsharer_xslice(plan_slicemark.plan);
-				sisc->driver_slice = motId;
+					/*
+					 * Check if we already inlined a consumer for this
+					 * same original share_id in this same slice.  If so,
+					 * make this consumer a reader of the existing inlined
+					 * producer instead of creating another copy.
+					 */
+					for (k = 0; k < ctxt->inlined_count; k++)
+					{
+						if (ctxt->inlined_orig_ids[k] == origShareId &&
+							ctxt->inlined_mot_ids[k] == motId)
+						{
+							existingNewId = ctxt->inlined_new_ids[k];
+							break;
+						}
+					}
+
+					if (existingNewId >= 0)
+					{
+						/*
+						 * Reuse the already-inlined producer: make this
+						 * consumer a reader with the same share_id.
+						 * This is intra-slice sharing, so no need to
+						 * increment nsharer_xslice.
+						 */
+						if (origShareId < ctxt->orig_producer_count)
+							ctxt->consumer_counts[origShareId]--;
+
+						sisc->share_id = existingNewId;
+						sisc->share_type = SHARE_MATERIAL;
+						sisc->driver_slice = motId;
+
+						inlined = true;
+					}
+					else
+					{
+						ShareInputScan *producer = ctxt->producers[origShareId];
+						Plan	   *producerChild = producer->scan.plan.lefttree;
+						Plan	   *leaf = producerChild;
+
+						while (leaf && leaf->lefttree)
+							leaf = leaf->lefttree;
+
+						/*
+						 * Any scan over a base relation shares the Scan
+						 * struct layout (scanrelid at a fixed offset):
+						 * SeqScan, IndexScan, IndexOnlyScan, BitmapHeapScan,
+						 * TidScan, SampleScan, and the Dynamic* variants.
+						 */
+						if (leaf &&
+							(IsA(leaf, SeqScan) ||
+							 IsA(leaf, IndexScan) ||
+							 IsA(leaf, IndexOnlyScan) ||
+							 IsA(leaf, BitmapHeapScan) ||
+							 IsA(leaf, TidScan) ||
+							 IsA(leaf, DynamicSeqScan) ||
+							 IsA(leaf, DynamicIndexScan) ||
+							 IsA(leaf, DynamicBitmapHeapScan)))
+						{
+							Index		scanrelid = ((Scan *) leaf)->scanrelid;
+							List	   *rtable = glob->finalrtable;
+
+							if (scanrelid > 0 &&
+								scanrelid <= (Index) list_length(rtable))
+							{
+								RangeTblEntry *rte = rt_fetch(scanrelid, rtable);
+
+								if (rte->rtekind == RTE_RELATION)
+								{
+									GpPolicy *policy = GpPolicyFetch(rte->relid);
+
+									if (policy &&
+										policy->ptype == POLICYTYPE_REPLICATED &&
+										producerChild)
+									{
+										Plan	   *newChild;
+										int			newShareId;
+
+										pfree(policy);
+
+										/*
+										 * Deep copy the producer's subtree and
+										 * assign a fresh share_id so there is no
+										 * conflict with the original producer.
+										 */
+										if (origShareId < ctxt->orig_producer_count)
+											ctxt->consumer_counts[origShareId]--;
+
+										newChild = (Plan *) copyObject(producerChild);
+										newShareId = ctxt->producer_count;
+										ctxt->producer_count++;
+
+										set_plan_share_id(newChild, newShareId);
+										sisc->share_id = newShareId;
+										sisc->share_type = SHARE_MATERIAL;
+										sisc->driver_slice = motId;
+										plan->lefttree = newChild;
+
+										/*
+										 * Register the new producer so later
+										 * passes can find it.
+										 */
+										ctxt->producers = repalloc(ctxt->producers,
+											ctxt->producer_count * sizeof(ShareInputScan *));
+										ctxt->producers[newShareId] = sisc;
+										ctxt->sliceMarks = repalloc(ctxt->sliceMarks,
+											ctxt->producer_count * sizeof(int));
+										ctxt->sliceMarks[newShareId] = motId;
+
+										/*
+										 * Record the mapping so subsequent consumers
+										 * of the same CTE in this slice can reuse
+										 * this inlined producer.
+										 */
+										ctxt->inlined_count++;
+										ctxt->inlined_orig_ids = repalloc(ctxt->inlined_orig_ids,
+											ctxt->inlined_count * sizeof(int));
+										ctxt->inlined_mot_ids = repalloc(ctxt->inlined_mot_ids,
+											ctxt->inlined_count * sizeof(int));
+										ctxt->inlined_new_ids = repalloc(ctxt->inlined_new_ids,
+											ctxt->inlined_count * sizeof(int));
+										ctxt->inlined_orig_ids[ctxt->inlined_count - 1] = origShareId;
+										ctxt->inlined_mot_ids[ctxt->inlined_count - 1] = motId;
+										ctxt->inlined_new_ids[ctxt->inlined_count - 1] = newShareId;
+
+										inlined = true;
+									}
+									else if (policy)
+										pfree(policy);
+								}
+							}
+						}
+					}
+				}
+
+				if (!inlined)
+				{
+					ShareType	stype = get_plan_share_type(plan_slicemark.plan);
+
+					if (stype == SHARE_MATERIAL || stype == SHARE_SORT)
+						set_plan_share_type_xslice(plan_slicemark.plan);
+
+					incr_plan_nsharer_xslice(plan_slicemark.plan);
+					sisc->driver_slice = motId;
+				}
 			}
 		}
 	}
@@ -2611,21 +2774,319 @@ shareinput_mutator_xslice_4(Node *node, PlannerInfo *root, bool fPop)
 	return true;
 }
 
+/*
+ * record_subplan_motid_walker
+ *   Walk expressions looking for SubPlan references.  For each SubPlan found,
+ *   record the current motId from the motion stack.  This tells us what slice
+ *   the SubPlan actually executes in (which is the caller's slice).
+ */
+static bool
+record_subplan_motid_walker(Node *node, ApplyShareInputContext *ctxt)
+{
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, SubPlan))
+	{
+		SubPlan *sp = (SubPlan *) node;
+		int		 motId = shareinput_peekmot(ctxt);
+
+		if (sp->plan_id >= 1 && sp->plan_id <= ctxt->num_subplans)
+			ctxt->subplan_motids[sp->plan_id - 1] = motId;
+
+		/* don't recurse into SubPlan's testexpr/args */
+		return false;
+	}
+
+	return expression_tree_walker(node, record_subplan_motid_walker, ctxt);
+}
+
+/*
+ * shareinput_mutator_build_subplan_motids
+ *   Pre-pass over the main plan tree to build a mapping from SubPlan plan_id
+ *   to the motId (slice) where the SubPlan is referenced.
+ *
+ *   SubPlan plan trees are walked separately by apply_shareinput_xslice, but
+ *   without motion context from the main plan.  This causes the xslice passes
+ *   to incorrectly treat SharedScan consumers in SubPlans as being in slice 0
+ *   instead of their actual execution slice.  By recording the correct motId
+ *   here, we can push it before walking each subplan.
+ */
+ static bool
+ shareinput_mutator_build_subplan_motids(Node *node, PlannerInfo *root, bool fPop)
+ {
+	 PlannerGlobal *glob = root->glob;
+	 ApplyShareInputContext *ctxt = &glob->share;
+	 Plan	   *plan = (Plan *) node;
+ 
+	 if (fPop)
+	 {
+		 if (IsA(plan, Motion))
+			 shareinput_popmot(ctxt);
+		 return false;
+	 }
+ 
+	 if (IsA(plan, Motion))
+	 {
+		 Motion	   *motion = (Motion *) plan;
+ 
+		 shareinput_pushmot(ctxt, motion->motionID);
+		 return true;
+	 }
+ 
+	 /* Scan common expression fields for SubPlan references */
+	 record_subplan_motid_walker((Node *) plan->targetlist, ctxt);
+	 record_subplan_motid_walker((Node *) plan->qual, ctxt);
+ 
+	 /*
+	  * Check additional node-type-specific expression fields where SubPlan
+	  * references may appear.  Modeled after finalize_plan() in subselect.c.
+	  */
+	 switch (nodeTag(plan))
+	 {
+		 case T_Result:
+			 record_subplan_motid_walker(((Result *) plan)->resconstantqual, ctxt);
+			 break;
+		 case T_IndexScan:
+			 record_subplan_motid_walker((Node *) ((IndexScan *) plan)->indexqual, ctxt);
+			 record_subplan_motid_walker((Node *) ((IndexScan *) plan)->indexorderby, ctxt);
+			 break;
+		 case T_IndexOnlyScan:
+			 record_subplan_motid_walker((Node *) ((IndexOnlyScan *) plan)->indexqual, ctxt);
+			 record_subplan_motid_walker((Node *) ((IndexOnlyScan *) plan)->indexorderby, ctxt);
+			 break;
+		 case T_BitmapIndexScan:
+			 record_subplan_motid_walker((Node *) ((BitmapIndexScan *) plan)->indexqual, ctxt);
+			 break;
+		 case T_BitmapHeapScan:
+			 record_subplan_motid_walker((Node *) ((BitmapHeapScan *) plan)->bitmapqualorig, ctxt);
+			 break;
+		 case T_TidScan:
+			 record_subplan_motid_walker((Node *) ((TidScan *) plan)->tidquals, ctxt);
+			 break;
+		 case T_ForeignScan:
+			 record_subplan_motid_walker((Node *) ((ForeignScan *) plan)->fdw_exprs, ctxt);
+			 break;
+		 case T_NestLoop:
+			 record_subplan_motid_walker((Node *) ((Join *) plan)->joinqual, ctxt);
+			 break;
+		 case T_MergeJoin:
+			 record_subplan_motid_walker((Node *) ((Join *) plan)->joinqual, ctxt);
+			 record_subplan_motid_walker((Node *) ((MergeJoin *) plan)->mergeclauses, ctxt);
+			 break;
+		 case T_HashJoin:
+			 record_subplan_motid_walker((Node *) ((Join *) plan)->joinqual, ctxt);
+			 record_subplan_motid_walker((Node *) ((HashJoin *) plan)->hashclauses, ctxt);
+			 record_subplan_motid_walker((Node *) ((HashJoin *) plan)->hashqualclauses, ctxt);
+			 break;
+		 case T_Limit:
+			 record_subplan_motid_walker(((Limit *) plan)->limitOffset, ctxt);
+			 record_subplan_motid_walker(((Limit *) plan)->limitCount, ctxt);
+			 break;
+		 case T_Motion:
+			 record_subplan_motid_walker((Node *) ((Motion *) plan)->hashExprs, ctxt);
+			 break;
+		 case T_ModifyTable:
+			 record_subplan_motid_walker((Node *) ((ModifyTable *) plan)->returningLists, ctxt);
+			 break;
+		 case T_ValuesScan:
+			 record_subplan_motid_walker((Node *) ((ValuesScan *) plan)->values_lists, ctxt);
+			 break;
+		 case T_WindowAgg:
+			 record_subplan_motid_walker(((WindowAgg *) plan)->startOffset, ctxt);
+			 record_subplan_motid_walker(((WindowAgg *) plan)->endOffset, ctxt);
+			 break;
+		 case T_PartitionSelector:
+			 record_subplan_motid_walker((Node *) ((PartitionSelector *) plan)->levelEqExpressions, ctxt);
+			 record_subplan_motid_walker((Node *) ((PartitionSelector *) plan)->levelExpressions, ctxt);
+			 record_subplan_motid_walker(((PartitionSelector *) plan)->residualPredicate, ctxt);
+			 record_subplan_motid_walker(((PartitionSelector *) plan)->propagationExpression, ctxt);
+			 record_subplan_motid_walker(((PartitionSelector *) plan)->printablePredicate, ctxt);
+			 record_subplan_motid_walker((Node *) ((PartitionSelector *) plan)->partTabTargetlist, ctxt);
+			 break;
+		 default:
+			 break;
+	 }
+ 
+	 return true;
+ }
+
+/*
+ * shareinput_walk_subplans
+ *   Walk all subplans using the given mutator function, pushing the correct
+ *   motId for each subplan based on where it is referenced in the main plan.
+ */
+static void
+shareinput_walk_subplans(SHAREINPUT_MUTATOR f, PlannerGlobal *glob)
+{
+	ApplyShareInputContext *ctxt = &glob->share;
+	ListCell   *lp, *lr;
+	int			i = 0;
+
+	forboth(lp, glob->subplans, lr, glob->subroots)
+	{
+		Plan	   *subplan = (Plan *) lfirst(lp);
+		PlannerInfo *subroot = (PlannerInfo *) lfirst(lr);
+
+		if (ctxt->subplan_motids != NULL && i < ctxt->num_subplans)
+			shareinput_pushmot(ctxt, ctxt->subplan_motids[i]);
+
+		ctxt->walking_subplan = true;
+		shareinput_walker(f, (Node *) subplan, subroot);
+		ctxt->walking_subplan = false;
+
+		if (ctxt->subplan_motids != NULL && i < ctxt->num_subplans)
+			shareinput_popmot(ctxt);
+
+		i++;
+	}
+}
+
+/*
+ * cleanup_orphaned_producers
+ *   After inlining, some original producers may have zero remaining
+ *   consumers.  Remove them from Sequence nodes to eliminate unnecessary
+ *   SeqScans.  Collapse Sequence nodes that end up with a single child.
+ */
+static Plan *
+cleanup_orphaned_producers(Plan *plan, ApplyShareInputContext *ctxt)
+{
+	if (plan == NULL)
+		return NULL;
+
+	if (IsA(plan, Sequence))
+	{
+		Sequence   *seq = (Sequence *) plan;
+		List	   *newplans = NIL;
+		ListCell   *lc;
+
+		foreach(lc, seq->subplans)
+		{
+			Plan	   *child = (Plan *) lfirst(lc);
+
+			child = cleanup_orphaned_producers(child, ctxt);
+
+			/* Skip orphaned SharedScan producers (those with lefttree) */
+			if (IsA(child, ShareInputScan) && child->lefttree != NULL)
+			{
+				ShareInputScan *sisc = (ShareInputScan *) child;
+
+				if (sisc->share_id < ctxt->orig_producer_count &&
+					ctxt->consumer_counts[sisc->share_id] == 0)
+					continue;
+			}
+
+			/*
+			 * Flatten nested Sequences: if a child is itself a
+			 * Sequence, splice its children into this level.
+			 */
+			if (IsA(child, Sequence))
+			{
+				Sequence   *inner = (Sequence *) child;
+				ListCell   *lc2;
+
+				foreach(lc2, inner->subplans)
+					newplans = lappend(newplans, lfirst(lc2));
+			}
+			else
+				newplans = lappend(newplans, child);
+		}
+
+		seq->subplans = newplans;
+		return plan;
+	}
+
+	if (IsA(plan, Append))
+	{
+		ListCell   *lc;
+
+		foreach(lc, ((Append *) plan)->appendplans)
+			lfirst(lc) = cleanup_orphaned_producers((Plan *) lfirst(lc), ctxt);
+	}
+	else if (IsA(plan, MergeAppend))
+	{
+		ListCell   *lc;
+
+		foreach(lc, ((MergeAppend *) plan)->mergeplans)
+			lfirst(lc) = cleanup_orphaned_producers((Plan *) lfirst(lc), ctxt);
+	}
+	else if (IsA(plan, ModifyTable))
+	{
+		ListCell   *lc;
+
+		foreach(lc, ((ModifyTable *) plan)->plans)
+			lfirst(lc) = cleanup_orphaned_producers((Plan *) lfirst(lc), ctxt);
+	}
+	else if (IsA(plan, BitmapAnd))
+	{
+		ListCell   *lc;
+
+		foreach(lc, ((BitmapAnd *) plan)->bitmapplans)
+			lfirst(lc) = cleanup_orphaned_producers((Plan *) lfirst(lc), ctxt);
+	}
+	else if (IsA(plan, BitmapOr))
+	{
+		ListCell   *lc;
+
+		foreach(lc, ((BitmapOr *) plan)->bitmapplans)
+			lfirst(lc) = cleanup_orphaned_producers((Plan *) lfirst(lc), ctxt);
+	}
+	else if (IsA(plan, SubqueryScan))
+	{
+		SubqueryScan *sub = (SubqueryScan *) plan;
+
+		sub->subplan = cleanup_orphaned_producers(sub->subplan, ctxt);
+	}
+	else
+	{
+		plan->lefttree = cleanup_orphaned_producers(plan->lefttree, ctxt);
+		plan->righttree = cleanup_orphaned_producers(plan->righttree, ctxt);
+	}
+
+	return plan;
+}
+
 Plan *
 apply_shareinput_xslice(Plan *plan, PlannerInfo *root)
 {
 	PlannerGlobal *glob = root->glob;
 	ApplyShareInputContext *ctxt = &glob->share;
-	ListCell   *lp, *lr;
 
 	ctxt->motStack = NULL;
 	ctxt->qdShares = NULL;
 	ctxt->qdSlices = NULL;
 	ctxt->nextPlanId = 0;
+	ctxt->walking_subplan = false;
+
+	ctxt->inlined_orig_ids = palloc0(sizeof(int));
+	ctxt->inlined_mot_ids = palloc0(sizeof(int));
+	ctxt->inlined_new_ids = palloc0(sizeof(int));
+	ctxt->inlined_count = 0;
+
+	ctxt->orig_producer_count = ctxt->producer_count;
+	ctxt->consumer_counts = palloc0(ctxt->producer_count * sizeof(int));
 
 	ctxt->sliceMarks = palloc0(ctxt->producer_count * sizeof(int));
 
 	shareinput_pushmot(ctxt, 0);
+
+	/*
+	 * Pre-pass: build a mapping from SubPlan plan_id to the motId (slice)
+	 * where the SubPlan is referenced in the main plan.  This is needed
+	 * because the xslice passes walk subplan trees separately, and without
+	 * this mapping they would use motId=0 for all subplan nodes.
+	 */
+	ctxt->num_subplans = list_length(glob->subplans);
+	if (ctxt->num_subplans > 0)
+	{
+		ctxt->subplan_motids = palloc0(ctxt->num_subplans * sizeof(int));
+		shareinput_walker(shareinput_mutator_build_subplan_motids,
+						  (Node *) plan, root);
+	}
+	else
+	{
+		ctxt->subplan_motids = NULL;
+	}
 
 	/*
 	 * Walk the tree.  See comment for each pass for what each pass will do.
@@ -2639,42 +3100,26 @@ apply_shareinput_xslice(Plan *plan, PlannerInfo *root)
 	 * walk through all plans and collect all producer subplans into the
 	 * context, before processing the consumers.
 	 */
-	forboth(lp, glob->subplans, lr, glob->subroots)
-	{
-		Plan	   *subplan = (Plan *) lfirst(lp);
-		PlannerInfo *subroot =  (PlannerInfo *) lfirst(lr);
-
-		shareinput_walker(shareinput_mutator_xslice_1, (Node *) subplan, subroot);
-	}
+	shareinput_walk_subplans(shareinput_mutator_xslice_1, glob);
 	shareinput_walker(shareinput_mutator_xslice_1, (Node *) plan, root);
 
 	/* Now walk the tree again, and process all the consumers. */
-	forboth(lp, glob->subplans, lr, glob->subroots)
-	{
-		Plan	   *subplan = (Plan *) lfirst(lp);
-		PlannerInfo *subroot =  (PlannerInfo *) lfirst(lr);
-
-		shareinput_walker(shareinput_mutator_xslice_2, (Node *) subplan, subroot);
-	}
+	shareinput_walk_subplans(shareinput_mutator_xslice_2, glob);
 	shareinput_walker(shareinput_mutator_xslice_2, (Node *) plan, root);
 
-	forboth(lp, glob->subplans, lr, glob->subroots)
-	{
-		Plan	   *subplan = (Plan *) lfirst(lp);
-		PlannerInfo *subroot =  (PlannerInfo *) lfirst(lr);
-
-		shareinput_walker(shareinput_mutator_xslice_3, (Node *) subplan, subroot);
-	}
+	shareinput_walk_subplans(shareinput_mutator_xslice_3, glob);
 	shareinput_walker(shareinput_mutator_xslice_3, (Node *) plan, root);
 
-	forboth(lp, glob->subplans, lr, glob->subroots)
-	{
-		Plan	   *subplan = (Plan *) lfirst(lp);
-		PlannerInfo *subroot =  (PlannerInfo *) lfirst(lr);
-
-		shareinput_walker(shareinput_mutator_xslice_4, (Node *) subplan, subroot);
-	}
+	shareinput_walk_subplans(shareinput_mutator_xslice_4, glob);
 	shareinput_walker(shareinput_mutator_xslice_4, (Node *) plan, root);
+
+	/*
+	 * Cleanup: remove orphaned SharedScan producers from Sequence nodes.
+	 * After inlining, some original producers may have lost all consumers.
+	 * Keeping them would cause unnecessary SeqScans at execution time.
+	 */
+	if (ctxt->inlined_count > 0)
+		plan = cleanup_orphaned_producers(plan, ctxt);
 
 	return plan;
 }
