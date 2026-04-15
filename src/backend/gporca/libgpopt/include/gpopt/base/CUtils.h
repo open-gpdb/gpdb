@@ -1024,6 +1024,18 @@ public:
 
 	static BOOL FScalarConstOrBinaryCoercible(CExpression *pexpr);
 
+	// hash set from CTE ids
+	typedef CHashSet<ULONG, gpos::HashValue<ULONG>, gpos::Equals<ULONG>,
+					 CleanupDelete<ULONG> >
+		UlongCteIdHashSet;
+
+	static void CollectConsumersAndProducers(CMemoryPool *mp,
+											 CExpression *pexpr,
+											 ULongPtrArray *cteConsumers,
+											 UlongCteIdHashSet *cteProducerSet);
+
+	static BOOL hasUnpairedCTEConsumer(CMemoryPool *mp, CExpression *pexpr);
+
 	static CExpression *ReplaceColrefWithProjectExpr(CMemoryPool *mp,
 													 CExpression *pexpr,
 													 CColRef *pcolref,

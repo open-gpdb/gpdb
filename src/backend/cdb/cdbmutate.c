@@ -2494,16 +2494,12 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 			if (shareSliceId != motId)
 			{
 				/*
-				 * Check for cross-slice SharedScan with a replicated
-				 * table inside a SubPlan.  When the producer runs on
-				 * fewer segments than the consumer, the temp file does
-				 * not exist on all consumer segments.
-				 *
-				 * Fix: give this consumer its own copy of the
-				 * producer's underlying plan (Materialize + Scan) and
-				 * convert it to an intra-slice SHARE_MATERIAL with a
-				 * new share_id.  The consumer then materializes data
-				 * locally instead of reading cross-slice temp files.
+				 * Cross-slice SharedScan over a replicated table inside
+				 * a SubPlan: the cross-slice temp file protocol does not
+				 * work in this topology.  Give this Consumer a local copy
+				 * of the Producer's subtree with a fresh share_id /
+				 * SHARE_MATERIAL -- replicated data is identical on every
+				 * segment, so a local copy is equivalent.
 				 */
 				bool		inlined = false;
 
@@ -2513,12 +2509,7 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 					int			existingNewId = -1;
 					int			k;
 
-					/*
-					 * Check if we already inlined a consumer for this
-					 * same original share_id in this same slice.  If so,
-					 * make this consumer a reader of the existing inlined
-					 * producer instead of creating another copy.
-					 */
+					/* Already inlined in this slice: reuse it as an intra-slice reader. */
 					for (k = 0; k < ctxt->inlined_count; k++)
 					{
 						if (ctxt->inlined_orig_ids[k] == origShareId &&
@@ -2531,12 +2522,7 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 
 					if (existingNewId >= 0)
 					{
-						/*
-						 * Reuse the already-inlined producer: make this
-						 * consumer a reader with the same share_id.
-						 * This is intra-slice sharing, so no need to
-						 * increment nsharer_xslice.
-						 */
+						/* Intra-slice sharing -- do not bump nsharer_xslice. */
 						if (origShareId < ctxt->orig_producer_count)
 							ctxt->consumer_counts[origShareId]--;
 
@@ -2555,12 +2541,7 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 						while (leaf && leaf->lefttree)
 							leaf = leaf->lefttree;
 
-						/*
-						 * Any scan over a base relation shares the Scan
-						 * struct layout (scanrelid at a fixed offset):
-						 * SeqScan, IndexScan, IndexOnlyScan, BitmapHeapScan,
-						 * TidScan, SampleScan, and the Dynamic* variants.
-						 */
+						/* Base scan over a replicated table -- safe to inline locally. */
 						if (leaf &&
 							(IsA(leaf, SeqScan) ||
 							 IsA(leaf, IndexScan) ||
@@ -2592,11 +2573,7 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 
 										pfree(policy);
 
-										/*
-										 * Deep copy the producer's subtree and
-										 * assign a fresh share_id so there is no
-										 * conflict with the original producer.
-										 */
+										/* Deep-copy with a fresh share_id. */
 										if (origShareId < ctxt->orig_producer_count)
 											ctxt->consumer_counts[origShareId]--;
 
@@ -2610,10 +2587,7 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 										sisc->driver_slice = motId;
 										plan->lefttree = newChild;
 
-										/*
-										 * Register the new producer so later
-										 * passes can find it.
-										 */
+										/* Register the new producer for later passes. */
 										ctxt->producers = repalloc(ctxt->producers,
 											ctxt->producer_count * sizeof(ShareInputScan *));
 										ctxt->producers[newShareId] = sisc;
@@ -2621,11 +2595,7 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 											ctxt->producer_count * sizeof(int));
 										ctxt->sliceMarks[newShareId] = motId;
 
-										/*
-										 * Record the mapping so subsequent consumers
-										 * of the same CTE in this slice can reuse
-										 * this inlined producer.
-										 */
+										/* Let later Consumers of the same CTE in this slice reuse it. */
 										ctxt->inlined_count++;
 										ctxt->inlined_orig_ids = repalloc(ctxt->inlined_orig_ids,
 											ctxt->inlined_count * sizeof(int));
@@ -2775,10 +2745,9 @@ shareinput_mutator_xslice_4(Node *node, PlannerInfo *root, bool fPop)
 }
 
 /*
- * record_subplan_motid_walker
- *   Walk expressions looking for SubPlan references.  For each SubPlan found,
- *   record the current motId from the motion stack.  This tells us what slice
- *   the SubPlan actually executes in (which is the caller's slice).
+ * For each SubPlan expression, record the motId of the slice that calls
+ * it; later we use this to tell whether a Consumer lives inside a SubPlan
+ * slice.
  */
 static bool
 record_subplan_motid_walker(Node *node, ApplyShareInputContext *ctxt)
