@@ -449,7 +449,8 @@ try_convert(PG_FUNCTION_ARGS)
 		// }
 	}
 
-	res = convert_type_typmod(res, -1, targetTypeId, targetTypMod, &is_failed);
+	if (!fcinfo->isnull)
+    	res = convert_type_typmod(res, -1, targetTypeId, targetTypMod, &is_failed);
 
 	if (is_failed) {
 		fcinfo->isnull = fcinfo->argnull[1];
