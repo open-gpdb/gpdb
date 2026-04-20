@@ -517,6 +517,106 @@ test_nested_result = \
 test_nested_in = test_nested_query
 test_nested_out = test_nested_query + test_nested_result
 
+edge_case_queries = [
+    # --- NULL FALLBACK + NUMERIC ---
+    "select try_convert('42d'::text, NULL::numeric(38,2)) is null as r;",
+    "select try_convert('42d'::text, 0::numeric(38,2)) = 0 as r;",
+    "select try_convert('42.123'::text, NULL::numeric(38,2)) = 42.12 as r;",
+    
+    # --- NULL source ---
+    "select try_convert(NULL::text, 42::int) is null as r;",
+    "select try_convert(NULL::text, NULL::int) is null as r;",
+    "select try_convert(NULL::int, 7::int) is null as r;",
+
+    # --- Fallback value must respect target typmod (regression for is_failed reset) ---
+    "select try_convert('bad'::text, 3.14159::numeric(10,2)) = 3.14 as r;",
+    "select try_convert('bad'::text, 1::numeric(4,2)) = 1.00 as r;",
+
+    # --- RELABEL path (same base type) ---
+    "select try_convert('hello'::text, NULL::text) = 'hello' as r;",
+    "select try_convert('abcdefgh'::varchar(20), NULL::varchar(5)) = 'abcde' as r;",
+    "select try_convert(42.567::numeric(10,3), NULL::numeric(5,1)) = 42.6 as r;",
+
+    # --- Numeric overflow / rounding / typmod ---
+    "select try_convert('99999.999'::text, NULL::numeric(5,2)) is null as r;",
+    "select try_convert('-99999.999'::text, NULL::numeric(5,2)) is null as r;",
+    "select try_convert('0.001'::text, NULL::numeric(5,2)) = 0.00 as r;",
+    "select try_convert('0.005'::text, NULL::numeric(5,2)) = 0.01 as r;",
+
+    # --- Empty / whitespace strings ---
+    "select try_convert(''::text, NULL::int) is null as r;",
+    "select try_convert(''::text, 0::int) = 0 as r;",
+    "select try_convert('   '::text, 0::int) = 0 as r;",
+    "select try_convert('  42  '::text, NULL::int) = 42 as r;",
+
+    # --- Signed numbers ---
+    "select try_convert('+42'::text, NULL::int) = 42 as r;",
+    "select try_convert('-42'::text, NULL::int) = -42 as r;",
+
+    # --- Integer overflow / wide types ---
+    "select try_convert('99999999999'::text, NULL::int) is null as r;",
+    "select try_convert('99999999999'::text, NULL::bigint) = 99999999999 as r;",
+    "select try_convert('1e10'::text, NULL::bigint) is null as r;",
+    "select try_convert('1e100'::text, NULL::int) is null as r;",
+
+    # --- Float special values ---
+    "select try_convert('NaN'::text, NULL::float8) = 'NaN'::float8 as r;",
+    "select try_convert('Infinity'::text, NULL::float8) = 'Infinity'::float8 as r;",
+    "select try_convert('-Infinity'::text, NULL::float8) = '-Infinity'::float8 as r;",
+
+    # --- Date / time invalid inputs ---
+    "select try_convert('2026-13-01'::text, NULL::date) is null as r;",
+    "select try_convert('2026-02-30'::text, NULL::date) is null as r;",
+    "select try_convert('not-a-date'::text, NULL::date) is null as r;",
+    "select try_convert('2026-04-20'::text, NULL::date) = '2026-04-20'::date as r;",
+
+    # --- Boolean parsing ---
+    "select try_convert('true'::text, NULL::bool) = true as r;",
+    "select try_convert('t'::text, NULL::bool) = true as r;",
+    "select try_convert('1'::text, NULL::bool) = true as r;",
+    "select try_convert('yes'::text, NULL::bool) = true as r;",
+    "select try_convert('maybe'::text, NULL::bool) is null as r;",
+    "select try_convert('maybe'::text, false::bool) = false as r;",
+
+    # --- Nested calls ---
+    # '42.9' -> numeric succeeds, but int parser doesn't accept decimals -> NULL
+    "select try_convert(try_convert('42.9'::text, NULL::numeric)::text, NULL::int) is null as r;",
+    # Inner returns NULL; outer receives NULL source, returns NULL (not the fallback)
+    # This documents current behaviour: NULL source is short-circuited before fallback.
+    "select try_convert(try_convert('bad'::text, NULL::int)::text, -1::int) is null as r;",
+
+    # --- JSON (if supported) ---
+    "select try_convert('{\"a\":1}'::text, NULL::json) is not null as r;",
+    "select try_convert('{bad json}'::text, NULL::json) is null as r;",
+]
+
+test_edge_cases_result = \
+    ' r \n' \
+    '---\n' \
+    ' t\n' \
+    '(1 row)\n'
+
+test_edge_cases_in = '\n'.join(edge_case_queries) + '\n'
+test_edge_cases_out = '\n'.join(
+    q + '\n' + test_edge_cases_result for q in edge_case_queries
+)
+
+
+### EDGE CASE: try_convert inside PL/pgSQL (SPI context regression)
+
+test_spi_in = \
+    "DO $$\n" \
+    "DECLARE\n" \
+    "    r int;\n" \
+    "BEGIN\n" \
+    "    SELECT try_convert('42'::text, 0::int) INTO r;\n" \
+    "    IF r <> 42 THEN RAISE EXCEPTION 'expected 42, got %', r; END IF;\n" \
+    "    SELECT try_convert('bad'::text, -1::int) INTO r;\n" \
+    "    IF r <> -1 THEN RAISE EXCEPTION 'expected -1, got %', r; END IF;\n" \
+    "END$$;"
+
+test_spi_out = test_spi_in
+
 
 ### CONSTRUCT TEST
 
@@ -534,6 +634,10 @@ test_str = '\n'.join([
     test_million_in,
     '-- NESTED TESTS', \
     test_nested_in,
+    '-- EDGE CASES', \
+    test_edge_cases_in,
+    '-- SPI CONTEXT', \
+    test_spi_in,
     test_footer
     ]) + '\n'
 
@@ -555,6 +659,10 @@ test_str = '\n'.join([
     test_million_out,
     '-- NESTED TESTS', \
     test_nested_out,
+    '-- EDGE CASES', \
+    test_edge_cases_out,
+    '-- SPI CONTEXT', \
+    test_spi_out,
     remove_empty_lines(test_footer)
     ]) + '\n'
 
