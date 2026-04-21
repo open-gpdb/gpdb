@@ -224,6 +224,49 @@ select count(*) from csq_t1 t1 where a > (SELECT x.b FROM ( select avg(a)::int a
 
 select count(*) from csq_t1 t1 where a > ( select avg(a)::int from csq_t1 t2 where t2.a=t1.d) ;
 
+-- COUNT correlated scalar subquery should keep no-match rows (COUNT = 0)
+-- Scenario 1: optimizer=off (always PostgreSQL planner path)
+set optimizer=off;
+select count(*) from csq_t1 t1 where a > (select count(*) from csq_t1 t2 where t2.a = t1.d);
+select min(a), max(a) from csq_t1 t1 where (select count(*) from csq_t1 t2 where t2.a = t1.d) = 0;
+reset optimizer;
+
+-- Scenario 2: optimizer=on, but query shape forces ORCA fallback to PostgreSQL planner
+-- (ordered aggregate disabled in ORCA by default)
+set optimizer=on;
+set optimizer_enable_orderedagg=off;
+explain select string_agg(t1.a::text, ',' order by t1.a)
+from csq_t1 t1
+where t1.a > (select count(*) from csq_t1 t2 where t2.a = t1.d);
+select string_agg(t1.a::text, ',' order by t1.a)
+from csq_t1 t1
+where t1.a > (select count(*) from csq_t1 t2 where t2.a = t1.d);
+
+-- Non-plain COUNT expression (COUNT(*) + 1) should also preserve no-match semantics
+-- Scenario 1: optimizer=off (always PostgreSQL planner path)
+set optimizer=off;
+select min(a), max(a), count(*) from csq_t1 t1
+where (select count(*) + 1 from csq_t1 t2 where t2.a = t1.d) = 1;
+select min(a), max(a), count(*) from csq_t1 t1
+where (select (count(*) + 1)::bigint from csq_t1 t2 where t2.a = t1.d) = 1;
+select min(a), max(a), count(*) from csq_t1 t1
+where (select case when count(*) > 0 then count(*) + 1 else 1 end
+       from csq_t1 t2 where t2.a = t1.d) = 1;
+select min(a), max(a), count(*) from csq_t1 t1
+where (select abs(count(*) - 1) from csq_t1 t2 where t2.a = t1.d) = 1;
+select min(a), max(a), count(*) from csq_t1 t1
+where (select count(*) + coalesce(sum(t2.a), 0) from csq_t1 t2 where t2.a = t1.d) = 0;
+select min(a), max(a), count(*) from csq_t1 t1
+where (select coalesce(count(*) + sum(t2.a), -1) from csq_t1 t2 where t2.a = t1.d) = -1;
+reset optimizer;
+
+-- Scenario 2: optimizer=on, but query shape forces ORCA fallback to PostgreSQL planner
+set optimizer=on;
+set optimizer_enable_orderedagg=off;
+select string_agg(t1.a::text, ',' order by t1.a)
+from csq_t1 t1
+where (select count(*) + 1 from csq_t1 t2 where t2.a = t1.d) = 1;
+
 --
 -- correlation in a func expr
 --
