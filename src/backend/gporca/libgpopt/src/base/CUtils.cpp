@@ -901,6 +901,135 @@ CUtils::FHasCTEAnchor(CExpression *pexpr)
 	return false;
 }
 
+// True if the distribution is replicated-like.
+static BOOL
+FReplicatedLikeDistribution(CDistributionSpec::EDistributionType edt)
+{
+	return (CDistributionSpec::EdtStrictReplicated == edt ||
+			CDistributionSpec::EdtTaintedReplicated == edt ||
+			CDistributionSpec::EdtUniversal == edt);
+}
+
+struct SCTEProducerInfo
+{
+	ULONG cteId;
+	ULONG sliceId;
+	BOOL isReplicated;
+};
+
+typedef CDynamicPtrArray<SCTEProducerInfo, CleanupDelete<SCTEProducerInfo> >
+	CTEProducerInfoArray;
+
+// Walk the physical tree, recording the slice id of every Physical CTE
+// Producer and Consumer. For each Producer we also remember whether
+// its (child's) distribution is replicated-like. Slices are delimited
+// by Motion nodes: each non-scalar child of a Motion lives in a fresh
+// slice -- same motId-stack idea as in apply_shareinput_xslice.
+static void
+CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
+				 ULONG *pNextSlice, CTEProducerInfoArray *prodInfos,
+				 ULongPtrArray *consIds, ULongPtrArray *consSlices)
+{
+	COperator *pop = pexpr->Pop();
+
+	if (COperator::EopPhysicalCTEProducer == pop->Eopid())
+	{
+		// Producer's distribution comes from its only child -- inspect
+		// it there.
+		GPOS_ASSERT(1 == pexpr->Arity());
+		CExpression *pexprChild = (*pexpr)[0];
+		CDrvdPropPlan *pdpplan =
+			CDrvdPropPlan::Pdpplan(pexprChild->PdpDerive());
+
+		SCTEProducerInfo *info = GPOS_NEW(mp) SCTEProducerInfo;
+		info->cteId = CPhysicalCTEProducer::PopConvert(pop)->UlCTEId();
+		info->sliceId = curSlice;
+		info->isReplicated =
+			FReplicatedLikeDistribution(pdpplan->Pds()->Edt());
+		prodInfos->Append(info);
+	}
+	else if (COperator::EopPhysicalCTEConsumer == pop->Eopid())
+	{
+		// Consumer is a leaf -- only record (cteId, curSlice). The
+		// cross-slice decision is made by the caller after the whole
+		// tree has been walked.
+		consIds->Append(GPOS_NEW(mp) ULONG(
+			CPhysicalCTEConsumer::PopConvert(pop)->UlCTEId()));
+		consSlices->Append(GPOS_NEW(mp) ULONG(curSlice));
+	}
+
+	BOOL isMotion = CUtils::FPhysicalMotion(pop);
+
+	for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
+	{
+		CExpression *pexprChild = (*pexpr)[ul];
+
+		// Scalar subtrees (predicates, project elements) never run as
+		// separate executor groups, so they cannot host a slice.
+		if (pexprChild->Pop()->FScalar())
+		{
+			continue;
+		}
+
+		// Allocate a fresh slice id for each non-scalar child of a
+		// Motion; otherwise the child stays in the parent's slice.
+		ULONG childSlice = curSlice;
+		if (isMotion)
+		{
+			(*pNextSlice)++;
+			childSlice = *pNextSlice;
+		}
+
+		CollectCTESlices(mp, pexprChild, childSlice, pNextSlice, prodInfos,
+						 consIds, consSlices);
+	}
+}
+
+BOOL
+CUtils::FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp, CExpression *pexpr)
+{
+	if (NULL == pexpr)
+	{
+		return false;
+	}
+
+	CTEProducerInfoArray *prodInfos = GPOS_NEW(mp) CTEProducerInfoArray(mp);
+	ULongPtrArray *consIds = GPOS_NEW(mp) ULongPtrArray(mp);
+	ULongPtrArray *consSlices = GPOS_NEW(mp) ULongPtrArray(mp);
+	ULONG nextSlice = 0;
+
+	CollectCTESlices(mp, pexpr, 0 /*curSlice*/, &nextSlice, prodInfos,
+					 consIds, consSlices);
+
+	BOOL cross = false;
+
+	for (ULONG ic = 0; ic < consIds->Size() && !cross; ic++)
+	{
+		ULONG cid = *(*consIds)[ic];
+		ULONG cslice = *(*consSlices)[ic];
+
+		for (ULONG ip = 0; ip < prodInfos->Size(); ip++)
+		{
+			SCTEProducerInfo *info = (*prodInfos)[ip];
+			if (info->cteId != cid)
+			{
+				continue;
+			}
+			if (info->isReplicated && info->sliceId != cslice)
+			{
+				cross = true;
+			}
+			break;
+		}
+	}
+
+	prodInfos->Release();
+	consIds->Release();
+	consSlices->Release();
+
+	return cross;
+}
+
 //---------------------------------------------------------------------------
 //	@class:
 //		CUtils::FHasSubqueryOrApply

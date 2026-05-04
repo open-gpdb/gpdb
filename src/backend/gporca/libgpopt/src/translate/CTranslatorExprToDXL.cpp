@@ -351,6 +351,20 @@ CTranslatorExprToDXL::PdxlnTranslate(CExpression *pexpr,
 
 	GPOS_ASSERT(NULL == m_pdpplan);
 
+	// Walk the physical tree and detect a CTE Consumer placed on a
+	// different slice than its Producer when the Producer's output is
+	// replicated-like (StrictReplicated/TaintedReplicated/Universal).
+	// Fall back to the Postgres optimizer if it is detected because
+	// it breaks Producer-Consumer locality and can hang the
+	// query at execution.
+	if (CUtils::FHasCrossSliceReplicatedCTEConsumer(m_mp, pexpr))
+	{
+		GPOS_RAISE(
+			gpdxl::ExmaDXL, gpdxl::ExmiExpr2DXLUnsupportedFeature,
+			GPOS_WSZ_LIT(
+				"CTE Consumer placed on a different slice than its replicated Producer"));
+	}
+
 	m_pdpplan = CDrvdPropPlan::Pdpplan(pexpr->PdpDerive());
 	m_pdpplan->AddRef();
 
