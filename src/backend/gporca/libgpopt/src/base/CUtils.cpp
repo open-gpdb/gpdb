@@ -910,52 +910,51 @@ FReplicatedLikeDistribution(CDistributionSpec::EDistributionType edt)
 			CDistributionSpec::EdtUniversal == edt);
 }
 
-struct SCTEProducerInfo
+struct SCTEInfo
 {
 	ULONG cteId;
 	ULONG sliceId;
-	BOOL isReplicated;
+
+	SCTEInfo(ULONG cte_id, ULONG slice_id) : cteId(cte_id), sliceId(slice_id)
+	{
+	}
 };
 
-typedef CDynamicPtrArray<SCTEProducerInfo, CleanupDelete<SCTEProducerInfo> >
-	CTEProducerInfoArray;
+typedef CDynamicPtrArray<SCTEInfo, CleanupDelete<SCTEInfo> > CTEInfoArray;
 
-// Walk the physical tree, recording the slice id of every Physical CTE
-// Producer and Consumer. For each Producer we also remember whether
-// its (child's) distribution is replicated-like. Slices are delimited
-// by Motion nodes: each non-scalar child of a Motion lives in a fresh
-// slice -- same motId-stack idea as in apply_shareinput_xslice.
+// Walk the physical tree, recording the slice id of every replicated
+// CTE Producer and every CTE Consumer. Slices are delimited by Motion
+// nodes: each non-scalar child of a Motion lives in a fresh slice --
+// same motId-stack idea as in apply_shareinput_xslice.
 static void
 CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
-				 ULONG *pNextSlice, CTEProducerInfoArray *prodInfos,
-				 ULongPtrArray *consIds, ULongPtrArray *consSlices)
+				 ULONG *pNextSlice, CTEInfoArray *prodInfos,
+				 CTEInfoArray *consInfos)
 {
 	COperator *pop = pexpr->Pop();
 
 	if (COperator::EopPhysicalCTEProducer == pop->Eopid())
 	{
 		// Producer's distribution comes from its only child -- inspect
-		// it there.
+		// it there. Skip non-replicated Producers; they cannot trigger
+		// the cross-slice issue we are checking for.
 		GPOS_ASSERT(1 == pexpr->Arity());
 		CExpression *pexprChild = (*pexpr)[0];
 		CDrvdPropPlan *pdpplan =
 			CDrvdPropPlan::Pdpplan(pexprChild->PdpDerive());
 
-		SCTEProducerInfo *info = GPOS_NEW(mp) SCTEProducerInfo;
-		info->cteId = CPhysicalCTEProducer::PopConvert(pop)->UlCTEId();
-		info->sliceId = curSlice;
-		info->isReplicated =
-			FReplicatedLikeDistribution(pdpplan->Pds()->Edt());
-		prodInfos->Append(info);
+		if (FReplicatedLikeDistribution(pdpplan->Pds()->Edt()))
+		{
+			prodInfos->Append(GPOS_NEW(mp) SCTEInfo(
+				CPhysicalCTEProducer::PopConvert(pop)->UlCTEId(), curSlice));
+		}
 	}
 	else if (COperator::EopPhysicalCTEConsumer == pop->Eopid())
 	{
-		// Consumer is a leaf -- only record (cteId, curSlice). The
-		// cross-slice decision is made by the caller after the whole
-		// tree has been walked.
-		consIds->Append(GPOS_NEW(mp) ULONG(
-			CPhysicalCTEConsumer::PopConvert(pop)->UlCTEId()));
-		consSlices->Append(GPOS_NEW(mp) ULONG(curSlice));
+		// Consumer is a leaf -- record (cteId, curSlice) and let the
+		// caller decide later, once the whole tree has been walked.
+		consInfos->Append(GPOS_NEW(mp) SCTEInfo(
+			CPhysicalCTEConsumer::PopConvert(pop)->UlCTEId(), curSlice));
 	}
 
 	BOOL isMotion = CUtils::FPhysicalMotion(pop);
@@ -981,7 +980,7 @@ CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
 		}
 
 		CollectCTESlices(mp, pexprChild, childSlice, pNextSlice, prodInfos,
-						 consIds, consSlices);
+						 consInfos);
 	}
 }
 
@@ -993,39 +992,33 @@ CUtils::FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp, CExpression *pexpr)
 		return false;
 	}
 
-	CTEProducerInfoArray *prodInfos = GPOS_NEW(mp) CTEProducerInfoArray(mp);
-	ULongPtrArray *consIds = GPOS_NEW(mp) ULongPtrArray(mp);
-	ULongPtrArray *consSlices = GPOS_NEW(mp) ULongPtrArray(mp);
+	CTEInfoArray *prodInfos = GPOS_NEW(mp) CTEInfoArray(mp);
+	CTEInfoArray *consInfos = GPOS_NEW(mp) CTEInfoArray(mp);
 	ULONG nextSlice = 0;
 
 	CollectCTESlices(mp, pexpr, 0 /*curSlice*/, &nextSlice, prodInfos,
-					 consIds, consSlices);
+					 consInfos);
 
 	BOOL cross = false;
 
-	for (ULONG ic = 0; ic < consIds->Size() && !cross; ic++)
+	for (ULONG ic = 0; ic < consInfos->Size(); ic++)
 	{
-		ULONG cid = *(*consIds)[ic];
-		ULONG cslice = *(*consSlices)[ic];
+		SCTEInfo *cons = (*consInfos)[ic];
 
 		for (ULONG ip = 0; ip < prodInfos->Size(); ip++)
 		{
-			SCTEProducerInfo *info = (*prodInfos)[ip];
-			if (info->cteId != cid)
-			{
-				continue;
-			}
-			if (info->isReplicated && info->sliceId != cslice)
+			SCTEInfo *prod = (*prodInfos)[ip];
+			if (prod->cteId == cons->cteId && prod->sliceId != cons->sliceId)
 			{
 				cross = true;
+				goto lExit;
 			}
-			break;
 		}
 	}
+lExit:
 
 	prodInfos->Release();
-	consIds->Release();
-	consSlices->Release();
+	consInfos->Release();
 
 	return cross;
 }
