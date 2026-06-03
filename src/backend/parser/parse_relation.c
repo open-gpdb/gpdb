@@ -1264,6 +1264,10 @@ addRangeTableEntryForSubquery(ParseState *pstate,
 	rte->inh = false;			/* never true for subqueries */
 	rte->inFromCl = inFromCl;
 
+	/* Orca doesn't support LATERAL */
+	if (pstate != NULL && lateral)
+		pstate->usePostgresPlanner = true;
+
 	rte->requiredPerms = 0;
 	rte->checkAsUser = InvalidOid;
 	rte->selectedCols = NULL;
@@ -1638,6 +1642,10 @@ addRangeTableEntryForFunction(ParseState *pstate,
 	rte->inh = false;			/* never true for functions */
 	rte->inFromCl = inFromCl;
 
+	/* Orca doesn't support LATERAL */
+	if (pstate != NULL && lateral)
+		pstate->usePostgresPlanner = true;
+
 	rte->requiredPerms = 0;
 	rte->checkAsUser = InvalidOid;
 	rte->selectedCols = NULL;
@@ -1709,6 +1717,10 @@ addRangeTableEntryForValues(ParseState *pstate,
 	rte->lateral = lateral;
 	rte->inh = false;			/* never true for values RTEs */
 	rte->inFromCl = inFromCl;
+
+	/* Orca doesn't support LATERAL */
+	if (pstate != NULL && lateral)
+		pstate->usePostgresPlanner = true;
 
 	rte->requiredPerms = 0;
 	rte->checkAsUser = InvalidOid;
