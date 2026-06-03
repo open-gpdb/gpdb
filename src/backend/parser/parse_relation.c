@@ -1029,8 +1029,13 @@ parserOpenTable(ParseState *pstate, const RangeVar *relation,
 		}
 	}
 
-	/* Orca doesn't support queries on master-only tables */
-	if (rel->rd_cdbpolicy == NULL)
+	/*
+	 * Orca doesn't support queries on master-only tables.  A view also has
+	 * no distribution policy, but it is expanded into its base relations
+	 * before planning, so exclude it -- otherwise every query over a view is
+	 * needlessly forced onto the Postgres planner.
+	 */
+	if (rel->rd_cdbpolicy == NULL && rel->rd_rel->relkind != RELKIND_VIEW)
 		pstate->usePostgresPlanner = true;
 
 	cancel_parser_errposition_callback(&pcbstate);
