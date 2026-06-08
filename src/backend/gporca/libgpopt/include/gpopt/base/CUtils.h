@@ -1024,6 +1024,9 @@ public:
 
 	static BOOL FScalarConstOrBinaryCoercible(CExpression *pexpr);
 
+	static BOOL FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp,
+													CExpression *pexpr);
+
 	static CExpression *ReplaceColrefWithProjectExpr(CMemoryPool *mp,
 													 CExpression *pexpr,
 													 CColRef *pcolref,
