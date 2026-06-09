@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include "catalog/pg_namespace.h"
+#include "cdb/cdbvars.h"
 #include "executor/nodeSeqscan.h"
 #include "libpq/auth.h"
 #include "utils/syscache.h"
@@ -45,6 +46,7 @@ access_log_init_scan_hook(Relation currentRelation)
 	HeapTuple	tp;
 	struct timeval	tv;
 	pg_time_t	stamp_time;
+	size_t		len;
 
 	gettimeofday(&tv, NULL);
 	stamp_time = (pg_time_t) tv.tv_sec;
@@ -59,7 +61,8 @@ access_log_init_scan_hook(Relation currentRelation)
 
 	if (MyProcPort != NULL && MyProcPort->user_name != NULL)
 		strlcat(buf, MyProcPort->user_name, sizeof(buf));
-	strlcat(buf, ",", sizeof(buf));
+	len = strlen(buf);
+	snprintf(buf + len, sizeof(buf) - len, ",con%d,", gp_session_id);
 
 	tp = SearchSysCache1(NAMESPACEOID,
 					ObjectIdGetDatum(currentRelation->rd_rel->relnamespace));

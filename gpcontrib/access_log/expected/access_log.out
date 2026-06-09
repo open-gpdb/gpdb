@@ -18,17 +18,18 @@ begin
   end loop;
 
   execute 'create external table access_log
-           (logtime timestamp with time zone, loguser text, tbl text)
+           (logtime timestamp with time zone, loguser text, logsession text, tbl text)
            location (' || locations || ') format ''csv''';
 end $$;
 -- Start logging
 load '$libdir/access_log.so';
 create or replace function show_log(before_query text)
-  returns table(gp_segment_id int, date_ok bool, user_ok bool, tbl text)
+  returns table(gp_segment_id int, date_ok bool, user_ok bool, sess_ok bool, tbl text)
 as $$
   select gp_segment_id,
     logtime between before_query::timestamp with time zone and now() date_ok,
     loguser=current_user user_ok,
+    logsession = 'con' || current_setting('gp_session_id') sess_ok, 
     tbl
   from access_log;
 $$ language sql;
@@ -55,20 +56,20 @@ select * from t_heap_part;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |                tbl                 
----------------+---------+---------+------------------------------------
-             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
-             2 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
-             2 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
-             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
-             0 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
-             0 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
-             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
-             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
-             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+ gp_segment_id | date_ok | user_ok | sess_ok |                tbl                 
+---------------+---------+---------+---------+------------------------------------
+             2 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             2 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             2 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+             0 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             0 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             0 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
+             1 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             1 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_2
 (12 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -87,14 +88,14 @@ select * from t_heap_part where c = 40;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |                tbl                 
----------------+---------+---------+------------------------------------
-             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
-             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
-             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+ gp_segment_id | date_ok | user_ok | sess_ok |                tbl                 
+---------------+---------+---------+---------+------------------------------------
+             0 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             1 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
+             2 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_heap_part_1_prt_2_2_prt_1
 (6 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -112,14 +113,14 @@ select * from t_heap_part where b = 0;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |                tbl                 
----------------+---------+---------+------------------------------------
-             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
-             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
-             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+ gp_segment_id | date_ok | user_ok | sess_ok |                tbl                 
+---------------+---------+---------+---------+------------------------------------
+             0 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             1 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
+             2 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_heap_part_1_prt_1_2_prt_2
 (6 rows)
 
 -- Don't delete files, because the next select will lead to adding log records
@@ -158,11 +159,11 @@ select * from t_heap;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |      tbl      
----------------+---------+---------+---------------
-             2 | t       | t       | public.t_heap
-             0 | t       | t       | public.t_heap
-             1 | t       | t       | public.t_heap
+ gp_segment_id | date_ok | user_ok | sess_ok |      tbl      
+---------------+---------+---------+---------+---------------
+             2 | t       | t       | t       | public.t_heap
+             0 | t       | t       | t       | public.t_heap
+             1 | t       | t       | t       | public.t_heap
 (3 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -197,20 +198,20 @@ select * from t_ao_part;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |               tbl                
----------------+---------+---------+----------------------------------
-             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
-             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
-             0 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
-             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
-             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
-             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
-             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
-             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
-             2 | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+ gp_segment_id | date_ok | user_ok | sess_ok |               tbl                
+---------------+---------+---------+---------+----------------------------------
+             0 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             0 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             0 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+             1 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             1 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             1 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
+             2 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             2 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             2 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_2
 (12 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -229,14 +230,14 @@ select * from t_ao_part where c = 40;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |               tbl                
----------------+---------+---------+----------------------------------
-             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
-             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
-             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+ gp_segment_id | date_ok | user_ok | sess_ok |               tbl                
+---------------+---------+---------+---------+----------------------------------
+             1 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             2 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
+             0 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_ao_part_1_prt_2_2_prt_1
 (6 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -254,14 +255,14 @@ select * from t_ao_part where b = 0;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |               tbl                
----------------+---------+---------+----------------------------------
-             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
-             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
-             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+ gp_segment_id | date_ok | user_ok | sess_ok |               tbl                
+---------------+---------+---------+---------+----------------------------------
+             0 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             1 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
+             2 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_ao_part_1_prt_1_2_prt_2
 (6 rows)
 
 -- One segment
@@ -297,11 +298,11 @@ select * from t_ao;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |     tbl     
----------------+---------+---------+-------------
-             2 | t       | t       | public.t_ao
-             1 | t       | t       | public.t_ao
-             0 | t       | t       | public.t_ao
+ gp_segment_id | date_ok | user_ok | sess_ok |     tbl     
+---------------+---------+---------+---------+-------------
+             2 | t       | t       | t       | public.t_ao
+             1 | t       | t       | t       | public.t_ao
+             0 | t       | t       | t       | public.t_ao
 (3 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -336,20 +337,20 @@ select * from t_aoco_part;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |                tbl                 
----------------+---------+---------+------------------------------------
-             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
-             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
-             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
-             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
-             2 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
-             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
-             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
-             0 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
-             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+ gp_segment_id | date_ok | user_ok | sess_ok |                tbl                 
+---------------+---------+---------+---------+------------------------------------
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_2
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
 (12 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -368,14 +369,14 @@ select * from t_aoco_part where c = 40;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |                tbl                 
----------------+---------+---------+------------------------------------
-             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
-             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
-             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+ gp_segment_id | date_ok | user_ok | sess_ok |                tbl                 
+---------------+---------+---------+---------+------------------------------------
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_2_2_prt_1
 (6 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
@@ -393,14 +394,14 @@ select * from t_aoco_part where b = 0;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |                tbl                 
----------------+---------+---------+------------------------------------
-             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             0 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
-             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             1 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
-             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
-             2 | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+ gp_segment_id | date_ok | user_ok | sess_ok |                tbl                 
+---------------+---------+---------+---------+------------------------------------
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             0 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             1 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_1
+             2 | t       | t       | t       | public.t_aoco_part_1_prt_1_2_prt_2
 (6 rows)
 
 -- One segment
@@ -436,11 +437,11 @@ select * from t_aoco;
 (0 rows)
 
 select * from show_log(:'before_query');
- gp_segment_id | date_ok | user_ok |      tbl      
----------------+---------+---------+---------------
-             1 | t       | t       | public.t_aoco
-             2 | t       | t       | public.t_aoco
-             0 | t       | t       | public.t_aoco
+ gp_segment_id | date_ok | user_ok | sess_ok |      tbl      
+---------------+---------+---------+---------+---------------
+             1 | t       | t       | t       | public.t_aoco
+             2 | t       | t       | t       | public.t_aoco
+             0 | t       | t       | t       | public.t_aoco
 (3 rows)
 
 select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
