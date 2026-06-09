@@ -27,7 +27,7 @@ begin
   end loop;
 
   execute 'create external table access_log
-           (logtime timestamp with time zone, loguser text, tbl text)
+           (logtime timestamp with time zone, loguser text, logsession text, tbl text)
            location (' || locations || ') format ''csv''';
 end $$;
 
@@ -36,11 +36,12 @@ load '$libdir/access_log.so';
 
 
 create or replace function show_log(before_query text)
-  returns table(gp_segment_id int, date_ok bool, user_ok bool, tbl text)
+  returns table(gp_segment_id int, date_ok bool, user_ok bool, sess_ok bool, tbl text)
 as $$
   select gp_segment_id,
     logtime between before_query::timestamp with time zone and now() date_ok,
     loguser=current_user user_ok,
+    logsession = 'con' || current_setting('gp_session_id') sess_ok, 
     tbl
   from access_log;
 $$ language sql;
