@@ -96,6 +96,30 @@ typedef struct ApplyShareInputContext
 	int		   *sliceMarks;			/* one for each producer */
 	int			producer_count;
 
+	int		   *subplan_motids;		/* motId for each subplan, indexed by plan_id-1 */
+	int			num_subplans;
+
+	bool		walking_subplan;	/* true when walking a SubPlan tree */
+
+	/*
+	 * Track already-inlined cross-slice producers so that a second consumer
+	 * of the same CTE in the same slice can share the inlined copy instead
+	 * of creating yet another independent scan.
+	 *
+	 * Each entry maps (orig_share_id, motId) → new_share_id.
+	 */
+	int		   *inlined_orig_ids;	/* original share_id */
+	int		   *inlined_mot_ids;	/* slice (motId) where it was inlined */
+	int		   *inlined_new_ids;	/* new share_id of the inlined producer */
+	int			inlined_count;
+
+	/*
+	 * Consumer reference counts for original producers, used to detect
+	 * orphaned producers after inlining (those with zero remaining consumers).
+	 */
+	int		   *consumer_counts;	/* consumer count per producer */
+	int			orig_producer_count;	/* producer_count before inlining */
+
 } ApplyShareInputContext;
 
 

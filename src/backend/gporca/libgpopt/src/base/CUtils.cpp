@@ -915,7 +915,21 @@ struct SCTEInfo
 	ULONG cteId;
 	ULONG sliceId;
 
-	SCTEInfo(ULONG cte_id, ULONG slice_id) : cteId(cte_id), sliceId(slice_id)
+	// For a Producer: true if its CTE body is a single replicated base
+	// scan, i.e. apply_shareinput_xslice can materialize it locally per
+	// Consumer slice. Unused for Consumers.
+	BOOL repairable;
+
+	// For a Consumer: true if it sits inside the inner (SubPlan) side of a
+	// correlated NL join. Only such Consumers become executor SubPlans that
+	// apply_shareinput_xslice rewrites. Unused for Producers.
+	BOOL withinSubPlan;
+
+	SCTEInfo(ULONG cte_id, ULONG slice_id, BOOL repair, BOOL within_subplan)
+		: cteId(cte_id),
+		  sliceId(slice_id),
+		  repairable(repair),
+		  withinSubPlan(within_subplan)
 	{
 	}
 };
@@ -925,8 +939,10 @@ typedef CDynamicPtrArray<SCTEInfo, CleanupDelete<SCTEInfo> > CTEInfoArray;
 // True if the operator is a correlated NL join. Its inner side becomes
 // an executor SubPlan that runs in its own slice, so a CTE Consumer
 // there is cross-slice w.r.t. a Producer outside -- which can deadlock
-// the ShareInputScan writer. We treat the inner side as a slice
-// boundary so the check below catches it.
+// the ShareInputScan writer. apply_shareinput_xslice can only repair such
+// a Consumer when the CTE body is a single replicated base scan; a
+// branching body (e.g. a UNION ALL -> Append) cannot be materialized
+// locally, so that shape still has to fall back.
 //
 // These are all of ORCA's SubPlan-producing operators. Add new ones here.
 static BOOL
@@ -941,15 +957,92 @@ FCorrelatedNLJoin(COperator *pop)
 			COperator::EopPhysicalCorrelatedNotInLeftAntiSemiNLJoin == eopid);
 }
 
+// True if the operator is a physical scan over a base relation. These are
+// the leaf operators apply_shareinput_xslice recognizes when it walks the
+// producer subtree down to a single Scan in order to copy it locally.
+static BOOL
+FPhysicalBaseTableScan(COperator *pop)
+{
+	COperator::EOperatorId eopid = pop->Eopid();
+	return (COperator::EopPhysicalTableScan == eopid ||
+			COperator::EopPhysicalDynamicTableScan == eopid ||
+			COperator::EopPhysicalIndexScan == eopid ||
+			COperator::EopPhysicalIndexOnlyScan == eopid ||
+			COperator::EopPhysicalDynamicIndexScan == eopid ||
+			COperator::EopPhysicalBitmapTableScan == eopid ||
+			COperator::EopPhysicalDynamicBitmapTableScan == eopid);
+}
+
+// Mirror apply_shareinput_xslice's leaf walk: follow the single relational
+// (non-scalar) child down the producer body. The replicated CTE can be
+// materialized locally per Consumer slice iff that spine ends in exactly
+// one base table scan. A body that branches -- a UNION ALL (-> Append) or a
+// join, which has more than one relational child -- has no single lefttree
+// for the executor pass to copy, so it is NOT locally repairable and the
+// cross-slice Consumer must fall back.
+static BOOL
+FProducerBodySingleScan(CExpression *pexpr)
+{
+	COperator *pop = pexpr->Pop();
+
+	// A Motion inside the body moves rows between segments, so the body is
+	// not purely-local replicated data the executor pass can copy. Bail
+	// out (mirrors apache/cloudberry shareinput_subtree_is_replicated).
+	if (CUtils::FPhysicalMotion(pop))
+	{
+		return false;
+	}
+
+	if (FPhysicalBaseTableScan(pop))
+	{
+		return true;
+	}
+
+	CExpression *pexprRelChild = NULL;
+	ULONG relChildren = 0;
+	for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
+	{
+		if (!(*pexpr)[ul]->Pop()->FScalar())
+		{
+			relChildren++;
+			pexprRelChild = (*pexpr)[ul];
+		}
+	}
+
+	// Exactly one relational child: keep walking the spine. Zero (a
+	// non-scan leaf) or several (UnionAll / Append / Join): not a single
+	// base scan.
+	if (1 == relChildren)
+	{
+		return FProducerBodySingleScan(pexprRelChild);
+	}
+
+	return false;
+}
+
 // Walk the physical tree, recording the slice id of every replicated
-// CTE Producer and every CTE Consumer. Slices are delimited by Motion
-// nodes and by the SubPlan (inner) side of correlated NL joins: each
-// such non-scalar child lives in a fresh slice -- same motId-stack idea
-// as in apply_shareinput_xslice.
+// CTE Producer and every CTE Consumer. Slices are delimited by
+// duplicate-hazard Motion nodes (broadcast of a strict-replicated /
+// universal input) and by the SubPlan (inner) side of correlated NL
+// joins: each such non-scalar child lives in a fresh slice -- same
+// motId-stack idea as in apply_shareinput_xslice.
+//
+// Plain (non-duplicate-hazard) Motions are deliberately NOT treated as
+// slice boundaries here: a replicated CTE Consumer reached only across
+// such Motions is repaired natively by apply_shareinput_xslice (local
+// materialization), so it must stay in its Producer's slice and not
+// trigger a fallback.
+//
+// For each Producer we also record whether its body is a single
+// replicated base scan (repairable), and for each Consumer whether it is
+// inside a correlated NL join's inner SubPlan side (withinSubPlan). The
+// caller combines the two: a cross-slice Consumer that is withinSubPlan
+// over a repairable Producer is fixed locally by apply_shareinput_xslice
+// and does NOT fall back; everything else cross-slice does.
 static void
 CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
-				 ULONG *pNextSlice, CTEInfoArray *prodInfos,
-				 CTEInfoArray *consInfos)
+				 ULONG *pNextSlice, BOOL withinSubPlan,
+				 CTEInfoArray *prodInfos, CTEInfoArray *consInfos)
 {
 	COperator *pop = pexpr->Pop();
 
@@ -966,18 +1059,27 @@ CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
 		if (FReplicatedLikeDistribution(pdpplan->Pds()->Edt()))
 		{
 			prodInfos->Append(GPOS_NEW(mp) SCTEInfo(
-				CPhysicalCTEProducer::PopConvert(pop)->UlCTEId(), curSlice));
+				CPhysicalCTEProducer::PopConvert(pop)->UlCTEId(), curSlice,
+				FProducerBodySingleScan(pexprChild), false /*withinSubPlan*/));
 		}
 	}
 	else if (COperator::EopPhysicalCTEConsumer == pop->Eopid())
 	{
-		// Consumer is a leaf -- record (cteId, curSlice) and let the
-		// caller decide later, once the whole tree has been walked.
+		// Consumer is a leaf -- record (cteId, curSlice, withinSubPlan)
+		// and let the caller decide later, once the whole tree has been
+		// walked.
 		consInfos->Append(GPOS_NEW(mp) SCTEInfo(
-			CPhysicalCTEConsumer::PopConvert(pop)->UlCTEId(), curSlice));
+			CPhysicalCTEConsumer::PopConvert(pop)->UlCTEId(), curSlice,
+			false /*repairable*/, withinSubPlan));
 	}
 
 	BOOL isMotion = CUtils::FPhysicalMotion(pop);
+	// Only a duplicate-hazard Motion (broadcast / gather of a
+	// strict-replicated or universal input) opens a slice that
+	// apply_shareinput_xslice cannot repair locally; plain Motions do
+	// not. FDuplicateHazardMotion asserts its argument is a Motion, so
+	// guard the call with isMotion.
+	BOOL isDupHazardMotion = isMotion && CUtils::FDuplicateHazardMotion(pexpr);
 	BOOL isCorrelatedNLJoin = FCorrelatedNLJoin(pop);
 
 	for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
@@ -992,23 +1094,54 @@ CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
 		}
 
 		// Allocate a fresh slice id for each non-scalar child of a
-		// Motion, and for the inner (subquery) side of a correlated NL
-		// join -- which the executor materializes as a SubPlan running
-		// in its own slice. Otherwise the child stays in the parent's
-		// slice. (For a NL join child 0 is the outer relation and child
-		// 1 is the inner/subquery relation.)
+		// duplicate-hazard Motion, and for the inner (subquery) side of
+		// a correlated NL join -- which the executor materializes as a
+		// SubPlan running in its own slice. Otherwise the child stays in
+		// the parent's slice. (For a NL join child 0 is the outer
+		// relation and child 1 is the inner/subquery relation.)
 		ULONG childSlice = curSlice;
-		if (isMotion || (isCorrelatedNLJoin && 1 == ul))
+		BOOL childWithinSubPlan = withinSubPlan;
+		if (isCorrelatedNLJoin && 1 == ul)
+		{
+			(*pNextSlice)++;
+			childSlice = *pNextSlice;
+			childWithinSubPlan = true;
+		}
+		else if (isDupHazardMotion)
 		{
 			(*pNextSlice)++;
 			childSlice = *pNextSlice;
 		}
 
-		CollectCTESlices(mp, pexprChild, childSlice, pNextSlice, prodInfos,
-						 consInfos);
+		CollectCTESlices(mp, pexprChild, childSlice, pNextSlice,
+						 childWithinSubPlan, prodInfos, consInfos);
 	}
 }
 
+//---------------------------------------------------------------------------
+//	@function:
+//		CUtils::FHasCrossSliceReplicatedCTEConsumer
+//
+//	@doc:
+//		Detect a replicated CTE Consumer that ends up on a different slice
+//		than its Producer and whose cross-slice shared-scan topology hangs at
+//		execution and cannot be repaired by apply_shareinput_xslice.
+//
+//		CollectCTESlices opens a fresh slice at a duplicate-hazard Motion
+//		(broadcast / gather of a strict-replicated or universal input --
+//		greengage 51fe92e) and at the inner (SubPlan) side of a correlated NL
+//		join. A cross-slice replicated Consumer is left to the native
+//		local-materialization pass -- and so does NOT fall back -- only when
+//		both hold:
+//		  * it is inside a correlated NL join's SubPlan (withinSubPlan), and
+//		  * its Producer's body is a single replicated base scan (repairable),
+//		which is exactly what apply_shareinput_xslice can copy locally.
+//
+//		Everything else cross-slice falls back: a broadcast/duplicate-hazard
+//		join topology (the Consumer is not in a SubPlan), and a correlated
+//		scalar subquery whose CTE body is not a single base scan (e.g. a
+//		UNION ALL -> Append), which the executor pass cannot materialize.
+//---------------------------------------------------------------------------
 BOOL
 CUtils::FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp, CExpression *pexpr)
 {
@@ -1021,8 +1154,8 @@ CUtils::FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp, CExpression *pexpr)
 	CTEInfoArray *consInfos = GPOS_NEW(mp) CTEInfoArray(mp);
 	ULONG nextSlice = 0;
 
-	CollectCTESlices(mp, pexpr, 0 /*curSlice*/, &nextSlice, prodInfos,
-					 consInfos);
+	CollectCTESlices(mp, pexpr, 0 /*curSlice*/, &nextSlice,
+					 false /*withinSubPlan*/, prodInfos, consInfos);
 
 	BOOL cross = false;
 
@@ -1035,6 +1168,15 @@ CUtils::FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp, CExpression *pexpr)
 			SCTEInfo *prod = (*prodInfos)[ip];
 			if (prod->cteId == cons->cteId && prod->sliceId != cons->sliceId)
 			{
+				// apply_shareinput_xslice repairs this Consumer locally
+				// only when it is inside a correlated NL join's SubPlan
+				// and the Producer body is a single replicated base scan.
+				// Then it is safe and must not trigger a fallback.
+				if (cons->withinSubPlan && prod->repairable)
+				{
+					continue;
+				}
+
 				cross = true;
 				goto lExit;
 			}
