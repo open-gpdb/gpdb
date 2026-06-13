@@ -922,10 +922,30 @@ struct SCTEInfo
 
 typedef CDynamicPtrArray<SCTEInfo, CleanupDelete<SCTEInfo> > CTEInfoArray;
 
+// True if the operator is a correlated NL join. Its inner side becomes
+// an executor SubPlan that runs in its own slice, so a CTE Consumer
+// there is cross-slice w.r.t. a Producer outside -- which can deadlock
+// the ShareInputScan writer. We treat the inner side as a slice
+// boundary so the check below catches it.
+//
+// These are all of ORCA's SubPlan-producing operators. Add new ones here.
+static BOOL
+FCorrelatedNLJoin(COperator *pop)
+{
+	COperator::EOperatorId eopid = pop->Eopid();
+	return (COperator::EopPhysicalCorrelatedInnerNLJoin == eopid ||
+			COperator::EopPhysicalCorrelatedLeftOuterNLJoin == eopid ||
+			COperator::EopPhysicalCorrelatedLeftSemiNLJoin == eopid ||
+			COperator::EopPhysicalCorrelatedInLeftSemiNLJoin == eopid ||
+			COperator::EopPhysicalCorrelatedLeftAntiSemiNLJoin == eopid ||
+			COperator::EopPhysicalCorrelatedNotInLeftAntiSemiNLJoin == eopid);
+}
+
 // Walk the physical tree, recording the slice id of every replicated
 // CTE Producer and every CTE Consumer. Slices are delimited by Motion
-// nodes: each non-scalar child of a Motion lives in a fresh slice --
-// same motId-stack idea as in apply_shareinput_xslice.
+// nodes and by the SubPlan (inner) side of correlated NL joins: each
+// such non-scalar child lives in a fresh slice -- same motId-stack idea
+// as in apply_shareinput_xslice.
 static void
 CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
 				 ULONG *pNextSlice, CTEInfoArray *prodInfos,
@@ -958,6 +978,7 @@ CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
 	}
 
 	BOOL isMotion = CUtils::FPhysicalMotion(pop);
+	BOOL isCorrelatedNLJoin = FCorrelatedNLJoin(pop);
 
 	for (ULONG ul = 0; ul < pexpr->Arity(); ul++)
 	{
@@ -971,9 +992,13 @@ CollectCTESlices(CMemoryPool *mp, CExpression *pexpr, ULONG curSlice,
 		}
 
 		// Allocate a fresh slice id for each non-scalar child of a
-		// Motion; otherwise the child stays in the parent's slice.
+		// Motion, and for the inner (subquery) side of a correlated NL
+		// join -- which the executor materializes as a SubPlan running
+		// in its own slice. Otherwise the child stays in the parent's
+		// slice. (For a NL join child 0 is the outer relation and child
+		// 1 is the inner/subquery relation.)
 		ULONG childSlice = curSlice;
-		if (isMotion)
+		if (isMotion || (isCorrelatedNLJoin && 1 == ul))
 		{
 			(*pNextSlice)++;
 			childSlice = *pNextSlice;

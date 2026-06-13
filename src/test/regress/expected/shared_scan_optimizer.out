@@ -291,6 +291,38 @@ WITH
 
 RESET statement_timeout;
 DROP TABLE ss_t1, ss_t2;
+-- ORCA should also fall back when the replicated CTE is referenced from
+-- *correlated* scalar subqueries. These become correlated NL joins whose
+-- inner side runs as a SubPlan in its own slice. Counting only Motion
+-- nodes misses this, so the ShareInputScan writer hangs waiting for a
+-- DONE ack from the reader slice. The walk must treat the correlated-join
+-- inner side as a separate slice.
+CREATE TABLE ss_c2 (id numeric, refrcode varchar(255), referenceid numeric)
+  DISTRIBUTED REPLICATED;
+CREATE TABLE ss_c1 (id bigint, iscalctrg varchar(15) NOT NULL,
+                    iscalcdetail varchar(15))
+  DISTRIBUTED REPLICATED;
+INSERT INTO ss_c2 SELECT i, 'A'||(i%5), 101991 FROM generate_series(1, 50000) i;
+INSERT INTO ss_c1
+  SELECT i, 'A'||(i%5), 'A'||(i%7) FROM generate_series(1, 50000) i;
+ANALYZE ss_c1;
+ANALYZE ss_c2;
+SET statement_timeout = '15s';
+WITH cte AS (
+    SELECT id, refrcode FROM ss_c2 WHERE referenceid = 101991 AND id <  25000
+    UNION ALL
+    SELECT id, refrcode FROM ss_c2 WHERE referenceid = 101991 AND id >= 25000
+)
+  SELECT (SELECT refrcode FROM cte WHERE refrcode = p.iscalctrg    LIMIT 1) = 'A1'
+     AND (SELECT refrcode FROM cte WHERE refrcode = p.iscalcdetail LIMIT 1) = 'A1' AS ok
+  FROM ss_c1 p WHERE p.id = 1;
+ ok 
+----
+ t
+(1 row)
+
+RESET statement_timeout;
+DROP TABLE ss_c1, ss_c2;
 -- Test the scenario which already opened many fds
 -- start_ignore
 RESET search_path;
