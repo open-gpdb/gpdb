@@ -311,3 +311,10 @@
 /* #define HEAPDEBUGALL */
 /* #define ACLDEBUG */
 /* #define RTDEBUG */
+
+/*
+ * OPENGPDB marks this distribution as open-gpdb, so extensions can tell it
+ * apart from other Greenplum forks (e.g. GreengageDB) at compile time and
+ * pick the right call when an internal API differs between forks.
+ */
+#define OPENGPDB 1
