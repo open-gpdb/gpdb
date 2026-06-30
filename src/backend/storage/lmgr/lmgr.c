@@ -1144,7 +1144,7 @@ LockTagIsTemp(const LOCKTAG *tag)
 }
 
 /*
- * Because of the current disign of AO table's visibility map,
+ * Because of the current design of AO table's visibility map,
  * we have to keep upgrading locks for AO table.
  */
 bool
