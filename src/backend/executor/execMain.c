@@ -1152,6 +1152,19 @@ standard_ExecutorRun(QueryDesc *queryDesc,
 				 */
 				EndpointNotifyQD(ENDPOINT_READY_ACK_MSG);
 
+#ifdef FAULT_INJECTOR
+				/*
+				 * Testing hook: DECLARE has already returned (endpoint created,
+				 * QD notified) but the plan hasn't run yet. A test pauses here so
+				 * an execution error surfaces only after DECLARE and is caught by
+				 * the timeout mechanism instead of racing with DECLARE.
+				 */
+				FaultInjector_InjectFaultIfSet("parallel_retrieve_cursor_before_exec",
+											   DDLNotSpecified,
+											   "" /* databaseName */,
+											   "" /* tableName */);
+#endif /* FAULT_INJECTOR */
+
 				ExecutePlan(estate,
 							queryDesc->planstate,
 							operation,
