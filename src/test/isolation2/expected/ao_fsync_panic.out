@@ -76,6 +76,15 @@ CHECKPOINT
 1: INSERT INTO ao_fsync_panic_tbl SELECT generate_series(200, 299);
 INSERT 100
 
+-- Arm the fault on the content-0 mirror before promotion.
+-- start_ignore
+2: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'skip', dbid) FROM gp_segment_configuration WHERE role = 'm' AND content = 0;
+ gp_inject_fault 
+-----------------
+ Success:        
+(1 row)
+-- end_ignore
+
 -- Stop the primary immediately and promote the mirror.
 2: SELECT pg_ctl(datadir, 'stop', 'immediate') FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
  pg_ctl 
@@ -88,16 +97,16 @@ INSERT 100
  t                         
 (1 row)
 
--- Wait for the end of recovery CHECKPOINT completed after the mirror was promoted,
--- to ensure the CHECKPOINT record to be appended right after the END_OF_RECOVERY record.
--- Note, if the TRUNCATE operation interleaves between the END_OF_RECOVERY and the
--- CHECKPOINT record, PANIC might happen due to a fsync request being queued for an unlinked AO file,
--- is not forgotten in this case.
-2: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'skip', dbid) FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
- gp_inject_fault 
------------------
- Success:        
+-- Wait until the promoted primary accepts connections (0U retries), then
+-- confirm the end-of-recovery checkpoint finished before the TRUNCATE below
+-- (else a fsync for an unlinked AO file could cause a PANIC).
+-- start_ignore
+0U: SELECT 1;
+ ?column? 
+----------
+ 1        
 (1 row)
+0Uq:
 2: SELECT gp_wait_until_triggered_fault('checkpoint_after_redo_calculated', 1, dbid) FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
  gp_wait_until_triggered_fault 
 -------------------------------
@@ -108,6 +117,7 @@ INSERT 100
 -----------------
  Success:        
 (1 row)
+-- end_ignore
 
 -- Expect to see the content 0, preferred primary is mirror and it's down;
 -- the preferred mirror is primary and it's up and not-in-sync.

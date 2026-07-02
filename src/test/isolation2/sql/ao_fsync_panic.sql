@@ -3,7 +3,7 @@ include: helpers/server_helpers.sql;
 -- setup
 -- Set fsync on since we need to test the fsync code logic.
 !\retcode gpconfig -c fsync -v on --skipvalidation;
--- Set create_restartpoint_on_ckpt_record_replay to trigger creating 
+-- Set create_restartpoint_on_ckpt_record_replay to trigger creating
 -- restart point easily.
 !\retcode gpconfig -c create_restartpoint_on_ckpt_record_replay -v on --skipvalidation;
 !\retcode gpstop -u;
@@ -19,14 +19,14 @@ CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
 -- The primary segment then crashed after the checkpoint completed.
 -- After the mirror segment is promoted to new primary, a truncate request
 -- is received to truncate this AO table. Then both old relfilenode and its
--- segment files are removed when executing gprecoverseg. 
+-- segment files are removed when executing gprecoverseg.
 -- On the old primary (new mirror), those files are also removed but only
--- the old refilenode segment files will be re-generated due to the insert 
+-- the old refilenode segment files will be re-generated due to the insert
 -- records during WAL replay. This will queue fsync request to checkpointer
 -- and will not be forgotten in later flush. Later restart point creation will
 -- flush the buffer to disk and expect to access the AO old base relfilenode
 -- file (.0), while it was removed by pg_rewind previously, therefore PANIC
--- at mdsync during creating restart point. 
+-- at mdsync during creating restart point.
 -- The fix is intended to remove the logic of accessing the base relfilenode
 -- file when the target is a segment file in the above fsync scenario.
 
@@ -48,21 +48,27 @@ CREATE EXTENSION IF NOT EXISTS gp_inject_fault;
 -- Create more insert records.
 1: INSERT INTO ao_fsync_panic_tbl SELECT generate_series(200, 299);
 
+-- Arm the fault on the content-0 mirror before promotion.
+-- start_ignore
+2: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'skip', dbid)
+    FROM gp_segment_configuration WHERE role = 'm' AND content = 0;
+-- end_ignore
+
 -- Stop the primary immediately and promote the mirror.
 2: SELECT pg_ctl(datadir, 'stop', 'immediate') FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
 2: SELECT gp_request_fts_probe_scan();
 
--- Wait for the end of recovery CHECKPOINT completed after the mirror was promoted,
--- to ensure the CHECKPOINT record to be appended right after the END_OF_RECOVERY record.
--- Note, if the TRUNCATE operation interleaves between the END_OF_RECOVERY and the
--- CHECKPOINT record, PANIC might happen due to a fsync request being queued for an unlinked AO file,
--- is not forgotten in this case.
-2: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'skip', dbid)
-    FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
+-- Wait until the promoted primary accepts connections (0U retries), then
+-- confirm the end-of-recovery checkpoint finished before the TRUNCATE below
+-- (else a fsync for an unlinked AO file could cause a PANIC).
+-- start_ignore
+0U: SELECT 1;
+0Uq:
 2: SELECT gp_wait_until_triggered_fault('checkpoint_after_redo_calculated', 1, dbid)
     FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
 2: SELECT gp_inject_fault('checkpoint_after_redo_calculated', 'reset', dbid)
     FROM gp_segment_configuration WHERE role = 'p' AND content = 0;
+-- end_ignore
 
 -- Expect to see the content 0, preferred primary is mirror and it's down;
 -- the preferred mirror is primary and it's up and not-in-sync.
