@@ -999,23 +999,39 @@ CUtils::FHasCrossSliceReplicatedCTEConsumer(CMemoryPool *mp, CExpression *pexpr)
 	CollectCTESlices(mp, pexpr, 0 /*curSlice*/, &nextSlice, prodInfos,
 					 consInfos);
 
+	// Fall back only when one replicated CTE is consumed in two or more
+	// different slices (e.g. joined twice on different columns) -- that is the
+	// case that hangs. One consumer, or several in the same slice, stays on
+	// ORCA.
 	BOOL cross = false;
 
-	for (ULONG ic = 0; ic < consInfos->Size(); ic++)
+	for (ULONG ip = 0; ip < prodInfos->Size() && !cross; ip++)
 	{
-		SCTEInfo *cons = (*consInfos)[ic];
+		SCTEInfo *prod = (*prodInfos)[ip];
 
-		for (ULONG ip = 0; ip < prodInfos->Size(); ip++)
+		ULONG firstConsSlice = 0;
+		BOOL haveFirst = false;
+
+		for (ULONG ic = 0; ic < consInfos->Size(); ic++)
 		{
-			SCTEInfo *prod = (*prodInfos)[ip];
-			if (prod->cteId == cons->cteId && prod->sliceId != cons->sliceId)
+			SCTEInfo *cons = (*consInfos)[ic];
+			if (cons->cteId != prod->cteId)
+			{
+				continue;
+			}
+
+			if (!haveFirst)
+			{
+				firstConsSlice = cons->sliceId;
+				haveFirst = true;
+			}
+			else if (cons->sliceId != firstConsSlice)
 			{
 				cross = true;
-				goto lExit;
+				break;
 			}
 		}
 	}
-lExit:
 
 	prodInfos->Release();
 	consInfos->Release();
