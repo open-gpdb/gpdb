@@ -88,13 +88,22 @@ typedef struct ApplyShareInputContext
 	int		   *share_refcounts;
 	int			share_refcounts_sz;		/* allocated sized of 'share_refcounts' */
 	List *motStack;
+	List *covStack;					/* parallel to motStack: segment-coverage
+									 * key of each enclosing slice */
 	List *qdShares;
 	List *qdSlices;
 	int nextPlanId;
 
 	ShareInputScan **producers;
 	int		   *sliceMarks;			/* one for each producer */
+	int		   *producerCoverage;	/* one per producer: coverage key of the
+									 * slice its producer runs in */
 	int			producer_count;
+
+	bool		crossSliceCoverageHazard;	/* a cross-slice shared scan whose
+											 * producer and consumer slices run
+											 * on different segment sets was
+											 * found; ORCA plan must fall back */
 
 } ApplyShareInputContext;
 
