@@ -661,6 +661,15 @@ typedef struct EState
 
 	/* Should the executor skip past the alien plan nodes */
 	bool eliminateAliens;
+
+	/*
+	 * Longest time (in seconds) any cross-slice ShareInputScan consumer in
+	 * this query spent blocked waiting for its producer slice to publish.
+	 * Rolled up here per query per segment so the stats collector can report
+	 * it query-level; yagpcc then takes the max across segments, exposing
+	 * slice-to-slice wait skew. Kept last in the struct to minimize ABI churn.
+	 */
+	double		es_cross_slice_wait;
 } EState;
 
 struct PlanState;
@@ -2492,11 +2501,25 @@ typedef struct ShareInputScanState
 	bool		freed; /* is this node already freed? */
 
 	char	   *share_bufname_prefix;
+
+	/*
+	 * How long this consumer blocked waiting for the producer slice to
+	 * publish its tuplestore.  The wait is invisible in the plan otherwise,
+	 * which makes a mis-wired cross-slice share look like a slow node rather
+	 * than a node blocked on another slice.  Reported by EXPLAIN ANALYZE.
+	 *
+	 * The producer's own wait (for consumers to finish) is not tracked here:
+	 * the producer side of a cross-slice share is the Material or Sort node
+	 * below, and that wait happens during node shutdown anyway, after this
+	 * node's stats have been sent to the QD.  It is logged instead.
+	 */
+	instr_time	waitready_time; /* consumer waited for producer's tuplestore */
 } ShareInputScanState;
 
 /* XXX Should move into buf file */
 extern void *shareinput_init_lk_ctxt(int share_id);
-extern void shareinput_reader_waitready(void *, int share_id, PlanGenerator planGen);
+extern void shareinput_reader_waitready(void *, int share_id, PlanGenerator planGen,
+										instr_time *waited);
 extern void shareinput_writer_notifyready(void *, int share_id, int nsharer_xslice_notify_ready, PlanGenerator planGen);
 extern void shareinput_reader_notifydone(void *, int share_id);
 extern void shareinput_writer_waitdone(void *, int share_id, int nsharer_xslice_wait_done);
