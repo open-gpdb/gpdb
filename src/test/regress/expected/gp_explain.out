@@ -348,6 +348,58 @@ explain analyze SELECT * FROM explaintest;
  Total runtime: 2.600 ms
 (8 rows)
 
+-- The checks below depend on the shape of the plan, so use the Postgres
+-- planner to keep them independent of the optimizer in use.  They pick the
+-- "Rows out" lines out of the plan instead of printing it whole, so atmsort
+-- must be told not to treat the result as a plan of its own.
+set optimizer=off;
+-- Segments that did not run the node must not be counted.  Direct dispatch
+-- sends the scan to segments 0 and 2 only, so segment 1 must not show up as
+-- a worker that produced zero rows.
+-- explain_processing_off
+WITH query_plan (et) AS
+(
+  select get_explain_analyze_output($$
+    SELECT * FROM explaintest WHERE id in (2, 5);
+  $$)
+)
+SELECT trim(et) FROM query_plan WHERE et like '%Rows out:%';
+                                    btrim                                     
+------------------------------------------------------------------------------
+ Rows out: 2.00 rows avg x 1 workers, 2 rows max (seg-1), 2 rows min (seg-1).
+ Rows out: 1.00 rows avg x 2 workers, 1 rows max (seg0), 1 rows min (seg0).
+(2 rows)
+
+-- explain_processing_on
+-- The figures are reported per loop, so that they match the row count
+-- printed on the node itself.  The Materialize node below is rescanned once
+-- per outer row.
+set enable_hashjoin=off;
+set enable_mergejoin=off;
+CREATE TABLE explaintest_small (id int4) DISTRIBUTED BY (id);
+INSERT INTO explaintest_small SELECT generate_series(1, 3);
+-- explain_processing_off
+WITH query_plan (et) AS
+(
+  select get_explain_analyze_output($$
+    SELECT * FROM explaintest e, explaintest_small s WHERE e.id = s.id;
+  $$)
+)
+SELECT trim(et) FROM query_plan WHERE et like '%Rows out:%';
+                                    btrim                                     
+------------------------------------------------------------------------------
+ Rows out: 3.00 rows avg x 1 workers, 3 rows max (seg-1), 3 rows min (seg-1).
+ Rows out: 1.00 rows avg x 3 workers, 2 rows max (seg0), 0 rows min (seg2).
+ Rows out: 3.33 rows avg x 3 workers, 5 rows max (seg0), 1 rows min (seg1).
+ Rows out: 1.00 rows avg x 3 workers, 2 rows max (seg0), 0 rows min (seg2).
+ Rows out: 1.00 rows avg x 3 workers, 2 rows max (seg0), 0 rows min (seg2).
+(5 rows)
+
+-- explain_processing_on
+DROP TABLE explaintest_small;
+set enable_hashjoin=DEFAULT;
+set enable_mergejoin=DEFAULT;
+set optimizer=DEFAULT;
 set gp_enable_explain_rows_out=DEFAULT;
 -- Test explain node summary.
 set gp_enable_explain_node_summary=on;

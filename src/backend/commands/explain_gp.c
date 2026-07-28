@@ -2020,59 +2020,76 @@ cdbexplain_showExecStats(struct PlanState *planstate, ExplainState *es)
 	 * Print "Rows out"
 	 */
 
-	if (gp_enable_explain_rows_out && es->analyze && ns->ninst > 0) {
-		double alltuples = 0;
-		double maxtuples = ns->insts[0].ntuples;
-		int maxseg = 0;
-		double mintuples = ns->insts[0].ntuples;
-		int minseg = 0;
+	if (gp_enable_explain_rows_out && es->analyze && ns->ninst > 0)
+	{
+		double		alltuples = 0;
+		double		maxtuples = 0;
+		int			maxseg = -1;
+		double		mintuples = 0;
+		int			minseg = -1;
+		int			workercount = 0;
 
 		for (i = 0; i < ns->ninst; i++)
 		{
 			CdbExplain_StatInst *nsi = &ns->insts[i];
+			double		rows;
 
-			alltuples += nsi->ntuples;
+			/*
+			 * The insts array is allocated with palloc0 and only the slots of
+			 * the segments that actually ran this node are filled in, so an
+			 * unset pstype means the segment did not participate.  Counting
+			 * such slots would report a bogus minimum of zero rows and drag
+			 * the average down.
+			 */
+			if (nsi->pstype == T_Invalid)
+				continue;
 
-			if (nsi->ntuples > maxtuples) {
-				maxtuples = nsi->ntuples;
+			/* Report rows per loop, like the row count on the node itself. */
+			rows = nsi->nloops > 0 ? nsi->ntuples / nsi->nloops : 0;
+
+			if (workercount == 0 || rows > maxtuples)
+			{
+				maxtuples = rows;
 				maxseg = ns->segindex0 + i;
 			}
 
-			if (nsi->ntuples < mintuples) {
-				mintuples = nsi->ntuples;
+			if (workercount == 0 || rows < mintuples)
+			{
+				mintuples = rows;
 				minseg = ns->segindex0 + i;
 			}
+
+			alltuples += rows;
+			workercount++;
 		}
 
-		double avgtuples = alltuples / ns->ninst;
-
-		if (es->format == EXPLAIN_FORMAT_TEXT)
+		if (workercount > 0)
 		{
-			/*
-			 * create a header for all stats: separate each individual stat by an
-			 * underscore, separate the grouped stats for each node by a slash
-			 */
-			appendStringInfoSpaces(es->str, es->indent * 2);
-			appendStringInfoString(es->str, "Rows out: ");
+			double		avgtuples = alltuples / workercount;
 
-			appendStringInfo(es->str,
-								 "%0.2f rows avg x %d workers, %0.f rows max (seg%d), %0.f rows min (seg%d).\n",
+			if (es->format == EXPLAIN_FORMAT_TEXT)
+			{
+				appendStringInfoSpaces(es->str, es->indent * 2);
+				appendStringInfoString(es->str, "Rows out: ");
+
+				appendStringInfo(es->str,
+								 "%.2f rows avg x %d workers, %.0f rows max (seg%d), %.0f rows min (seg%d).\n",
 								 avgtuples,
-								 ns->ninst,
+								 workercount,
 								 maxtuples,
 								 maxseg,
 								 mintuples,
 								 minseg);
-		}
-		else {
-			// ExplainOpenGroup("Rows Out", NULL, false, es);
-			ExplainPropertyInteger("Workers", ns->ninst, es);
-			ExplainPropertyFloat("Average Rows", avgtuples, 1, es);
-			ExplainPropertyFloat("Max Rows", maxtuples, 0, es);
-			ExplainPropertyInteger("Max Rows Segment", maxseg, es);
-			ExplainPropertyFloat("Min Rows", mintuples, 0, es);
-			ExplainPropertyInteger("Min Rows Segment", minseg, es);
-			// ExplainCloseGroup("Rows out", NULL, false, es);
+			}
+			else
+			{
+				ExplainPropertyInteger("Workers", workercount, es);
+				ExplainPropertyFloat("Average Rows", avgtuples, 2, es);
+				ExplainPropertyFloat("Max Rows", maxtuples, 0, es);
+				ExplainPropertyInteger("Max Rows Segment", maxseg, es);
+				ExplainPropertyFloat("Min Rows", mintuples, 0, es);
+				ExplainPropertyInteger("Min Rows Segment", minseg, es);
+			}
 		}
 	}
 
