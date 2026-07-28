@@ -250,6 +250,23 @@ set_gp_metrics(gpsc::GPMetrics *metrics, QueryDesc *query_desc,
 		set_metric_instrumentation(metrics->mutable_instrumentation(),
 								   query_desc, nested_calls, nested_time);
 	}
+
+	/*
+	 * Longest cross-slice ShareInputScan wait seen by this process, rolled up
+	 * to the query level in the executor. Reported in milliseconds; yagpcc
+	 * takes the max across segments, so a large gap against the average marks
+	 * a skewed producer slice rather than a slow consumer.
+	 *
+	 * Set outside the block above on purpose: the executor measures the wait
+	 * regardless of instrumentation, and a query killed by statement_timeout --
+	 * the case with no other trace left -- may well run without it. Only a
+	 * non-zero wait is reported, so queries that never waited do not get an
+	 * otherwise empty instrumentation submessage.
+	 */
+	if (query_desc->estate && query_desc->estate->es_cross_slice_wait > 0)
+		metrics->mutable_instrumentation()->set_cross_slice_wait_ms(
+			query_desc->estate->es_cross_slice_wait * 1000.0);
+
 	fill_self_stats(metrics->mutable_systemstat());
 	metrics->mutable_systemstat()->set_runningtimeseconds(
 		time(NULL) - metrics->mutable_systemstat()->runningtimeseconds());
