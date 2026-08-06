@@ -140,7 +140,10 @@ syslogger_write_to_logfile(bool amsyslogger, const char *data, int len)
 	if (amsyslogger)
 		write_syslogger_file_binary(data, len, LOG_DESTINATION_STDERR);
 	else
-		write(fileno(stderr), data, len);
+	{
+		ssize_t		write_rc pg_attribute_unused();
+		write_rc = write(fileno(stderr), data, len);
+	}
 }
 
 static bool chunk_is_postgres_chunk(PipeProtoHeader *hdr)
@@ -1246,6 +1249,8 @@ syslogger_parseArgs(int argc, char *argv[])
 void
 syslogger_append_timestamp(pg_time_t stamp_time, bool amsyslogger, bool append_comma)
 {
+	ssize_t		write_rc pg_attribute_unused();
+
     if(stamp_time != 0)
     {
         char strbuf[128];
@@ -1261,7 +1266,7 @@ syslogger_append_timestamp(pg_time_t stamp_time, bool amsyslogger, bool append_c
 		if (amsyslogger)
 			write_syslogger_file_binary(strbuf, strlen(strbuf), LOG_DESTINATION_STDERR);
 		else
-			write(fileno(stderr), strbuf, strlen(strbuf));
+			write_rc = write(fileno(stderr), strbuf, strlen(strbuf));
     }
 
     if (append_comma)
@@ -1269,7 +1274,7 @@ syslogger_append_timestamp(pg_time_t stamp_time, bool amsyslogger, bool append_c
 		if (amsyslogger)
 			write_syslogger_file_binary(",", 1, LOG_DESTINATION_STDERR);
 		else
-			write(fileno(stderr), ",", 1);
+			write_rc = write(fileno(stderr), ",", 1);
 	}
 }
 
@@ -1286,6 +1291,7 @@ syslogger_append_timestamp(pg_time_t stamp_time, bool amsyslogger, bool append_c
 void
 syslogger_append_current_timestamp(bool amsyslogger)
 {
+	ssize_t		write_rc pg_attribute_unused();
     struct timeval tv;
     pg_time_t	stamp_time;
     char strbuf[128];
@@ -1315,8 +1321,8 @@ syslogger_append_current_timestamp(bool amsyslogger)
 	}
 	else
 	{
-		write(fileno(stderr), strbuf, strlen(strbuf));
-		write(fileno(stderr), ",", 1);
+		write_rc = write(fileno(stderr), strbuf, strlen(strbuf));
+		write_rc = write(fileno(stderr), ",", 1);
 	}
 }
 
@@ -1462,6 +1468,7 @@ syslogger_write_str_from_chunk(CSVChunkStr *chunkstr, bool csv,
 void
 syslogger_write_int32(bool test0, const char *prefix, int32 i, bool amsyslogger, bool append_comma)
 {
+	ssize_t		write_rc pg_attribute_unused();
     char buf[1024];
     int len;
 
@@ -1471,14 +1478,14 @@ syslogger_write_int32(bool test0, const char *prefix, int32 i, bool amsyslogger,
 		if (amsyslogger)
 			write_syslogger_file_binary(buf, len, LOG_DESTINATION_STDERR);
 		else
-			write(fileno(stderr), buf, len);
+			write_rc = write(fileno(stderr), buf, len);
     }
     if (append_comma)
 	{
 		if (amsyslogger)
 			write_syslogger_file_binary(",", 1, LOG_DESTINATION_STDERR);
 		else
-			write(fileno(stderr), ",", 1);
+			write_rc = write(fileno(stderr), ",", 1);
 	}
 }
 
