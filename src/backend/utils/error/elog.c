@@ -3751,6 +3751,7 @@ append_stacktrace(PipeProtoChunk *buffer, StringInfo append, void *const *stacka
 	char symbol[SYMBOL_SIZE]; /* a reasonable size for a symbol */
 	Dl_info dli;
 	int symbol_len;
+	ssize_t		write_rc pg_attribute_unused();
 
 
 	FILE * fd;
@@ -3940,7 +3941,7 @@ append_stacktrace(PipeProtoChunk *buffer, StringInfo append, void *const *stacka
 				if (amsyslogger)
 					write_syslogger_file_binary(symbol, symbol_len, LOG_DESTINATION_STDERR);
 				else
-					write(fileno(stderr), symbol, symbol_len);
+					write_rc = write(fileno(stderr), symbol, symbol_len);
 			}
 		}
 	}
@@ -3953,6 +3954,8 @@ append_stacktrace(PipeProtoChunk *buffer, StringInfo append, void *const *stacka
 static inline void
 write_syslogger_file_string(const char *str, bool amsyslogger, bool append_comma)
 {
+	ssize_t		write_rc pg_attribute_unused();
+
 	if (str != NULL && str[0] != '\0')
 	{
 		if (amsyslogger)
@@ -3963,9 +3966,9 @@ write_syslogger_file_string(const char *str, bool amsyslogger, bool append_comma
 		}
 		else
 		{
-			write(fileno(stderr), "\"", 1);
+			write_rc = write(fileno(stderr), "\"", 1);
 			syslogger_write_str(str, strlen(str), false, true);
-			write(fileno(stderr), "\"", 1);
+			write_rc = write(fileno(stderr), "\"", 1);
 		}
 	}
 
@@ -3974,7 +3977,7 @@ write_syslogger_file_string(const char *str, bool amsyslogger, bool append_comma
 		if (amsyslogger)
 			write_syslogger_file_binary(",", 1, LOG_DESTINATION_STDERR);
 		else
-			write(fileno(stderr), ",", 1);
+			write_rc = write(fileno(stderr), ",", 1);
 	}
 }
 
@@ -3985,6 +3988,8 @@ write_syslogger_file_string(const char *str, bool amsyslogger, bool append_comma
 static void
 write_syslogger_in_csv(ErrorData *edata, bool amsyslogger)
 {
+	ssize_t		write_rc pg_attribute_unused();
+
 	/* timestamp_with_millisecond */
 	syslogger_append_current_timestamp(amsyslogger);
 
@@ -4102,7 +4107,7 @@ write_syslogger_in_csv(ErrorData *edata, bool amsyslogger)
 	if (amsyslogger)
 		write_syslogger_file_binary(LOG_EOL, strlen(LOG_EOL), LOG_DESTINATION_STDERR);
 	else
-		write(fileno(stderr), LOG_EOL, strlen(LOG_EOL));
+		write_rc = write(fileno(stderr), LOG_EOL, strlen(LOG_EOL));
 }
 
 /*
@@ -4603,6 +4608,7 @@ write_pipe_chunks(char *data, int len, int dest)
 {
 	PipeProtoChunk p;
 	int			fd = fileno(stderr);
+	ssize_t		write_rc pg_attribute_unused();
 
 	Assert(len > 0);
 
@@ -4627,7 +4633,7 @@ write_pipe_chunks(char *data, int len, int dest)
 				Assert(p.hdr.pid != 0);
 				Assert(p.hdr.thid != 0);
 #endif
-		write(fd, &p, PIPE_CHUNK_SIZE);
+		write_rc = write(fd, &p, PIPE_CHUNK_SIZE);
 		data += PIPE_MAX_PAYLOAD;
 		len -= PIPE_MAX_PAYLOAD;
 
@@ -4645,7 +4651,7 @@ write_pipe_chunks(char *data, int len, int dest)
 		Assert(PIPE_HEADER_SIZE + len <= PIPE_CHUNK_SIZE);
 #endif
 	memcpy(p.data, data, len);
-	write(fd, &p, PIPE_HEADER_SIZE + len);
+	write_rc = write(fd, &p, PIPE_HEADER_SIZE + len);
 }
 
 
