@@ -256,7 +256,7 @@ parse_hstore(HSParser *state, Node *escontext)
 			{
 				ereturn(escontext, false, 
 					(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
-					errmsg(ERROR, "Unexpected end of string")));
+					errmsg("Unexpected end of string")));
 			}
 			else
 			{
