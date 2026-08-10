@@ -508,6 +508,8 @@ CREATE OPERATOR !+! (PROCEDURE = int4pl, LEFTARG = testdomain1, RIGHTARG = testd
 
 CREATE TABLE test5a (a int, b testdomain1);
 CREATE TABLE test6a OF testtype1;
+CREATE TABLE test6a2 (a int, b text);
+ALTER TABLE test6a2 OF testtype1;
 CREATE TABLE test10a (a int[], b testtype1[]);
 
 CREATE TABLE test9a (a int, b int);
@@ -543,6 +545,8 @@ CREATE OPERATOR !! (PROCEDURE = testfunc5b, RIGHTARG = testdomain1);
 
 CREATE TABLE test5b (a int, b testdomain1);
 CREATE TABLE test6b OF testtype1;
+CREATE TABLE test6b2 (a int, b text);
+ALTER TABLE test6b2 OF testtype1;
 CREATE TABLE test10b (a int[], b testtype1[]);
 
 CREATE TABLE test9b (a int, b int);
@@ -567,6 +571,7 @@ DROP FUNCTION testfunc5b(a testdomain1);
 DROP FUNCTION testfunc6b(b int);
 DROP TABLE test5b;
 DROP TABLE test6b;
+DROP TABLE test6b2;
 DROP TABLE test9b;
 DROP TABLE test10b;
 DROP TYPE test7b;

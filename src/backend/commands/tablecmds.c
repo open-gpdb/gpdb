@@ -19267,11 +19267,16 @@ ATExecAddOf(Relation rel, const TypeName *ofTypename, LOCKMODE lockmode)
 	ObjectAddress tableobj,
 				typeobj;
 	HeapTuple	classtuple;
+	AclResult	aclresult;
 
 	/* Validate the type. */
 	typetuple = typenameType(NULL, ofTypename, NULL);
 	check_of_type(typetuple);
 	typeid = HeapTupleGetOid(typetuple);
+
+	aclresult = object_aclcheck(TypeRelationId, typeid, GetUserId(), ACL_USAGE);
+	if (aclresult != ACLCHECK_OK)
+		aclcheck_error_type(aclresult, typeid);
 
 	/* Fail if the table has any inheritance parents. */
 	inheritsRelation = heap_open(InheritsRelationId, AccessShareLock);
