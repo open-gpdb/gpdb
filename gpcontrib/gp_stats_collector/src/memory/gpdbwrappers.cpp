@@ -152,14 +152,14 @@ gpdb::split_identifier_string(char *rawstring, char separator,
 }
 
 ExplainState
-gpdb::get_explain_state(QueryDesc *query_desc, bool costs) noexcept
+gpdb::get_explain_state(QueryDesc *query_desc, bool costs, bool as_json) noexcept
 {
 	return wrap_noexcept([&]() {
 		ExplainState es;
 		ExplainInitState(&es);
 		es.costs = costs;
 		es.verbose = true;
-		es.format = EXPLAIN_FORMAT_TEXT;
+		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
 		ExplainPrintPlan(&es, query_desc);
 		ExplainEndOutput(&es);
@@ -168,7 +168,7 @@ gpdb::get_explain_state(QueryDesc *query_desc, bool costs) noexcept
 }
 
 ExplainState
-gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze) noexcept
+gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexcept
 {
 	return wrap_noexcept([&]() {
 		ExplainState es;
@@ -178,7 +178,7 @@ gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze) noexcept
 		es.buffers = es.analyze;
 		es.timing = es.analyze;
 		es.summary = es.analyze;
-		es.format = EXPLAIN_FORMAT_TEXT;
+		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
 		if (analyze)
 		{
