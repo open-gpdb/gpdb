@@ -121,6 +121,17 @@ set_query_plan(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			gpdb::pfree(es.str->data);
 			gpdb::pfree(norm_plan->data);
 		}
+		// v2: also capture the structured EXPLAIN (FORMAT JSON) for rendering.
+		// The TEXT plan above remains the source for gen_normplan/plan_id, so
+		// plan identity stays stable. JSON is only stored if it fits the size
+		// limit — a truncated JSON string is unparseable downstream.
+		ExplainState es_json = gpdb::get_explain_state(query_desc, true, true);
+		if (es_json.str)
+		{
+			if (es_json.str->len <= config.max_plan_size())
+				qi->set_plan_json(es_json.str->data, es_json.str->len);
+			gpdb::pfree(es_json.str->data);
+		}
 		gpdb::mem_ctx_switch_to(oldcxt);
 	}
 }
@@ -319,10 +330,14 @@ set_analyze_plan_text(QueryDesc *query_desc, gpsc::SetQueryReq *req,
 	{
 		return;
 	}
+	bool do_analyze =
+		query_desc->instrument_options && config.enable_analyze();
 	MemoryContext oldcxt =
 		gpdb::mem_ctx_switch_to(query_desc->estate->es_query_cxt);
-	ExplainState es = gpdb::get_analyze_state(
-		query_desc, query_desc->instrument_options && config.enable_analyze());
+	ExplainState es = gpdb::get_analyze_state(query_desc, do_analyze);
+	// v2: structured EXPLAIN (ANALYZE, FORMAT JSON) for rendering, generated
+	// under the same per-query context. analyze_text (above) stays for v1.
+	ExplainState es_json = gpdb::get_analyze_state(query_desc, do_analyze, true);
 	gpdb::mem_ctx_switch_to(oldcxt);
 	if (es.str)
 	{
@@ -335,5 +350,14 @@ set_analyze_plan_text(QueryDesc *query_desc, gpsc::SetQueryReq *req,
 													config.max_plan_size());
 		req->mutable_query_info()->set_analyze_text(trimmed_analyze);
 		gpdb::pfree(es.str->data);
+	}
+	if (es_json.str)
+	{
+		// Only store JSON if it fits the size limit; a truncated JSON string is
+		// unparseable downstream (the plugin falls back to the text path).
+		if (es_json.str->len <= config.max_plan_size())
+			req->mutable_query_info()->set_analyze_json(es_json.str->data,
+														es_json.str->len);
+		gpdb::pfree(es_json.str->data);
 	}
 }
