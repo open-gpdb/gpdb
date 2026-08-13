@@ -933,7 +933,7 @@ plan_tree_mutator(Node *node,
  *
  */
 static void
-mutate_plan_fields(Plan *newplan, Plan *oldplan, Node *(*mutator) (), void *context)
+mutate_plan_fields(Plan *newplan, Plan *oldplan, Node *(*mutator) (Node *, void *), void *context)
 {
 	/*
 	 * Scalar fields startup_cost total_cost plan_rows plan_width nParamExec

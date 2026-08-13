@@ -1625,8 +1625,8 @@ checkCpusetSyntax(const char *cpuset)
 extern void
 checkCpuSetByRole(const char *cpuset)
 {
-	char *first = NULL;
-	char *last = NULL;
+	const char *first = NULL;
+	const char *last = NULL;
 
 	if (cpuset == NULL)
 	{

@@ -29,8 +29,8 @@ void exec_init_plan_tree_base(plan_tree_base_prefix *base, PlannedStmt *stmt)
 	base->node = (Node*)stmt;
 }
 
-static bool walk_scan_node_fields(Scan *scan, bool (*walker) (), void *context);
-static bool walk_join_node_fields(Join *join, bool (*walker) (), void *context);
+static bool walk_scan_node_fields(Scan *scan, bool (*walker) (Node *, void *), void *context);
+static bool walk_join_node_fields(Join *join, bool (*walker) (Node *, void *), void *context);
 
 
 /* ----------------------------------------------------------------------- *
@@ -50,7 +50,7 @@ static bool walk_join_node_fields(Join *join, bool (*walker) (), void *context);
  */
 bool
 walk_plan_node_fields(Plan *plan,
-					  bool (*walker) (),
+					  bool (*walker) (Node *, void *),
 					  void *context)
 {
 	/* target list to be computed at this node */
@@ -94,7 +94,7 @@ walk_plan_node_fields(Plan *plan,
  */
 bool
 walk_scan_node_fields(Scan *scan,
-					  bool (*walker) (),
+					  bool (*walker) (Node *, void *),
 					  void *context)
 {
 	/* A Scan node is a kind of Plan node. */
@@ -119,7 +119,7 @@ walk_scan_node_fields(Scan *scan,
  */
 bool
 walk_join_node_fields(Join *join,
-					  bool (*walker) (),
+					  bool (*walker) (Node *, void *),
 					  void *context)
 {
 	/* A Join node is a kind of Plan node. */
@@ -636,6 +636,11 @@ List *extract_nodes_plan(Plan *pl, int nodeTag, bool descendIntoSubqueries)
 	extract_nodes_walker((Node *)pl, &context);
 	return context.nodes;
 }
+
+static bool
+extract_nodes_walker(Node *node, extract_context *context);
+static bool
+extract_nodes_walker_adapter(Node *node, void *context);
 
 static bool
 extract_nodes_walker(Node *node, extract_context *context)
