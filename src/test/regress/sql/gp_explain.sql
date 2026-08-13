@@ -159,6 +159,47 @@ set gp_enable_explain_allstat=DEFAULT;
 -- Test explain rows out.
 set gp_enable_explain_rows_out=on;
 explain analyze SELECT * FROM explaintest;
+
+-- The checks below depend on the shape of the plan, so use the Postgres
+-- planner to keep them independent of the optimizer in use.  They pick the
+-- "Rows out" lines out of the plan instead of printing it whole, so atmsort
+-- must be told not to treat the result as a plan of its own.
+set optimizer=off;
+
+-- Segments that did not run the node must not be counted.  Direct dispatch
+-- sends the scan to segments 0 and 2 only, so segment 1 must not show up as
+-- a worker that produced zero rows.
+-- explain_processing_off
+WITH query_plan (et) AS
+(
+  select get_explain_analyze_output($$
+    SELECT * FROM explaintest WHERE id in (2, 5);
+  $$)
+)
+SELECT trim(et) FROM query_plan WHERE et like '%Rows out:%';
+-- explain_processing_on
+
+-- The figures are reported per loop, so that they match the row count
+-- printed on the node itself.  The Materialize node below is rescanned once
+-- per outer row.
+set enable_hashjoin=off;
+set enable_mergejoin=off;
+CREATE TABLE explaintest_small (id int4) DISTRIBUTED BY (id);
+INSERT INTO explaintest_small SELECT generate_series(1, 3);
+-- explain_processing_off
+WITH query_plan (et) AS
+(
+  select get_explain_analyze_output($$
+    SELECT * FROM explaintest e, explaintest_small s WHERE e.id = s.id;
+  $$)
+)
+SELECT trim(et) FROM query_plan WHERE et like '%Rows out:%';
+-- explain_processing_on
+DROP TABLE explaintest_small;
+set enable_hashjoin=DEFAULT;
+set enable_mergejoin=DEFAULT;
+
+set optimizer=DEFAULT;
 set gp_enable_explain_rows_out=DEFAULT;
 
 -- Test explain node summary.
