@@ -2870,6 +2870,11 @@ cdb_extract_plan_dependencies(PlannerInfo *root, Plan *plan)
 }
 
 static bool
+cdb_extract_plan_dependencies_walker(Node *node, cdb_extract_plan_dependencies_context *context);
+static bool
+cdb_extract_plan_dependencies_walker_adapter(Node *node, void *context);
+
+static bool
 cdb_extract_plan_dependencies_walker(Node *node, cdb_extract_plan_dependencies_context *context)
 {
 	if (node == NULL)

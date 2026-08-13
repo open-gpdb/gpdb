@@ -1642,6 +1642,14 @@ typedef struct ctid_inventory_context
 } ctid_inventory_context;
 
 static bool
+ctid_inventory_walker(Node *node, ctid_inventory_context *inv);
+static bool
+ctid_inventory_walker_adapter(Node *node, void *inv)
+{
+	return ctid_inventory_walker(node, (ctid_inventory_context *) inv);
+}
+
+static bool
 ctid_inventory_walker(Node *node, ctid_inventory_context *inv)
 {
 	if (node == NULL)
@@ -2725,6 +2733,14 @@ typedef struct ParamWalkerContext
 } ParamWalkerContext;
 
 static bool
+param_walker(Node *node, ParamWalkerContext *context);
+static bool
+param_walker_adapter(Node *node, void *context)
+{
+	return param_walker(node, (ParamWalkerContext *) context);
+}
+
+static bool
 param_walker(Node *node, ParamWalkerContext *context)
 {
 	Param	   *param;
@@ -2815,6 +2831,14 @@ rte_param_walker(List *rtable, ParamWalkerContext *context)
 				break;
 		}
 	}
+}
+
+static bool
+initplan_walker(Node *node, ParamWalkerContext *context);
+static bool
+initplan_walker_adapter(Node *node, void *context)
+{
+	return initplan_walker(node, (ParamWalkerContext *) context);
 }
 
 static bool

@@ -1053,8 +1053,8 @@ const char *
 get_expectfile(const char *testname, const char *file, const char *default_expectfile)
 {
 	char		expectpath[MAXPGPATH];
-	char	   *file_type;
-	char	   *file_name;
+	const char	   *file_type;
+	const char	   *file_name;
 	char		base_file[MAXPGPATH];
 	_resultmap *rm;
 	char		buf[MAXPGPATH];
@@ -1085,7 +1085,7 @@ get_expectfile(const char *testname, const char *file, const char *default_expec
 	 * up to the last slash.
 	 */
 	{
-		char	   *p = strrchr(default_expectfile, '/');
+		const char	   *p = strrchr(default_expectfile, '/');
 
 		if (!p)
 			return NULL;
