@@ -12,6 +12,7 @@ extern "C" {
 
 static char *guc_uds_path = nullptr;
 static bool guc_enable_analyze = true;
+static bool guc_enable_json_plan = false;
 static bool guc_enable_cdbstats = true;
 static bool guc_enable_collector = false;
 static bool guc_report_nested_queries = true;
@@ -50,6 +51,12 @@ Config::init_gucs()
 	DefineCustomBoolVariable(
 		"gpsc.enable_analyze", "Collect analyze metrics in gpsc", 0LL,
 		&guc_enable_analyze, true, PGC_SUSET,
+		GUC_NOT_IN_SAMPLE | GUC_GPDB_NEED_SYNC, 0LL, 0LL, 0LL);
+
+	DefineCustomBoolVariable(
+		"gpsc.enable_json_plan",
+		"Collect EXPLAIN (FORMAT JSON) plan and analyze in gpsc", 0LL,
+		&guc_enable_json_plan, false, PGC_SUSET,
 		GUC_NOT_IN_SAMPLE | GUC_GPDB_NEED_SYNC, 0LL, 0LL, 0LL);
 
 	DefineCustomBoolVariable(
@@ -153,6 +160,7 @@ Config::sync()
 	}
 	uds_path_ = guc_uds_path;
 	enable_analyze_ = guc_enable_analyze;
+	enable_json_plan_ = guc_enable_json_plan;
 	enable_cdbstats_ = guc_enable_cdbstats;
 	enable_collector_ = guc_enable_collector;
 	enable_utility_ = guc_enable_utility;
