@@ -340,8 +340,8 @@ UtfToLocal(const unsigned char *utf, unsigned char *iso,
 	uint32		iutf;
 	uint32		cutf[2];
 	uint32		code;
-	pg_utf_to_local *p;
-	pg_utf_to_local_combined *cp;
+	const pg_utf_to_local *p;
+	const pg_utf_to_local_combined *cp;
 	int			l;
 
 	for (; len > 0; len -= l)
@@ -510,8 +510,8 @@ LocalToUtf(const unsigned char *iso, unsigned char *utf,
 {
 	unsigned int iiso;
 	int			l;
-	pg_local_to_utf *p;
-	pg_local_to_utf_combined *cp;
+	const pg_local_to_utf *p;
+	const pg_local_to_utf_combined *cp;
 
 	if (!PG_VALID_ENCODING(encoding))
 		ereport(ERROR,
