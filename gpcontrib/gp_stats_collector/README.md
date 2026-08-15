@@ -16,7 +16,11 @@ An extension for collecting greenplum query execution metrics and reporting them
 -   **What:** Triggers generation of the `EXPLAIN (TEXT, ANALYZE, BUFFERS, TIMING, VERBOSE)` and captures it.
 -   **GUCs:** `gpsc.enable`, `gpsc.min_analyze_time`, `gpsc.enable_cdbstats`(ANALYZE), `gpsc.enable_analyze`(BUFFERS, TIMING, VERBOSE).
 
-#### 4. Other Metrics
+#### 4. `EXPLAIN (FORMAT JSON)` data
+-   **What:** In addition to the text plans, captures the structured `EXPLAIN (FORMAT JSON)` payloads: `plan_json` at query start and `analyze_json` at query end.
+-   **GUC:** `gpsc.enable_json_plan` (default `off`).
+
+#### 5. Other Metrics
 -   **What:** Captures Instrument, Greenplum, System, Network, Interconnect, Spill metrics.
 -   **GUC:** `gpsc.enable`.
 
@@ -26,3 +30,4 @@ An extension for collecting greenplum query execution metrics and reporting them
 -   **User Filtering:** To exclude activity from certain roles, add them to the comma-separated list in `gpsc.ignored_users_list`.
 -   **Trimming plans:** Query texts and execution plans are trimmed based on `gpsc.max_text_size` and `gpsc.max_plan_size` (default: 1024KB). For now, it is not recommended to set these GUCs higher than 1024KB.
 -   **Analyze collection:** Analyze is sent if execution time exceeds `gpsc.min_analyze_time`, which is 10 seconds by default. Analyze is collected if `gpsc.enable_analyze` is true.
+-   **JSON plans:** `gpsc.enable_json_plan` (default `off`, `PGC_SUSET`) additionally collects the structured `EXPLAIN (FORMAT JSON)` plan. Consumers that render the plan graphically (e.g. PEV2) need it: the text plan does not expose Motion nodes in a machine-readable form. When it is `on`, `plan_json` is built at the start of *every* query — a second `ExplainPrintPlan` pass — and `analyze_json` is built at the end under the same rules as `analyze_text` (`gpsc.enable_analyze` plus the `gpsc.min_analyze_time` threshold), so only long queries pay for it. The text plans are unaffected: they are always collected, and `plan_id` is still the hash of the normalized *text* plan. JSON is noticeably larger than text, so `gpsc.max_plan_size` matters more here — a JSON payload that does not fit the limit is dropped whole rather than truncated (a truncated JSON is unparseable), while the text plan is trimmed as usual.
