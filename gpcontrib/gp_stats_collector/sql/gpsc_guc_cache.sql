@@ -25,6 +25,12 @@ SET gpsc.enable TO TRUE;
 SET gpsc.enable_utility TO TRUE;
 SET gpsc.logging_mode TO 'TBL';
 
+-- SET below turns JSON plan collection on. The Config cache is fixed at
+-- SUBMIT time, so the current query keeps the cached (off) value and its
+-- DONE event must still be logged.
+SET gpsc.enable_json_plan TO TRUE;
+SELECT * FROM print_last_query('SET gpsc.enable_json_plan TO TRUE;');
+
 -- SET below disables utility logging and DONE must still be logged.
 SET gpsc.enable_utility TO FALSE;
 SELECT * FROM print_last_query('SET gpsc.enable_utility TO FALSE;');
@@ -39,5 +45,6 @@ DROP FUNCTION print_last_query(text);
 DROP EXTENSION gp_stats_collector;
 RESET gpsc.enable;
 RESET gpsc.enable_utility;
+RESET gpsc.enable_json_plan;
 RESET gpsc.ignored_users_list;
 RESET gpsc.logging_mode;
