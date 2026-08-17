@@ -133,7 +133,9 @@ inline constexpr std::array log_tbl_desc = {
  LogDesc{"user_name",           "query_info.userName",            TEXTOID},  
  LogDesc{"database_name",       "query_info.databaseName",        TEXTOID},  
  LogDesc{"rsgname",             "query_info.rsgname",             TEXTOID},  
- LogDesc{"analyze_text",        "query_info.analyze_text",        TEXTOID},  
+ LogDesc{"analyze_text",        "query_info.analyze_text",        TEXTOID},
+ LogDesc{"plan_json",           "query_info.plan_json",           TEXTOID},
+ LogDesc{"analyze_json",        "query_info.analyze_json",        TEXTOID},
  LogDesc{"error_message",       "add_info.error_message",         TEXTOID},  
  LogDesc{"query_status",        "query_status",                   TEXTOID},  
  /* Extra field */

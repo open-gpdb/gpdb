@@ -161,16 +161,10 @@ gpdb::get_explain_state(QueryDesc *query_desc, bool costs, bool as_json) noexcep
 		es.verbose = true;
 		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
-		// JSON needs the array-element object wrapper that the normal EXPLAIN
-		// path emits (explain.c: ExplainOpenGroup("Query", NULL, ...)). Without
-		// it the output is `[ "Plan": {...} ]` (invalid). TEXT ignores grouping,
-		// so the wrapper is gated on as_json to keep the text plan byte-identical
-		// (it feeds gen_normplan/plan_id).
-		if (as_json)
-			ExplainOpenGroup("Query", NULL, true, &es);
+		// Wrap in an array-element object like ExplainOnePlan does; no-op for TEXT.
+		ExplainOpenGroup("Query", NULL, true, &es);
 		ExplainPrintPlan(&es, query_desc);
-		if (as_json)
-			ExplainCloseGroup("Query", NULL, true, &es);
+		ExplainCloseGroup("Query", NULL, true, &es);
 		ExplainEndOutput(&es);
 		return es;
 	});
@@ -189,18 +183,14 @@ gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexc
 		es.summary = es.analyze;
 		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
-		// JSON: wrap the plan + exec stats in the array-element object, like the
-		// normal EXPLAIN path (see get_explain_state). Gated on as_json so the
-		// text analyze output is unchanged.
-		if (as_json)
-			ExplainOpenGroup("Query", NULL, true, &es);
+		// Array-element object wrapper, see get_explain_state. No-op for TEXT.
+		ExplainOpenGroup("Query", NULL, true, &es);
 		if (analyze)
 		{
 			ExplainPrintPlan(&es, query_desc);
 			ExplainPrintExecStatsEnd(&es, query_desc);
 		}
-		if (as_json)
-			ExplainCloseGroup("Query", NULL, true, &es);
+		ExplainCloseGroup("Query", NULL, true, &es);
 		ExplainEndOutput(&es);
 		return es;
 	});
