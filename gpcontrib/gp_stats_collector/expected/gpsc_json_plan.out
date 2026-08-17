@@ -1,0 +1,114 @@
+CREATE EXTENSION gp_stats_collector;
+SET gpsc.ignored_users_list TO '';
+SET gpsc.enable TO TRUE;
+SET gpsc.enable_utility TO FALSE;
+SET gpsc.enable_analyze TO TRUE;
+-- Collect analyze for every query, regardless of its duration.
+SET gpsc.min_analyze_time TO 0;
+-- Test 1: gpsc.enable_json_plan is off by default => text plans only.
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_off*/ COUNT(*) FROM generate_series(1,10);
+ count 
+-------
+    10
+(1 row)
+
+RESET gpsc.logging_mode;
+SELECT plan_text IS NOT NULL AS has_plan_text,
+       plan_json IS NULL AS no_plan_json,
+       analyze_text IS NOT NULL AS has_analyze_text,
+       analyze_json IS NULL AS no_analyze_json
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_off%' AND query_status = 'QUERY_STATUS_DONE';
+ has_plan_text | no_plan_json | has_analyze_text | no_analyze_json 
+---------------+--------------+------------------+-----------------
+ t             | t            | t                | t
+(1 row)
+
+-- Test 2: GUC on => valid JSON array with a "Plan" object, for both the plan
+-- and the analyze.
+SET gpsc.enable_json_plan TO TRUE;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_on*/ COUNT(*) FROM generate_series(1,10);
+ count 
+-------
+    10
+(1 row)
+
+RESET gpsc.logging_mode;
+SELECT json_typeof(plan_json::json) AS plan_json_type,
+       plan_json::json->0->'Plan' IS NOT NULL AS has_plan_node,
+       json_typeof(analyze_json::json) AS analyze_json_type,
+       analyze_json::json->0->'Plan' IS NOT NULL AS has_analyze_node,
+       analyze_json <> plan_json AS analyze_differs
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_on%' AND query_status = 'QUERY_STATUS_DONE';
+ plan_json_type | has_plan_node | analyze_json_type | has_analyze_node | analyze_differs 
+----------------+---------------+-------------------+------------------+-----------------
+ array          | t             | array             | t                | t
+(1 row)
+
+-- The text plan (and thus plan_id) is the same with the GUC on and off.
+SELECT COUNT(DISTINCT plan_text) = 1 AS same_plan_text,
+       COUNT(DISTINCT plan_id) = 1 AS same_plan_id
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_o%' AND query_status = 'QUERY_STATUS_DONE';
+ same_plan_text | same_plan_id 
+----------------+--------------
+ t              | t
+(1 row)
+
+-- Test 3: JSON that does not fit gpsc.max_plan_size is dropped whole, while
+-- the text plan is trimmed as usual.
+SET gpsc.max_plan_size TO 0;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_big*/ COUNT(*) FROM generate_series(1,10);
+ count 
+-------
+    10
+(1 row)
+
+RESET gpsc.logging_mode;
+RESET gpsc.max_plan_size;
+SELECT octet_length(plan_text) AS plan_text_len,
+       plan_json IS NULL AS no_plan_json,
+       analyze_json IS NULL AS no_analyze_json
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_big%' AND query_status = 'QUERY_STATUS_DONE';
+ plan_text_len | no_plan_json | no_analyze_json 
+---------------+--------------+-----------------
+             0 | t            | t
+(1 row)
+
+-- Test 4: analyze_json follows gpsc.enable_analyze.
+SET gpsc.enable_analyze TO FALSE;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_noanalyze*/ COUNT(*) FROM generate_series(1,10);
+ count 
+-------
+    10
+(1 row)
+
+RESET gpsc.logging_mode;
+SELECT plan_json IS NOT NULL AS has_plan_json,
+       analyze_json IS NULL AS no_analyze_json
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_noanalyze%' AND query_status = 'QUERY_STATUS_DONE';
+ has_plan_json | no_analyze_json 
+---------------+-----------------
+ t             | t
+(1 row)
+
+SELECT gpsc.truncate_log() IS NOT NULL AS t;
+ t 
+---
+ t
+(1 row)
+
+DROP EXTENSION gp_stats_collector;
+RESET gpsc.enable_json_plan;
+RESET gpsc.enable_analyze;
+RESET gpsc.min_analyze_time;
+RESET gpsc.enable;
+RESET gpsc.enable_utility;
+RESET gpsc.ignored_users_list;

@@ -95,6 +95,17 @@ trim_str_shrink_utf8(const char *str, size_t len, size_t lim)
 	return std::string(str, cut_pos);
 }
 
+// Never trim JSON: a truncated payload is unparseable, so drop it if over the limit.
+static void
+set_json_if_fits(std::string *dst, ExplainState es, int limit)
+{
+	if (!es.str)
+		return;
+	if (es.str->len <= limit)
+		dst->assign(es.str->data, es.str->len);
+	gpdb::pfree(es.str->data);
+}
+
 void
 set_query_plan(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			   const Config &config)
@@ -121,21 +132,12 @@ set_query_plan(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			gpdb::pfree(es.str->data);
 			gpdb::pfree(norm_plan->data);
 		}
-		// v2: also capture the structured EXPLAIN (FORMAT JSON) for rendering.
-		// The TEXT plan above remains the source for gen_normplan/plan_id, so
-		// plan identity stays stable. JSON is only stored if it fits the size
-		// limit — a truncated JSON string is unparseable downstream.
-		// Off by default: this is a second ExplainPrintPlan on every query.
+		// Also capture EXPLAIN (FORMAT JSON); plan_id still comes from the TEXT plan above.
 		if (config.enable_json_plan())
 		{
-			ExplainState es_json =
-				gpdb::get_explain_state(query_desc, true, true);
-			if (es_json.str)
-			{
-				if (es_json.str->len <= config.max_plan_size())
-					qi->set_plan_json(es_json.str->data, es_json.str->len);
-				gpdb::pfree(es_json.str->data);
-			}
+			set_json_if_fits(qi->mutable_plan_json(),
+							 gpdb::get_explain_state(query_desc, true, true),
+							 config.max_plan_size());
 		}
 		gpdb::mem_ctx_switch_to(oldcxt);
 	}
@@ -168,6 +170,8 @@ clear_big_fields(gpsc::SetQueryReq *req)
 		qi->clear_query_text();
 		qi->clear_template_query_text();
 		qi->clear_analyze_text();
+		qi->clear_plan_json();
+		qi->clear_analyze_json();
 	}
 }
 
@@ -340,14 +344,10 @@ set_analyze_plan_text(QueryDesc *query_desc, gpsc::SetQueryReq *req,
 	MemoryContext oldcxt =
 		gpdb::mem_ctx_switch_to(query_desc->estate->es_query_cxt);
 	ExplainState es = gpdb::get_analyze_state(query_desc, do_analyze);
-	// v2: structured EXPLAIN (ANALYZE, FORMAT JSON) for rendering, generated
-	// under the same per-query context. analyze_text (above) stays for v1.
-	// Gated on gpsc.enable_json_plan, and on do_analyze as well: without
-	// instrumentation this would just rebuild the plain plan as JSON, which
-	// set_query_plan already emitted at query start.
+	// EXPLAIN (ANALYZE, FORMAT JSON); needs do_analyze, otherwise it would repeat the plain plan.
 	ExplainState es_json = {};
 	if (do_analyze && config.enable_json_plan())
-		es_json = gpdb::get_analyze_state(query_desc, do_analyze, true);
+		es_json = gpdb::get_analyze_state(query_desc, true, true);
 	gpdb::mem_ctx_switch_to(oldcxt);
 	if (es.str)
 	{
@@ -361,13 +361,6 @@ set_analyze_plan_text(QueryDesc *query_desc, gpsc::SetQueryReq *req,
 		req->mutable_query_info()->set_analyze_text(trimmed_analyze);
 		gpdb::pfree(es.str->data);
 	}
-	if (es_json.str)
-	{
-		// Only store JSON if it fits the size limit; a truncated JSON string is
-		// unparseable downstream (the plugin falls back to the text path).
-		if (es_json.str->len <= config.max_plan_size())
-			req->mutable_query_info()->set_analyze_json(es_json.str->data,
-														es_json.str->len);
-		gpdb::pfree(es_json.str->data);
-	}
+	set_json_if_fits(req->mutable_query_info()->mutable_analyze_json(), es_json,
+					 config.max_plan_size());
 }
