@@ -1528,7 +1528,7 @@ DefineRange(CreateRangeStmt *stmt)
 				 errmsg("range subtype cannot be %s",
 						format_type_be(rangeSubtype))));
 
-	aclresult = object_aclcheck(TypeRelationId, rangeSubtype, GetUserId(), ACL_USAGE);
+	aclresult = pg_type_aclcheck(rangeSubtype, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, rangeSubtype);
 

@@ -19274,7 +19274,7 @@ ATExecAddOf(Relation rel, const TypeName *ofTypename, LOCKMODE lockmode)
 	check_of_type(typetuple);
 	typeid = HeapTupleGetOid(typetuple);
 
-	aclresult = object_aclcheck(TypeRelationId, typeid, GetUserId(), ACL_USAGE);
+	aclresult = pg_type_aclcheck(typeid, GetUserId(), ACL_USAGE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error_type(aclresult, typeid);
 
