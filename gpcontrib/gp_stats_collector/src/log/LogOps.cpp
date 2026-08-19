@@ -108,6 +108,31 @@ insert_log(const gpsc::SetQueryReq &req, bool utility)
 
 	rel = heap_open(relationId, RowExclusiveLock);
 
+	/*
+	 * The tuple is formed positionally from log_tbl_desc, so a table created
+	 * by an older version of the extension (with a different column set)
+	 * would receive shifted values. Refuse to write into it rather than
+	 * corrupt the rows; the extension has to be re-created to get the
+	 * current layout.
+	 */
+	if (RelationGetDescr(rel)->natts != (int) natts_gpsc_log)
+	{
+		static bool warned = false;
+
+		if (!warned)
+		{
+			warned = true;
+			ereport(WARNING,
+					(errmsg("GPSC log table has %d columns, expected %zu; "
+							"skipping logging",
+							RelationGetDescr(rel)->natts, natts_gpsc_log),
+					 errhint("Re-create the gp_stats_collector extension to "
+							 "update the gpsc.__log table layout.")));
+		}
+		heap_close(rel, NoLock);
+		return;
+	}
+
 	/* Insert the tuple as a frozen one to ensure it is logged even if txn rolls
    * back or aborts */
 	tuple = heap_form_tuple(RelationGetDescr(rel), values, nulls);
