@@ -18,47 +18,47 @@ set optimizer_segments = 3;
 select d, count(*) from smallt group by d;
      d      | count 
 ------------+-------
- 01-19-2011 |     5
- 01-16-2011 |     5
- 01-13-2011 |     5
- 01-10-2011 |     5
- 01-15-2011 |     5
- 01-11-2011 |     5
- 01-09-2011 |     5
- 01-17-2011 |     5
- 01-05-2011 |     5
- 01-12-2011 |     5
- 01-18-2011 |     5
- 01-06-2011 |     5
+ 01-07-2011 |     5
  01-08-2011 |     5
- 01-14-2011 |     5
- 01-20-2011 |     5
+ 01-13-2011 |     5
+ 01-15-2011 |     5
+ 01-17-2011 |     5
+ 01-18-2011 |     5
+ 01-01-2011 |     5
  01-02-2011 |     5
  01-03-2011 |     5
- 01-01-2011 |     5
- 01-07-2011 |     5
  01-04-2011 |     5
+ 01-05-2011 |     5
+ 01-09-2011 |     5
+ 01-11-2011 |     5
+ 01-06-2011 |     5
+ 01-10-2011 |     5
+ 01-12-2011 |     5
+ 01-14-2011 |     5
+ 01-16-2011 |     5
+ 01-19-2011 |     5
+ 01-20-2011 |     5
 (20 rows)
 
 explain analyze select d, count(*) from smallt group by d;
                                                                     QUERY PLAN                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..431.01 rows=20 width=12) (actual time=1.785..1.787 rows=20 loops=1)
-   ->  GroupAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=1.513..1.522 rows=7 loops=1)
+ Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..431.01 rows=20 width=12) (actual time=2.276..2.677 rows=20 loops=1)
+   ->  GroupAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=2.287..2.294 rows=7 loops=1)
          Group Key: d
-         ->  Sort  (cost=0.00..431.01 rows=34 width=4) (actual time=1.510..1.513 rows=35 loops=1)
+         ->  Sort  (cost=0.00..431.01 rows=34 width=4) (actual time=2.282..2.285 rows=35 loops=1)
                Sort Key: d
                Sort Method:  quicksort  Memory: 99kB
-               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=0.342..1.481 rows=35 loops=1)
+               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=1.353..2.268 rows=35 loops=1)
                      Hash Key: d
-                     ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.002..0.004 rows=50 loops=1)
- Planning time: 17.216 ms
+                     ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.003..0.009 rows=50 loops=1)
+ Planning time: 9.957 ms
    (slice0)    Executor memory: 63K bytes.
    (slice1)    Executor memory: 42K bytes avg x 3 workers, 42K bytes max (seg0).
    (slice2)    Executor memory: 64K bytes avg x 3 workers, 64K bytes max (seg0).  Work_mem: 33K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 3.64.0
- Execution time: 2.061 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 3.350 ms
 (16 rows)
 
 set statement_mem=2560;
@@ -71,21 +71,23 @@ select count(*) from (select i, t, d, count(*) from bigt group by i, t, d) tmp;
 explain analyze select count(*) from (select i, t, d, count(*) from bigt group by i, t, d) tmp;
                                                              QUERY PLAN                                                              
 -------------------------------------------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.00..571.36 rows=1 width=8) (actual time=362.957..362.957 rows=1 loops=1)
-   ->  Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..571.36 rows=1 width=8) (actual time=265.826..362.941 rows=3 loops=1)
-         ->  Aggregate  (cost=0.00..571.36 rows=1 width=8) (actual time=265.338..265.338 rows=1 loops=1)
-               ->  HashAggregate  (cost=0.00..571.36 rows=333580 width=1) (actual time=338.390..356.986 rows=44572 loops=1)
+ Aggregate  (cost=0.00..571.26 rows=1 width=8) (actual time=373.383..373.383 rows=1 loops=1)
+   ->  Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..571.26 rows=1 width=8) (actual time=315.632..373.371 rows=3 loops=1)
+         ->  Aggregate  (cost=0.00..571.26 rows=1 width=8) (actual time=317.803..317.804 rows=1 loops=1)
+               ->  HashAggregate  (cost=0.00..571.26 rows=333334 width=1) (actual time=332.487..366.514 rows=44538 loops=1)
                      Group Key: i, t, d
-                     (seg0)   44435 groups total in 32 batches; 1 overflows; 44435 spill groups.
-                     (seg0)   Hash chain length 2.8 avg, 10 max, using 30315 of 32768 buckets; total 9 expansions.
-                     ->  Seq Scan on bigt  (cost=0.00..439.81 rows=333580 width=18) (actual time=0.026..49.692 rows=333530 loops=1)
-   (slice0)    Executor memory: 386K bytes.
-   (slice1)  * Executor memory: 3180K bytes avg x 3 workers, 3180K bytes max (seg0).  Work_mem: 2461K bytes max, 4866K bytes wanted.
+                     Extra Text: (seg0)   44473 groups total in 32 batches; 1 overflows; 44473 spill groups.
+ (seg0)   Hash chain length 2.8 avg, 10 max, using 30386 of 32768 buckets; total 9 expansions.
+ 
+                     ->  Seq Scan on bigt  (cost=0.00..439.80 rows=333334 width=18) (actual time=0.010..60.930 rows=334620 loops=1)
+ Planning time: 37.952 ms
+   (slice0)    Executor memory: 90K bytes.
+ * (slice1)    Executor memory: 3669K bytes avg x 3 workers, 3669K bytes max (seg0).  Work_mem: 2461K bytes max, 4865K bytes wanted.
  Memory used:  2560kB
- Memory wanted:  5265kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.67.0
- Total runtime: 363.922 ms
-(14 rows)
+ Memory wanted:  5264kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 376.850 ms
+(16 rows)
 
 set statement_mem=128000;
 -- DQA
@@ -100,19 +102,19 @@ select count(distinct d) from smallt;
 explain analyze select count(distinct d) from smallt;
                                                                     QUERY PLAN                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=1.637..1.637 rows=1 loops=1)
-   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=1.631..1.633 rows=3 loops=1)
-         ->  Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=1.408..1.408 rows=1 loops=1)
-               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=1.396..1.402 rows=35 loops=1)
+ Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=5.313..5.313 rows=1 loops=1)
+   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..431.00 rows=1 width=8) (actual time=5.137..5.309 rows=3 loops=1)
+         ->  Aggregate  (cost=0.00..431.00 rows=1 width=8) (actual time=5.447..5.448 rows=1 loops=1)
+               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=2.486..5.545 rows=35 loops=1)
                      Hash Key: d
-                     ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.002..0.006 rows=50 loops=1)
- Planning time: 19.307 ms
+                     ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.003..0.011 rows=50 loops=1)
+ Planning time: 20.289 ms
    (slice0)    Executor memory: 59K bytes.
    (slice1)    Executor memory: 42K bytes avg x 3 workers, 42K bytes max (seg0).
    (slice2)    Executor memory: 64K bytes avg x 3 workers, 64K bytes max (seg0).  Work_mem: 33K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 3.64.0
- Execution time: 1.904 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 9.731 ms
 (13 rows)
 
 set statement_mem=2560;
@@ -125,20 +127,20 @@ select count(distinct d) from bigt;
 explain analyze select count(distinct d) from bigt;
                                                                          QUERY PLAN                                                                         
 ------------------------------------------------------------------------------------------------------------------------------------------------------------
- Aggregate  (cost=0.00..446.60 rows=1 width=8) (actual time=394.139..394.139 rows=1 loops=1)
-   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..446.60 rows=1 width=8) (actual time=388.126..394.130 rows=3 loops=1)
-         ->  Aggregate  (cost=0.00..446.60 rows=1 width=8) (actual time=393.902..393.903 rows=1 loops=1)
-               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..446.45 rows=333334 width=4) (actual time=0.670..118.334 rows=334920 loops=1)
+ Aggregate  (cost=0.00..446.60 rows=1 width=8) (actual time=1003.482..1003.482 rows=1 loops=1)
+   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..446.60 rows=1 width=8) (actual time=978.614..1003.471 rows=3 loops=1)
+         ->  Aggregate  (cost=0.00..446.60 rows=1 width=8) (actual time=977.200..977.200 rows=1 loops=1)
+               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..446.45 rows=333334 width=4) (actual time=2.732..396.243 rows=334920 loops=1)
                      Hash Key: d
-                     ->  Seq Scan on bigt  (cost=0.00..439.80 rows=333334 width=4) (actual time=0.013..46.779 rows=334620 loops=1)
- Planning time: 27.350 ms
+                     ->  Seq Scan on bigt  (cost=0.00..439.80 rows=333334 width=4) (actual time=0.011..114.538 rows=334620 loops=1)
+ Planning time: 27.186 ms
    (slice0)    Executor memory: 59K bytes.
-   (slice1)    Executor memory: 68K bytes avg x 3 workers, 68K bytes max (seg0).
+   (slice1)    Executor memory: 58K bytes avg x 3 workers, 58K bytes max (seg0).
  * (slice2)    Executor memory: 2768K bytes avg x 3 workers, 2768K bytes max (seg0).  Work_mem: 2617K bytes max, 7876K bytes wanted.
  Memory used:  2560kB
  Memory wanted:  8275kB
- Optimizer: Pivotal Optimizer (GPORCA) version 3.64.0
- Execution time: 394.389 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 1004.372 ms
 (14 rows)
 
 set statement_mem=128000;
@@ -155,26 +157,26 @@ select t1.*, t2.* from
 where t1.d = t2.d;
      d      | count |     d      | sum 
 ------------+-------+------------+-----
- 01-19-2011 |     5 | 01-19-2011 |  40
- 01-16-2011 |     5 | 01-16-2011 |  25
- 01-13-2011 |     5 | 01-13-2011 |  10
- 01-10-2011 |     5 | 01-10-2011 |  45
- 01-15-2011 |     5 | 01-15-2011 |  20
- 01-17-2011 |     5 | 01-17-2011 |  30
- 01-11-2011 |     5 | 01-11-2011 |   0
- 01-09-2011 |     5 | 01-09-2011 |  40
- 01-05-2011 |     5 | 01-05-2011 |  20
- 01-12-2011 |     5 | 01-12-2011 |   5
- 01-18-2011 |     5 | 01-18-2011 |  35
  01-06-2011 |     5 | 01-06-2011 |  25
- 01-08-2011 |     5 | 01-08-2011 |  35
+ 01-10-2011 |     5 | 01-10-2011 |  45
+ 01-12-2011 |     5 | 01-12-2011 |   5
  01-14-2011 |     5 | 01-14-2011 |  15
+ 01-16-2011 |     5 | 01-16-2011 |  25
+ 01-19-2011 |     5 | 01-19-2011 |  40
  01-20-2011 |     5 | 01-20-2011 |  45
+ 01-01-2011 |     5 | 01-01-2011 |   0
  01-02-2011 |     5 | 01-02-2011 |   5
  01-03-2011 |     5 | 01-03-2011 |  10
- 01-01-2011 |     5 | 01-01-2011 |   0
- 01-07-2011 |     5 | 01-07-2011 |  30
  01-04-2011 |     5 | 01-04-2011 |  15
+ 01-05-2011 |     5 | 01-05-2011 |  20
+ 01-09-2011 |     5 | 01-09-2011 |  40
+ 01-11-2011 |     5 | 01-11-2011 |   0
+ 01-07-2011 |     5 | 01-07-2011 |  30
+ 01-08-2011 |     5 | 01-08-2011 |  35
+ 01-13-2011 |     5 | 01-13-2011 |  10
+ 01-15-2011 |     5 | 01-15-2011 |  20
+ 01-17-2011 |     5 | 01-17-2011 |  30
+ 01-18-2011 |     5 | 01-18-2011 |  35
 (20 rows)
 
 explain analyze select t1.*, t2.* from
@@ -182,35 +184,35 @@ explain analyze select t1.*, t2.* from
 where t1.d = t2.d;
                                                                               QUERY PLAN                                                                               
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice3; segments: 3)  (cost=0.00..862.02 rows=20 width=24) (actual time=1.873..1.922 rows=20 loops=1)
-   ->  Hash Join  (cost=0.00..862.02 rows=7 width=24) (actual time=1.498..1.631 rows=7 loops=1)
+ Gather Motion 3:1  (slice3; segments: 3)  (cost=0.00..862.02 rows=20 width=24) (actual time=1.998..5.143 rows=20 loops=1)
+   ->  Hash Join  (cost=0.00..862.02 rows=7 width=24) (actual time=2.523..2.647 rows=7 loops=1)
          Hash Cond: (smallt.d = smallt_1.d)
          Extra Text: (seg1)   Hash chain length 1.0 avg, 1 max, using 7 of 131072 buckets.Hash chain length 1.2 avg, 2 max, using 6 of 32 buckets; total 0 expansions.
  
-         ->  GroupAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=0.032..0.038 rows=7 loops=1)
+         ->  GroupAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=0.044..0.050 rows=7 loops=1)
                Group Key: smallt.d
-               ->  Sort  (cost=0.00..431.01 rows=34 width=4) (actual time=0.029..0.032 rows=35 loops=1)
+               ->  Sort  (cost=0.00..431.01 rows=34 width=4) (actual time=0.041..0.044 rows=35 loops=1)
                      Sort Key: smallt.d
                      Sort Method:  quicksort  Memory: 99kB
-                     ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=0.004..0.011 rows=35 loops=1)
+                     ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=0.003..0.021 rows=35 loops=1)
                            Hash Key: smallt.d
-                           ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.003..0.018 rows=50 loops=1)
-         ->  Hash  (cost=431.01..431.01 rows=7 width=12) (actual time=1.402..1.402 rows=7 loops=1)
-               ->  HashAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=1.388..1.398 rows=7 loops=1)
+                           ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.002..0.009 rows=50 loops=1)
+         ->  Hash  (cost=431.01..431.01 rows=7 width=12) (actual time=2.432..2.432 rows=7 loops=1)
+               ->  HashAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=2.421..2.428 rows=7 loops=1)
                      Group Key: smallt_1.d
                      Extra Text: (seg1)   Hash chain length 1.2 avg, 2 max, using 6 of 32 buckets; total 0 expansions.
  
-                     ->  Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=34 width=8) (actual time=0.245..1.337 rows=35 loops=1)
+                     ->  Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=34 width=8) (actual time=1.632..2.403 rows=35 loops=1)
                            Hash Key: smallt_1.d
-                           ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=8) (actual time=0.003..0.018 rows=50 loops=1)
- Planning time: 64.498 ms
+                           ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=8) (actual time=0.002..0.008 rows=50 loops=1)
+ Planning time: 20.573 ms
    (slice0)    Executor memory: 127K bytes.
    (slice1)    Executor memory: 44K bytes avg x 3 workers, 44K bytes max (seg0).
    (slice2)    Executor memory: 44K bytes avg x 3 workers, 44K bytes max (seg0).
    (slice3)    Executor memory: 1192K bytes avg x 3 workers, 1192K bytes max (seg0).  Work_mem: 33K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 3.64.0
- Execution time: 2.226 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 6.132 ms
 (29 rows)
 
 set enable_nestloop=off;
@@ -226,16 +228,16 @@ select t1.*, t2.* from
 where t1.i = t2.i;
  i | count | i | sum 
 ---+-------+---+-----
- 1 |    10 | 1 |  10
- 3 |    10 | 3 |  30
  0 |    10 | 0 |   0
- 4 |    10 | 4 |  40
- 7 |    10 | 7 |  70
- 8 |    10 | 8 |  80
- 2 |    10 | 2 |  20
+ 1 |    10 | 1 |  10
  5 |    10 | 5 |  50
  6 |    10 | 6 |  60
  9 |    10 | 9 |  90
+ 2 |    10 | 2 |  20
+ 3 |    10 | 3 |  30
+ 4 |    10 | 4 |  40
+ 7 |    10 | 7 |  70
+ 8 |    10 | 8 |  80
 (10 rows)
 
 explain analyze select t1.*, t2.* from
@@ -243,29 +245,29 @@ explain analyze select t1.*, t2.* from
 where t1.i = t2.i;
                                                                 QUERY PLAN                                                                 
 -------------------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.01 rows=10 width=24) (actual time=0.501..0.740 rows=5 loops=2)
-   ->  Hash Join  (cost=0.00..862.01 rows=4 width=24) (actual time=0.166..0.460 rows=2 loops=2)
-         Hash Cond: smallt.i = smallt_1.i
-         Extra Text: (seg0)   Hash chain length 1.0 avg, 1 max, using 4 of 131072 buckets.
- 
-         ->  GroupAggregate  (cost=0.00..431.01 rows=4 width=12) (actual time=0.041..0.055 rows=2 loops=2)
+ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.01 rows=10 width=24) (actual time=0.722..0.728 rows=10 loops=1)
+   ->  Hash Join  (cost=0.00..862.01 rows=4 width=24) (actual time=0.111..0.220 rows=5 loops=1)
+         Hash Cond: (smallt.i = smallt_1.i)
+         Extra Text: (seg0)   Hash chain length 1.0 avg, 1 max, using 5 of 131072 buckets.
+         ->  GroupAggregate  (cost=0.00..431.01 rows=4 width=12) (actual time=0.020..0.028 rows=5 loops=1)
                Group Key: smallt.i
-               ->  Sort  (cost=0.00..431.00 rows=34 width=4) (actual time=0.036..0.042 rows=20 loops=2)
+               ->  Sort  (cost=0.00..431.00 rows=34 width=4) (actual time=0.017..0.019 rows=50 loops=1)
                      Sort Key: smallt.i
                      Sort Method:  quicksort  Memory: 99kB
-                     ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.004..0.013 rows=20 loops=2)
-         ->  Hash  (cost=431.01..431.01 rows=4 width=12) (actual time=0.072..0.072 rows=2 loops=2)
-               ->  GroupAggregate  (cost=0.00..431.01 rows=4 width=12) (actual time=0.053..0.069 rows=2 loops=2)
+                     ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.001..0.007 rows=50 loops=1)
+         ->  Hash  (cost=431.01..431.01 rows=4 width=12) (actual time=0.043..0.043 rows=5 loops=1)
+               ->  GroupAggregate  (cost=0.00..431.01 rows=4 width=12) (actual time=0.031..0.040 rows=5 loops=1)
                      Group Key: smallt_1.i
-                     ->  Sort  (cost=0.00..431.00 rows=34 width=4) (actual time=0.048..0.053 rows=20 loops=2)
+                     ->  Sort  (cost=0.00..431.00 rows=34 width=4) (actual time=0.027..0.032 rows=50 loops=1)
                            Sort Key: smallt_1.i
                            Sort Method:  quicksort  Memory: 99kB
-                           ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=4) (actual time=0.012..0.022 rows=20 loops=2)
-   (slice0)    Executor memory: 386K bytes.
-   (slice1)    Executor memory: 1238K bytes avg x 3 workers, 1238K bytes max (seg0).  Work_mem: 33K bytes max.
+                           ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=4) (actual time=0.003..0.010 rows=50 loops=1)
+ Planning time: 8.575 ms
+   (slice0)    Executor memory: 123K bytes.
+   (slice1)    Executor memory: 1196K bytes avg x 3 workers, 1196K bytes max (seg0).  Work_mem: 33K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.74.0
- Total runtime: 2.471 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 1.576 ms
 (23 rows)
 
 set enable_nestloop=off;
@@ -274,34 +276,34 @@ set enable_hashjoin=on;
 select d, count(*) from smallt group by d limit 5; --ignore
      d      | count 
 ------------+-------
- 01-19-2011 |     5
- 01-16-2011 |     5
+ 01-07-2011 |     5
+ 01-08-2011 |     5
  01-13-2011 |     5
- 01-10-2011 |     5
  01-15-2011 |     5
+ 01-17-2011 |     5
 (5 rows)
 
 explain analyze select d, count(*) from smallt group by d limit 5;
                                                                           QUERY PLAN                                                                          
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
- Limit  (cost=0.00..431.01 rows=2 width=12) (actual time=1.700..1.702 rows=5 loops=1)
-   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..431.01 rows=5 width=12) (actual time=1.698..1.700 rows=5 loops=1)
-         ->  Limit  (cost=0.00..431.01 rows=2 width=12) (actual time=1.456..1.464 rows=5 loops=1)
-               ->  GroupAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=1.455..1.460 rows=5 loops=1)
+ Limit  (cost=0.00..431.01 rows=2 width=12) (actual time=1.434..1.436 rows=5 loops=1)
+   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..431.01 rows=5 width=12) (actual time=1.433..1.434 rows=5 loops=1)
+         ->  Limit  (cost=0.00..431.01 rows=2 width=12) (actual time=1.391..1.396 rows=5 loops=1)
+               ->  GroupAggregate  (cost=0.00..431.01 rows=7 width=12) (actual time=1.390..1.394 rows=5 loops=1)
                      Group Key: d
-                     ->  Sort  (cost=0.00..431.01 rows=34 width=4) (actual time=1.449..1.453 rows=26 loops=1)
+                     ->  Sort  (cost=0.00..431.01 rows=34 width=4) (actual time=1.386..1.387 rows=26 loops=1)
                            Sort Key: d
                            Sort Method:  quicksort  Memory: 99kB
-                           ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=0.413..1.428 rows=35 loops=1)
+                           ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=0.462..1.060 rows=35 loops=1)
                                  Hash Key: d
-                                 ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.003..0.006 rows=50 loops=1)
- Planning time: 16.802 ms
+                                 ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4) (actual time=0.002..0.007 rows=50 loops=1)
+ Planning time: 9.721 ms
    (slice0)    Executor memory: 59K bytes.
    (slice1)    Executor memory: 42K bytes avg x 3 workers, 42K bytes max (seg0).
    (slice2)    Executor memory: 64K bytes avg x 3 workers, 64K bytes max (seg0).  Work_mem: 33K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 3.64.0
- Execution time: 2.024 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 2.268 ms
 (18 rows)
 
 -- HashJoin
@@ -1313,19 +1315,19 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i order by 1,2,3;
 explain analyze select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i;
                                                           QUERY PLAN                                                           
 -------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.09 rows=1000 width=15) (actual time=0.788..1.687 rows=500 loops=2)
-   ->  Hash Join  (cost=0.00..862.03 rows=334 width=15) (actual time=0.402..1.244 rows=200 loops=2)
-         Hash Cond: smallt.i = smallt_1.i
-         Extra Text: (seg0)   Hash chain length 10.0 avg, 10 max, using 4 of 524288 buckets.
- 
-         ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=15) (actual time=0.002..0.008 rows=20 loops=2)
-         ->  Hash  (cost=431.00..431.00 rows=34 width=4) (actual time=0.034..0.034 rows=20 loops=2)
-               ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=4) (actual time=0.019..0.023 rows=20 loops=2)
-   (slice0)    Executor memory: 322K bytes.
-   (slice1)    Executor memory: 4198K bytes avg x 3 workers, 4206K bytes max (seg0).  Work_mem: 1K bytes max.
+ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.09 rows=1000 width=15) (actual time=2.566..5.471 rows=1000 loops=1)
+   ->  Hash Join  (cost=0.00..862.03 rows=334 width=15) (actual time=0.341..0.910 rows=500 loops=1)
+         Hash Cond: (smallt.i = smallt_1.i)
+         Extra Text: (seg0)   Hash chain length 10.0 avg, 10 max, using 5 of 524288 buckets.
+         ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=15) (actual time=0.001..0.006 rows=50 loops=1)
+         ->  Hash  (cost=431.00..431.00 rows=34 width=4) (actual time=0.016..0.016 rows=50 loops=1)
+               ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=4) (actual time=0.004..0.007 rows=50 loops=1)
+ Planning time: 10.713 ms
+   (slice0)    Executor memory: 87K bytes.
+   (slice1)    Executor memory: 4182K bytes avg x 3 workers, 4188K bytes max (seg0).  Work_mem: 2K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.74.0
- Total runtime: 4.129 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 5.721 ms
 (13 rows)
 
 -- Rescan on HashJoin
@@ -1390,23 +1392,21 @@ where i < (select count(*) from smallt where smallt.i = smallt2.i) order by 1,2,
 
 explain select smallt2.* from smallt2
 where i < (select count(*) from smallt where smallt.i = smallt2.i);
-                                            QUERY PLAN                                             
----------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.02 rows=50 width=15)
-   ->  Result  (cost=0.00..862.01 rows=17 width=15)
-         Filter: smallt2.i < COALESCE((count()), 0::bigint)
-         ->  Result  (cost=0.00..862.01 rows=17 width=24)
-               ->  Hash Left Join  (cost=0.00..862.01 rows=17 width=23)
-                     Hash Cond: smallt2.i = smallt.i
-                     ->  Seq Scan on smallt2  (cost=0.00..431.00 rows=17 width=15)
-                     ->  Hash  (cost=431.01..431.01 rows=4 width=12)
-                           ->  GroupAggregate  (cost=0.00..431.01 rows=4 width=12)
-                                 Group Key: smallt.i
-                                 ->  Sort  (cost=0.00..431.00 rows=34 width=4)
-                                       Sort Key: smallt.i
-                                       ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4)
- Optimizer: Pivotal Optimizer (GPORCA) version 2.67.0
-(14 rows)
+                                                    QUERY PLAN                                                     
+-------------------------------------------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice2; segments: 3)  (cost=0.00..1324412.64 rows=50 width=15)
+   ->  Result  (cost=0.00..1324412.64 rows=17 width=15)
+         Filter: (smallt2.i < (SubPlan 1))
+         ->  Seq Scan on smallt2  (cost=0.00..1324412.62 rows=334 width=24)
+         SubPlan 1  (slice2; segments: 3)
+           ->  Aggregate  (cost=0.00..431.34 rows=1 width=8)
+                 ->  Result  (cost=0.00..431.34 rows=10 width=1)
+                       Filter: (smallt.i = smallt2.i)
+                       ->  Materialize  (cost=0.00..431.01 rows=100 width=4)
+                             ->  Broadcast Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.01 rows=100 width=4)
+                                   ->  Seq Scan on smallt  (cost=0.00..431.00 rows=34 width=4)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(12 rows)
 
 -- Sort in MergeJoin
 -- start_ignore
@@ -1417,106 +1417,6 @@ set enable_mergejoin=on;
 select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  i |    t    |     d      
 ---+---------+------------
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 6  | 01-12-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 11 | 01-12-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
- 1 | text 1  | 01-12-2011
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
@@ -1527,6 +1427,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
@@ -1537,6 +1447,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
@@ -1547,6 +1467,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
@@ -1557,6 +1487,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
  0 | text 10 | 01-01-2011
  0 | text 10 | 01-01-2011
  0 | text 10 | 01-01-2011
@@ -1567,6 +1507,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 10 | 01-01-2011
  0 | text 10 | 01-01-2011
  0 | text 10 | 01-01-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
  0 | text 5  | 01-11-2011
  0 | text 5  | 01-11-2011
  0 | text 5  | 01-11-2011
@@ -1577,6 +1527,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 5  | 01-11-2011
  0 | text 5  | 01-11-2011
  0 | text 5  | 01-11-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
+ 1 | text 6  | 01-12-2011
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
@@ -1587,6 +1547,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
  0 | text 0  | 01-01-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
@@ -1597,6 +1567,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
  0 | text 10 | 01-11-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
+ 1 | text 11 | 01-12-2011
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
@@ -1607,6 +1587,16 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
  0 | text 5  | 01-01-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
@@ -1617,31 +1607,116 @@ select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
  0 | text 0  | 01-11-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
+ 1 | text 1  | 01-12-2011
 (200 rows)
 
 explain analyze select t1.* from smallt as t1, smallt as t2 where t1.i = t2.i and t1.i < 2;
-                                                         QUERY PLAN                                                          
------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.02 rows=200 width=15) (actual time=1.423..1.484 rows=100 loops=2)
-   ->  Hash Join  (cost=0.00..862.01 rows=67 width=15) (actual time=0.289..1.208 rows=50 loops=2)
-         Hash Cond: smallt.i = smallt_1.i
-         Extra Text: (seg0)   Hash chain length 10.0 avg, 10 max, using 1 of 524288 buckets.
- 
-         ->  Seq Scan on smallt  (cost=0.00..431.00 rows=7 width=15) (actual time=0.002..0.007 rows=5 loops=2)
-               Filter: i < 2
-         ->  Hash  (cost=431.00..431.00 rows=7 width=4) (actual time=0.049..0.049 rows=5 loops=2)
-               ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=7 width=4) (actual time=0.037..0.044 rows=5 loops=2)
-                     Filter: i < 2
-   (slice0)    Executor memory: 322K bytes.
-   (slice1)    Executor memory: 4182K bytes avg x 3 workers, 4182K bytes max (seg0).  Work_mem: 1K bytes max.
+                                                          QUERY PLAN                                                          
+------------------------------------------------------------------------------------------------------------------------------
+ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..862.02 rows=200 width=15) (actual time=0.508..0.514 rows=200 loops=1)
+   ->  Hash Join  (cost=0.00..862.01 rows=67 width=15) (actual time=0.215..0.715 rows=200 loops=1)
+         Hash Cond: (smallt.i = smallt_1.i)
+         Extra Text: (seg1)   Hash chain length 10.0 avg, 10 max, using 2 of 524288 buckets.
+         ->  Seq Scan on smallt  (cost=0.00..431.00 rows=7 width=15) (actual time=0.001..0.003 rows=20 loops=1)
+               Filter: (i < 2)
+         ->  Hash  (cost=431.00..431.00 rows=7 width=4) (actual time=0.015..0.015 rows=20 loops=1)
+               ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=7 width=4) (actual time=0.006..0.010 rows=20 loops=1)
+                     Filter: (i < 2)
+ Planning time: 3.361 ms
+   (slice0)    Executor memory: 87K bytes.
+   (slice1)    Executor memory: 4172K bytes avg x 3 workers, 4172K bytes max (seg0).  Work_mem: 1K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.74.0
- Total runtime: 3.631 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 1.660 ms
 (15 rows)
 
 select t1.* from smallt as t1, smallt as t2 where t1.d = t2.d and t1.i < 2;
  i |    t    |     d      
 ---+---------+------------
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 10 | 01-01-2011
+ 0 | text 10 | 01-01-2011
+ 0 | text 10 | 01-01-2011
+ 0 | text 10 | 01-01-2011
+ 0 | text 10 | 01-01-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 1 | text 11 | 01-02-2011
+ 0 | text 5  | 01-11-2011
+ 0 | text 5  | 01-11-2011
+ 0 | text 5  | 01-11-2011
+ 0 | text 5  | 01-11-2011
+ 0 | text 5  | 01-11-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 0 | text 0  | 01-01-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 1 | text 1  | 01-02-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 10 | 01-11-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 0 | text 5  | 01-01-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 1 | text 6  | 01-02-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
+ 0 | text 0  | 01-11-2011
  1 | text 11 | 01-12-2011
  1 | text 11 | 01-12-2011
  1 | text 11 | 01-12-2011
@@ -1667,107 +1742,32 @@ select t1.* from smallt as t1, smallt as t2 where t1.d = t2.d and t1.i < 2;
  1 | text 1  | 01-12-2011
  1 | text 1  | 01-12-2011
  1 | text 1  | 01-12-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 5  | 01-11-2011
- 0 | text 5  | 01-11-2011
- 0 | text 5  | 01-11-2011
- 0 | text 5  | 01-11-2011
- 0 | text 5  | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 10 | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 0 | text 0  | 01-11-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 11 | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 1  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 1 | text 6  | 01-02-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 10 | 01-01-2011
- 0 | text 10 | 01-01-2011
- 0 | text 10 | 01-01-2011
- 0 | text 10 | 01-01-2011
- 0 | text 10 | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 0  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
- 0 | text 5  | 01-01-2011
 (100 rows)
 
 --start_ignore
 explain analyze select t1.* from smallt as t1, smallt as t2 where t1.d = t2.d and t1.i < 2;
                                                                     QUERY PLAN                                                                    
 --------------------------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice3; segments: 3)  (cost=0.00..862.02 rows=100 width=15) (actual time=1.917..2.300 rows=50 loops=2)
-   ->  Hash Join  (cost=0.00..862.01 rows=34 width=15) (actual time=0.611..2.052 rows=25 loops=2)
-         Hash Cond: smallt.d = smallt_1.d
-         Extra Text: (seg1)   Hash chain length 5.0 avg, 5 max, using 11 of 524288 buckets.
- 
-         ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=7 width=15) (actual time=0.004..0.199 rows=5 loops=2)
+ Gather Motion 3:1  (slice3; segments: 3)  (cost=0.00..862.02 rows=100 width=15) (actual time=4.340..6.196 rows=100 loops=1)
+   ->  Hash Join  (cost=0.00..862.01 rows=34 width=15) (actual time=4.110..5.833 rows=75 loops=1)
+         Hash Cond: (smallt.d = smallt_1.d)
+         Extra Text: (seg1)   Hash chain length 5.0 avg, 5 max, using 7 of 524288 buckets.
+         ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..431.00 rows=7 width=15) (actual time=0.004..0.007 rows=15 loops=1)
                Hash Key: smallt.d
-               ->  Seq Scan on smallt  (cost=0.00..431.00 rows=7 width=15) (actual time=0.021..0.034 rows=5 loops=2)
-                     Filter: i < 2
-         ->  Hash  (cost=431.00..431.00 rows=34 width=4) (actual time=0.169..0.169 rows=28 loops=2)
-               ->  Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=0.032..0.153 rows=28 loops=2)
+               ->  Seq Scan on smallt  (cost=0.00..431.00 rows=7 width=15) (actual time=0.003..0.007 rows=20 loops=1)
+                     Filter: (i < 2)
+         ->  Hash  (cost=431.00..431.00 rows=34 width=4) (actual time=3.958..3.958 rows=35 loops=1)
+               ->  Redistribute Motion 3:3  (slice2; segments: 3)  (cost=0.00..431.00 rows=34 width=4) (actual time=3.948..3.953 rows=35 loops=1)
                      Hash Key: smallt_1.d
-                     ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=4) (actual time=0.022..0.036 rows=20 loops=2)
-   (slice0)    Executor memory: 386K bytes.
-   (slice1)    Executor memory: 66K bytes avg x 3 workers, 66K bytes max (seg0).
-   (slice2)    Executor memory: 66K bytes avg x 3 workers, 66K bytes max (seg0).
-   (slice3)    Executor memory: 4186K bytes avg x 3 workers, 4186K bytes max (seg0).  Work_mem: 2K bytes max.
+                     ->  Seq Scan on smallt smallt_1  (cost=0.00..431.00 rows=34 width=4) (actual time=0.002..0.008 rows=50 loops=1)
+ Planning time: 6.368 ms
+   (slice0)    Executor memory: 71K bytes.
+   (slice1)    Executor memory: 44K bytes avg x 3 workers, 44K bytes max (seg0).
+   (slice2)    Executor memory: 44K bytes avg x 3 workers, 44K bytes max (seg0).
+   (slice3)    Executor memory: 4146K bytes avg x 3 workers, 4152K bytes max (seg1).  Work_mem: 1K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.74.0
- Total runtime: 5.688 ms
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 7.110 ms
 (20 rows)
 
 --end_ignore
@@ -1820,40 +1820,43 @@ explain analyze select smallt.* from smallt, smallt2 where smallt.i = smallt2.i 
 and smallt.d = '2011-01-04'::date;
                                                                QUERY PLAN                                                                
 -----------------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..17.99 rows=2 width=15) (actual time=2.338..2.341 rows=20 loops=1)
-   ->  Hash Join  (cost=0.00..17.99 rows=1 width=15) (actual time=0.464..1.817 rows=20 loops=1)
-         Hash Cond: smallt.i = smallt2.i
-         (seg2)   Hash chain length 4.0 avg, 4 max, using 1 of 524288 buckets.
-         ->  Index Scan using smallt_d_idx on smallt  (cost=0.00..9.99 rows=2 width=15) (actual time=0.005..0.007 rows=5 loops=1)
-               Index Cond: d = '01-04-2011'::date
-         ->  Hash  (cost=8.00..8.00 rows=2 width=4) (actual time=0.034..0.034 rows=4 loops=1)
-               ->  Index Scan using smallt2_d_idx on smallt2  (cost=0.00..8.00 rows=2 width=4) (actual time=0.023..0.027 rows=4 loops=1)
-                     Index Cond: d = '01-04-2011'::date
-   (slice0)    Executor memory: 450K bytes.
-   (slice1)    Executor memory: 4234K bytes avg x 3 workers, 4234K bytes max (seg0).  Work_mem: 1K bytes max.
+ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..12.00 rows=4 width=15) (actual time=1.073..4.912 rows=20 loops=1)
+   ->  Hash Join  (cost=0.00..12.00 rows=2 width=15) (actual time=0.371..0.877 rows=20 loops=1)
+         Hash Cond: (smallt.i = smallt2.i)
+         Extra Text: (seg0)   Hash chain length 4.0 avg, 4 max, using 1 of 524288 buckets.
+         ->  Index Scan using smallt_d_idx on smallt  (cost=0.00..6.00 rows=2 width=15) (actual time=0.004..0.005 rows=5 loops=1)
+               Index Cond: (d = '01-04-2011'::date)
+         ->  Hash  (cost=6.00..6.00 rows=2 width=4) (actual time=0.013..0.013 rows=4 loops=1)
+               ->  Index Scan using smallt2_d_idx on smallt2  (cost=0.00..6.00 rows=2 width=4) (actual time=0.009..0.012 rows=4 loops=1)
+                     Index Cond: (d = '01-04-2011'::date)
+ Planning time: 18.368 ms
+   (slice0)    Executor memory: 128K bytes.
+   (slice1)    Executor memory: 4236K bytes avg x 3 workers, 4236K bytes max (seg0).  Work_mem: 1K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.67.0
- Total runtime: 3.325 ms
-(14 rows)
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 5.203 ms
+(15 rows)
 
 -- IndexOnlyScan
 explain analyze select *, exists(select 1 from pg_class where oid = c.oid) as dummy from pg_class c;
-                                                                            QUERY PLAN                                                                             
--------------------------------------------------------------------------------------------------------------------------------------------------------------------
- Seq Scan on pg_class c  (cost=10000000000.00..10000277657.66 rows=1387 width=209) (actual time=0.465..0.708 rows=222 loops=2)
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on pg_class c  (cost=10000000000.00..10002313594.06 rows=11549 width=206) (actual time=5.949..9.191 rows=7195 loops=1)
    SubPlan 1
-     ->  Index Only Scan using pg_class_oid_index on pg_class  (cost=0.15..200.17 rows=1 width=0) (never executed)
-           Index Cond: oid = c.oid
+     ->  Index Only Scan using pg_class_oid_index on pg_class  (cost=0.29..200.30 rows=1 width=0) (never executed)
+           Index Cond: (oid = c.oid)
            Heap Fetches: 0
    SubPlan 2
-     ->  Materialize  (cost=0.15..1027.89 rows=1387 width=4) (actual time=0.327..0.345 rows=222 loops=2)
-           ->  Index Only Scan using pg_class_oid_index on pg_class pg_class_1  (cost=0.15..1020.96 rows=1387 width=4) (actual time=0.036..0.258 rows=222 loops=2)
-                 Heap Fetches: 1252
-   (slice0)    Executor memory: 382K bytes.
+     ->  Materialize  (cost=0.29..19631.26 rows=11549 width=4) (actual time=4.851..5.129 rows=7195 loops=1)
+           ->  Index Only Scan using pg_class_oid_index on pg_class pg_class_1  (cost=0.29..19573.52 rows=11549 width=4) (actual time=0.069..4.370 rows=7195 loops=1)
+                 Heap Fetches: 19944
+ Planning time: 2.282 ms
+ * (slice0)    Executor memory: 1033K bytes.  Work_mem: 96K bytes max, 64K bytes wanted.
  Memory used:  128000kB
+ Memory wanted:  364kB
  Optimizer: Postgres query optimizer
- Total runtime: 1.681 ms
-(13 rows)
+ Execution time: 9.561 ms
+(15 rows)
 
 -- BitmapScan
 -- start_ignore
@@ -1891,21 +1894,22 @@ explain analyze select smallt.* from smallt, smallt2 where smallt.i = smallt2.i 
 and smallt.d = '2011-01-04'::date;
                                                                QUERY PLAN                                                                
 -----------------------------------------------------------------------------------------------------------------------------------------
- Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..17.99 rows=2 width=15) (actual time=3.960..3.964 rows=20 loops=1)
-   ->  Hash Join  (cost=0.00..17.99 rows=1 width=15) (actual time=0.267..1.566 rows=20 loops=1)
-         Hash Cond: smallt.i = smallt2.i
-         (seg2)   Hash chain length 4.0 avg, 4 max, using 1 of 524288 buckets.
-         ->  Index Scan using smallt_d_idx on smallt  (cost=0.00..9.99 rows=2 width=15) (actual time=0.005..0.007 rows=5 loops=1)
-               Index Cond: d = '01-04-2011'::date
-         ->  Hash  (cost=8.00..8.00 rows=2 width=4) (actual time=0.031..0.031 rows=4 loops=1)
-               ->  Index Scan using smallt2_d_idx on smallt2  (cost=0.00..8.00 rows=2 width=4) (actual time=0.020..0.024 rows=4 loops=1)
-                     Index Cond: d = '01-04-2011'::date
-   (slice0)    Executor memory: 450K bytes.
-   (slice1)    Executor memory: 4234K bytes avg x 3 workers, 4234K bytes max (seg0).  Work_mem: 1K bytes max.
+ Gather Motion 3:1  (slice1; segments: 3)  (cost=0.00..12.00 rows=4 width=15) (actual time=0.413..0.414 rows=20 loops=1)
+   ->  Hash Join  (cost=0.00..12.00 rows=2 width=15) (actual time=0.466..1.063 rows=20 loops=1)
+         Hash Cond: (smallt.i = smallt2.i)
+         Extra Text: (seg0)   Hash chain length 4.0 avg, 4 max, using 1 of 524288 buckets.
+         ->  Index Scan using smallt_d_idx on smallt  (cost=0.00..6.00 rows=2 width=15) (actual time=0.004..0.005 rows=5 loops=1)
+               Index Cond: (d = '01-04-2011'::date)
+         ->  Hash  (cost=6.00..6.00 rows=2 width=4) (actual time=0.012..0.012 rows=4 loops=1)
+               ->  Index Scan using smallt2_d_idx on smallt2  (cost=0.00..6.00 rows=2 width=4) (actual time=0.007..0.009 rows=4 loops=1)
+                     Index Cond: (d = '01-04-2011'::date)
+ Planning time: 4.367 ms
+   (slice0)    Executor memory: 128K bytes.
+   (slice1)    Executor memory: 4236K bytes avg x 3 workers, 4236K bytes max (seg0).  Work_mem: 1K bytes max.
  Memory used:  128000kB
- Optimizer: Pivotal Optimizer (GPORCA) version 2.67.0
- Total runtime: 5.131 ms
-(14 rows)
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 1.521 ms
+(15 rows)
 
 set enable_hashjoin=on;
 set enable_nestloop=off;
@@ -1956,30 +1960,30 @@ insert into eager_free_t select generate_series(1, 30), generate_series(1, 6), g
 select * from eager_free_t where t1 > (select min(r1) from eager_free_r where r2<t2 and r3 > (Select min(s3) from eager_free_s where s1<r1));
  t1 | t2 | t3 
 ----+----+----
- 11 |  5 |  1
- 17 |  5 |  2
- 18 |  6 |  3
- 21 |  3 |  1
  20 |  2 |  5
- 29 |  5 |  4
  26 |  2 |  1
- 27 |  3 |  2
-  5 |  5 |  5
-  9 |  3 |  4
- 12 |  6 |  2
- 23 |  5 |  3
- 24 |  6 |  4
- 28 |  4 |  3
- 30 |  6 |  5
-  4 |  4 |  4
-  3 |  3 |  3
-  8 |  2 |  3
-  6 |  6 |  1
- 14 |  2 |  4
- 10 |  4 |  5
  15 |  3 |  5
+ 23 |  5 |  3
+ 12 |  6 |  2
+ 30 |  6 |  5
+  6 |  6 |  1
+  5 |  5 |  5
+ 10 |  4 |  5
+ 28 |  4 |  3
+  9 |  3 |  4
+ 14 |  2 |  4
+ 11 |  5 |  1
+ 21 |  3 |  1
+ 17 |  5 |  2
+  3 |  3 |  3
+ 27 |  3 |  2
+ 18 |  6 |  3
+ 24 |  6 |  4
  16 |  4 |  1
+  4 |  4 |  4
+ 29 |  5 |  4
  22 |  4 |  2
+  8 |  2 |  3
 (24 rows)
 
 reset optimizer_segments;
