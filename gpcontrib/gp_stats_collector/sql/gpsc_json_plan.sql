@@ -39,13 +39,14 @@ FROM gpsc.log
 WHERE segid = -1 AND query_text LIKE '%json_o%' AND query_status = 'QUERY_STATUS_DONE';
 
 -- Test 3: JSON that does not fit gpsc.max_plan_size is dropped whole, while
--- the text plan is trimmed as usual.
+-- the text plan is trimmed as usual (to an empty string at limit 0, which the
+-- proto3 TBL logger stores as NULL).
 SET gpsc.max_plan_size TO 0;
 SET gpsc.logging_mode TO 'TBL';
 SELECT /*json_big*/ COUNT(*) FROM generate_series(1,10);
 RESET gpsc.logging_mode;
 RESET gpsc.max_plan_size;
-SELECT octet_length(plan_text) AS plan_text_len,
+SELECT coalesce(octet_length(plan_text), 0) AS plan_text_len,
        plan_json IS NULL AS no_plan_json,
        analyze_json IS NULL AS no_analyze_json
 FROM gpsc.log
