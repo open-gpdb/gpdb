@@ -7,7 +7,8 @@ SET gpsc.enable_analyze TO TRUE;
 -- Collect analyze for every query, regardless of its duration.
 SET gpsc.min_analyze_time TO 0;
 
--- Test 1: gpsc.enable_json_plan is off by default => text plans only.
+-- Test 1: gpsc.enable_json_plan off (set explicitly) => text plans only.
+SET gpsc.enable_json_plan TO FALSE;
 SET gpsc.logging_mode TO 'TBL';
 SELECT /*json_off*/ COUNT(*) FROM generate_series(1,10);
 RESET gpsc.logging_mode;
@@ -18,8 +19,7 @@ SELECT plan_text IS NOT NULL AS has_plan_text,
 FROM gpsc.log
 WHERE segid = -1 AND query_text LIKE '%json_off%' AND query_status = 'QUERY_STATUS_DONE';
 
--- Test 2: GUC on => valid JSON array with a "Plan" object, for both the plan
--- and the analyze.
+-- Test 2: GUC on => valid JSON array with a "Plan" object for plan and analyze.
 SET gpsc.enable_json_plan TO TRUE;
 SET gpsc.logging_mode TO 'TBL';
 SELECT /*json_on*/ COUNT(*) FROM generate_series(1,10);
@@ -38,9 +38,7 @@ SELECT COUNT(DISTINCT plan_text) = 1 AS same_plan_text,
 FROM gpsc.log
 WHERE segid = -1 AND query_text LIKE '%json_o%' AND query_status = 'QUERY_STATUS_DONE';
 
--- Test 3: JSON that does not fit gpsc.max_plan_size is dropped whole, while
--- the text plan is trimmed as usual (to an empty string at limit 0, which the
--- proto3 TBL logger stores as NULL).
+-- Test 3: oversized JSON is dropped whole, the text plan is trimmed as usual (NULL at limit 0).
 SET gpsc.max_plan_size TO 0;
 SET gpsc.logging_mode TO 'TBL';
 SELECT /*json_big*/ COUNT(*) FROM generate_series(1,10);
