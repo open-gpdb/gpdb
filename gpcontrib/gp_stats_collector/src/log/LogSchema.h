@@ -134,17 +134,27 @@ inline constexpr std::array log_tbl_desc = {
  LogDesc{"database_name",       "query_info.databaseName",        TEXTOID},  
  LogDesc{"rsgname",             "query_info.rsgname",             TEXTOID},  
  LogDesc{"analyze_text",        "query_info.analyze_text",        TEXTOID},
- LogDesc{"plan_json",           "query_info.plan_json",           TEXTOID},
- LogDesc{"analyze_json",        "query_info.analyze_json",        TEXTOID},
  LogDesc{"error_message",       "add_info.error_message",         TEXTOID},  
  LogDesc{"query_status",        "query_status",                   TEXTOID},  
  /* Extra field */
  LogDesc{"utility",             "",                               BOOLOID},  
+ /* 1.2 columns: append-only, the upgrade script uses ADD COLUMN and insert_log() is positional. */
+ LogDesc{"plan_json",           "query_info.plan_json",           TEXTOID},
+ LogDesc{"analyze_json",        "query_info.analyze_json",        TEXTOID},
 };
 /* clang-format on */
 
 inline constexpr size_t natts_gpsc_log = log_tbl_desc.size();
-inline constexpr size_t attnum_gpsc_log_utility = natts_gpsc_log - 1;
+inline constexpr size_t
+find_log_att(std::string_view name)
+{
+	for (size_t idx = 0; idx < log_tbl_desc.size(); ++idx)
+		if (log_tbl_desc[idx].pg_att_name == name)
+			return idx;
+	return log_tbl_desc.size();
+}
+inline constexpr size_t attnum_gpsc_log_utility = find_log_att("utility");
+static_assert(attnum_gpsc_log_utility < natts_gpsc_log, "utility column missing");
 
 const std::unordered_map<std::string_view, size_t> &proto_name_to_col_idx();
 
