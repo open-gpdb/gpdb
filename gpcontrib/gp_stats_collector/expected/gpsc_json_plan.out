@@ -37,9 +37,9 @@ SELECT /*json_on*/ COUNT(*) FROM generate_series(1,10);
 
 RESET gpsc.logging_mode;
 SELECT json_typeof(plan_json::json) AS plan_json_type,
-       plan_json::json->0->'Plan' IS NOT NULL AS has_plan_node,
+       (plan_json::json->0->'Plan') IS NOT NULL AS has_plan_node,
        json_typeof(analyze_json::json) AS analyze_json_type,
-       analyze_json::json->0->'Plan' IS NOT NULL AS has_analyze_node,
+       (analyze_json::json->0->'Plan') IS NOT NULL AS has_analyze_node,
        analyze_json <> plan_json AS analyze_differs
 FROM gpsc.log
 WHERE segid = -1 AND query_text LIKE '%json_on%' AND query_status = 'QUERY_STATUS_DONE';
