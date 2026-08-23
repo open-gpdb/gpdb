@@ -19,6 +19,14 @@ An extension for collecting greenplum query execution metrics and reporting them
 #### 4. `EXPLAIN (FORMAT JSON)` data
 -   **What:** In addition to the text plans, captures the structured `EXPLAIN (FORMAT JSON)` payloads: `plan_json` at query start and `analyze_json` at query end.
 -   **GUC:** `gpsc.enable_json_plan` (default `off`).
+-   **Why not derive it from the text plan:** the text plan is a rendering, not a format.
+    Its tree structure is encoded in indentation, and Greenplum adds annotations of its own
+    (`Gather Motion 2:1 (slice1; segments: 2)`, `Rows out: Avg ... x N workers`, ORCA cost
+    lines, `Executor memory`). Tools that parse text plans (PEV2 `fromText`) silently lose
+    the `Motion` nodes and their subtrees, and the per-segment ANALYZE figures are prose.
+    A text parser would be reverse engineering of `explain.c` output for one Greenplum
+    version, while `EXPLAIN (FORMAT JSON)` is produced by the same tree walk and stays
+    stable across versions. The text plan remains the source of `plan_id`.
 
 #### 5. Other Metrics
 -   **What:** Captures Instrument, Greenplum, System, Network, Interconnect, Spill metrics.
