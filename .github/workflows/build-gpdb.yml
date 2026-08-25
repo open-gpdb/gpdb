@@ -153,6 +153,7 @@ jobs:
                                "contrib/try_convert:generate-tests,installcheck",
                                "contrib/tsearch2:installcheck",
                                "contrib/unaccent:installcheck",
+                               "contrib/vacuum_stats:installcheck,installcheck-tap",
                                "contrib/xml2:installcheck"]
               },
               {"test":"ic-gpcontrib",
