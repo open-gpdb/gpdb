@@ -1507,10 +1507,62 @@ CSubqueryHandler::FRemoveAnySubquery(CExpression *pexprOuter,
 	{
 		GPOS_ASSERT(EsqctxtFilter == esqctxt);
 
-		*ppexprNewOuter = CUtils::PexprLogicalApply<CLogicalLeftSemiApplyIn>(
-			mp, pexprOuter, pexprSelect, colref, eopidSubq);
-		*ppexprResidualScalar =
-			CUtils::PexprScalarConstBool(mp, true /*value*/);
+		CColRef *pcrCount = NULL;
+		if (CUtils::FHasCountAgg(pexprInner, &pcrCount) &&
+			1 >= pexprInner->DeriveMaxCard().Ull())
+		{
+			// "a IN (SELECT count(*) ...)": a correlated scalar count() is
+			// single-valued, so IN is equivalent to "a = (SELECT count(*) ...)".
+			// A plain semi-join would drop outer rows whose correlated group is
+			// empty, losing the count()=0 match (the "count bug"). Instead build
+			// a LEFT outer apply that keeps every outer row and compare the outer
+			// value against coalesce(count, 0), so the empty-group count of 0
+			// survives decorrelation into a LEFT outer join.
+			pexprSelect->Release();
+
+			pexprInner->AddRef();
+			CExpression *pexprLeftOuterApply =
+				CUtils::PexprLogicalApply<CLogicalLeftOuterApply>(
+					mp, pexprOuter, pexprInner, colref, eopidSubq);
+
+			// project the count column so it can be referenced in coalesce
+			CExpression *pexprPrj = CUtils::PexprAddProjection(
+				mp, pexprLeftOuterApply, CUtils::PexprScalarIdent(mp, colref));
+			const CColRef *pcrComputed =
+				CScalarProjectElement::PopConvert((*(*pexprPrj)[1])[0]->Pop())
+					->Pcr();
+			*ppexprNewOuter = pexprPrj;
+
+			// coalesce(count, 0): a no-match outer row gets a NULL count from
+			// the LEFT join, which must read back as 0
+			CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
+			const IMDTypeInt8 *pmdtypeint8 = md_accessor->PtMDType<IMDTypeInt8>();
+			IMDId *pmdidInt8 = pmdtypeint8->MDId();
+			pmdidInt8->AddRef();
+			CExpression *pexprCoalesce = GPOS_NEW(mp)
+				CExpression(mp, GPOS_NEW(mp) CScalarCoalesce(mp, pmdidInt8),
+							CUtils::PexprScalarIdent(mp, pcrComputed),
+							CUtils::PexprScalarConstInt8(mp, 0 /*val*/));
+
+			// residual predicate: outer_expr <op> coalesce(count, 0)
+			IMDId *mdid_op = pScalarSubqAny->MdIdOp();
+			mdid_op->AddRef();
+			CExpression *pexprOuterScalar = (*pexprSubquery)[1];
+			pexprOuterScalar->AddRef();
+			*ppexprResidualScalar =
+				CUtils::PexprScalarCmp(mp, pexprOuterScalar, pexprCoalesce,
+									   *pScalarSubqAny->PstrOp(), mdid_op);
+
+			fSuccess = true;
+		}
+		else
+		{
+			*ppexprNewOuter =
+				CUtils::PexprLogicalApply<CLogicalLeftSemiApplyIn>(
+					mp, pexprOuter, pexprSelect, colref, eopidSubq);
+			*ppexprResidualScalar =
+				CUtils::PexprScalarConstBool(mp, true /*value*/);
+		}
 	}
 
 	return fSuccess;
