@@ -1,0 +1,5 @@
+# ast_log extension control file
+comment = 'Logs AST (Abstract Syntax Tree) of queries for Greenplum'
+default_version = '1.0'
+module_pathname = '$libdir/ast_log'
+relocatable = true

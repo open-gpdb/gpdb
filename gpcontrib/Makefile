@@ -4,7 +4,7 @@ default: all
 top_builddir = ..
 include $(top_builddir)/src/Makefile.global
 
-.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan tea
+.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan tea ast_log
 
 #
 # targets built via top_builddir/GNUmakefile
@@ -13,6 +13,7 @@ recurse_targets = ""
 
 ifeq "$(enable_debug_extensions)" "yes"
 	recurse_targets = access_log \
+			   ast_log \
                gp_sparse_vector \
                gp_distribution_policy \
                gp_parallel_retrieve_cursor \
@@ -32,6 +33,7 @@ ifeq "$(enable_debug_extensions)" "yes"
                temp_tables_stat
 else
 	recurse_targets = access_log \
+			   ast_log \
                gp_sparse_vector \
                gp_distribution_policy \
                gp_parallel_retrieve_cursor \
@@ -61,7 +63,7 @@ ifeq "$(with_quicklz)" "yes"
 endif
 $(call recurse,all install clean distclean, $(recurse_targets))
 
-all: gpcloud mapreduce orafce yezzey sr_plan pgaudit tea
+all: gpcloud mapreduce orafce yezzey sr_plan pgaudit tea ast_log
 
 yezzey:
 	@if [ "$(enable_yezzey)" = "yes" ]; then \
@@ -99,6 +101,8 @@ tea:
 		$(MAKE) -C tea; \
 	fi
 
+ast_log:
+	$(MAKE) -C ast_log
 
 install:
 	@if [ "$(enable_gpcloud)" = "yes" ]; then \
@@ -123,6 +127,7 @@ install:
 	@if [ "$(enable_tea)" = "yes" ]; then \
 		$(MAKE) -C tea install; \
 	fi
+	$(MAKE) -C ast_log install
 
 clean:
 	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce clean; fi
@@ -132,7 +137,7 @@ clean:
 	if [ "${enable_sr_plan}" = "yes" ]; then $(MAKE) -C sr_plan clean; fi
 	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit clean; fi
 	if [ "$(enable_tea)" = "yes" ]; then $(MAKE) -C tea clean; fi
-
+	$(MAKE) -C ast_log clean
 
 distclean:
 	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce distclean; fi
@@ -140,6 +145,7 @@ distclean:
 	if [ "$(enable_yezzey)" = "yes" ]; then $(MAKE) -C yezzey distclean; fi
 	if [ "${enable_orafce}" = "yes" ]; then $(MAKE) -C orafce NO_PGXS=true distclean; fi
 	if [ "$(enable_tea)" = "yes" ]; then $(MAKE) -C tea distclean; fi
+	$(MAKE) -C ast_log distclean
 
 installcheck:
 	$(MAKE) -C access_log installcheck
@@ -158,3 +164,4 @@ installcheck:
 	$(MAKE) -C gp_check_functions installcheck
 	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit installcheck; fi
 	$(MAKE) -C temp_tables_stat installcheck
+	$(MAKE) -C ast_log installcheck
