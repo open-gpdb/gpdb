@@ -71,12 +71,11 @@ step "s2_wait_tuples_deleted"
 }
 step "s2_print_vacuum_stats_table"
 {
-    SELECT relname, sum(tuples_deleted) AS tuples_deleted,
+    SELECT sum(tuples_deleted) AS tuples_deleted,
            sum(dead_tuples) AS dead_tuples,
            sum(pages_frozen) AS pages_frozen
     FROM gp_stat_vacuum_tables
-    WHERE relname = 'test_vacuum_stat_isolation'
-    GROUP BY relname;
+    WHERE relname = 'test_vacuum_stat_isolation';
 }
 
 permutation

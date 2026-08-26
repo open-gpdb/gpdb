@@ -105,7 +105,7 @@ as PostgreSQL considers them invalid after a crash.
   database scenarios of the upstream vacuum statistics patch, plus the
   restart-persistence and crash-reset checks (`make installcheck-tap`,
   requires a build with `--enable-tap-tests`).
-- `src/test/isolation/specs/vacuum-extending-in-repetable-read.spec` —
+- `src/test/isolation/specs/vacuum-extending-in-repeatable-read.spec` —
   an isolation test checking that dead tuples held back by a repeatable
   read snapshot show up in `dead_tuples` and move to `tuples_deleted`
   once the snapshot is released.
