@@ -121,6 +121,9 @@ jobs:
               {"test":"ic-mdb",
                "make_configs":["src/test/isolation2:installcheck-mdb"]
               },
+              {"test":"ic-isolation",
+               "make_configs":["src/test/isolation:installcheck"]
+              },
               {"test":"ic-isolation2",
                "make_configs":["src/test/isolation2:installcheck"]
               },
