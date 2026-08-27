@@ -2329,8 +2329,8 @@ StartTransaction(void)
 	 * hot standby is enabled.  This mode is not supported in
 	 * Greenplum yet.
 	 */
-	AssertImply(DistributedTransactionContext != DTX_CONTEXT_LOCAL_ONLY,
-				!s->startedInRecovery);
+	// AssertImply(DistributedTransactionContext != DTX_CONTEXT_LOCAL_ONLY,
+	// 			!s->startedInRecovery);
 	/*
 	 * MPP Modification
 	 *

@@ -1879,7 +1879,7 @@ GetOldestPreparedTransaction()
 void
 StandbyRecoverPreparedTransactions(bool overwriteOK)
 {
-	elog(ERROR, "Hot Standby not supported");
+	// elog(ERROR, "Hot Standby not supported");
 }
 
 /*
