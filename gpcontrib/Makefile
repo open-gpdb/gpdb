@@ -4,7 +4,7 @@ default: all
 top_builddir = ..
 include $(top_builddir)/src/Makefile.global
 
-.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan
+.PHONY: all install clean distclean gpcloud mapreduce pgaudit sr_plan tea
 
 #
 # targets built via top_builddir/GNUmakefile
@@ -61,7 +61,7 @@ ifeq "$(with_quicklz)" "yes"
 endif
 $(call recurse,all install clean distclean, $(recurse_targets))
 
-all: gpcloud mapreduce orafce yezzey sr_plan pgaudit
+all: gpcloud mapreduce orafce yezzey sr_plan pgaudit tea
 
 yezzey:
 	@if [ "$(enable_yezzey)" = "yes" ]; then \
@@ -94,6 +94,11 @@ pgaudit:
   		$(MAKE) -C pgaudit NO_PGXS=true; \
  	fi
 
+tea:
+	@if [ "$(enable_tea)" = "yes" ]; then \
+		$(MAKE) -C tea; \
+	fi
+
 
 install:
 	@if [ "$(enable_gpcloud)" = "yes" ]; then \
@@ -115,6 +120,9 @@ install:
 	@if [ "$(enable_sr_plan)" = "yes" ]; then \
                 $(MAKE) -C sr_plan NO_PGXS=true install; \
         fi
+	@if [ "$(enable_tea)" = "yes" ]; then \
+		$(MAKE) -C tea install; \
+	fi
 
 clean:
 	if [ "$(enable_mapreduce)" = "yes" ]; then $(MAKE) -C gpmapreduce clean; fi
@@ -123,6 +131,7 @@ clean:
 	if [ "${enable_orafce}" = "yes" ]; then $(MAKE) -C orafce NO_PGXS=true clean; fi
 	if [ "${enable_sr_plan}" = "yes" ]; then $(MAKE) -C sr_plan clean; fi
 	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit clean; fi
+	if [ "$(enable_tea)" = "yes" ]; then $(MAKE) -C tea clean; fi
 
 
 distclean:
@@ -130,6 +139,7 @@ distclean:
 	if [ "$(enable_gpcloud)" = "yes" ]; then $(MAKE) -C gpcloud distclean; fi
 	if [ "$(enable_yezzey)" = "yes" ]; then $(MAKE) -C yezzey distclean; fi
 	if [ "${enable_orafce}" = "yes" ]; then $(MAKE) -C orafce NO_PGXS=true distclean; fi
+	if [ "$(enable_tea)" = "yes" ]; then $(MAKE) -C tea distclean; fi
 
 installcheck:
 	$(MAKE) -C access_log installcheck

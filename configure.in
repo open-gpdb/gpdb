@@ -896,6 +896,15 @@ AS_IF([test "$enable_pgaudit" = yes],
 ]) # fi
 
 #
+# tea, disabled by default
+#
+PGAC_ARG_BOOL(enable, tea, no, [enable TEA extension],
+              [AC_DEFINE([USE_TEA], 1,
+                         [Define to 1 to build with TEA (--enable-tea)])])
+AC_MSG_RESULT([checking whether to build with TEA... $enable_tea])
+AC_SUBST(enable_tea)
+
+#
 # ic-proxy
 #
 PGAC_ARG_BOOL(enable, ic-proxy, no,
