@@ -750,6 +750,7 @@ enable_thread_safety
 INCLUDES
 enable_ic_proxy
 enable_sr_plan
+enable_tea
 enable_yezzey
 enable_pgaudit
 HAVE_CXX11
@@ -873,6 +874,7 @@ enable_debugntuplestore
 enable_orca
 enable_mapreduce
 enable_gpcloud
+enable_tea
 enable_yezzey
 enable_pgaudit
 enable_sr_plan
@@ -1563,6 +1565,7 @@ Optional Features:
   --disable-orca          disable ORCA optimizer
   --enable-mapreduce      enable Greenplum Mapreduce support
   --disable-gpcloud       disable gpcloud support
+  --enable-tea            enable TEA extension
   --disable-yezzey        disable yezzey support
   --disable-sr_plan       disable sr_plan support
   --enable-ic-proxy       enable interconnect proxy mode (requires libuv
@@ -8561,6 +8564,39 @@ $as_echo "#define HAVE_CXX11 1" >>confdefs.h
 
 
 fi # fi
+
+#
+# tea, disabled by default
+#
+
+
+# Check whether --enable-tea was given.
+if test ${enable_tea+y}
+then :
+  enableval=$enable_tea;
+  case $enableval in
+    yes)
+
+printf "%s\n" "#define USE_TEA 1" >>confdefs.h
+
+      ;;
+    no)
+      :
+      ;;
+    *)
+      as_fn_error $? "no argument expected for --enable-tea option" "$LINENO" 5
+      ;;
+  esac
+
+else $as_nop
+  enable_tea=no
+
+fi
+
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: checking whether to build with TEA... $enable_tea" >&5
+printf "%s\n" "checking whether to build with TEA... $enable_tea" >&6; }
+
 
 #
 # ic-proxy

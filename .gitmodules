@@ -5,3 +5,11 @@
 	path = gpcontrib/yezzey
 	url = https://github.com/yezzey-gp/yezzey.git
 	branch = v1.8
+[submodule "gpcontrib/tea/tea"]
+	path = gpcontrib/tea/tea
+	url = https://github.com/lithium-tech/tea
+	branch = OPENGPDB_GP6
+[submodule "gpcontrib/tea/arrow"]
+	path = gpcontrib/tea/arrow
+	url = https://github.com/apache/arrow.git
+	branch = maint-15.0.2
