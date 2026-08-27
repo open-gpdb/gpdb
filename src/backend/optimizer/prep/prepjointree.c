@@ -40,12 +40,13 @@
 #include "optimizer/tlist.h"
 #include "parser/parse_relation.h"
 #include "parser/parsetree.h"
-#include "parser/parse_relation.h"
 #include "rewrite/rewriteManip.h"
 #include "cdb/cdbgroup.h"
 #include "cdb/cdbsubselect.h"
+#include "cdb/cdbvars.h"
 
 #include "optimizer/transform.h"
+#include "optimizer/walkers.h"
 
 typedef struct pullup_replace_vars_context
 {
@@ -115,6 +116,18 @@ static void fix_append_rel_relids(List *append_rel_list, int varno,
 static Node *find_jointree_node_for_rel(Node *jtnode, int relid);
 static bool is_simple_union_all_recurse(Node *setOp, Query *setOpQuery, List *colTypes);
 
+/* Scalar sublink pull-up from target list */
+typedef struct ScalarSublinkReplacement
+{
+	SubLink    *sublink;		/* the SubLink to replace */
+	int			rte_index;	/* RTE index of the new subquery */
+	AttrNumber	resno;		/* target list column number */
+} ScalarSublinkReplacement;
+
+static bool can_convert_scalar_sublink_to_join(SubLink *sublink);
+static void pull_up_scalar_cte_sublinks(Query *parse, Node **jtlink);
+static Node *replace_sublink_with_var_mutator(Node *node, void *context);
+
 
 /*
  * pull_up_sublinks
@@ -163,6 +176,271 @@ pull_up_sublinks(PlannerInfo *root)
 		root->parse->jointree = (FromExpr *) jtnode;
 	else
 		root->parse->jointree = makeFromExpr(list_make1(jtnode), NULL);
+}
+
+/*
+ * pull_up_scalar_sublinks_in_targetlist
+ *		Exported entry point for the ORCA code path in standard_planner(),
+ *		where PlannerInfo is not yet available.
+ *
+ *		For the Postgres planner path this logic is called from inside
+ *		pull_up_sublinks_jointree_recurse() via pull_up_scalar_cte_sublinks().
+ */
+void
+pull_up_scalar_sublinks_in_targetlist(Query *parse)
+{
+	Node	   *jtlink;
+
+	if (!parse->hasSubLinks)
+		return;
+
+	if (list_length(parse->jointree->fromlist) == 0)
+		return;
+
+	jtlink = (Node *) linitial(parse->jointree->fromlist);
+	pull_up_scalar_cte_sublinks(parse, &jtlink);
+	linitial(parse->jointree->fromlist) = jtlink;
+}
+
+/*
+ * pull_up_scalar_cte_sublinks
+ *		Core implementation: convert uncorrelated scalar CTE subqueries in the
+ *		target list to LEFT JOINs, stacking them onto *jtlink.
+ *
+ * Only applies to subqueries whose sole FROM-clause entry is a CTE reference
+ * (RTE_CTE).  This is intentionally narrow: pulling up subqueries over regular
+ * tables would lose the runtime single-row assertion, risking silent wrong
+ * results.
+ *
+ * Transforms queries like:
+ *   SELECT (SELECT v FROM cte WHERE id=1) + (SELECT v FROM cte WHERE id=2) FROM t1
+ * into equivalent:
+ *   SELECT c1.v + c2.v FROM t1
+ *   LEFT JOIN (SELECT v FROM cte WHERE id=1) c1 ON true
+ *   LEFT JOIN (SELECT v FROM cte WHERE id=2) c2 ON true
+ *
+ * This enables Shared Scan optimization when the same CTE is referenced by
+ * multiple scalar subqueries.
+ */
+static void
+pull_up_scalar_cte_sublinks(Query *parse, Node **jtlink)
+{
+	List	   *replacements = NIL;
+	ListCell   *lc;
+	ListCell   *slc;
+
+	if (!gp_enable_scalar_sublink_pullup)
+		return;
+
+	/* Collect convertible EXPR_SUBLINK nodes and create RTEs + JOINs */
+	foreach(lc, parse->targetList)
+	{
+		TargetEntry *tle = (TargetEntry *) lfirst(lc);
+		List	   *sublinks;
+
+		if (tle->expr == NULL)
+			continue;
+
+		sublinks = extract_nodes_expression((Node *) tle->expr, T_SubLink, false);
+		if (sublinks == NIL)
+			continue;
+
+		foreach(slc, sublinks)
+		{
+			SubLink    *sublink = (SubLink *) lfirst(slc);
+			ScalarSublinkReplacement *repl;
+			Query	   *subselect;
+			RangeTblEntry *subq_rte;
+			RangeTblRef *rtr;
+			JoinExpr   *join_expr;
+			int			rte_index;
+			TargetEntry *tle_sub;
+			ListCell   *repl_lc;
+			ScalarSublinkReplacement *existing_repl = NULL;
+
+			if (sublink->subLinkType != EXPR_SUBLINK)
+				continue;
+			if (!can_convert_scalar_sublink_to_join(sublink))
+				continue;
+
+			subselect = (Query *) sublink->subselect;
+
+			/* Check for duplicate - same subquery already converted */
+			foreach(repl_lc, replacements)
+			{
+				repl = (ScalarSublinkReplacement *) lfirst(repl_lc);
+				if (equal(repl->sublink->subselect, subselect))
+				{
+					existing_repl = repl;
+					break;
+				}
+			}
+
+			if (existing_repl != NULL)
+			{
+				repl = palloc(sizeof(ScalarSublinkReplacement));
+				repl->sublink = sublink;
+				repl->rte_index = existing_repl->rte_index;
+				repl->resno = existing_repl->resno;
+				replacements = lappend(replacements, repl);
+				continue;
+			}
+
+			/* Create subquery copy for RTE - we must not modify original */
+			subselect = (Query *) copyObject(subselect);
+
+			/* Ensure target list has resnames for addRangeTableEntryForSubquery */
+			{
+				int			col_num = 0;
+				ListCell   *tlc;
+
+				foreach(tlc, subselect->targetList)
+				{
+					TargetEntry *te = (TargetEntry *) lfirst(tlc);
+					if (te->resname == NULL)
+						te->resname = psprintf("csq_c%d", col_num);
+					col_num++;
+				}
+			}
+
+			subq_rte = addRangeTableEntryForSubquery(NULL,
+													 subselect,
+													 makeAlias("scalar_subq", NIL),
+													 false,	/* not lateral */
+													 false /* inFromClause */ );
+			parse->rtable = lappend(parse->rtable, subq_rte);
+			rte_index = list_length(parse->rtable);
+
+			tle_sub = (TargetEntry *) linitial(subselect->targetList);
+
+			/* Stack LEFT JOIN onto jtlink — same pattern as qual pull-up */
+			rtr = makeNode(RangeTblRef);
+			rtr->rtindex = rte_index;
+
+			join_expr = makeNode(JoinExpr);
+			join_expr->jointype = JOIN_LEFT;
+			join_expr->isNatural = false;
+			join_expr->larg = *jtlink;
+			join_expr->rarg = (Node *) rtr;
+			join_expr->usingClause = NIL;
+			join_expr->quals = (Node *) makeBoolConst(true, false);
+			join_expr->alias = NULL;
+			join_expr->rtindex = 0;
+
+			*jtlink = (Node *) join_expr;
+
+			repl = palloc(sizeof(ScalarSublinkReplacement));
+			repl->sublink = sublink;
+			repl->rte_index = rte_index;
+			repl->resno = tle_sub->resno;
+			replacements = lappend(replacements, repl);
+		}
+	}
+
+	if (replacements == NIL)
+		return;
+
+	/* Replace SubLinks with Vars in target list */
+	foreach(lc, parse->targetList)
+	{
+		TargetEntry *tle = (TargetEntry *) lfirst(lc);
+		if (tle->expr != NULL)
+			tle->expr = (Expr *) replace_sublink_with_var_mutator((Node *) tle->expr, (void *) replacements);
+	}
+}
+
+/*
+ * Check if a scalar sublink can be safely converted to a LEFT JOIN.
+ *
+ * We only convert subqueries that reference a single CTE (RTE_CTE) in
+ * their FROM clause.  This keeps the optimization narrow and safe:
+ *  - CTE references are the motivating case (enables Shared Scan in ORCA).
+ *  - Pulling up subqueries over regular tables would lose the single-row
+ *    runtime assertion, risking silent wrong results when the subquery
+ *    returns more than one row.
+ *
+ * Additional requirements: uncorrelated, no agg/group/having/distinct/
+ * window/limit/offset/setop/SRF, exactly one target entry.
+ */
+static bool
+can_convert_scalar_sublink_to_join(SubLink *sublink)
+{
+	Query	   *subselect;
+	RangeTblRef *rtr;
+	RangeTblEntry *rte;
+
+	if (sublink->subLinkType != EXPR_SUBLINK)
+		return false;
+
+	subselect = (Query *) sublink->subselect;
+	if (subselect->jointree->fromlist == NIL)
+		return false;
+	if (list_length(subselect->jointree->fromlist) != 1)
+		return false;
+
+	/* Only pull up subqueries that scan a single CTE */
+	if (!IsA(linitial(subselect->jointree->fromlist), RangeTblRef))
+		return false;
+	rtr = (RangeTblRef *) linitial(subselect->jointree->fromlist);
+	rte = rt_fetch(rtr->rtindex, subselect->rtable);
+	if (rte->rtekind != RTE_CTE)
+		return false;
+
+	if (expression_returns_set((Node *) subselect->targetList))
+		return false;
+	if (subselect->setOperations)
+		return false;
+	if (contain_vars_of_level((Node *) subselect, 1))
+		return false;
+	if (subselect->hasAggs || subselect->groupClause || subselect->havingQual)
+		return false;
+	if (subselect->distinctClause)
+		return false;
+	if (subselect->hasWindowFuncs || subselect->windowClause)
+		return false;
+	if (subselect->limitOffset || subselect->limitCount)
+		return false;
+	if (list_length(subselect->targetList) != 1)
+		return false;
+
+	return true;
+}
+
+/*
+ * Mutator to replace SubLinks in our replacement list with Var nodes.
+ */
+static Node *
+replace_sublink_with_var_mutator(Node *node, void *context)
+{
+	List	   *replacements = (List *) context;
+	ListCell   *lc;
+
+	if (node == NULL)
+		return NULL;
+
+	if (IsA(node, SubLink))
+	{
+		SubLink    *sublink = (SubLink *) node;
+		TargetEntry *tle;
+
+		foreach(lc, replacements)
+		{
+			ScalarSublinkReplacement *repl = (ScalarSublinkReplacement *) lfirst(lc);
+			if (repl->sublink == sublink)
+			{
+				Query	   *subselect = (Query *) sublink->subselect;
+				tle = (TargetEntry *) linitial(subselect->targetList);
+				return (Node *) makeVar(repl->rte_index,
+									   repl->resno,
+									   exprType((Node *) tle->expr),
+									   exprTypmod((Node *) tle->expr),
+									   exprCollation((Node *) tle->expr),
+									   0);
+			}
+		}
+	}
+
+	return expression_tree_mutator(node, replace_sublink_with_var_mutator, context);
 }
 
 /*
@@ -215,6 +493,13 @@ pull_up_sublinks_jointree_recurse(PlannerInfo *root, Node *jtnode,
 		newf->quals = pull_up_sublinks_qual_recurse(root, f->quals,
 													&jtlink, frelids,
 													NULL, NULL);
+
+		/*
+		 * Also pull up uncorrelated scalar CTE subqueries from the target
+		 * list into LEFT JOINs, stacking them onto the same jtlink.
+		 */
+		if (root->parse->hasSubLinks)
+			pull_up_scalar_cte_sublinks(root->parse, &jtlink);
 
 		/*
 		 * Note that the result will be either newf, or a stack of JoinExprs

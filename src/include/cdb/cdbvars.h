@@ -596,6 +596,14 @@ extern int      gp_segments_for_planner;
 extern bool gp_enable_minmax_optimization;
 
 /*
+ * "gp_enable_scalar_sublink_pullup"
+ *
+ * When true, the planner pulls up uncorrelated scalar CTE subqueries from
+ * the target list into LEFT JOINs, enabling Shared Scan optimization.
+ */
+extern bool gp_enable_scalar_sublink_pullup;
+
+/*
  * "gp_enable_multiphase_agg"
  *
  * Unlike some other enable... vars, gp_enable_multiphase_agg is not cost based.
