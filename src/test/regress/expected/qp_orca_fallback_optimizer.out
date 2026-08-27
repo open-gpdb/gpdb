@@ -410,7 +410,7 @@ t2 AS (SELECT id, refrcode FROM tbl2 WHERE REFERENCEID = 101991)
    ON p.isCalcDetail = r1.RefrCode
  LIMIT 1;
 INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: CTE Consumer placed on a different slice than its replicated Producer
+DETAIL:  GPORCA produced a cross-slice shared scan with mismatched segment coverage.
                                          QUERY PLAN                                          
 ---------------------------------------------------------------------------------------------
  Limit  (cost=0.34..83.24 rows=1 width=104)
