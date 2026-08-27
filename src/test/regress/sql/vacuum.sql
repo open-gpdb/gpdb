@@ -67,5 +67,9 @@ VACUUM FULL vactst;
 VACUUM ANALYZE vaccluster(i,i);
 ANALYZE vaccluster(i,i);
 
+-- parenthesized syntax for ANALYZE
+ANALYZE (VERBOSE) does_not_exist;
+ANALYZE (nonexistant-arg) does_not_exist;
+
 DROP TABLE vaccluster;
 DROP TABLE vactst;
