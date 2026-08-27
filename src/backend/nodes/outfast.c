@@ -1335,6 +1335,9 @@ _outNode(StringInfo str, void *obj)
 			case T_ForeignScan:
 				_outForeignScan(str, obj);
 				break;
+			case T_CustomScan:
+				_outCustomScan(str, obj);
+				break;
 			case T_ExternalScan:
 				_outExternalScan(str, obj);
 				break;
@@ -2201,6 +2204,9 @@ _outNode(StringInfo str, void *obj)
 				break;
 			case T_AlterTableSpaceOptionsStmt:
 				_outAlterTableSpaceOptionsStmt(str, obj);
+				break;
+			case T_ExtensibleNode:
+				_outExtensibleNode(str, obj);
 				break;
 			default:
 				elog(ERROR, "could not serialize unrecognized node type: %d",

@@ -61,6 +61,9 @@ typedef struct pushdown_safety_info
 	bool		unsafeLeaky;	/* don't push down leaky quals */
 } pushdown_safety_info;
 
+/* Hook for plugins to get control in set_rel_pathlist() */
+set_rel_pathlist_hook_type set_rel_pathlist_hook = NULL;
+
 /* Hook for plugins to replace standard_join_search() */
 join_search_hook_type join_search_hook = NULL;
 
@@ -591,6 +594,10 @@ set_rel_pathlist(PlannerInfo *root, RelOptInfo *rel,
 		 */
 		bring_to_singleQE(root, rel, rel->upperrestrictinfo);
 	}
+
+	/* Allow plugins to add or modify paths */
+	if (set_rel_pathlist_hook)
+		(*set_rel_pathlist_hook) (root, rel, rti, rte);
 
 	/*
 	 * Greenplum specific behavior:
@@ -3070,6 +3077,9 @@ print_path(PlannerInfo *root, Path *path, int indent)
 			break;
 		case T_ForeignPath:
 			ptype = "ForeignScan";
+			break;
+		case T_CustomPath:
+			ptype = "CustomScan";
 			break;
 		case T_AppendPath:
 			ptype = "Append";

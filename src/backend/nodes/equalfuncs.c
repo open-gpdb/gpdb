@@ -32,6 +32,7 @@
 #include "postgres.h"
 
 #include "miscadmin.h"
+#include "nodes/extensible.h"
 #include "nodes/relation.h"
 #include "utils/datum.h"
 #include "catalog/gp_policy.h"
@@ -2836,6 +2837,23 @@ _equalValue(const Value *a, const Value *b)
 	return true;
 }
 
+static bool
+_equalExtensibleNode(const ExtensibleNode *a, const ExtensibleNode *b)
+{
+	const ExtensibleNodeMethods *methods;
+
+	COMPARE_STRING_FIELD(extnodename);
+
+	/* At this point, we know extnodename is the same for both nodes. */
+	methods = GetExtensibleNodeMethods(a->extnodename, false);
+
+	/* compare the private fields */
+	if (!methods->nodeEqual(a, b))
+		return false;
+
+	return true;
+}
+
 /*
  * equal
  *	  returns whether two nodes are equal
@@ -3531,6 +3549,9 @@ equal(const void *a, const void *b)
 			break;
 		case T_PartitionRule:
 			retval = _equalPartitionRule(a, b);
+			break;
+		case T_ExtensibleNode:
+			retval = _equalExtensibleNode(a, b);
 			break;
 		default:
 			elog(ERROR, "unrecognized node type: %d",

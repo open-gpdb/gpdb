@@ -86,6 +86,7 @@ typedef enum NodeTag
 	T_CteScan,
 	T_WorkTableScan,
 	T_ForeignScan,
+	T_CustomScan,
 	T_NestLoop,
 	T_MergeJoin,
 	T_HashJoin,
@@ -150,6 +151,7 @@ typedef enum NodeTag
 	T_CteScanState,
 	T_WorkTableScanState,
 	T_ForeignScanState,
+	T_CustomScanState,
 	T_NestLoopState,
 	T_MergeJoinState,
 	T_HashJoinState,
@@ -306,6 +308,7 @@ typedef enum NodeTag
 	T_HashPath,
 	T_TidPath,
 	T_ForeignPath,
+	T_CustomPath,
 	T_AppendPath,
 	T_MergeAppendPath,
 	T_ResultPath,
@@ -559,6 +562,7 @@ typedef enum NodeTag
 	T_TIDBitmap,				/* in nodes/tidbitmap.h */
 	T_InlineCodeBlock,			/* in nodes/parsenodes.h */
 	T_FdwRoutine,				/* in foreign/fdwapi.h */
+	T_ExtensibleNode,			/* in nodes/extensible.h */
     T_StreamBitmap,             /* in nodes/tidbitmap.h */
 	T_FormatterData,            /* in access/formatter.h */
 	T_ExtProtocolData,          /* in access/extprotocol.h */
