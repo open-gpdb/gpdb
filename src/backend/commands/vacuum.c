@@ -399,7 +399,7 @@ vacuum(VacuumStmt *vacstmt, Oid relid, bool do_toast,
 					PushActiveSnapshot(GetTransactionSnapshot());
 				}
 
-				analyze_rel(relid, vacstmt, in_outer_xact, vac_strategy);
+				analyze_rel(relid, vacstmt, in_outer_xact, vac_strategy, NULL);
 
 				if (use_own_xacts)
 				{
