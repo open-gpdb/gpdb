@@ -1845,7 +1845,7 @@ class gpexpand:
         try:
             data_file = os.path.abspath('./status_detail.dat')
             self.logger.debug('status_detail data file: %s' % data_file)
-            copySQL = """COPY (%s) TO '%s'""" % (get_status_detail_cmd, data_file)
+            copySQL = """\COPY (%s) TO '%s'""" % (get_status_detail_cmd, data_file)
 
             self.logger.debug(copySQL)
             dbconn.execSQL(table_conn, copySQL)
@@ -1855,7 +1855,7 @@ class gpexpand:
             raise ExpansionError(e)
 
         try:
-            copySQL = """COPY gpexpand.status_detail FROM '%s'""" % (data_file)
+            copySQL = """\COPY gpexpand.status_detail FROM '%s'""" % (data_file)
 
             self.logger.debug(copySQL)
             dbconn.execSQL(self.conn, copySQL)
@@ -2014,7 +2014,7 @@ class gpexpand:
         if ask_yesno('', "Do you want to dump the gpexpand.status_detail table to file?", 'Y'):
             self.logger.info(
                 "Dumping gpexpand.status_detail to %s/gpexpand.status_detail" % self.options.master_data_directory)
-            copy_gpexpand_status_detail_sql = "COPY gpexpand.status_detail TO '%s/gpexpand.status_detail'" % self.options.master_data_directory
+            copy_gpexpand_status_detail_sql = "\COPY gpexpand.status_detail TO '%s/gpexpand.status_detail'" % self.options.master_data_directory
             dbconn.execSQL(c, copy_gpexpand_status_detail_sql)
 
         self.logger.info("Removing gpexpand schema")
@@ -2087,48 +2087,52 @@ class gpexpand:
         """
 
         conn = dbconn.connect(_gp_expand.dburl, encoding='UTF8')
-        # get GUC value: gp_interconnect_proxy_addresses
-        sql = "show gp_interconnect_proxy_addresses;"
-        cursor = dbconn.execSQL(conn, sql)
-        icproxy_addresses_string = cursor.fetchone()[0].strip()
-        cursor.close()
         # get GUC value: gp_interconnect_type
         sql = "show gp_interconnect_type;"
         cursor = dbconn.execSQL(conn, sql)
         ic_type = cursor.fetchone()[0].strip()
         cursor.close()
-        conn.close()
+        if ic_type == "proxy":
+            # get GUC value: gp_interconnect_proxy_addresses
+            sql = "show gp_interconnect_proxy_addresses;"
+            cursor = dbconn.execSQL(conn, sql)
+            icproxy_addresses_string = cursor.fetchone()[0].strip()
+            cursor.close()
+            conn.close()
 
-        # check if newly added dbid exists in gp_interconnect_proxy_addresses
-        need_prompt = False
-        new_addresses_string = icproxy_addresses_string
-        if icproxy_addresses_string:
-            self.logger.info("ICProxy addresses has been set to: %s, start to checking if it contains newly added segs", icproxy_addresses_string)
+            # check if newly added dbid exists in gp_interconnect_proxy_addresses
+            need_prompt = False
+            new_addresses_string = icproxy_addresses_string
+            if icproxy_addresses_string:
+                self.logger.info("ICProxy addresses has been set to: %s, start to checking if it contains newly added segs", icproxy_addresses_string)
 
-            dbid_set = set()
-            # icproxy_addresses_string example: 1:-1:gpdb:1432,2:0:gpdb:2000,3:1:gpdb:2001
-            for addr in icproxy_addresses_string.split(','):
-                db_id, content_id, host, port = addr.split(':')
-                dbid_set.add(db_id)
+                dbid_set = set()
+                # icproxy_addresses_string example: 1:-1:gpdb:1432,2:0:gpdb:2000,3:1:gpdb:2001
+                for addr in icproxy_addresses_string.split(','):
+                    db_id, content_id, host, port = addr.split(':')
+                    dbid_set.add(db_id)
 
-            for seg in inputFileEntryList:
-                if seg.dbid not in dbid_set:
-                    need_prompt = True
-                    new_addresses_string += ",%s:%s:%s:{port}" % (seg.dbid, seg.contentId, seg.hostname.strip())
-                    self.logger.warning(" Missing the address of dbid %s in gp_interconnect_proxy_addresses" % (seg.dbid))
+                for seg in inputFileEntryList:
+                    if seg.dbid not in dbid_set:
+                        need_prompt = True
+                        new_addresses_string += ",%s:%s:%s:{port}" % (seg.dbid, seg.contentId, seg.hostname.strip())
+                        self.logger.warning(" Missing the address of dbid %s in gp_interconnect_proxy_addresses" % (seg.dbid))
 
-            # prompt user to use gpconfig to set the proper value of gp_interconnect_proxy_addresses
-            if need_prompt:
-                if ic_type == "proxy":
-                    self.logger.error("Please run gpconfig to set gp_interconnect_proxy_addresses (replace the {port} with a proper value):")
-                    self.logger.error(" gpconfig -c gp_interconnect_proxy_addresses -v \"'%s'\" --skipvalidation" % (new_addresses_string))
-                    self.logger.error('then rerun gpexpand -i {input_file}')
-                    raise Exception("Checking ICProxy addresses failed")
+                # prompt user to use gpconfig to set the proper value of gp_interconnect_proxy_addresses
+                if need_prompt:
+                    if ic_type == "proxy":
+                        self.logger.error("Please run gpconfig to set gp_interconnect_proxy_addresses (replace the {port} with a proper value):")
+                        self.logger.error(" gpconfig -c gp_interconnect_proxy_addresses -v \"'%s'\" --skipvalidation" % (new_addresses_string))
+                        self.logger.error('then rerun gpexpand -i {input_file}')
+                        raise Exception("Checking ICProxy addresses failed")
+                    else:
+                        self.logger.warning("Recommended that run gpconfig to set gp_interconnect_proxy_addresses (replace the {port} with a proper value):")
+                        self.logger.warning(" gpconfig -c gp_interconnect_proxy_addresses -v \"'%s'\" --skipvalidation" % (new_addresses_string))
                 else:
-                    self.logger.warning("Recommended that run gpconfig to set gp_interconnect_proxy_addresses (replace the {port} with a proper value):")
-                    self.logger.warning(" gpconfig -c gp_interconnect_proxy_addresses -v \"'%s'\" --skipvalidation" % (new_addresses_string))
-            else:
-                self.logger.info("Checking ICProxy addresses passed")
+                    self.logger.info("Checking ICProxy addresses passed")
+        else:
+            conn.close()
+            self.logger.info("Checking ICProxy configuration passed")
         return
 
 # -----------------------------------------------
