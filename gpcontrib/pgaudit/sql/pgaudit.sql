@@ -862,12 +862,30 @@ GRANT user1 TO user2;
 REVOKE user1 FROM user2;
 
 --
--- Test logging AST for CTAS
+-- Test logging AST for CTAS with log_statement_once = 'off'
 SET pgaudit.log = 'ast_ctas';
+SET pgaudit.log_statement_once = 'off';
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 DROP TABLE tmp, tmp2, tmp3;
+
+--
+-- Test logging AST for CTAS with log_statement_once = 'on'
+SET pgaudit.log = 'ddl, ast_ctas';
+SET pgaudit.log_statement_once = 'on';
+SET pgaudit.log_relation = 'off';
+CREATE TABLE tmp4 (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp5 AS (SELECT * FROM tmp4) DISTRIBUTED BY (id);
+DROP TABLE tmp4, tmp5;
+
+--
+-- Test logging AST for CTAS with ast_ctas only and log_statement_once = 'on'
+SET pgaudit.log = 'ast_ctas';
+SET pgaudit.log_statement_once = 'on';
+CREATE TABLE tmp6 (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp7 AS (SELECT * FROM tmp6) DISTRIBUTED BY (id);
+DROP TABLE tmp6, tmp7;
 
 --
 -- Test logging AST for SELECT

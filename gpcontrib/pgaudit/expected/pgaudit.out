@@ -1369,14 +1369,37 @@ NOTICE:  AUDIT: SESSION,92,1,ROLE,GRANT ROLE,,,GRANT user1 TO user2;,<none>
 REVOKE user1 FROM user2;
 NOTICE:  AUDIT: SESSION,93,1,ROLE,REVOKE ROLE,,,REVOKE user1 FROM user2;,<none>
 --
--- Test logging AST for CTAS
+-- Test logging AST for CTAS with log_statement_once = 'off'
 SET pgaudit.log = 'ast_ctas';
+SET pgaudit.log_statement_once = 'off';
 CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 NOTICE:  AUDIT: SESSION,94,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp2,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 CREATE TEMP TABLE tmp3 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
-NOTICE:  AUDIT: SESSION,95,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_22.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,95,1,AST_CTAS,CREATE TABLE AS,TABLE,pg_temp_XX.tmp3,"{QUERY...}{r XXXX public.tmp {id,data}}",<none>
 DROP TABLE tmp, tmp2, tmp3;
+--
+-- Test logging AST for CTAS with log_statement_once = 'on'
+SET pgaudit.log = 'ddl, ast_ctas';
+SET pgaudit.log_statement_once = 'on';
+SET pgaudit.log_relation = 'off';
+CREATE TABLE tmp4 (id int, data text) DISTRIBUTED BY (id);
+NOTICE:  AUDIT: SESSION,96,1,DDL,CREATE TABLE,TABLE,public.tmp4,"CREATE TABLE tmp4 (id int, data text) DISTRIBUTED BY (id);",<none>
+CREATE TABLE tmp5 AS (SELECT * FROM tmp4) DISTRIBUTED BY (id);
+NOTICE:  AUDIT: SESSION,97,1,DDL,CREATE TABLE AS,,,CREATE TABLE tmp5 AS (SELECT * FROM tmp4) DISTRIBUTED BY (id);,<none>
+NOTICE:  AUDIT: SESSION,97,1,DDL,CREATE TABLE AS,TABLE,public.tmp5,<previously logged>,<previously logged>
+NOTICE:  AUDIT: SESSION,97,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp5,"{QUERY...}{r XXXX public.tmp4 {id,data}}",<none>
+DROP TABLE tmp4, tmp5;
+NOTICE:  AUDIT: SESSION,98,1,DDL,DROP TABLE,TABLE,public.tmp5,"DROP TABLE tmp4, tmp5;",<none>
+NOTICE:  AUDIT: SESSION,98,1,DDL,DROP TABLE,TABLE,public.tmp4,<previously logged>,<previously logged>
+--
+-- Test logging AST for CTAS with ast_ctas only and log_statement_once = 'on'
+SET pgaudit.log = 'ast_ctas';
+SET pgaudit.log_statement_once = 'on';
+CREATE TABLE tmp6 (id int, data text) DISTRIBUTED BY (id);
+CREATE TABLE tmp7 AS (SELECT * FROM tmp6) DISTRIBUTED BY (id);
+NOTICE:  AUDIT: SESSION,99,1,AST_CTAS,CREATE TABLE AS,TABLE,public.tmp7,"{QUERY...}{r XXXX public.tmp6 {id,data}}",<none>
+DROP TABLE tmp6, tmp7;
 --
 -- Test logging AST for SELECT
 SET pgaudit.log = 'ast_sel';
@@ -1386,7 +1409,7 @@ CREATE TABLE tmp (id int, data text) DISTRIBUTED BY (id);
 CREATE TABLE tmp2 AS (SELECT * FROM tmp) DISTRIBUTED BY (id);
 -- AST for independent select is logged
 SELECT id FROM tmp2;
-NOTICE:  AUDIT: SESSION,96,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
+NOTICE:  AUDIT: SESSION,100,1,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.tmp2 {id,data}}",<none>
  id 
 ----
 (0 rows)
@@ -1399,11 +1422,11 @@ SET pgaudit.log_relation = OFF;
 CREATE TABLE src (id int, txt text) DISTRIBUTED BY (id);
 CREATE TABLE dst (LIKE src) DISTRIBUTED BY (id);
 INSERT INTO dst SELECT * FROM src;
-NOTICE:  AUDIT: SESSION,97,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,101,1,AST_MOD,INSERT,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 UPDATE dst SET txt = src.txt FROM src WHERE dst.id = src.id;
-NOTICE:  AUDIT: SESSION,98,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,102,1,AST_MOD,UPDATE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 DELETE FROM dst USING src WHERE dst.id = src.id AND dst.txt = 'foo';
-NOTICE:  AUDIT: SESSION,99,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
+NOTICE:  AUDIT: SESSION,103,1,AST_MOD,DELETE,,,"{QUERY...}{r XXXX public.dst {id,txt}}{r XXXX public.src {id,txt}}",<none>
 DROP TABLE src, dst;
 -- Test create table as after extension as been dropped
 DROP EXTENSION pgaudit;
@@ -1430,9 +1453,9 @@ SET search_path = public, pg_catalog;
 -- If there was a vulnerability, these would fail with division by zero error
 CREATE TABLE wombat () DISTRIBUTED RANDOMLY;
 WARNING:  creating a table with no columns.
-NOTICE:  AUDIT: SESSION,100,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
+NOTICE:  AUDIT: SESSION,104,1,DDL,CREATE TABLE,TABLE,public.wombat,CREATE TABLE wombat () DISTRIBUTED RANDOMLY;,<none>
 DROP TABLE wombat;
-NOTICE:  AUDIT: SESSION,101,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
+NOTICE:  AUDIT: SESSION,105,1,DDL,DROP TABLE,TABLE,public.wombat,DROP TABLE wombat;,<none>
 SET pgaudit.log = 'NONE';
 DROP EXTENSION pgaudit;
 DROP OPERATOR <> (text, text);
