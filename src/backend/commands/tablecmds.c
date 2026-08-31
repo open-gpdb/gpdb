@@ -74,6 +74,7 @@
 #include "commands/defrem.h"
 #include "commands/event_trigger.h"
 #include "commands/sequence.h"
+#include "cdb/cdbtempresult.h"
 #include "commands/tablecmds.h"
 #include "commands/tablespace.h"
 #include "commands/trigger.h"
@@ -1245,6 +1246,31 @@ RemoveRelations(DropStmt *drop)
 			ereport(ERROR,
 					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 				errmsg("DROP INDEX CONCURRENTLY does not support CASCADE")));
+	}
+
+	/*
+	 * POC: catalogless temp tables.  A DROP TABLE naming an entry of the
+	 * session temp-result registry is handled entirely outside the
+	 * catalog: remove the entry (and its tuplestore) locally.  QE-side
+	 * stores of a QD-only drop linger until end of transaction.
+	 */
+	if (gp_enable_catalogless_temp && drop->removeType == OBJECT_TABLE)
+	{
+		List	   *remaining = NIL;
+
+		foreach(cell, drop->objects)
+		{
+			RangeVar   *rel = makeRangeVarFromNameList((List *) lfirst(cell));
+
+			if (rel->schemaname == NULL &&
+				TempResultLookup(rel->relname) != NULL)
+				TempResultRemove(rel->relname);
+			else
+				remaining = lappend(remaining, lfirst(cell));
+		}
+		drop->objects = remaining;
+		if (drop->objects == NIL)
+			return;
 	}
 
 	/*
