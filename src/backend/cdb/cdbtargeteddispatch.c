@@ -634,6 +634,7 @@ AssignContentIdsToPlanData_Walker(Node *node, void *context)
 				DisableTargetedDispatch(&dispatchInfo);
 				break;
 			case T_ValuesScan:
+			case T_TempResultScan:
 				/* no change to dispatchInfo */
 				break;
 			case T_NestLoop:

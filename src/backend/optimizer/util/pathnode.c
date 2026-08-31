@@ -2906,6 +2906,40 @@ create_valuesscan_path(PlannerInfo *root, RelOptInfo *rel,
 }
 
 /*
+ * create_tempresultscan_path
+ *	  POC: path for scanning a catalogless temp result.  The locus is
+ *	  derived from the GpPolicy recorded at CTAS time (rel->cdbpolicy),
+ *	  so a hash-distributed temp result can join on its distribution key
+ *	  without a Motion.
+ */
+Path *
+create_tempresultscan_path(PlannerInfo *root, RelOptInfo *rel,
+						   RangeTblEntry *rte,
+						   Relids required_outer)
+{
+	Path	   *pathnode = makeNode(Path);
+
+	pathnode->pathtype = T_TempResultScan;
+	pathnode->parent = rel;
+	pathnode->param_info = get_baserel_parampathinfo(root, rel,
+													 required_outer);
+	pathnode->pathkeys = NIL;	/* result is always unordered */
+
+	Assert(rte->rtekind == RTE_TEMPRESULT);
+
+	/* Locus comes from the recorded distribution policy */
+	pathnode->locus = cdbpathlocus_from_baserel(root, rel);
+
+	pathnode->motionHazard = false;
+	pathnode->rescannable = true;
+	pathnode->sameslice_relids = rel->relids;
+
+	cost_tempresultscan(pathnode, root, rel, pathnode->param_info);
+
+	return pathnode;
+}
+
+/*
  * create_ctescan_path
  *	  Creates a path corresponding to a scan of a non-self-reference CTE,
  *	  returning the pathnode.

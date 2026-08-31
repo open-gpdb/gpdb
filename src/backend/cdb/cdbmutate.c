@@ -2745,6 +2745,7 @@ param_walker(Node *node, ParamWalkerContext *context)
 
 		case T_SubqueryScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_FunctionScan:
 		case T_TableFunctionScan:
 			scan = (Scan *) node;
@@ -2813,6 +2814,9 @@ rte_param_walker(List *rtable, ParamWalkerContext *context)
 				break;
 			case RTE_VALUES:
 				param_walker((Node *) rte->values_lists, context);
+				break;
+			case RTE_TEMPRESULT:
+				/* POC: no expressions to walk */
 				break;
 		}
 	}

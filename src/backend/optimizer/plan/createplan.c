@@ -32,6 +32,7 @@
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
 #include "executor/execHHashagg.h"
+#include "cdb/cdbtempresult.h"
 #include "optimizer/clauses.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
@@ -103,6 +104,8 @@ static TableFunctionScan *create_tablefunction_plan(PlannerInfo *root,
 						  List *scan_clauses);
 static ValuesScan *create_valuesscan_plan(PlannerInfo *root, Path *best_path,
 					   List *tlist, List *scan_clauses);
+static TempResultScan *create_tempresultscan_plan(PlannerInfo *root,
+						   Path *best_path, List *tlist, List *scan_clauses);
 static SubqueryScan *create_ctescan_plan(PlannerInfo *root, Path *best_path,
 					List *tlist, List *scan_clauses);
 static WorkTableScan *create_worktablescan_plan(PlannerInfo *root, Path *best_path,
@@ -162,6 +165,8 @@ static FunctionScan *make_functionscan(List *qptlist, List *qpqual,
 				  Index scanrelid, List *functions, bool funcordinality);
 static TableFunctionScan *make_tablefunction(List *qptlist, List *qpqual,
 				   Plan *subplan, Index scanrelid, RangeTblFunction *function);
+static TempResultScan *make_tempresultscan(List *qptlist, List *qpqual,
+				 Index scanrelid, RangeTblEntry *rte);
 static ValuesScan *make_valuesscan(List *qptlist, List *qpqual,
 				Index scanrelid, List *values_lists);
 static CteScan *make_ctescan(List *qptlist, List *qpqual,
@@ -292,6 +297,7 @@ create_plan_recurse(PlannerInfo *root, Path *best_path)
 		case T_FunctionScan:
 		case T_TableFunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
@@ -484,6 +490,13 @@ create_scan_plan(PlannerInfo *root, Path *best_path)
 												   scan_clauses);
 			break;
 
+		case T_TempResultScan:
+			plan = (Plan *) create_tempresultscan_plan(root,
+													   best_path,
+													   tlist,
+													   scan_clauses);
+			break;
+
 		case T_CteScan:
 			plan = (Plan *) create_ctescan_plan(root,
 												best_path,
@@ -653,6 +666,7 @@ disuse_physical_tlist(PlannerInfo *root, Plan *plan, Path *path)
 		case T_SubqueryScan:
 		case T_FunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
@@ -2874,6 +2888,42 @@ create_valuesscan_plan(PlannerInfo *root, Path *best_path,
 }
 
 /*
+ * create_tempresultscan_plan
+ *	 POC: returns a TempResultScan plan for the base relation scanned by
+ *	 'best_path' with restriction clauses 'scan_clauses' and targetlist
+ *	 'tlist'.
+ */
+static TempResultScan *
+create_tempresultscan_plan(PlannerInfo *root, Path *best_path,
+						   List *tlist, List *scan_clauses)
+{
+	TempResultScan *scan_plan;
+	Index		scan_relid = best_path->parent->relid;
+	RangeTblEntry *rte;
+
+	Assert(scan_relid > 0);
+	rte = planner_rt_fetch(scan_relid, root);
+	Assert(rte->rtekind == RTE_TEMPRESULT);
+
+	/* Sort clauses into best execution order */
+	scan_clauses = order_qual_clauses(root, scan_clauses);
+
+	/* Reduce RestrictInfo list to bare expressions; ignore pseudoconstants */
+	scan_clauses = extract_actual_clauses(scan_clauses, false);
+
+	/* Replace any outer-relation variables with nestloop params */
+	if (best_path->param_info)
+		scan_clauses = (List *)
+			replace_nestloop_params(root, (Node *) scan_clauses);
+
+	scan_plan = make_tempresultscan(tlist, scan_clauses, scan_relid, rte);
+
+	copy_path_costsize(root, &scan_plan->scan.plan, best_path);
+
+	return scan_plan;
+}
+
+/*
  * create_ctescan_plan
  *	 Returns a ctescan plan for the base relation scanned by 'best_path'
  *	 with restriction clauses 'scan_clauses' and targetlist 'tlist'.
@@ -4775,6 +4825,46 @@ make_valuesscan(List *qptlist,
 	plan->righttree = NULL;
 	node->scan.scanrelid = scanrelid;
 	node->values_lists = values_lists;
+
+	return node;
+}
+
+static TempResultScan *
+make_tempresultscan(List *qptlist,
+					List *qpqual,
+					Index scanrelid,
+					RangeTblEntry *rte)
+{
+	TempResultScan *node = makeNode(TempResultScan);
+	Plan	   *plan = &node->scan.plan;
+	TempResultEntry *tre;
+
+	/* cost should be inserted by caller */
+	plan->targetlist = qptlist;
+	plan->qual = qpqual;
+	plan->lefttree = NULL;
+	plan->righttree = NULL;
+	node->scan.scanrelid = scanrelid;
+
+	node->tsname = pstrdup(rte->ctename);
+
+	tre = TempResultLookup(rte->ctename);
+	if (tre == NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_TABLE),
+				 errmsg("catalogless temp table \"%s\" disappeared during planning",
+						rte->ctename)));
+	node->tempresid = tre->vid;
+
+	/*
+	 * Carry the column metadata in the plan node, so every executor
+	 * process can rebuild the scan tuple descriptor without catalog or
+	 * registry access.
+	 */
+	node->coltypes = list_copy(rte->ctecoltypes);
+	node->coltypmods = list_copy(rte->ctecoltypmods);
+	node->colcollations = list_copy(rte->ctecolcollations);
+	node->colnames = copyObject(rte->eref->colnames);
 
 	return node;
 }

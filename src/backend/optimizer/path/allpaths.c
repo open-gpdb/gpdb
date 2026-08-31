@@ -27,6 +27,7 @@
 #ifdef OPTIMIZER_DEBUG
 #include "nodes/print.h"
 #endif
+#include "cdb/cdbtempresult.h"
 #include "optimizer/clauses.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
@@ -99,6 +100,10 @@ static void set_function_pathlist(PlannerInfo *root, RelOptInfo *rel,
 					  RangeTblEntry *rte);
 static void set_tablefunction_pathlist(PlannerInfo *root, RelOptInfo *rel,
 						   RangeTblEntry *rte);
+static void set_tempresult_size_estimates(PlannerInfo *root, RelOptInfo *rel,
+						RangeTblEntry *rte);
+static void set_tempresult_pathlist(PlannerInfo *root, RelOptInfo *rel,
+						RangeTblEntry *rte);
 static void set_values_pathlist(PlannerInfo *root, RelOptInfo *rel,
 					RangeTblEntry *rte);
 static void set_cte_pathlist(PlannerInfo *root, RelOptInfo *rel,
@@ -385,6 +390,9 @@ set_rel_size(PlannerInfo *root, RelOptInfo *rel,
 			case RTE_VALUES:
 				set_values_size_estimates(root, rel);
 				break;
+			case RTE_TEMPRESULT:
+				set_tempresult_size_estimates(root, rel, rte);
+				break;
 			case RTE_CTE:
 
 				/*
@@ -570,6 +578,10 @@ set_rel_pathlist(PlannerInfo *root, RelOptInfo *rel,
 			case RTE_VALUES:
 				/* Values list */
 				set_values_pathlist(root, rel, rte);
+				break;
+			case RTE_TEMPRESULT:
+				/* POC: catalogless temp result */
+				set_tempresult_pathlist(root, rel, rte);
 				break;
 			case RTE_CTE:
 				/* CTE reference --- fully handled during set_rel_size */
@@ -1932,6 +1944,42 @@ set_values_pathlist(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte)
 	add_path(rel, create_valuesscan_path(root, rel, rte, required_outer));
 
 	/* Select cheapest path (pretty easy in this case...) */
+	set_cheapest(rel);
+}
+
+/*
+ * set_tempresult_size_estimates
+ *		POC: size estimates for a catalogless temp result rel; uses the
+ *		exact row count recorded at CTAS time.
+ */
+static void
+set_tempresult_size_estimates(PlannerInfo *root, RelOptInfo *rel,
+							  RangeTblEntry *rte)
+{
+	TempResultEntry *tre = TempResultLookup(rte->ctename);
+
+	rel->tuples = tre ? (double) tre->rowcount : 1000.0;
+	if (rel->tuples < 1.0)
+		rel->tuples = 1.0;
+
+	set_baserel_size_estimates(root, rel);
+}
+
+/*
+ * set_tempresult_pathlist
+ *		POC: build the (single) access path for a catalogless temp result.
+ */
+static void
+set_tempresult_pathlist(PlannerInfo *root, RelOptInfo *rel, RangeTblEntry *rte)
+{
+	Relids		required_outer;
+
+	required_outer = rel->lateral_relids;
+
+	rel->onerow = (rel->tuples <= 1);
+
+	add_path(rel, create_tempresultscan_path(root, rel, rte, required_outer));
+
 	set_cheapest(rel);
 }
 

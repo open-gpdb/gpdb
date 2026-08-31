@@ -30,6 +30,8 @@
 #endif
 #include "optimizer/clauses.h"
 #include "optimizer/cost.h"
+#include "cdb/cdbtempresult.h"
+#include "nodes/nodeFuncs.h"
 #include "optimizer/orca.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -157,6 +159,8 @@ static Plan *pushdown_preliminary_limit(Plan *plan, Node *limitCount, int64 coun
 
 static Plan *getAnySubplan(Plan *node);
 static bool isSimplyUpdatableQuery(Query *query);
+static bool query_has_tempresult_rte(Query *query);
+static bool tempresult_rte_walker(Node *node, void *context);
 
 
 /*****************************************************************************
@@ -230,10 +234,16 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	 *
 	 * PARALLEL RETRIEVE CURSOR is not supported by ORCA yet.
 	 */
+	/*
+	 * POC: ORCA knows nothing about catalogless temp tables
+	 * (RTE_TEMPRESULT); force fallback to the Postgres planner for any
+	 * query referencing one.
+	 */
 	if (optimizer &&
 		GP_ROLE_DISPATCH == Gp_role &&
 		IS_QUERY_DISPATCHER() &&
-		(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) == 0)
+		(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) == 0 &&
+		!(gp_enable_catalogless_temp && query_has_tempresult_rte(parse)))
 	{
 		if (gp_log_optimization_time)
 			INSTR_TIME_SET_CURRENT(starttime);
@@ -5860,4 +5870,49 @@ isSimplyUpdatableQuery(Query *query)
 			return true;
 	}
 	return false;
+}
+
+/*
+ * POC: does the query (recursively) reference a catalogless temp table?
+ * Used to force ORCA fallback, since the DXL translator has no
+ * representation for RTE_TEMPRESULT.
+ */
+static bool
+tempresult_rte_walker(Node *node, void *context)
+{
+	if (node == NULL)
+		return false;
+
+	if (IsA(node, Query))
+	{
+		Query	   *query = (Query *) node;
+		ListCell   *lc;
+
+		foreach(lc, query->rtable)
+		{
+			RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc);
+
+			if (rte->rtekind == RTE_TEMPRESULT)
+				return true;
+		}
+		return query_tree_walker(query, tempresult_rte_walker, context,
+								 QTW_IGNORE_RT_SUBQUERIES | QTW_EXAMINE_RTES);
+	}
+	if (IsA(node, RangeTblEntry))
+	{
+		RangeTblEntry *rte = (RangeTblEntry *) node;
+
+		if (rte->rtekind == RTE_TEMPRESULT)
+			return true;
+		if (rte->rtekind == RTE_SUBQUERY && rte->subquery)
+			return tempresult_rte_walker((Node *) rte->subquery, context);
+		return false;
+	}
+	return expression_tree_walker(node, tempresult_rte_walker, context);
+}
+
+static bool
+query_has_tempresult_rte(Query *query)
+{
+	return tempresult_rte_walker((Node *) query, NULL);
 }

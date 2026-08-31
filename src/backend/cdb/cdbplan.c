@@ -507,6 +507,16 @@ plan_tree_mutator(Node *node,
 				SCANMUTATE(newscan, scan);
 				return (Node *) newscan;
 			}
+
+		case T_TempResultScan:
+			{
+				TempResultScan *scan = (TempResultScan *) node;
+				TempResultScan *newscan;
+
+				FLATCOPY(newscan, scan, TempResultScan);
+				SCANMUTATE(newscan, scan);
+				return (Node *) newscan;
+			}
 			break;
 
 		case T_WorkTableScan:
@@ -815,6 +825,10 @@ plan_tree_mutator(Node *node,
 
 					case RTE_VALUES:
 						MUTATE(newrte->values_lists, rte->values_lists, List *);
+						break;
+
+					case RTE_TEMPRESULT:
+						/* POC: nothing to mutate */
 						break;
 				}
 				return (Node *) newrte;
