@@ -53,11 +53,9 @@ SELECT 'seg baseline pg_depend' AS what, gp_segment_id, count(*)
  seg baseline pg_depend |             1 |  8072
 (2 rows)
 
-SET gp_enable_catalogless_temp = on;
-SET
 BEGIN;
 BEGIN
-CREATE TEMP TABLE poc_t AS
+CREATE TEMP TABLE poc_t WITH (catalogless=true) AS
   SELECT g AS id, g*2 AS val FROM generate_series(1,1000) g
   DISTRIBUTED BY (id);
 SELECT 1000
@@ -160,10 +158,10 @@ SELECT 'seg during pg_depend' AS what, gp_segment_id, count(*)
  seg during pg_depend |             1 |  8072
 (2 rows)
 
-dbfast2/demoDataDir1/base/pgsql_tmp/pgsql_tmp_CTMPRES_10_1
-dbfast2/demoDataDir1/base/pgsql_tmp/pgsql_tmp_CTMPRES_10_1_LOB
-dbfast1/demoDataDir0/base/pgsql_tmp/pgsql_tmp_CTMPRES_10_1
-dbfast1/demoDataDir0/base/pgsql_tmp/pgsql_tmp_CTMPRES_10_1_LOB
+dbfast2/demoDataDir1/base/pgsql_tmp/pgsql_tmp_CTMPRES_8_1
+dbfast2/demoDataDir1/base/pgsql_tmp/pgsql_tmp_CTMPRES_8_1_LOB
+dbfast1/demoDataDir0/base/pgsql_tmp/pgsql_tmp_CTMPRES_8_1
+dbfast1/demoDataDir0/base/pgsql_tmp/pgsql_tmp_CTMPRES_8_1_LOB
 COMMIT;
 COMMIT
 (no CTMPRES files means cleanup worked)
@@ -181,20 +179,18 @@ SELECT 'QD after txn' AS phase,
  QD after txn |      438 |         3376 |     441 |      8072
 (1 row)
 
-SET gp_enable_catalogless_temp = off;
-SET
-CREATE TEMP TABLE poc_control AS
+CREATE TEMP TABLE poc_control WITH (catalogless=false) AS
   SELECT g AS id, g*2 AS val FROM generate_series(1,1000) g
   DISTRIBUTED BY (id);
 SELECT 1000
-SELECT 'QD control (GUC off)' AS phase,
+SELECT 'QD control (catalogless=false)' AS phase,
        (SELECT count(*) FROM pg_class)     AS pg_class,
        (SELECT count(*) FROM pg_attribute) AS pg_attribute,
        (SELECT count(*) FROM pg_type)      AS pg_type,
        (SELECT count(*) FROM pg_depend)    AS pg_depend;
-        phase         | pg_class | pg_attribute | pg_type | pg_depend 
-----------------------+----------+--------------+---------+-----------
- QD control (GUC off) |      439 |         3385 |     443 |      8075
+             phase              | pg_class | pg_attribute | pg_type | pg_depend 
+--------------------------------+----------+--------------+---------+-----------
+ QD control (catalogless=false) |      439 |         3385 |     443 |      8075
 (1 row)
 
 SELECT 'seg control pg_class' AS what, gp_segment_id, count(*)
@@ -238,34 +234,42 @@ SELECT count(*) AS control_pgclass_rows
 
 DROP TABLE poc_control;
 DROP TABLE
-SET gp_enable_catalogless_temp = on;
+CREATE TABLE poc_neg0 WITH (catalogless=true) AS SELECT 1 AS id DISTRIBUTED BY (id);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:140: ERROR:  catalogless requires TEMP
+HINT:  Use CREATE TEMP TABLE ... WITH (catalogless) AS ...
+SET gp_enable_catalogless_temp = off;
 SET
+CREATE TEMP TABLE poc_neg00 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:144: ERROR:  catalogless temp tables are disabled
+HINT:  Enable with SET gp_enable_catalogless_temp = on.
+RESET gp_enable_catalogless_temp;
+RESET
 BEGIN;
 BEGIN
-CREATE TEMP TABLE poc_neg1 AS SELECT 1 AS id DISTRIBUTED BY (id);
+CREATE TEMP TABLE poc_neg1 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
 SELECT 1
 INSERT INTO poc_neg1 VALUES (2);
-psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:142: ERROR:  relation "poc_neg1" does not exist
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:150: ERROR:  relation "poc_neg1" does not exist
 LINE 1: INSERT INTO poc_neg1 VALUES (2);
                     ^
 ROLLBACK;
 ROLLBACK
 BEGIN;
 BEGIN
-CREATE TEMP TABLE poc_neg2 AS SELECT 1 AS id DISTRIBUTED BY (id);
+CREATE TEMP TABLE poc_neg2 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
 SELECT 1
 CREATE INDEX poc_neg2_idx ON poc_neg2(id);
-psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:148: ERROR:  relation "poc_neg2" does not exist
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:156: ERROR:  relation "poc_neg2" does not exist
 ROLLBACK;
 ROLLBACK
 BEGIN;
 BEGIN
-CREATE TEMP TABLE poc_neg3 AS SELECT 1 AS id DISTRIBUTED BY (id);
+CREATE TEMP TABLE poc_neg3 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
 SELECT 1
 DROP TABLE poc_neg3;
 DROP TABLE
 SELECT * FROM poc_neg3;
-psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:156: ERROR:  relation "poc_neg3" does not exist
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:164: ERROR:  relation "poc_neg3" does not exist
 LINE 1: SELECT * FROM poc_neg3;
                       ^
 ROLLBACK;

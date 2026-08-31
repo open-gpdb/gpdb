@@ -7,9 +7,33 @@ verified (the code compiles; it was not run).
 
 ## Architecture implemented
 
-1. **GUC** `gp_enable_catalogless_temp` (bool, PGC_USERSET, default off) —
-   `src/backend/utils/misc/guc_gp.c`, variable lives in
-   `src/backend/cdb/cdbtempresult.c`.
+1. **Per-object trigger** (changed from the original session-GUC design
+   after user feedback): the WITH option of the CTAS itself —
+
+   ```sql
+   CREATE TEMP TABLE t WITH (catalogless[=true|false]) AS SELECT ...
+   ```
+
+   The DefElem is parsed with `defGetBoolean` in `ExecCreateTableAs`
+   (short form `WITH (catalogless)` = true) and is **consumed** there
+   (removed from `into->options`) in both the true and the false case,
+   so the ordinary CTAS path never sees the unknown reloption and
+   `WITH (catalogless=false)` creates a perfectly normal temp table.
+   `catalogless` on a non-TEMP table raises `ERROR: catalogless
+   requires TEMP`; on a matview, WITH NO DATA and ON COMMIT — clean
+   not-implemented errors.
+
+   **GUC decision**: `gp_enable_catalogless_temp` (bool, PGC_USERSET,
+   registered in guc_gp.c + sync_guc_name.h, variable in
+   cdbtempresult.c) is kept as a **global kill-switch, default on**;
+   with it off the option raises `ERROR: catalogless temp tables are
+   disabled`.  Kept rather than deleted because (a) a prod feature of
+   this invasiveness wants an ops-level off-switch that requires no
+   application changes, and (b) the read path (registry lookup in
+   addRangeTableEntry / RemoveRelations) already uses it as a cheap
+   guard — removing it would touch more code for a strictly less safe
+   result.  The GUC no longer routes anything by itself: without the
+   WITH option nothing changes for any statement.
 
 2. **Session registry** — `src/backend/cdb/cdbtempresult.c`,
    `src/include/cdb/cdbtempresult.h`. Per-session hash
@@ -20,8 +44,9 @@ verified (the code compiles; it was not run).
 3. **Write path** — `src/backend/commands/createas.c`:
    - `ExecCreateTableAs` marks the `IntoClause`
      (`isTempResult`/`tempResultId`, new fields serialized in
-     out/read/copy/equal funcs) when the GUC is on and the target is
-     `RELPERSISTENCE_TEMP`.
+     out/read/copy/equal funcs) when the `catalogless` WITH option is
+     given (and the kill-switch GUC allows it) on a
+     `RELPERSISTENCE_TEMP` target.
    - `intorel_initplan` short-circuits into `tempresult_initplan`: **no
      catalog rows at all** (no `DefineRelation`/`heap_create_with_catalog`,
      no toast/aoseg, no relfilenode). Registers the entry; on QEs creates
@@ -158,8 +183,10 @@ Verified:
    `pg_class`/`pg_attribute`/`pg_type`/`pg_depend` counts are byte-for-byte
    identical to the baseline on the QD and on both segments
    (438/3376/441/8072), and `pg_class` has no `poc_t` row anywhere.
-   Control CTAS with the GUC off adds +1/+9/+2/+3 rows on QD and each
-   segment.
+   Control CTAS without the catalogless path (now exercised as
+   `WITH (catalogless=false)`, which must be consumed rather than hit
+   reloptions validation) adds +1/+9/+2/+3 rows on QD and each segment
+   and does produce a `pg_class` row.
 2. **Reads work and plan correctly**: `count/sum` over 1000 rows correct
    (1000/1001000); WHERE + ORDER BY correct; join with a co-distributed
    heap table shows `Temp Result Scan` with a co-located Hash Join and
@@ -172,7 +199,11 @@ Verified:
 4. **Negatives**: INSERT and CREATE INDEX on a catalogless temp table fail
    with a clean `relation ... does not exist` error (the name is invisible
    to the catalog-based resolution of DML/DDL) — no crash.  DROP TABLE
-   removes the entry.
+   removes the entry.  With the per-object syntax two more cases are
+   covered: `CREATE TABLE ... WITH (catalogless=true)` (no TEMP) →
+   `ERROR: catalogless requires TEMP`; the option under
+   `gp_enable_catalogless_temp = off` → `ERROR: catalogless temp tables
+   are disabled` (both verified in `test/catalogless_smoke.out`).
 
 Bugs found & fixed during bring-up (separate commits):
 

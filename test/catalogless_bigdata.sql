@@ -29,12 +29,11 @@ INSERT INTO poc_big_heap SELECT g, g*3 FROM generate_series(1,1000000) g;
 -- ============================================================
 -- (1) narrow tuples, 20M rows
 -- ============================================================
-SET gp_enable_catalogless_temp = on;
 BEGIN;
 
 \! echo "--- QE RSS(KB) before write ---"; ps -axo rss,command | grep "[p]ostgres" | grep -E "con[0-9]+ seg[0-9]" | sort -rn | head -4
 
-CREATE TEMP TABLE big1 AS
+CREATE TEMP TABLE big1 WITH (catalogless=true) AS
   SELECT g AS id, (g*7)::bigint AS v FROM generate_series(1,20000000) g
   DISTRIBUTED BY (id);
 
@@ -54,7 +53,7 @@ SELECT count(*) AS cnt_again FROM big1;
 -- ============================================================
 -- (2) wide tuples: LOB path (tuple > NTS_MAX_ENTRY_SIZE ~ 32700 B)
 -- ============================================================
-CREATE TEMP TABLE big2 AS
+CREATE TEMP TABLE big2 WITH (catalogless=true) AS
   SELECT g AS id, repeat('x', 40000) AS pad FROM generate_series(1,20000) g
   DISTRIBUTED BY (id);
 
@@ -80,7 +79,6 @@ COMMIT;
 -- ============================================================
 -- (5) control: same join with an ordinary (heap) temp table
 -- ============================================================
-SET gp_enable_catalogless_temp = off;
 BEGIN;
 CREATE TEMP TABLE big1_heap AS
   SELECT g AS id, (g*7)::bigint AS v FROM generate_series(1,20000000) g

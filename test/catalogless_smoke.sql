@@ -1,6 +1,6 @@
 -- ============================================================
 -- Smoke test for the catalogless temp table POC
--- (gp_enable_catalogless_temp).  Run in a single psql session:
+-- (per-object WITH (catalogless) option).  Run in a single psql session:
 --   psql -p <master_port> pocdb -e -f test/catalogless_smoke.sql
 --
 -- Segment-side catalog counters are read through gp_dist_random(),
@@ -39,10 +39,10 @@ SELECT 'seg baseline pg_depend' AS what, gp_segment_id, count(*)
 
 -- ============================================================
 -- (2) The experiment: catalogless CTAS inside a transaction
+--     (per-object WITH option; no session GUC required)
 -- ============================================================
-SET gp_enable_catalogless_temp = on;
 BEGIN;
-CREATE TEMP TABLE poc_t AS
+CREATE TEMP TABLE poc_t WITH (catalogless=true) AS
   SELECT g AS id, g*2 AS val FROM generate_series(1,1000) g
   DISTRIBUTED BY (id);
 
@@ -106,14 +106,15 @@ SELECT 'QD after txn' AS phase,
        (SELECT count(*) FROM pg_depend)    AS pg_depend;
 
 -- ============================================================
--- (5) CONTROL GROUP: same CTAS with the GUC off
+-- (5) CONTROL GROUP: same CTAS without the option, and with
+--     catalogless=false (the DefElem must be consumed, not passed to
+--     reloptions validation)
 -- ============================================================
-SET gp_enable_catalogless_temp = off;
-CREATE TEMP TABLE poc_control AS
+CREATE TEMP TABLE poc_control WITH (catalogless=false) AS
   SELECT g AS id, g*2 AS val FROM generate_series(1,1000) g
   DISTRIBUTED BY (id);
 
-SELECT 'QD control (GUC off)' AS phase,
+SELECT 'QD control (catalogless=false)' AS phase,
        (SELECT count(*) FROM pg_class)     AS pg_class,
        (SELECT count(*) FROM pg_attribute) AS pg_attribute,
        (SELECT count(*) FROM pg_type)      AS pg_type,
@@ -128,29 +129,36 @@ SELECT 'seg control pg_depend' AS what, gp_segment_id, count(*)
   FROM gp_dist_random('pg_depend') GROUP BY 2 ORDER BY 2;
 
 SELECT count(*) AS control_pgclass_rows
-  FROM pg_class WHERE relname = 'poc_control';  -- expect 1
+  FROM pg_class WHERE relname = 'poc_control';  -- expect 1: ordinary temp table
 DROP TABLE poc_control;
 
 -- ============================================================
 -- (6) NEGATIVE tests (each in its own txn; POC has no savepoints)
 -- ============================================================
-SET gp_enable_catalogless_temp = on;
+
+-- catalogless on a non-TEMP table: clean error
+CREATE TABLE poc_neg0 WITH (catalogless=true) AS SELECT 1 AS id DISTRIBUTED BY (id);
+
+-- kill-switch off: the option raises an error
+SET gp_enable_catalogless_temp = off;
+CREATE TEMP TABLE poc_neg00 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
+RESET gp_enable_catalogless_temp;
 
 BEGIN;
-CREATE TEMP TABLE poc_neg1 AS SELECT 1 AS id DISTRIBUTED BY (id);
+CREATE TEMP TABLE poc_neg1 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
 -- expect a clean error, not a crash:
 INSERT INTO poc_neg1 VALUES (2);
 ROLLBACK;
 
 BEGIN;
-CREATE TEMP TABLE poc_neg2 AS SELECT 1 AS id DISTRIBUTED BY (id);
+CREATE TEMP TABLE poc_neg2 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
 -- expect a clean error, not a crash:
 CREATE INDEX poc_neg2_idx ON poc_neg2(id);
 ROLLBACK;
 
 -- DROP TABLE on a live catalogless temp table
 BEGIN;
-CREATE TEMP TABLE poc_neg3 AS SELECT 1 AS id DISTRIBUTED BY (id);
+CREATE TEMP TABLE poc_neg3 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
 DROP TABLE poc_neg3;
 -- expect: does not exist
 SELECT * FROM poc_neg3;
