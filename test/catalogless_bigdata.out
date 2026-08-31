@@ -1,0 +1,184 @@
+Timing is on.
+/dev/disk3s5   926Gi   478Gi   407Gi    54%    3.5M  4.3G    0%   /System/Volumes/Data
+DROP TABLE IF EXISTS poc_big_heap;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_bigdata.sql:25: NOTICE:  table "poc_big_heap" does not exist, skipping
+DROP TABLE
+Time: 18.073 ms
+CREATE TABLE poc_big_heap(id int, hval bigint) DISTRIBUTED BY (id);
+CREATE TABLE
+Time: 43.845 ms
+INSERT INTO poc_big_heap SELECT g, g*3 FROM generate_series(1,1000000) g;
+INSERT 0 1000000
+Time: 1797.707 ms
+SET gp_enable_catalogless_temp = on;
+SET
+Time: 0.217 ms
+BEGIN;
+BEGIN
+Time: 0.037 ms
+--- QE RSS(KB) before write ---
+ 84048 postgres: 16434, alena pocdb 127.0.0.1(51801) con9 seg0 idle    
+ 83968 postgres: 16435, alena pocdb 127.0.0.1(51802) con9 seg1 idle    
+CREATE TEMP TABLE big1 AS
+  SELECT g AS id, (g*7)::bigint AS v FROM generate_series(1,20000000) g
+  DISTRIBUTED BY (id);
+SELECT 20000000
+Time: 14288.476 ms
+--- QE RSS(KB) after write ---
+119120 postgres: 16434, alena pocdb 127.0.0.1(51801) con9 seg0 idle in transaction    
+119040 postgres: 16435, alena pocdb 127.0.0.1(51802) con9 seg1 idle in transaction    
+--- tuplestore files after write ---
+/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/base/pgsql_tmp/:
+total 557184
+-rw-------@ 1 alena  staff   268M Aug 31 13:06 pgsql_tmp_CTMPRES_9_1
+-rw-------@ 1 alena  staff     0B Aug 31 13:06 pgsql_tmp_CTMPRES_9_1_LOB
+
+/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/base/pgsql_tmp/:
+total 557184
+-rw-------@ 1 alena  staff   268M Aug 31 13:06 pgsql_tmp_CTMPRES_9_1
+-rw-------@ 1 alena  staff     0B Aug 31 13:06 pgsql_tmp_CTMPRES_9_1_LOB
+SELECT count(*) AS cnt, sum(v) AS sumv FROM big1;
+   cnt    |       sumv       
+----------+------------------
+ 20000000 | 1400000070000000
+(1 row)
+
+Time: 2851.581 ms
+SELECT * FROM big1 WHERE id IN (1, 10000000, 20000000) ORDER BY id;
+    id    |     v     
+----------+-----------
+        1 |         7
+ 10000000 |  70000000
+ 20000000 | 140000000
+(3 rows)
+
+Time: 1259.801 ms
+SELECT count(*) AS cnt_again FROM big1;
+ cnt_again 
+-----------
+  20000000
+(1 row)
+
+Time: 1489.305 ms
+--- QE RSS(KB) after reads ---
+119648 postgres: 16434, alena pocdb 127.0.0.1(51801) con9 seg0 idle in transaction    
+119568 postgres: 16435, alena pocdb 127.0.0.1(51802) con9 seg1 idle in transaction    
+CREATE TEMP TABLE big2 AS
+  SELECT g AS id, repeat('x', 40000) AS pad FROM generate_series(1,20000) g
+  DISTRIBUTED BY (id);
+SELECT 20000
+Time: 403.378 ms
+--- tuplestore files incl LOB ---
+/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/base/pgsql_tmp/:
+total 1337400
+-rw-------@ 1 alena  staff   268M Aug 31 13:06 pgsql_tmp_CTMPRES_9_1
+-rw-------@ 1 alena  staff     0B Aug 31 13:06 pgsql_tmp_CTMPRES_9_1_LOB
+-rw-------@ 1 alena  staff   224K Aug 31 13:06 pgsql_tmp_CTMPRES_9_2
+-rw-------@ 1 alena  staff   381M Aug 31 13:06 pgsql_tmp_CTMPRES_9_2_LOB
+
+/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/base/pgsql_tmp/:
+total 1341000
+-rw-------@ 1 alena  staff   268M Aug 31 13:06 pgsql_tmp_CTMPRES_9_1
+-rw-------@ 1 alena  staff     0B Aug 31 13:06 pgsql_tmp_CTMPRES_9_1_LOB
+-rw-------@ 1 alena  staff   224K Aug 31 13:06 pgsql_tmp_CTMPRES_9_2
+-rw-------@ 1 alena  staff   383M Aug 31 13:06 pgsql_tmp_CTMPRES_9_2_LOB
+SELECT count(*) AS lob_cnt, sum(length(pad)) AS lob_bytes FROM big2;
+ lob_cnt | lob_bytes 
+---------+-----------
+   20000 | 800000000
+(1 row)
+
+Time: 1587.535 ms
+SELECT id, length(pad) AS padlen FROM big2 WHERE id IN (1, 9999, 20000) ORDER BY id;
+  id   | padlen 
+-------+--------
+     1 |  40000
+  9999 |  40000
+ 20000 |  40000
+(3 rows)
+
+Time: 46.074 ms
+EXPLAIN ANALYZE SELECT count(*) FROM big1 JOIN poc_big_heap USING (id);
+                                                                     QUERY PLAN                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=621528.77..621528.78 rows=1 width=8) (actual time=4887.657..4887.657 rows=1 loops=1)
+   ->  Gather Motion 2:1  (slice1; segments: 2)  (cost=621528.72..621528.76 rows=1 width=8) (actual time=4878.723..4887.643 rows=2 loops=1)
+         ->  Aggregate  (cost=621528.72..621528.73 rows=1 width=8) (actual time=4887.296..4887.296 rows=1 loops=1)
+               ->  Hash Join  (cost=23845.00..571528.72 rows=10000000 width=0) (actual time=708.932..4850.134 rows=500237 loops=1)
+                     Hash Cond: (big1.id = poc_big_heap.id)
+                     Extra Text: (seg0)   Hash chain length 1.6 avg, 10 max, using 322532 of 524288 buckets.
+                     ->  Temp Result Scan on big1  (cost=0.00..250000.00 rows=10000000 width=4) (actual time=0.114..1488.637 rows=10000830 loops=1)
+                     ->  Hash  (cost=11345.00..11345.00 rows=500000 width=4) (actual time=704.774..704.774 rows=500237 loops=1)
+                           ->  Seq Scan on poc_big_heap  (cost=0.00..11345.00 rows=500000 width=4) (actual time=0.064..328.207 rows=500237 loops=1)
+ Planning time: 1.894 ms
+   (slice0)    Executor memory: 123K bytes.
+   (slice1)    Executor memory: 28730K bytes avg x 2 workers, 28730K bytes max (seg0).  Work_mem: 11725K bytes max.
+ Memory used:  128000kB
+ Optimizer: Postgres query optimizer
+ Execution time: 4888.636 ms
+(15 rows)
+
+Time: 4892.916 ms
+SELECT count(*) AS join_cnt FROM big1 JOIN poc_big_heap USING (id);
+ join_cnt 
+----------
+  1000000
+(1 row)
+
+Time: 4487.827 ms
+COMMIT;
+COMMIT
+Time: 53.482 ms
+--- pgsql_tmp after COMMIT ---
+/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/dbfast1/demoDataDir0/base/pgsql_tmp/:
+total 0
+
+/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/dbfast2/demoDataDir1/base/pgsql_tmp/:
+total 0
+       0
+/dev/disk3s5   926Gi   478Gi   407Gi    55%    3.5M  4.3G    0%   /System/Volumes/Data
+SET gp_enable_catalogless_temp = off;
+SET
+Time: 0.413 ms
+BEGIN;
+BEGIN
+Time: 0.044 ms
+CREATE TEMP TABLE big1_heap AS
+  SELECT g AS id, (g*7)::bigint AS v FROM generate_series(1,20000000) g
+  DISTRIBUTED BY (id);
+SELECT 20000000
+Time: 16521.190 ms
+EXPLAIN ANALYZE SELECT count(*) FROM big1_heap JOIN poc_big_heap USING (id);
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=0.00..3042.18 rows=1 width=8) (actual time=5235.831..5235.832 rows=1 loops=1)
+   ->  Gather Motion 2:1  (slice1; segments: 2)  (cost=0.00..3042.18 rows=1 width=8) (actual time=5207.033..5235.817 rows=2 loops=1)
+         ->  Aggregate  (cost=0.00..3042.18 rows=1 width=8) (actual time=5235.177..5235.177 rows=1 loops=1)
+               ->  Hash Join  (cost=0.00..3042.18 rows=500000 width=1) (actual time=661.847..5198.091 rows=500237 loops=1)
+                     Hash Cond: (big1_heap.id = poc_big_heap.id)
+                     Extra Text: (seg0)   Hash chain length 1.6 avg, 10 max, using 322532 of 524288 buckets.
+                     ->  Seq Scan on big1_heap  (cost=0.00..662.00 rows=10000000 width=4) (actual time=0.030..1799.816 rows=10000830 loops=1)
+                     ->  Hash  (cost=442.55..442.55 rows=500000 width=4) (actual time=661.774..661.774 rows=500237 loops=1)
+                           ->  Seq Scan on poc_big_heap  (cost=0.00..442.55 rows=500000 width=4) (actual time=0.035..362.171 rows=500237 loops=1)
+ Planning time: 29.043 ms
+   (slice0)    Executor memory: 123K bytes.
+   (slice1)    Executor memory: 28730K bytes avg x 2 workers, 28730K bytes max (seg0).  Work_mem: 11725K bytes max.
+ Memory used:  128000kB
+ Optimizer: Pivotal Optimizer (GPORCA)
+ Execution time: 5236.134 ms
+(15 rows)
+
+Time: 5265.729 ms
+SELECT count(*) AS join_cnt_heap FROM big1_heap JOIN poc_big_heap USING (id);
+ join_cnt_heap 
+---------------
+       1000000
+(1 row)
+
+Time: 4578.224 ms
+ROLLBACK;
+ROLLBACK
+Time: 142.132 ms
+DROP TABLE poc_big_heap;
+DROP TABLE
+Time: 38.488 ms

@@ -185,6 +185,47 @@ Bugs found & fixed during bring-up (separate commits):
   for a distribution key column absent from reltargetlist
   (`SELECT count(*)`) → take type info from the RTE.
 
+## Big-data test (2026-08-31)
+
+`test/catalogless_bigdata.sql` (output: `test/catalogless_bigdata.out`),
+same 2-segment demo cluster.  The readerwriter NTupleStore is always
+file-backed and, with maxBytes = 0 as the POC passes, keeps an in-memory
+window of only 16 x 32KB pages = **512KB per store**; the test exercises
+eviction/reload far beyond it.  All phases passed, nothing to fix:
+
+1. **20M narrow rows** (`id int, v bigint`): CTAS 14.3s, spill file
+   `pgsql_tmp_CTMPRES_*` = **268MB per segment**.  `count/sum` exact
+   (20000000 / 1400000070000000 = 7*n*(n+1)/2), selective `WHERE id IN`
+   exact, second full `count(*)` (pure disk re-read) 1.5s.
+2. **RSS of the QE writer** (sampled every 4s): 84MB before, **119MB flat
+   during the whole 268MB write**, 119.6MB after reads — memory does not
+   scale with data volume, the 512KB window + motion/exec overhead is all
+   there is.  (A later 224MB peak belongs to the join's in-memory hash of
+   the 500K-per-segment heap rows, not to the tuplestore.)
+3. **LOB path**: with BLCKSZ=32768, NTS_MAX_ENTRY_SIZE ~= 32700 bytes, so
+   the suggested 2KB pad would stay inline; used `repeat('x',40000)`
+   (40KB tuples, 20k rows).  `_LOB` file = **381-383MB per segment**,
+   `count`/`sum(length)`/selective lengths all exact.  LOB write and read
+   paths work unmodified.
+4. **Join at volume** (20M temp result x 1M co-distributed heap,
+   count = 1000000 both ways):
+   - catalogless (Temp Result Scan, Postgres planner by forced fallback):
+     EXPLAIN ANALYZE 4.9s, scan of 10M rows/segment 1.49s;
+   - control heap temp table (ORCA picked the plan): EXPLAIN ANALYZE
+     5.3s, Seq Scan 1.8s; its CTAS took 16.5s vs 14.3s.
+   I.e. reading 20M rows from the ntuplestore is on par with (here
+   slightly faster than) a heap scan of the same data; -O0 build, single
+   host, so treat as a smoke-level comparison only.
+5. **COMMIT**: both segments' `pgsql_tmp` empty, `find *CTMPRES*` = 0.
+
+Note on the 512KB window: it caps only the page cache per store (write
+speed / re-read locality), not correctness.  If this goes further, the
+window should be sized like other operators — either from
+`statement_mem`/operator memory (the write side already receives
+`PlanStateOperatorMemKB`, but the POC reader passes maxBytes = 0) or via
+a dedicated GUC; a bigger window mainly helps repeated small range scans,
+sequential full scans are already fine.
+
 ## How to start the demo cluster
 
 The worktree has its own install prefix (never touches the user's
