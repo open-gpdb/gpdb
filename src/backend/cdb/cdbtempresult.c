@@ -191,9 +191,16 @@ struct NTupleStore *
 TempResultOpenReader(int vid)
 {
 	NTupleStore *store;
+	MemoryContext oldcxt;
 
-	store = ntuplestore_create_readerwriter(TempResultStoreName(vid), 0,
-											false /* reader */ );
+	/*
+	 * The reader store is tracked until end of transaction (see
+	 * TempResultXactCallback), so it must not live in a per-query context.
+	 */
+	oldcxt = MemoryContextSwitchTo(TopMemoryContext);
+	store = ntuplestore_create_readerwriter_xact(TempResultStoreName(vid), 0,
+												 false /* reader */ );
+	MemoryContextSwitchTo(oldcxt);
 	TempResultTrackReader(store);
 	return store;
 }

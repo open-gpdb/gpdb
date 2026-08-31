@@ -881,7 +881,7 @@ tempresult_initplan(struct QueryDesc *queryDesc)
 	{
 		MemoryContext oldcxt = MemoryContextSwitchTo(TopMemoryContext);
 
-		tre->store = ntuplestore_create_readerwriter(
+		tre->store = ntuplestore_create_readerwriter_xact(
 			TempResultStoreName(into->tempResultId),
 			(int64) PlanStateOperatorMemKB((PlanState *) queryDesc->planstate) * 1024,
 			true /* writer */ );
