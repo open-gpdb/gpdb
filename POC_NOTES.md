@@ -97,20 +97,21 @@ verified (the code compiles; it was not run).
 
 ## Known holes / cheats
 
-- **Reader gangs**: the tuplestore is written by the QE *writer* gang.
-  A later scan dispatched to a reader gang process will not find the
-  file (`CTMPRES_...`) since workfiles are per-process-visible via the
-  shared temp dir — the deterministic name makes them findable
-  segment-wide, but registry entries only exist in the writer processes.
-  The scan TupleDesc is rebuilt from the plan, so the scan itself does
-  not need the registry, but `ntuplestore_create_readerwriter` in reader
-  mode expects the file to exist and be complete.
+- **Reader gangs**: verified working in the smoke test (a self-join
+  reads the store from a reader gang): the deterministic file name in
+  the segment's shared `base/pgsql_tmp` directory makes the store
+  findable from any process of the same segment, and the scan TupleDesc
+  is rebuilt from the plan, so no registry access is needed for
+  reading.  Still unhandled: a segment that received **zero** rows
+  never creates the files, and a scan there would fail on open (did not
+  occur with the test distributions).
 - No synchronization between CTAS writer and later readers (the
   ShareInputScan-style ready/done FIFO protocol was not ported); safe
   only because statements are serialized within a session.
-- Workfile-manager lifetime: NTupleStore workfiles are normally scoped
-  to a query; keeping the store open across statements (until xact end)
-  in TopMemoryContext is not something workfile_mgr accounting expects.
+- The stores are opened with interXact = true and **no** workfile
+  manager tracking (`ntuplestore_create_readerwriter_xact`), so
+  gp_workfile_* views do not see them and per-query spill accounting
+  does not apply.
 - `DROP TABLE` on the QD removes only the QD entry; QE stores linger
   until end of transaction. Statement is not dispatched in that case.
 - Volatile default: reading a temp result that was never written on a
@@ -146,16 +147,98 @@ verified (the code compiles; it was not run).
 
 Rough estimate: the POC is ~10-15% of a production implementation.
 
+## Live smoke test (2026-08-31)
+
+Ran on a 2-segment gpdemo cluster built from this branch (macOS arm64):
+`test/catalogless_smoke.sql`, full output in `test/catalogless_smoke.out`.
+
+Verified:
+
+1. **Zero catalog rows** while the catalogless temp table is alive:
+   `pg_class`/`pg_attribute`/`pg_type`/`pg_depend` counts are byte-for-byte
+   identical to the baseline on the QD and on both segments
+   (438/3376/441/8072), and `pg_class` has no `poc_t` row anywhere.
+   Control CTAS with the GUC off adds +1/+9/+2/+3 rows on QD and each
+   segment.
+2. **Reads work and plan correctly**: `count/sum` over 1000 rows correct
+   (1000/1001000); WHERE + ORDER BY correct; join with a co-distributed
+   heap table shows `Temp Result Scan` with a co-located Hash Join and
+   **no Redistribute Motion** (hashed locus from the recorded policy,
+   rows=500/segment from the exact rowcount); self-join re-reads the
+   tuplestore (reader gang) correctly.
+3. **Transaction scope**: after COMMIT the name no longer resolves and the
+   `pgsql_tmp_CTMPRES_*` files are removed from both segments (verified
+   present during the transaction, absent after).
+4. **Negatives**: INSERT and CREATE INDEX on a catalogless temp table fail
+   with a clean `relation ... does not exist` error (the name is invisible
+   to the catalog-based resolution of DML/DDL) — no crash.  DROP TABLE
+   removes the entry.
+
+Bugs found & fixed during bring-up (separate commits):
+
+- GUC missing from `sync_guc_name.h` → server FATALs at startup.
+- Tuplestore files were opened with interXact = false → closed/deleted
+  by the resource owner at the end of the creating statement; added
+  `ntuplestore_create_readerwriter_xact` (interXact = true, registry
+  owns the lifecycle).
+- `find_indexkey_var` fell back to a pg_attribute lookup with relid 0
+  for a distribution key column absent from reltargetlist
+  (`SELECT count(*)`) → take type info from the RTE.
+
+## How to start the demo cluster
+
+The worktree has its own install prefix (never touches the user's
+GPHOME): configure with `--prefix=/Users/alena/open-gpdb3-poc/idea1/install`
+(all other options as in the main tree) and:
+
+```sh
+cd /Users/alena/open-gpdb3-poc/idea1
+make -j8 -C src/backend install
+make -C gpMgmt/bin psutil pyyaml CC="gcc -Wno-error=implicit-function-declaration"  # psutil 5.7.0 vs new clang
+make -C gpMgmt install
+make -C gpcontrib/gp_internal_tools install    # gp_resource_group.so needed by initdb
+
+export GPHOME=/Users/alena/open-gpdb3-poc/idea1/install
+source $GPHOME/greenplum_path.sh
+export MASTER_DATA_DIRECTORY=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/qddir/demoDataDir-1
+
+# first-time init (non-standard ports to avoid the user's clusters):
+cd gpAux/gpdemo
+export DEMO_PORT_BASE=16432 NUM_PRIMARY_MIRROR_PAIRS=2 WITH_MIRRORS=false \
+       DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs
+bash demo_cluster.sh        # gpinitsystem's own final gpstart may fail; then:
+pg_ctl -D $MASTER_DATA_DIRECTORY stop -m fast   # stop the utility-mode master it left
+gpstart -a
+
+# regular start/stop afterwards:
+gpstart -a
+gpstop -a
+
+# run the smoke test:
+createdb -p 16432 pocdb
+DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs \
+  psql -p 16432 pocdb -e -f test/catalogless_smoke.sql
+```
+
+Cluster: master :16432, primaries :16434/:16435, data under
+`gpAux/gpdemo/datadirs` inside the worktree.  Build-artifact directories
+`install/`, `gpAux/gpdemo/datadirs/` and the extracted
+`gpMgmt/bin/pythonSrc/ext/*` are deliberately left untracked.
+
+Environment quirks hit during bring-up (documented, not POC bugs): the
+top-level `make install` fails in `contrib/hstore` on this SDK (not
+needed); `gpstart` needs python2 `psutil`, whose 5.7.0 sources need
+`-Wno-error=implicit-function-declaration` with current clang.
+
 ## Diffstat
 
 (vs OPENGPDB_STABLE; `git diff OPENGPDB_STABLE --stat | tail -5`)
 
 ```
- src/include/nodes/primnodes.h             |   4 +
- src/include/optimizer/cost.h              |   2 +
- src/include/optimizer/pathnode.h          |   2 +
- src/include/parser/parse_relation.h       |   7 +
- 50 files changed, 1409 insertions(+), 8 deletions(-)
+ src/include/utils/tuplestorenew.h         |   1 +
+ test/catalogless_smoke.out                | 274 ++++++++++++++++++++++++++++++
+ test/catalogless_smoke.sql                | 160 +++++++++++++++++
+ 57 files changed, 2168 insertions(+), 8 deletions(-)
 ```
 
 Build: configured with the same options as the main tree
