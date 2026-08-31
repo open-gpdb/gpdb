@@ -135,6 +135,14 @@ WSAPoll(
 #define SEC_TO_MSEC(t)                  ((t) * 1000)
 #define MSEC_TO_USEC(t)                 ((t) * 1000)
 #define USEC_TO_SEC(t)                  ((t) / 1000000)
+/*
+ * Recent macOS SDKs no longer define HZ in <sys/param.h>; provide the
+ * traditional fallback so this file keeps compiling.
+ */
+#ifndef HZ
+#define HZ 100
+#endif
+
 #define TIME_TICK (1000000/HZ)/* in us */
 
 #define UDP_INITIAL_RTO                 (MSEC_TO_USEC(200))
