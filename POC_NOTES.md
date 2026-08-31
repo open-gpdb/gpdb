@@ -1,321 +1,332 @@
-# POC: catalogless temp tables via CTAS (`gp_enable_catalogless_temp`)
+# POC: бескаталожные временные таблицы через CTAS (`gp_enable_catalogless_temp`)
 
-Prototype of "catalogless" temporary tables for `CREATE TEMP TABLE ... AS
-SELECT`. The goal of this branch is to estimate the code surface, not to
-be functional or polished: correctness of runtime behavior was NOT
-verified (the code compiles; it was not run).
+Прототип «бескаталожных» временных таблиц для `CREATE TEMP TABLE ... AS
+SELECT`. Цель ветки — оценить объём кода, а не получить готовую фичу.
+Изначально код только компилировался; позже прототип был поднят на живом
+demo-кластере и проверен смоук- и нагрузочным тестами (см. разделы про
+тесты ниже).
 
-## Architecture implemented
+## Реализованная архитектура
 
-1. **Per-object trigger** (changed from the original session-GUC design
-   after user feedback): the WITH option of the CTAS itself —
+1. **Per-object триггер** (изменено с изначального сессионного GUC по
+   фидбеку пользователя): WITH-опция самого CTAS —
 
    ```sql
    CREATE TEMP TABLE t WITH (catalogless[=true|false]) AS SELECT ...
    ```
 
-   The DefElem is parsed with `defGetBoolean` in `ExecCreateTableAs`
-   (short form `WITH (catalogless)` = true) and is **consumed** there
-   (removed from `into->options`) in both the true and the false case,
-   so the ordinary CTAS path never sees the unknown reloption and
-   `WITH (catalogless=false)` creates a perfectly normal temp table.
-   `catalogless` on a non-TEMP table raises `ERROR: catalogless
-   requires TEMP`; on a matview, WITH NO DATA and ON COMMIT — clean
-   not-implemented errors.
+   DefElem разбирается через `defGetBoolean` в `ExecCreateTableAs`
+   (краткая форма `WITH (catalogless)` = true) и там же **поглощается**
+   (удаляется из `into->options`) в обоих случаях — и true, и false, —
+   поэтому обычный путь CTAS никогда не видит неизвестный reloption, а
+   `WITH (catalogless=false)` создаёт совершенно обычную temp-таблицу.
+   `catalogless` на не-TEMP таблице даёт `ERROR: catalogless requires
+   TEMP`; на matview, `WITH NO DATA` и `ON COMMIT` — чистые ошибки «не
+   реализовано».
 
-   **GUC decision**: `gp_enable_catalogless_temp` (bool, PGC_USERSET,
-   registered in guc_gp.c + sync_guc_name.h, variable in
-   cdbtempresult.c) is kept as a **global kill-switch, default on**;
-   with it off the option raises `ERROR: catalogless temp tables are
-   disabled`.  Kept rather than deleted because (a) a prod feature of
-   this invasiveness wants an ops-level off-switch that requires no
-   application changes, and (b) the read path (registry lookup in
-   addRangeTableEntry / RemoveRelations) already uses it as a cheap
-   guard — removing it would touch more code for a strictly less safe
-   result.  The GUC no longer routes anything by itself: without the
-   WITH option nothing changes for any statement.
+   **Решение по GUC**: `gp_enable_catalogless_temp` (bool, PGC_USERSET,
+   зарегистрирован в guc_gp.c + sync_guc_name.h, переменная в
+   cdbtempresult.c) оставлен как **глобальный kill-switch, по умолчанию
+   on**; при off опция даёт `ERROR: catalogless temp tables are
+   disabled`. Оставлен, а не удалён, потому что (а) прод-фиче такой
+   инвазивности нужен ops-уровневый выключатель, не требующий правок
+   приложений, и (б) read-path (поиск в реестре в `addRangeTableEntry` /
+   `RemoveRelations`) уже использует его как дешёвый guard — удаление
+   тронуло бы больше кода при строго худшей безопасности. Сам по себе
+   GUC больше ничего не маршрутизирует: без WITH-опции поведение любых
+   стейтментов не меняется.
 
-2. **Session registry** — `src/backend/cdb/cdbtempresult.c`,
-   `src/include/cdb/cdbtempresult.h`. Per-session hash
-   `name -> {virtual_id, TupleDesc, GpPolicy, rowcount, NTupleStore}` in
-   TopMemoryContext, present on QD and QEs. Virtual ids are a per-session
-   counter assigned on the QD and dispatched inside the `IntoClause`.
+2. **Сессионный реестр** — `src/backend/cdb/cdbtempresult.c`,
+   `src/include/cdb/cdbtempresult.h`. Per-session хеш
+   `имя -> {virtual_id, TupleDesc, GpPolicy, rowcount, NTupleStore}` в
+   TopMemoryContext, существует на QD и на QE. Virtual id — сессионный
+   счётчик, назначается на QD и доезжает до QE внутри `IntoClause`.
 
-3. **Write path** — `src/backend/commands/createas.c`:
-   - `ExecCreateTableAs` marks the `IntoClause`
-     (`isTempResult`/`tempResultId`, new fields serialized in
-     out/read/copy/equal funcs) when the `catalogless` WITH option is
-     given (and the kill-switch GUC allows it) on a
-     `RELPERSISTENCE_TEMP` target.
-   - `intorel_initplan` short-circuits into `tempresult_initplan`: **no
-     catalog rows at all** (no `DefineRelation`/`heap_create_with_catalog`,
-     no toast/aoseg, no relfilenode). Registers the entry; on QEs creates
-     a segment-local `NTupleStore` writer
-     (`ntuplestore_create_readerwriter`) with deterministic name
-     `CTMPRES_<gp_session_id>_<virtual_id>` (modeled on
+3. **Путь записи** — `src/backend/commands/createas.c`:
+   - `ExecCreateTableAs` помечает `IntoClause`
+     (`isTempResult`/`tempResultId`, новые поля сериализованы в
+     out/read/copy/equal-функциях), когда задана WITH-опция
+     `catalogless` (и kill-switch это разрешает) на цели с
+     `RELPERSISTENCE_TEMP`.
+   - `intorel_initplan` сворачивает в `tempresult_initplan`: **ни одной
+     строки каталога** (ни `DefineRelation`/`heap_create_with_catalog`,
+     ни toast/aoseg, ни relfilenode). Регистрирует запись; на QE создаёт
+     сегмент-локальный writer `NTupleStore`
+     (`ntuplestore_create_readerwriter`) с детерминированным именем
+     `CTMPRES_<gp_session_id>_<virtual_id>` (по образцу
      `shareinput_create_bufname_prefix`).
-   - `intorel_receive`/`intorel_shutdown` append slots to the tuplestore /
-     flush it; the store stays open until end of transaction.
-   - QD records the global rowcount (`es_processed`) in its registry entry
-     after `ExecutorEnd`.
+   - `intorel_receive`/`intorel_shutdown` дописывают слоты в tuplestore /
+     сбрасывают его; store остаётся открытым до конца транзакции.
+   - QD после `ExecutorEnd` записывает суммарный rowcount
+     (`es_processed`) в свою запись реестра.
 
-4. **Read path** — `src/backend/parser/parse_relation.c`:
-   `addRangeTableEntry` resolves an unqualified name against the registry
-   *before* the catalog and builds a new RTE kind `RTE_TEMPRESULT`
-   (`addRangeTableEntryForTempResult`). The RTE reuses the CTE fields
-   (`ctename`, `ctecoltypes/typmods/collations`), which let `expandRTE`,
-   `get_rte_attribute_type` etc. share the CTE code paths (pattern:
-   minimal port of PG10 `RTE_NAMEDTUPLESTORE`, without QueryEnvironment).
+4. **Путь чтения** — `src/backend/parser/parse_relation.c`:
+   `addRangeTableEntry` резолвит неквалифицированное имя по реестру *до*
+   каталога и строит RTE нового вида `RTE_TEMPRESULT`
+   (`addRangeTableEntryForTempResult`). RTE переиспользует CTE-поля
+   (`ctename`, `ctecoltypes/typmods/collations`), благодаря чему
+   `expandRTE`, `get_rte_attribute_type` и пр. работают по CTE-веткам
+   (паттерн: минимальный порт `RTE_NAMEDTUPLESTORE` из PG10, без
+   QueryEnvironment).
 
-5. **Planner** — new plan node `TempResultScan` + path:
-   - `relnode.c`: `build_simple_rel` sets attrs and `rel->cdbpolicy` from
-     the registry policy.
-   - `allpaths.c`: `set_tempresult_size_estimates` (exact rowcount from
-     registry) and `set_tempresult_pathlist`.
-   - `pathnode.c`: `create_tempresultscan_path`; locus via
-     `cdbpathlocus_from_baserel` over the registry `GpPolicy`, so a
-     hash-distributed temp result joins on its distribution key without a
-     Motion.
-   - `costsize.c`: `cost_tempresultscan` (clone of `cost_valuesscan`).
+5. **Планировщик** — новый plan-узел `TempResultScan` + путь:
+   - `relnode.c`: `build_simple_rel` заполняет атрибуты и
+     `rel->cdbpolicy` из политики в реестре.
+   - `allpaths.c`: `set_tempresult_size_estimates` (точный rowcount из
+     реестра) и `set_tempresult_pathlist`.
+   - `pathnode.c`: `create_tempresultscan_path`; locus через
+     `cdbpathlocus_from_baserel` поверх `GpPolicy` из реестра — temp
+     result с hash-распределением джойнится по своему ключу
+     распределения без Motion.
+   - `costsize.c`: `cost_tempresultscan` (клон `cost_valuesscan`).
    - `createplan.c`: `create_tempresultscan_plan`/`make_tempresultscan`;
-     the plan node carries `tsname`, `tempresid` and the column type lists
-     so any executor process can rebuild the scan TupleDesc without
-     catalog/registry access.
-   - `setrefs.c`, `subselect.c`, `cdbplan.c`, `cdbmutate.c`, `cdbllize.c`,
-     `cdbpath.c`, `cdbtargeteddispatch.c`, `walkers.c`: plumbing cases.
-   - **ORCA fallback**: `standard_planner` walks the query for
-     `RTE_TEMPRESULT` and skips `optimize_query` (forced fallback to the
-     Postgres planner) — the DXL translator has no representation for the
-     new RTE kind.
+     plan-узел несёт `tsname`, `tempresid` и списки типов колонок, чтобы
+     любой executor-процесс мог восстановить TupleDesc скана без доступа
+     к каталогу/реестру.
+   - `setrefs.c`, `subselect.c`, `cdbplan.c`, `cdbmutate.c`,
+     `cdbllize.c`, `cdbpath.c`, `cdbtargeteddispatch.c`, `walkers.c`:
+     обвязочные кейсы.
+   - **Fallback с ORCA**: `standard_planner` обходит запрос в поисках
+     `RTE_TEMPRESULT` и пропускает `optimize_query` (принудительный
+     fallback на планировщик Postgres) — у DXL-транслятора нет
+     представления для нового вида RTE.
 
-6. **Executor** — `src/backend/executor/nodeTempResultScan.c` (+ header):
-   opens the local ntuplestore lazily on first fetch (by name, reader
-   mode) and returns tuples through `ExecScan`. Plumbed through
-   `execProcnode.c`, `execAmi.c` (rescan seeks to BOF), `explain.c`
-   ("Temp Result Scan").
+6. **Executor** — `src/backend/executor/nodeTempResultScan.c`
+   (+ заголовок): лениво открывает локальный ntuplestore при первом
+   fetch'е (по имени, reader-режим) и отдаёт кортежи через `ExecScan`.
+   Обвязка в `execProcnode.c`, `execAmi.c` (rescan — seek на BOF),
+   `explain.c` («Temp Result Scan»).
 
-7. **Serialization** — `outfuncs.c`/`outfast.c`, `readfuncs.c`/
-   `readfast.c`, `copyfuncs.c`, `equalfuncs.c` for `TempResultScan`, the
-   `IntoClause` fields and the `RTE_TEMPRESULT` case.
+7. **Сериализация** — `outfuncs.c`/`outfast.c`, `readfuncs.c`/
+   `readfast.c`, `copyfuncs.c`, `equalfuncs.c` для `TempResultScan`,
+   полей `IntoClause` и кейса `RTE_TEMPRESULT`.
 
-8. **Cleanup** — `RegisterXactCallback` in `cdbtempresult.c`: on top-level
-   commit/abort all tuplestores (writer and tracked readers) are
-   destroyed and the registry is emptied. Subtransactions: registering
-   inside a subxact raises `ERROR` (POC scope).
-   `DROP TABLE <name>` is intercepted at the top of `RemoveRelations`
-   (`tablecmds.c`) and removes the entry locally.
+8. **Очистка** — `RegisterXactCallback` в `cdbtempresult.c`: на
+   commit/abort верхнего уровня все tuplestore (writer и отслеживаемые
+   reader'ы) уничтожаются, реестр очищается. Подтранзакции: регистрация
+   внутри subxact даёт `ERROR` (рамки POC).
+   `DROP TABLE <имя>` перехватывается в начале `RemoveRelations`
+   (`tablecmds.c`) и удаляет запись локально.
 
-## Stubbed / erroring out (ERRCODE_FEATURE_NOT_SUPPORTED)
+## Застаблено / даёт ошибку (ERRCODE_FEATURE_NOT_SUPPORTED)
 
 - `WITH NO DATA` (`ExecCreateTableAs`)
-- `ON COMMIT ...` clauses
+- клаузы `ON COMMIT ...`
 - `CREATE TABLE AS EXECUTE`
-- catalogless temp table inside a subtransaction (register time)
-- `SELECT ... FOR UPDATE/SHARE` on a temp result (`analyze.c`)
+- бескаталожная temp-таблица внутри подтранзакции (в момент регистрации)
+- `SELECT ... FOR UPDATE/SHARE` по temp result (`analyze.c`)
 
-## Not handled at all (name simply won't resolve / catalog error)
+## Не обработано вовсе (имя просто не резолвится / каталожная ошибка)
 
-- INSERT/UPDATE/DELETE into the temp result (resolution goes through
-  `setTargetTable` -> catalog -> "relation does not exist")
-- indexes, ALTER, `\d` in psql, pg_dump, COPY, ANALYZE, VACUUM
-- plain `CREATE TEMP TABLE` without `AS`
+- INSERT/UPDATE/DELETE в temp result (резолв идёт через
+  `setTargetTable` -> каталог -> «relation does not exist»)
+- индексы, ALTER, `\d` в psql, pg_dump, COPY, ANALYZE, VACUUM
+- обычный `CREATE TEMP TABLE` без `AS`
 
-## Known holes / cheats
+## Известные дыры / читы
 
-- **Reader gangs**: verified working in the smoke test (a self-join
-  reads the store from a reader gang): the deterministic file name in
-  the segment's shared `base/pgsql_tmp` directory makes the store
-  findable from any process of the same segment, and the scan TupleDesc
-  is rebuilt from the plan, so no registry access is needed for
-  reading.  Still unhandled: a segment that received **zero** rows
-  never creates the files, and a scan there would fail on open (did not
-  occur with the test distributions).
-- No synchronization between CTAS writer and later readers (the
-  ShareInputScan-style ready/done FIFO protocol was not ported); safe
-  only because statements are serialized within a session.
-- The stores are opened with interXact = true and **no** workfile
-  manager tracking (`ntuplestore_create_readerwriter_xact`), so
-  gp_workfile_* views do not see them and per-query spill accounting
-  does not apply.
-- `DROP TABLE` on the QD removes only the QD entry; QE stores linger
-  until end of transaction. Statement is not dispatched in that case.
-- Volatile default: reading a temp result that was never written on a
-  given segment (0 rows there) will still try to open the file — likely
-  errors at runtime; needs "create empty store if missing" handling.
-- Shadowing: a registry name shadows any catalog table with the same
-  name for unqualified reads; no interaction rules were designed.
-- `EXPLAIN (VERBOSE)`/ruleutils deparse only minimally handled.
-- Memory-accounting reuses the ValuesScan owner tag for the new node.
-- `TempResultScan` support was not added to mark/restore.
+- **Reader-ганги**: в смоук-тесте работает (self-join читает store из
+  reader-ганга): детерминированное имя файла в общем каталоге
+  `base/pgsql_tmp` сегмента делает store находимым из любого процесса
+  того же сегмента, а TupleDesc скана восстанавливается из плана, так
+  что доступ к реестру для чтения не нужен. Осталось необработанным:
+  сегмент, получивший **ноль** строк, вообще не создаёт файлов, и скан
+  там упадёт на open (на тестовых распределениях не проявилось).
+- Нет синхронизации между writer'ом CTAS и последующими reader'ами
+  (ShareInputScan-протокол ready/done через FIFO не портирован);
+  безопасно только потому, что стейтменты внутри сессии сериализованы.
+- Store'ы открываются с interXact = true и **без** учёта в workfile
+  manager (`ntuplestore_create_readerwriter_xact`), поэтому
+  gp_workfile_*-представления их не видят и per-query учёт спилла не
+  применяется.
+- `DROP TABLE` на QD удаляет только запись QD; store'ы на QE живут до
+  конца транзакции. Стейтмент в этом случае не диспетчеризуется.
+- Чтение temp result, в который на данном сегменте не было записи
+  (0 строк там), всё равно попытается открыть файл — вероятна ошибка в
+  рантайме; нужна обработка «нет файла = пустой store».
+- Затенение: имя из реестра затеняет любую каталожную таблицу с тем же
+  именем при неквалифицированном чтении; правила взаимодействия не
+  проектировались.
+- `EXPLAIN (VERBOSE)`/deparse в ruleutils обработаны минимально.
+- Учёт памяти переиспользует owner-тег ValuesScan для нового узла.
+- Поддержка mark/restore для `TempResultScan` не добавлена.
 
-## Environment fixes (unrelated to the POC itself)
+## Фиксы окружения (к самому POC отношения не имеют)
 
-- `src/backend/cdb/motion/ic_udpifc.c`: current macOS SDKs no longer
-  define `HZ` in `<sys/param.h>`; added `#ifndef HZ #define HZ 100`.
-- `src/backend/gporca/gporca.mk`: homebrew xerces-c headers use C++11
-  constructs; with `-std=gnu++98 -Werror -Wpedantic` the ORCA build dies.
-  Added `-Wno-c++11-extensions -Wno-long-long`.
+- `src/backend/cdb/motion/ic_udpifc.c`: свежие macOS SDK больше не
+  определяют `HZ` в `<sys/param.h>`; добавлен `#ifndef HZ #define HZ
+  100`.
+- `src/backend/gporca/gporca.mk`: заголовки homebrew xerces-c используют
+  конструкции C++11; с `-std=gnu++98 -Werror -Wpedantic` сборка ORCA
+  падает. Добавлены `-Wno-c++11-extensions -Wno-long-long`.
 
-## Estimate of remaining work to production
+## Оценка оставшейся работы до продакшена
 
-- Correct cross-gang/cross-slice visibility of the stores (reader-gang
-  problem above); likely needs writer/reader synchronization a la
-  ShareInputScan and "missing file = empty" semantics: **large**.
-- DML (INSERT/UPDATE/DELETE), or at least clean errors for it.
-- ORCA support (new DXL operator or a proper fallback annotation).
-- Spill/memory accounting, workfile manager integration, statement_mem.
-- Interaction with catalog names, search_path semantics, EXPLAIN,
-  ruleutils, views over temp results, pg_temp handling.
-- Subtransactions/savepoints, ON COMMIT semantics, 2PC interaction of
-  the xact callback.
-- Tests (regress + isolation), \d support, pg_dump behavior definition.
+- Корректная межганговая/межслайсовая видимость store'ов (проблема
+  reader-гангов выше); скорее всего нужна синхронизация writer/reader в
+  духе ShareInputScan и семантика «нет файла = пусто»: **крупно**.
+- DML (INSERT/UPDATE/DELETE) или хотя бы чистые ошибки для него.
+- Поддержка ORCA (новый DXL-оператор или честная аннотация fallback'а).
+- Учёт спилла/памяти, интеграция с workfile manager, statement_mem.
+- Взаимодействие с каталожными именами, семантика search_path, EXPLAIN,
+  ruleutils, представления поверх temp result'ов, обработка pg_temp.
+- Подтранзакции/savepoints, семантика ON COMMIT, взаимодействие
+  xact-callback'а с 2PC.
+- Тесты (regress + isolation), поддержка \d, определение поведения
+  pg_dump.
 
-Rough estimate: the POC is ~10-15% of a production implementation.
+Грубая оценка: POC — это ~10–15% продакшен-реализации.
 
-## Live smoke test (2026-08-31)
+## Живой смоук-тест (2026-08-31)
 
-Ran on a 2-segment gpdemo cluster built from this branch (macOS arm64):
-`test/catalogless_smoke.sql`, full output in `test/catalogless_smoke.out`.
+Прогнан на 2-сегментном gpdemo-кластере, собранном из этой ветки (macOS
+arm64): `test/catalogless_smoke.sql`, полный вывод в
+`test/catalogless_smoke.out`.
 
-Verified:
+Проверено:
 
-1. **Zero catalog rows** while the catalogless temp table is alive:
-   `pg_class`/`pg_attribute`/`pg_type`/`pg_depend` counts are byte-for-byte
-   identical to the baseline on the QD and on both segments
-   (438/3376/441/8072), and `pg_class` has no `poc_t` row anywhere.
-   Control CTAS without the catalogless path (now exercised as
-   `WITH (catalogless=false)`, which must be consumed rather than hit
-   reloptions validation) adds +1/+9/+2/+3 rows on QD and each segment
-   and does produce a `pg_class` row.
-2. **Reads work and plan correctly**: `count/sum` over 1000 rows correct
-   (1000/1001000); WHERE + ORDER BY correct; join with a co-distributed
-   heap table shows `Temp Result Scan` with a co-located Hash Join and
-   **no Redistribute Motion** (hashed locus from the recorded policy,
-   rows=500/segment from the exact rowcount); self-join re-reads the
-   tuplestore (reader gang) correctly.
-3. **Transaction scope**: after COMMIT the name no longer resolves and the
-   `pgsql_tmp_CTMPRES_*` files are removed from both segments (verified
-   present during the transaction, absent after).
-4. **Negatives**: INSERT and CREATE INDEX on a catalogless temp table fail
-   with a clean `relation ... does not exist` error (the name is invisible
-   to the catalog-based resolution of DML/DDL) — no crash.  DROP TABLE
-   removes the entry.  With the per-object syntax two more cases are
-   covered: `CREATE TABLE ... WITH (catalogless=true)` (no TEMP) →
-   `ERROR: catalogless requires TEMP`; the option under
+1. **Ноль строк каталога**, пока бескаталожная temp-таблица жива:
+   счётчики `pg_class`/`pg_attribute`/`pg_type`/`pg_depend` байт-в-байт
+   совпадают с базовой линией на QD и обоих сегментах
+   (438/3376/441/8072), и строки `poc_t` в `pg_class` нет нигде.
+   Контрольный CTAS без бескаталожного пути (теперь проверяется как
+   `WITH (catalogless=false)`, которая должна поглощаться, а не попадать
+   в reloptions-валидацию) добавляет +1/+9/+2/+3 строки на QD и каждом
+   сегменте и строку в `pg_class` создаёт.
+2. **Чтение работает и планируется правильно**: `count/sum` по 1000
+   строк верны (1000/1001000); WHERE + ORDER BY верны; join с
+   co-distributed heap-таблицей показывает `Temp Result Scan` с
+   co-located Hash Join и **без Redistribute Motion** (hashed locus из
+   сохранённой политики, rows=500/сегмент из точного rowcount);
+   self-join повторно читает tuplestore (reader-гангом) корректно.
+3. **Транзакционный scope**: после COMMIT имя больше не резолвится, а
+   файлы `pgsql_tmp_CTMPRES_*` удалены с обоих сегментов (проверено:
+   есть во время транзакции, нет после).
+4. **Негативы**: INSERT и CREATE INDEX по бескаталожной temp-таблице
+   падают с чистой ошибкой `relation ... does not exist` (имя невидимо
+   для каталожного резолва DML/DDL) — без крэшей. DROP TABLE удаляет
+   запись. С per-object синтаксисом покрыты ещё два кейса:
+   `CREATE TABLE ... WITH (catalogless=true)` (без TEMP) →
+   `ERROR: catalogless requires TEMP`; опция при
    `gp_enable_catalogless_temp = off` → `ERROR: catalogless temp tables
-   are disabled` (both verified in `test/catalogless_smoke.out`).
+   are disabled` (оба зафиксированы в `test/catalogless_smoke.out`).
 
-Bugs found & fixed during bring-up (separate commits):
+Баги, найденные и починенные при поднятии (отдельные коммиты):
 
-- GUC missing from `sync_guc_name.h` → server FATALs at startup.
-- Tuplestore files were opened with interXact = false → closed/deleted
-  by the resource owner at the end of the creating statement; added
-  `ntuplestore_create_readerwriter_xact` (interXact = true, registry
-  owns the lifecycle).
-- `find_indexkey_var` fell back to a pg_attribute lookup with relid 0
-  for a distribution key column absent from reltargetlist
-  (`SELECT count(*)`) → take type info from the RTE.
+- GUC отсутствовал в `sync_guc_name.h` → FATAL сервера на старте.
+- Файлы tuplestore открывались с interXact = false → закрывались и
+  удалялись resource owner'ом в конце создающего стейтмента; добавлен
+  `ntuplestore_create_readerwriter_xact` (interXact = true, жизненным
+  циклом владеет реестр).
+- `find_indexkey_var` сваливался в поиск по pg_attribute с relid 0 для
+  колонки ключа распределения, отсутствующей в reltargetlist
+  (`SELECT count(*)`) → типы берутся из RTE.
 
-## Big-data test (2026-08-31)
+## Нагрузочный тест (2026-08-31)
 
-`test/catalogless_bigdata.sql` (output: `test/catalogless_bigdata.out`),
-same 2-segment demo cluster.  The readerwriter NTupleStore is always
-file-backed and, with maxBytes = 0 as the POC passes, keeps an in-memory
-window of only 16 x 32KB pages = **512KB per store**; the test exercises
-eviction/reload far beyond it.  All phases passed, nothing to fix:
+`test/catalogless_bigdata.sql` (вывод: `test/catalogless_bigdata.out`),
+тот же 2-сегментный demo-кластер. Readerwriter-NTupleStore всегда
+файловый и при maxBytes = 0, как передаёт POC, держит в памяти окно
+всего в 16 страниц по 32KB = **512KB на store**; тест гоняет
+вытеснение/подкачку сильно за его пределами. Все фазы прошли, чинить
+ничего не пришлось:
 
-1. **20M narrow rows** (`id int, v bigint`): CTAS 14.3s, spill file
-   `pgsql_tmp_CTMPRES_*` = **268MB per segment**.  `count/sum` exact
-   (20000000 / 1400000070000000 = 7*n*(n+1)/2), selective `WHERE id IN`
-   exact, second full `count(*)` (pure disk re-read) 1.5s.
-2. **RSS of the QE writer** (sampled every 4s): 84MB before, **119MB flat
-   during the whole 268MB write**, 119.6MB after reads — memory does not
-   scale with data volume, the 512KB window + motion/exec overhead is all
-   there is.  (A later 224MB peak belongs to the join's in-memory hash of
-   the 500K-per-segment heap rows, not to the tuplestore.)
-3. **LOB path**: with BLCKSZ=32768, NTS_MAX_ENTRY_SIZE ~= 32700 bytes, so
-   the suggested 2KB pad would stay inline; used `repeat('x',40000)`
-   (40KB tuples, 20k rows).  `_LOB` file = **381-383MB per segment**,
-   `count`/`sum(length)`/selective lengths all exact.  LOB write and read
-   paths work unmodified.
-4. **Join at volume** (20M temp result x 1M co-distributed heap,
-   count = 1000000 both ways):
-   - catalogless (Temp Result Scan, Postgres planner by forced fallback):
-     EXPLAIN ANALYZE 4.9s, scan of 10M rows/segment 1.49s;
-   - control heap temp table (ORCA picked the plan): EXPLAIN ANALYZE
-     5.3s, Seq Scan 1.8s; its CTAS took 16.5s vs 14.3s.
-   I.e. reading 20M rows from the ntuplestore is on par with (here
-   slightly faster than) a heap scan of the same data; -O0 build, single
-   host, so treat as a smoke-level comparison only.
-5. **COMMIT**: both segments' `pgsql_tmp` empty, `find *CTMPRES*` = 0.
+1. **20M узких строк** (`id int, v bigint`): CTAS 14.3s, спилл-файл
+   `pgsql_tmp_CTMPRES_*` = **268MB на сегмент**. `count/sum` точны
+   (20000000 / 1400000070000000 = 7·n·(n+1)/2), выборочный `WHERE id
+   IN` точен, повторный полный `count(*)` (чистое перечтение с диска)
+   1.5s.
+2. **RSS writer-QE** (семплы каждые 4s): 84MB до, **119MB плоско в
+   течение всей записи 268MB**, 119.6MB после чтений — память не растёт
+   с объёмом данных, есть только окно 512KB + оверхед motion/executor.
+   (Поздний пик 224MB принадлежит hash-таблице джойна — 500K строк heap
+   на сегмент, — а не tuplestore.)
+3. **LOB-путь**: при BLCKSZ=32768 NTS_MAX_ENTRY_SIZE ≈ 32700 байт,
+   поэтому предложенный 2KB-pad остался бы inline; взят
+   `repeat('x',40000)` (кортежи 40KB, 20k строк). `_LOB`-файл =
+   **381–383MB на сегмент**, `count`/`sum(length)`/выборочные длины
+   точны. LOB-пути записи и чтения работают без правок.
+4. **Join на объёме** (20M temp result × 1M co-distributed heap,
+   count = 1000000 в обоих вариантах):
+   - catalogless (Temp Result Scan, планировщик Postgres из-за
+     принудительного fallback'а): EXPLAIN ANALYZE 4.9s, скан 10M
+     строк/сегмент 1.49s;
+   - контрольная heap temp-таблица (план выбрала ORCA): EXPLAIN ANALYZE
+     5.3s, Seq Scan 1.8s; её CTAS занял 16.5s против 14.3s.
+   Т.е. чтение 20M строк из ntuplestore на уровне heap-скана тех же
+   данных (здесь даже чуть быстрее); сборка -O0, один хост — считать
+   сравнением смоук-уровня.
+5. **COMMIT**: `pgsql_tmp` на обоих сегментах пуст, `find *CTMPRES*` =
+   0.
 
-Note on the 512KB window: it caps only the page cache per store (write
-speed / re-read locality), not correctness.  If this goes further, the
-window should be sized like other operators — either from
-`statement_mem`/operator memory (the write side already receives
-`PlanStateOperatorMemKB`, but the POC reader passes maxBytes = 0) or via
-a dedicated GUC; a bigger window mainly helps repeated small range scans,
-sequential full scans are already fine.
+Замечание про окно 512KB: оно ограничивает только page-cache каждого
+store (скорость записи / локальность перечтений), не корректность. При
+развитии окно стоит задавать как у других операторов — либо из
+`statement_mem`/operator memory (сторона записи уже получает
+`PlanStateOperatorMemKB`, но reader в POC передаёт maxBytes = 0), либо
+отдельным GUC; большее окно помогает в основном повторным мелким
+range-сканам, последовательные полные сканы и так в порядке.
 
-## How to start the demo cluster
+## Как поднять demo-кластер
 
-The worktree has its own install prefix (never touches the user's
-GPHOME): configure with `--prefix=/Users/alena/open-gpdb3-poc/idea1/install`
-(all other options as in the main tree) and:
+У worktree свой install-префикс (GPHOME пользователя не трогается):
+configure с `--prefix=/Users/alena/open-gpdb3-poc/idea1/install`
+(остальные опции как в основном дереве) и:
 
 ```sh
 cd /Users/alena/open-gpdb3-poc/idea1
 make -j8 -C src/backend install
-make -C gpMgmt/bin psutil pyyaml CC="gcc -Wno-error=implicit-function-declaration"  # psutil 5.7.0 vs new clang
+make -C gpMgmt/bin psutil pyyaml CC="gcc -Wno-error=implicit-function-declaration"  # psutil 5.7.0 vs новый clang
 make -C gpMgmt install
-make -C gpcontrib/gp_internal_tools install    # gp_resource_group.so needed by initdb
+make -C gpcontrib/gp_internal_tools install    # gp_resource_group.so нужен initdb
 
 export GPHOME=/Users/alena/open-gpdb3-poc/idea1/install
 source $GPHOME/greenplum_path.sh
 export MASTER_DATA_DIRECTORY=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs/qddir/demoDataDir-1
 
-# first-time init (non-standard ports to avoid the user's clusters):
+# первичная инициализация (нестандартные порты, чтобы не задеть кластеры пользователя):
 cd gpAux/gpdemo
 export DEMO_PORT_BASE=16432 NUM_PRIMARY_MIRROR_PAIRS=2 WITH_MIRRORS=false \
        DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs
-bash demo_cluster.sh        # gpinitsystem's own final gpstart may fail; then:
-pg_ctl -D $MASTER_DATA_DIRECTORY stop -m fast   # stop the utility-mode master it left
+bash demo_cluster.sh        # финальный gpstart внутри gpinitsystem может упасть; тогда:
+pg_ctl -D $MASTER_DATA_DIRECTORY stop -m fast   # остановить utility-мастер, который он оставил
 gpstart -a
 
-# regular start/stop afterwards:
+# дальше обычные запуск/остановка:
 gpstart -a
 gpstop -a
 
-# run the smoke test:
+# прогон смоук-теста:
 createdb -p 16432 pocdb
 DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs \
   psql -p 16432 pocdb -e -f test/catalogless_smoke.sql
 ```
 
-Cluster: master :16432, primaries :16434/:16435, data under
-`gpAux/gpdemo/datadirs` inside the worktree.  Build-artifact directories
-`install/`, `gpAux/gpdemo/datadirs/` and the extracted
-`gpMgmt/bin/pythonSrc/ext/*` are deliberately left untracked.
+Кластер: master :16432, primary :16434/:16435, данные в
+`gpAux/gpdemo/datadirs` внутри worktree. Каталоги сборки `install/`,
+`gpAux/gpdemo/datadirs/` и распакованные `gpMgmt/bin/pythonSrc/ext/*`
+намеренно оставлены untracked.
 
-Environment quirks hit during bring-up (documented, not POC bugs): the
-top-level `make install` fails in `contrib/hstore` on this SDK (not
-needed); `gpstart` needs python2 `psutil`, whose 5.7.0 sources need
-`-Wno-error=implicit-function-declaration` with current clang.
+Особенности окружения, встреченные при поднятии (задокументированы, это
+не баги POC): top-level `make install` падает в `contrib/hstore` на этом
+SDK (не нужен); `gpstart` требует python2 `psutil`, исходникам 5.7.0
+нужен `-Wno-error=implicit-function-declaration` с текущим clang.
 
 ## Diffstat
 
-(vs OPENGPDB_STABLE; `git diff OPENGPDB_STABLE --stat | tail -5`)
+(относительно OPENGPDB_STABLE; `git diff OPENGPDB_STABLE --stat | tail -5`)
 
 ```
- src/include/utils/tuplestorenew.h         |   1 +
- test/catalogless_smoke.out                | 274 ++++++++++++++++++++++++++++++
- test/catalogless_smoke.sql                | 160 +++++++++++++++++
- 57 files changed, 2168 insertions(+), 8 deletions(-)
+ test/catalogless_bigdata.out              | 178 +++++++++++++++++
+ test/catalogless_bigdata.sql              |  90 +++++++++
+ test/catalogless_smoke.out                | 278 ++++++++++++++++++++++++++
+ test/catalogless_smoke.sql                | 168 ++++++++++++++++
+ 59 files changed, 2559 insertions(+), 8 deletions(-)
 ```
 
-Build: configured with the same options as the main tree
+Сборка: configure с теми же опциями, что у основного дерева
 (`--with-perl --without-openssl --without-gssapi --with-libxml
 --without-mdblocales --without-zstd --without-python --without-icu
-CFLAGS/CXXFLAGS='-O0 -g3'`); `make -j8 -C src/backend` completes and
-links the `postgres` binary (ORCA included, with the two environment
-fixes above).
+CFLAGS/CXXFLAGS='-O0 -g3'`); `make -j8 -C src/backend` проходит и
+линкует бинарник `postgres` (включая ORCA, с двумя фиксами окружения
+выше).
