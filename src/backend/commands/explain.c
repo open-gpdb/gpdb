@@ -1084,6 +1084,7 @@ ExplainPreScanNode(PlanState *planstate, Bitmapset **rels_used)
 		case T_SubqueryScan:
 		case T_FunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
@@ -1409,6 +1410,9 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_ValuesScan:
 			pname = sname = "Values Scan";
 			break;
+		case T_TempResultScan:
+			pname = sname = "Temp Result Scan";
+			break;
 		case T_CteScan:
 			pname = sname = "CTE Scan";
 			break;
@@ -1677,6 +1681,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_FunctionScan:
 		case T_TableFunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
@@ -2012,6 +2017,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_DynamicSeqScan:
 		case T_ExternalScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_SubqueryScan:
@@ -3064,6 +3070,11 @@ ExplainTargetRel(Plan *plan, Index rti, ExplainState *es)
 			break;
 		case T_ValuesScan:
 			Assert(rte->rtekind == RTE_VALUES);
+			break;
+		case T_TempResultScan:
+			Assert(rte->rtekind == RTE_TEMPRESULT);
+			objectname = rte->ctename;
+			objecttag = "Temp Result Name";
 			break;
 		case T_CteScan:
 			/* Assert it's on a non-self-reference CTE */

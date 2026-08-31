@@ -46,6 +46,7 @@
 #include "executor/nodeSubqueryscan.h"
 #include "executor/nodeTidscan.h"
 #include "executor/nodeUnique.h"
+#include "executor/nodeTempResultScan.h"
 #include "executor/nodeValuesscan.h"
 #include "executor/nodeWindowAgg.h"
 #include "executor/nodeWorktablescan.h"
@@ -224,6 +225,10 @@ ExecReScan(PlanState *node)
 
 		case T_ValuesScanState:
 			ExecReScanValuesScan((ValuesScanState *) node);
+			break;
+
+		case T_TempResultScanState:
+			ExecReScanTempResultScan((TempResultScanState *) node);
 			break;
 
 		case T_CteScanState:
@@ -538,6 +543,7 @@ ExecSupportsBackwardScan(Plan *node)
 		case T_TidScan:
 		case T_FunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 			return TargetListSupportsBackwardScan(node->targetlist);
@@ -672,6 +678,7 @@ ExecSquelchNode(PlanState *node)
 		case T_BitmapIndexScanState:
 		case T_ForeignScanState:
 		case T_ValuesScanState:
+		case T_TempResultScanState:
 		case T_TidScanState:
 		case T_TableFunctionState:
 			break;
