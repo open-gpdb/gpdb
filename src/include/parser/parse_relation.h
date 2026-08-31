@@ -14,6 +14,8 @@
 #ifndef PARSE_RELATION_H
 #define PARSE_RELATION_H
 
+struct TempResultEntry;         /* avoid including cdb/cdbtempresult.h */
+
 #include "parser/parse_node.h"
 
 #define ERRMSG_GP_WITH_COLUMNS_MISMATCH \
@@ -80,6 +82,11 @@ extern RangeTblEntry *addRangeTableEntryForJoin(ParseState *pstate,
 						  List *aliasvars,
 						  Alias *alias,
 						  bool inFromCl);
+extern RangeTblEntry *addRangeTableEntryForTempResult(ParseState *pstate,
+							 struct TempResultEntry *tre,
+							 RangeVar *rv,
+							 Alias *alias,
+							 bool inFromCl);
 extern RangeTblEntry *addRangeTableEntryForCTE(ParseState *pstate,
 						 CommonTableExpr *cte,
 						 Index levelsup,

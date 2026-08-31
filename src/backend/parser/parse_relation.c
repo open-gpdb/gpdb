@@ -21,6 +21,7 @@
 #include "access/htup_details.h"
 #include "access/sysattr.h"
 #include "catalog/heap.h"
+#include "cdb/cdbtempresult.h"
 #include "catalog/namespace.h"
 #include "catalog/catalog.h"
 #include "catalog/pg_proc_callback.h"
@@ -1060,6 +1061,22 @@ addRangeTableEntry(ParseState *pstate,
 	rte->rtekind = RTE_RELATION;
 
 	/*
+	 * POC: catalogless temp tables.  An unqualified name that matches an
+	 * entry in the session temp-result registry resolves to that entry,
+	 * shadowing the catalog.
+	 */
+	if (gp_enable_catalogless_temp &&
+		Gp_role != GP_ROLE_EXECUTE &&
+		relation->schemaname == NULL)
+	{
+		TempResultEntry *tre = TempResultLookup(relation->relname);
+
+		if (tre)
+			return addRangeTableEntryForTempResult(pstate, tre, relation,
+												   alias, inFromCl);
+	}
+
+	/*
 	 * CDB: lock promotion around the locking clause is a little different
 	 * from postgres to allow for required lock promotion for distributed
 	 * AO tables.
@@ -1795,6 +1812,77 @@ addRangeTableEntryForJoin(ParseState *pstate,
 /*
  * Add an entry for a CTE reference to the pstate's range table (p_rtable).
  *
+ * POC: build an RTE for a catalogless temp table (session registry entry).
+ * Reuses the CTE fields of RangeTblEntry for the name and column metadata.
+ */
+RangeTblEntry *
+addRangeTableEntryForTempResult(ParseState *pstate,
+								TempResultEntry *tre,
+								RangeVar *rv,
+								Alias *alias,
+								bool inFromCl)
+{
+	RangeTblEntry *rte = makeNode(RangeTblEntry);
+	char	   *refname = alias ? alias->aliasname : rv->relname;
+	Alias	   *eref;
+	int			numaliases;
+	int			attno;
+	TupleDesc	tupdesc = tre->tupdesc;
+
+	rte->rtekind = RTE_TEMPRESULT;
+	rte->ctename = pstrdup(rv->relname);
+	rte->ctelevelsup = 0;
+	rte->self_reference = false;
+
+	rte->ctecoltypes = NIL;
+	rte->ctecoltypmods = NIL;
+	rte->ctecolcollations = NIL;
+	for (attno = 0; attno < tupdesc->natts; attno++)
+	{
+		Form_pg_attribute att = tupdesc->attrs[attno];
+
+		rte->ctecoltypes = lappend_oid(rte->ctecoltypes, att->atttypid);
+		rte->ctecoltypmods = lappend_int(rte->ctecoltypmods, att->atttypmod);
+		rte->ctecolcollations = lappend_oid(rte->ctecolcollations,
+											att->attcollation);
+	}
+
+	rte->alias = alias;
+	if (alias)
+		eref = copyObject(alias);
+	else
+		eref = makeAlias(refname, NIL);
+	numaliases = list_length(eref->colnames);
+	for (attno = 0; attno < tupdesc->natts; attno++)
+	{
+		if (attno >= numaliases)
+			eref->colnames = lappend(eref->colnames,
+									 makeString(pstrdup(NameStr(tupdesc->attrs[attno]->attname))));
+	}
+	if (tupdesc->natts < numaliases)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_COLUMN_REFERENCE),
+				 errmsg("table \"%s\" has %d columns available but %d columns specified",
+						refname, tupdesc->natts, numaliases)));
+	rte->eref = eref;
+
+	/* No catalog access, hence no permission checks */
+	rte->lateral = false;
+	rte->inh = false;
+	rte->inFromCl = inFromCl;
+
+	rte->requiredPerms = 0;
+	rte->checkAsUser = InvalidOid;
+	rte->selectedCols = NULL;
+	rte->modifiedCols = NULL;
+
+	if (pstate != NULL)
+		pstate->p_rtable = lappend(pstate->p_rtable, rte);
+
+	return rte;
+}
+
+/*
  * This is much like addRangeTableEntry() except that it makes a CTE RTE.
  */
 RangeTblEntry *
@@ -2436,6 +2524,7 @@ expandRTE(RangeTblEntry *rte, int rtindex, int sublevels_up,
 				}
 			}
 			break;
+		case RTE_TEMPRESULT:
 		case RTE_CTE:
 			{
 				ListCell   *aliasp_item = list_head(rte->eref->colnames);
@@ -2967,9 +3056,10 @@ get_rte_attribute_type(RangeTblEntry *rte, AttrNumber attnum,
 				*varcollid = exprCollation(aliasvar);
 			}
 			break;
+		case RTE_TEMPRESULT:
 		case RTE_CTE:
 			{
-				/* CTE RTE --- get type info from lists in the RTE */
+				/* CTE (or temp result) RTE --- get type info from lists in the RTE */
 				Assert(attnum > 0 && attnum <= list_length(rte->ctecoltypes));
 				*vartype = list_nth_oid(rte->ctecoltypes, attnum - 1);
 				*vartypmod = list_nth_int(rte->ctecoltypmods, attnum - 1);
@@ -3014,7 +3104,8 @@ get_rte_attribute_is_dropped(RangeTblEntry *rte, AttrNumber attnum)
 		case RTE_SUBQUERY:
 		case RTE_VALUES:
 		case RTE_CTE:
-			/* Subselect, Values, CTE RTEs never have dropped columns */
+		case RTE_TEMPRESULT:
+			/* Subselect, Values, CTE, TempResult RTEs never have dropped columns */
 			result = false;
 			break;
 		case RTE_JOIN:
