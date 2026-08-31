@@ -794,6 +794,11 @@ typedef enum RTEKind
 	RTE_VOID,                   /* CDB: deleted RTE */
 	RTE_CTE,					/* common table expr (WITH list element) */
 	RTE_TABLEFUNCTION,          /* CDB: Functions over multiset input */
+	RTE_TEMPRESULT,             /* POC: catalogless temp table (session
+								 * registry backed, see cdbtempresult.h).
+								 * Reuses the ctename/ctecoltypes/... fields
+								 * of the CTE representation for name and
+								 * column metadata. */
 } RTEKind;
 
 typedef struct RangeTblEntry

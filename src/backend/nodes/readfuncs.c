@@ -690,6 +690,8 @@ _readIntoClause(void)
 	READ_NODE_FIELD(viewQuery);
 	READ_BOOL_FIELD(skipData);
 	READ_NODE_FIELD(distributedBy);
+	READ_BOOL_FIELD(isTempResult);
+	READ_INT_FIELD(tempResultId);
 
 	READ_DONE();
 }
@@ -2247,6 +2249,12 @@ _readRangeTblEntry(void)
 			READ_STRING_FIELD(ctename);
 			READ_UINT_FIELD(ctelevelsup);
 			READ_BOOL_FIELD(self_reference);
+			READ_NODE_FIELD(ctecoltypes);
+			READ_NODE_FIELD(ctecoltypmods);
+			READ_NODE_FIELD(ctecolcollations);
+			break;
+		case RTE_TEMPRESULT:
+			READ_STRING_FIELD(ctename);
 			READ_NODE_FIELD(ctecoltypes);
 			READ_NODE_FIELD(ctecoltypmods);
 			READ_NODE_FIELD(ctecolcollations);

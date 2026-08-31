@@ -1871,6 +1871,26 @@ _readValuesScan(void)
 }
 
 /*
+ * _readTempResultScan
+ */
+static TempResultScan *
+_readTempResultScan(void)
+{
+	READ_LOCALS(TempResultScan);
+
+	readScanInfo((Scan *)local_node);
+
+	READ_STRING_FIELD(tsname);
+	READ_INT_FIELD(tempresid);
+	READ_NODE_FIELD(coltypes);
+	READ_NODE_FIELD(coltypmods);
+	READ_NODE_FIELD(colcollations);
+	READ_NODE_FIELD(colnames);
+
+	READ_DONE();
+}
+
+/*
  * _readJoin
  */
 static Join *
@@ -3110,6 +3130,9 @@ readNodeBinary(void)
 				break;
 			case T_ValuesScan:
 				return_value = _readValuesScan();
+				break;
+			case T_TempResultScan:
+				return_value = _readTempResultScan();
 				break;
 			case T_ForeignScan:
 				return_value = _readForeignScan();

@@ -150,6 +150,8 @@ _equalIntoClause(const IntoClause *a, const IntoClause *b)
 	COMPARE_NODE_FIELD(viewQuery);
 	COMPARE_SCALAR_FIELD(skipData);
 	COMPARE_NODE_FIELD(distributedBy);
+	COMPARE_SCALAR_FIELD(isTempResult);
+	COMPARE_SCALAR_FIELD(tempResultId);
 
 	return true;
 }
