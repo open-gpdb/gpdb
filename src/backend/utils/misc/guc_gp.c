@@ -2025,12 +2025,12 @@ struct config_bool ConfigureNamesBool_gp[] =
 
 	{
 		{"gp_enable_catalogless_temp", PGC_USERSET, QUERY_TUNING_METHOD,
-			gettext_noop("POC: enable catalogless temporary tables for CREATE TEMP TABLE ... AS SELECT."),
-			gettext_noop("The result is kept in session-local tuplestores and a session "
-						 "registry instead of catalog-backed heap relations.")
+			gettext_noop("POC: global kill-switch for catalogless temporary tables."),
+			gettext_noop("The per-object trigger is CREATE TEMP TABLE ... WITH (catalogless) "
+						 "AS SELECT; with this GUC off the option raises an error.")
 		},
 		&gp_enable_catalogless_temp,
-		false,
+		true,
 		NULL, NULL, NULL
 	},
 

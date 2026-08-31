@@ -30,6 +30,7 @@
 #include "access/xact.h"
 #include "catalog/toasting.h"
 #include "commands/createas.h"
+#include "commands/defrem.h"
 #include "commands/matview.h"
 #include "commands/prepare.h"
 #include "commands/tablecmds.h"
@@ -378,27 +379,62 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 	Assert(Gp_role != GP_ROLE_EXECUTE);
 
 	/*
-	 * POC: catalogless temp tables.  Intercept CREATE TEMP TABLE ... AS
-	 * SELECT and route the result into session-local tuplestores instead
-	 * of a catalog-backed relation.  The flag and the virtual id are
+	 * POC: catalogless temp tables.  The trigger is a per-object WITH
+	 * option: CREATE TEMP TABLE t WITH (catalogless[=true]) AS SELECT.
+	 * The DefElem is consumed (removed from into->options) here in both
+	 * the true and false cases, so that the ordinary code path never
+	 * sees the unknown reloption; the flag and the virtual id are then
 	 * dispatched to the QEs as part of the IntoClause in the planned
-	 * statement.
+	 * statement.  gp_enable_catalogless_temp remains only as a global
+	 * kill-switch (default on).
 	 */
-	if (gp_enable_catalogless_temp &&
-		!is_matview &&
-		into->rel->relpersistence == RELPERSISTENCE_TEMP)
 	{
-		if (into->skipData)
-			ereport(ERROR,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					 errmsg("catalogless temp tables: WITH NO DATA is not implemented in this POC")));
-		if (into->onCommit != ONCOMMIT_NOOP)
-			ereport(ERROR,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					 errmsg("catalogless temp tables: ON COMMIT clauses are not implemented in this POC")));
+		bool		catalogless = false;
+		ListCell   *lc;
 
-		into->isTempResult = true;
-		into->tempResultId = TempResultAssignId();
+		foreach(lc, into->options)
+		{
+			DefElem    *def = (DefElem *) lfirst(lc);
+
+			if (IsA(def, DefElem) &&
+				def->defnamespace == NULL &&
+				pg_strcasecmp(def->defname, "catalogless") == 0)
+			{
+				/* handles both WITH (catalogless) and WITH (catalogless=X) */
+				catalogless = defGetBoolean(def);
+				into->options = list_delete_ptr(into->options, def);
+				break;
+			}
+		}
+
+		if (catalogless)
+		{
+			if (!gp_enable_catalogless_temp)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("catalogless temp tables are disabled"),
+						 errhint("Enable with SET gp_enable_catalogless_temp = on.")));
+			if (is_matview)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("catalogless is not supported for materialized views")));
+			if (into->rel->relpersistence != RELPERSISTENCE_TEMP)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("catalogless requires TEMP"),
+						 errhint("Use CREATE TEMP TABLE ... WITH (catalogless) AS ...")));
+			if (into->skipData)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("catalogless temp tables: WITH NO DATA is not implemented in this POC")));
+			if (into->onCommit != ONCOMMIT_NOOP)
+				ereport(ERROR,
+						(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						 errmsg("catalogless temp tables: ON COMMIT clauses are not implemented in this POC")));
+
+			into->isTempResult = true;
+			into->tempResultId = TempResultAssignId();
+		}
 	}
 
 	/*

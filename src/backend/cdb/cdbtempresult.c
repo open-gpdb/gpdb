@@ -23,8 +23,12 @@
 #include "utils/memutils.h"
 #include "utils/tuplestorenew.h"
 
-/* GUC: defined here, registered in guc_gp.c */
-bool		gp_enable_catalogless_temp = false;
+/*
+ * GUC: defined here, registered in guc_gp.c.  Global kill-switch only
+ * (default on); the per-object trigger is the CTAS WITH (catalogless)
+ * option, see ExecCreateTableAs.
+ */
+bool		gp_enable_catalogless_temp = true;
 
 /* Per-session state, all in TopMemoryContext */
 static HTAB *tempResultHash = NULL;
