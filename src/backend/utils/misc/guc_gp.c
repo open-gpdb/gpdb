@@ -29,6 +29,7 @@
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbhash.h"
 #include "cdb/cdbsreh.h"
+#include "cdb/cdbtempresult.h"
 #include "cdb/cdbvars.h"
 #include "cdb/memquota.h"
 #include "commands/vacuum.h"
@@ -2018,6 +2019,17 @@ struct config_bool ConfigureNamesBool_gp[] =
 			NULL
 		},
 		&gp_enable_relsize_collection,
+		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_enable_catalogless_temp", PGC_USERSET, QUERY_TUNING_METHOD,
+			gettext_noop("POC: enable catalogless temporary tables for CREATE TEMP TABLE ... AS SELECT."),
+			gettext_noop("The result is kept in session-local tuplestores and a session "
+						 "registry instead of catalog-backed heap relations.")
+		},
+		&gp_enable_catalogless_temp,
 		false,
 		NULL, NULL, NULL
 	},
