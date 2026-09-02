@@ -355,6 +355,8 @@ transformStmt(ParseState *pstate, Node *parseTree)
 	if (pstate->p_hasDynamicFunction)
 		result->hasDynamicFunctions = true;
 
+	result->usePostgresPlanner = pstate->usePostgresPlanner;
+
 	return result;
 }
 

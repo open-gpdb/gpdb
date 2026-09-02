@@ -463,8 +463,6 @@ SET
         reltuples = 10000000000.0::real,
         relallvisible = 0::int
 WHERE relname = 'tiny_freq' AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'bfv_statistic');
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
 INSERT INTO pg_statistic VALUES (
         'bfv_statistic.tiny_freq'::regclass,
         1::smallint,

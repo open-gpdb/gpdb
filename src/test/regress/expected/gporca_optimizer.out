@@ -9845,11 +9845,7 @@ with x as (select * from foo_missing_stats) select count(*) from x x1, x x2 wher
 
 set allow_system_table_mods=true;
 delete from pg_statistic where starelid='foo_missing_stats'::regclass;
-NOTICE:  One or more columns in the following table(s) do not have statistics: pg_statistic
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
 delete from pg_statistic where starelid='bar_missing_stats'::regclass;
-NOTICE:  One or more columns in the following table(s) do not have statistics: pg_statistic
-HINT:  For non-partitioned tables, run analyze <table_name>(<column_list>). For partitioned tables, run analyze rootpartition <table_name>(<column_list>). See log for columns missing statistics.
 set allow_system_table_mods=false;
 select count(*) from foo_missing_stats where a = 10;
 NOTICE:  One or more columns in the following table(s) do not have statistics: foo_missing_stats
