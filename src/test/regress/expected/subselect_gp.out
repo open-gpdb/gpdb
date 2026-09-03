@@ -499,6 +499,121 @@ select count(*) from csq_t1 t1 where a > ( select avg(a)::int from csq_t1 t2 whe
     49
 (1 row)
 
+-- COUNT correlated scalar subquery should keep no-match rows (COUNT = 0)
+-- Scenario 1: optimizer=off (always PostgreSQL planner path)
+set optimizer=off;
+SET
+select count(*) from csq_t1 t1 where a > (select count(*) from csq_t1 t2 where t2.a = t1.d);
+ count 
+-------
+   100
+(1 row)
+
+select min(a), max(a) from csq_t1 t1 where (select count(*) from csq_t1 t2 where t2.a = t1.d) = 0;
+ min | max 
+-----+-----
+ 100 | 100
+(1 row)
+
+reset optimizer;
+RESET
+-- Scenario 2: optimizer=on, but query shape forces ORCA fallback to PostgreSQL planner
+-- (ordered aggregate disabled in ORCA by default)
+set optimizer=on;
+SET
+set optimizer_enable_orderedagg=off;
+SET
+explain select string_agg(t1.a::text, ',' order by t1.a)
+from csq_t1 t1
+where t1.a > (select count(*) from csq_t1 t2 where t2.a = t1.d);
+                                             QUERY PLAN                                              
+-----------------------------------------------------------------------------------------------------
+ Aggregate  (cost=20.13..20.14 rows=1 width=32)
+   ->  Gather Motion 3:1  (slice2; segments: 3)  (cost=7.75..19.38 rows=100 width=4)
+         ->  Hash Left Join  (cost=7.75..15.38 rows=34 width=4)
+               Hash Cond: (t1.d = "Expr_SUBQUERY".csq_c0)
+               Join Filter: (t1.a > COALESCE("Expr_SUBQUERY".csq_c1, '0'::bigint))
+               ->  Redistribute Motion 3:3  (slice1; segments: 3)  (cost=0.00..6.00 rows=34 width=8)
+                     Hash Key: t1.d
+                     ->  Seq Scan on csq_t1 t1  (cost=0.00..4.00 rows=34 width=8)
+               ->  Hash  (cost=6.50..6.50 rows=34 width=12)
+                     ->  Subquery Scan on "Expr_SUBQUERY"  (cost=4.50..6.50 rows=34 width=12)
+                           ->  HashAggregate  (cost=4.50..5.50 rows=34 width=12)
+                                 Group Key: t2.a
+                                 ->  Seq Scan on csq_t1 t2  (cost=0.00..4.00 rows=34 width=4)
+ Optimizer: Postgres query optimizer
+(14 rows)
+
+select string_agg(t1.a::text, ',' order by t1.a)
+from csq_t1 t1
+where t1.a > (select count(*) from csq_t1 t2 where t2.a = t1.d);
+                                                                                                                                             string_agg                                                                                                                                              
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100
+(1 row)
+
+-- Non-plain COUNT expression (COUNT(*) + 1) should also preserve no-match semantics
+-- Scenario 1: optimizer=off (always PostgreSQL planner path)
+set optimizer=off;
+SET
+select min(a), max(a), count(*) from csq_t1 t1
+where (select count(*) + 1 from csq_t1 t2 where t2.a = t1.d) = 1;
+ min | max | count 
+-----+-----+-------
+ 100 | 100 |     1
+(1 row)
+
+select min(a), max(a), count(*) from csq_t1 t1
+where (select (count(*) + 1)::bigint from csq_t1 t2 where t2.a = t1.d) = 1;
+ min | max | count 
+-----+-----+-------
+ 100 | 100 |     1
+(1 row)
+
+select min(a), max(a), count(*) from csq_t1 t1
+where (select case when count(*) > 0 then count(*) + 1 else 1 end
+       from csq_t1 t2 where t2.a = t1.d) = 1;
+ min | max | count 
+-----+-----+-------
+ 100 | 100 |     1
+(1 row)
+
+select min(a), max(a), count(*) from csq_t1 t1
+where (select abs(count(*) - 1) from csq_t1 t2 where t2.a = t1.d) = 1;
+ min | max | count 
+-----+-----+-------
+ 100 | 100 |     1
+(1 row)
+
+select min(a), max(a), count(*) from csq_t1 t1
+where (select count(*) + coalesce(sum(t2.a), 0) from csq_t1 t2 where t2.a = t1.d) = 0;
+ min | max | count 
+-----+-----+-------
+ 100 | 100 |     1
+(1 row)
+
+select min(a), max(a), count(*) from csq_t1 t1
+where (select coalesce(count(*) + sum(t2.a), -1) from csq_t1 t2 where t2.a = t1.d) = -1;
+ min | max | count 
+-----+-----+-------
+ 100 | 100 |     1
+(1 row)
+
+reset optimizer;
+RESET
+-- Scenario 2: optimizer=on, but query shape forces ORCA fallback to PostgreSQL planner
+set optimizer=on;
+SET
+set optimizer_enable_orderedagg=off;
+SET
+select string_agg(t1.a::text, ',' order by t1.a)
+from csq_t1 t1
+where (select count(*) + 1 from csq_t1 t2 where t2.a = t1.d) = 1;
+ string_agg 
+------------
+ 100
+(1 row)
+
 --
 -- correlation in a func expr
 --
