@@ -1,0 +1,91 @@
+-- start_matchsubs
+-- m/:relid \d+/
+-- s/:relid \d+/:relid XXXX/g
+-- m/:resorigtbl \d+/
+-- s/:resorigtbl \d+/:resorigtbl XXXX/g
+-- m/:constvalue \d+ \[.*\]/
+-- s/:constvalue \d+ \[.*\]/:constvalue XXXX [XXXX]/g
+-- m/,\d+,\d+,/
+-- s/,\d+,\d+,/,_ID_,_SID_,/
+-- m/<not logged>/
+-- s/<not logged>/<none>/
+-- m/pg_temp_\d+/
+-- s/pg_temp_\d+/pg_temp_XX/
+-- m/\{r \d+ [a-zA-Z_]+\.[a-zA-Z_]+ \{[^}]*\}\}/
+-- s/\{r \d+ [a-zA-Z_]+\.[a-zA-Z_]+ \{[^}]*\}\}/{r XXXX schema.table {cols}}/g
+-- m/\{f \d+ [a-zA-Z_]+\.[a-zA-Z_]+ \{\}\}/
+-- s/\{f \d+ [a-zA-Z_]+\.[a-zA-Z_]+ \{\}\}/{f XXXX schema.func {}}/g
+-- m/\(seg\d+ .*\)$/
+-- s/\(seg\d+ .*\)$//g
+-- end_matchsubs
+\set VERBOSITY terse
+-- start_ignore
+CREATE EXTENSION IF NOT EXISTS ast_log;
+-- end_ignore
+SET ast_log.log = 'ast_sel';
+SET ast_log.log_client = ON;
+SET ast_log.log_level = 'notice';
+CREATE TABLE test_ast (id int, data text) DISTRIBUTED BY (id);
+SELECT * FROM test_ast;
+NOTICE:  AUDIT: AST_SEL,_ID_,_SID_,SELECT,TABLE,public.test_ast,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+ id | data 
+----+------
+(0 rows)
+
+SELECT id FROM test_ast WHERE id = 1;
+NOTICE:  AUDIT: AST_SEL,_ID_,_SID_,SELECT,TABLE,public.test_ast,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+ id 
+----
+(0 rows)
+
+SET ast_log.log = 'ast_mod';
+INSERT INTO test_ast VALUES (1, 'hello');
+NOTICE:  AUDIT: AST_MOD,_ID_,_SID_,INSERT,TABLE,public.test_ast,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+UPDATE test_ast SET data = 'world' WHERE id = 1;
+NOTICE:  AUDIT: AST_MOD,_ID_,_SID_,UPDATE,TABLE,public.test_ast,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+DELETE FROM test_ast WHERE id = 1;
+NOTICE:  AUDIT: AST_MOD,_ID_,_SID_,DELETE,TABLE,public.test_ast,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+SET ast_log.log = 'ast_ctas';
+CREATE TABLE test_ctas AS SELECT * FROM test_ast DISTRIBUTED BY (id);
+NOTICE:  AUDIT: AST_CTAS,_ID_,_SID_,CTAS_QUERY,TABLE,test_ctas,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+CREATE TEMP TABLE test_ctas_tmp AS SELECT id FROM test_ast DISTRIBUTED BY (id);
+NOTICE:  AUDIT: AST_CTAS,_ID_,_SID_,CTAS_QUERY,TABLE,test_ctas_tmp,"{QUERY ...}{r XXXX public.test_ast {id,data}}",<none>
+SET ast_log.log = 'ast_sel, ast_mod, ast_ctas';
+CREATE TABLE test_multi (a int) DISTRIBUTED BY (a);
+INSERT INTO test_multi SELECT generate_series(1, 5);
+NOTICE:  AUDIT: AST_MOD,_ID_,_SID_,INSERT,TABLE,public.test_multi,"{QUERY ...}{r XXXX public.test_multi {a}}{f XXXX pg_catalog.generate_series {}}",<none>
+CREATE TABLE test_multi_copy AS SELECT * FROM test_multi DISTRIBUTED BY (a);
+NOTICE:  AUDIT: AST_CTAS,_ID_,_SID_,CTAS_QUERY,TABLE,test_multi_copy,"{QUERY ...}{r XXXX public.test_multi {a}}",<none>
+SELECT * FROM test_multi_copy;
+NOTICE:  AUDIT: AST_SEL,_ID_,_SID_,SELECT,TABLE,public.test_multi_copy,"{QUERY ...}{r XXXX public.test_multi_copy {a}}",<none>
+ a 
+---
+ 1
+ 2
+ 3
+ 4
+ 5
+(5 rows)
+
+UPDATE test_multi_copy SET a = a + 10;
+NOTICE:  AUDIT: AST_MOD,_ID_,_SID_,UPDATE,TABLE,public.test_multi_copy,"{QUERY ...}{r XXXX public.test_multi_copy {a}}",<none>
+DELETE FROM test_multi_copy WHERE a > 15;
+NOTICE:  AUDIT: AST_MOD,_ID_,_SID_,DELETE,TABLE,public.test_multi_copy,"{QUERY ...}{r XXXX public.test_multi_copy {a}}",<none>
+SET ast_log.log = 'ast_sel';
+SET ast_log.log_parameter = ON;
+PREPARE test_stmt(int) AS SELECT * FROM test_multi WHERE a = $1;
+EXECUTE test_stmt(1);
+NOTICE:  AUDIT: AST_SEL,_ID_,_SID_,SELECT,TABLE,public.test_multi,"{QUERY ...}{r XXXX public.test_multi {a}}",1
+ a 
+---
+ 1
+(1 row)
+
+DEALLOCATE test_stmt;
+DROP TABLE test_ast;
+DROP TABLE test_multi;
+DROP TABLE test_multi_copy;
+RESET ast_log.log;
+RESET ast_log.log_client;
+RESET ast_log.log_level;
+RESET ast_log.log_parameter;
