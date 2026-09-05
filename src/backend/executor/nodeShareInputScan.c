@@ -39,6 +39,7 @@
 #include "executor/executor.h"
 #include "executor/nodeShareInputScan.h"
 #include "miscadmin.h"
+#include "portability/instr_time.h"
 #include "utils/faultinjector.h"
 #include "utils/gp_alloc.h"
 #include "utils/tuplesort.h"
@@ -321,7 +322,20 @@ ExecSliceDependencyShareInputScan(ShareInputScanState *node)
 	EState *estate = node->ss.ps.state;
 	if(sisc->driver_slice >= 0 && sisc->driver_slice == currentSliceId)
 	{
-		shareinput_reader_waitready(node->share_lk_ctxt, sisc->share_id, estate->es_plannedstmt->planGen);
+		double		waited_sec;
+
+		shareinput_reader_waitready(node->share_lk_ctxt, sisc->share_id,
+									estate->es_plannedstmt->planGen,
+									&node->waitready_time);
+
+		/*
+		 * Roll the wait up to the query level so the stats collector can
+		 * report it (it only reads query-level, root-node instrumentation).
+		 * Keep the longest wait seen on this segment.
+		 */
+		waited_sec = INSTR_TIME_GET_DOUBLE(node->waitready_time);
+		if (waited_sec > estate->es_cross_slice_wait)
+			estate->es_cross_slice_wait = waited_sec;
 	}
 }
 
@@ -625,6 +639,41 @@ static void fi_close_created_fds(int *fds, char *file_prefix, int num)
  */
 
 /*
+ * Context for the errcontext callback installed while blocked on a
+ * cross-slice handshake. A query that never gets its handshake is killed by
+ * statement_timeout, so it produces no EXPLAIN ANALYZE output and no
+ * completion log line -- the elapsed wait would be lost entirely. Reporting
+ * it through errcontext puts it into the cancellation message itself, which
+ * is the only channel that survives.
+ */
+typedef struct shareinput_wait_errctx
+{
+	int			share_id;
+	int			slice_id;
+	bool		is_reader;
+	instr_time	starttime;
+} shareinput_wait_errctx;
+
+static void
+shareinput_wait_errcontext_callback(void *arg)
+{
+	shareinput_wait_errctx *ctx = (shareinput_wait_errctx *) arg;
+	instr_time	now;
+
+	INSTR_TIME_SET_CURRENT(now);
+	INSTR_TIME_SUBTRACT(now, ctx->starttime);
+
+	if (ctx->is_reader)
+		errcontext("ShareInputScan consumer (share_id=%d) in slice %d blocked %.3f ms waiting for the producer slice to publish",
+				   ctx->share_id, ctx->slice_id,
+				   INSTR_TIME_GET_MILLISEC(now));
+	else
+		errcontext("ShareInputScan producer (share_id=%d) in slice %d blocked %.3f ms waiting for consumer slices to finish reading",
+				   ctx->share_id, ctx->slice_id,
+				   INSTR_TIME_GET_MILLISEC(now));
+}
+
+/*
  * shareinput_reader_waitready
  *
  *  Called by the reader (consumer) to wait for the writer (producer) to produce
@@ -633,12 +682,17 @@ static void fi_close_created_fds(int *fds, char *file_prefix, int num)
  *  This is a blocking operation.
  */
 void
-shareinput_reader_waitready(void *ctxt, int share_id, PlanGenerator planGen)
+shareinput_reader_waitready(void *ctxt, int share_id, PlanGenerator planGen,
+							instr_time *waited)
 {
 	struct pollfd fds[1];
 	int nfds = 0;
 	char a;
 	ShareInput_Lk_Context *pctxt = (ShareInput_Lk_Context *) ctxt;
+	instr_time	starttime;
+	instr_time	endtime;
+	shareinput_wait_errctx waitctx;
+	ErrorContextCallback errcallback;
 	RegisterXactCallbackOnce(XCallBack_ShareInput_FIFO, pctxt);
 
 #ifdef FAULT_INJECTOR
@@ -683,6 +737,18 @@ shareinput_reader_waitready(void *ctxt, int share_id, PlanGenerator planGen)
 	fds[0].fd = pctxt->readyfd;
 	fds[0].events = POLLIN;
 	nfds++;
+
+	INSTR_TIME_SET_CURRENT(starttime);
+
+	waitctx.share_id = share_id;
+	waitctx.slice_id = currentSliceId;
+	waitctx.is_reader = true;
+	waitctx.starttime = starttime;
+	errcallback.callback = shareinput_wait_errcontext_callback;
+	errcallback.arg = (void *) &waitctx;
+	errcallback.previous = error_context_stack;
+	error_context_stack = &errcallback;
+
 	while(1)
 	{
 		CHECK_FOR_INTERRUPTS();
@@ -730,6 +796,14 @@ shareinput_reader_waitready(void *ctxt, int share_id, PlanGenerator planGen)
 					share_id, currentSliceId, save_errno);
 		}
 	}
+
+	error_context_stack = errcallback.previous;
+
+	INSTR_TIME_SET_CURRENT(endtime);
+	INSTR_TIME_ACCUM_DIFF(*waited, endtime, starttime);
+
+	elog(DEBUG1, "SISC READER (shareid=%d, slice=%d): waited %.3f ms for the producer",
+		 share_id, currentSliceId, INSTR_TIME_GET_MILLISEC(*waited));
 }
 
 /*
@@ -884,6 +958,10 @@ shareinput_writer_waitdone(void *ctxt, int share_id, int nsharer_xslice)
 	ShareInput_Lk_Context *pctxt = (ShareInput_Lk_Context *) ctxt;
 	struct pollfd fds[1];
 	int nfds = 0;
+	instr_time	starttime;
+	instr_time	waited;
+	shareinput_wait_errctx waitctx;
+	ErrorContextCallback errcallback;
 
 	if (pctxt->donefd < 0)
 		return;
@@ -897,6 +975,18 @@ shareinput_writer_waitdone(void *ctxt, int share_id, int nsharer_xslice)
 	fds[0].fd = pctxt->donefd;
 	fds[0].events = POLLIN;
 	nfds++;
+
+	INSTR_TIME_SET_CURRENT(starttime);
+
+	waitctx.share_id = share_id;
+	waitctx.slice_id = currentSliceId;
+	waitctx.is_reader = false;
+	waitctx.starttime = starttime;
+	errcallback.callback = shareinput_wait_errcontext_callback;
+	errcallback.arg = (void *) &waitctx;
+	errcallback.previous = error_context_stack;
+	error_context_stack = &errcallback;
+
 	while(ack_needed > 0)
 	{
 		CHECK_FOR_INTERRUPTS();
@@ -931,8 +1021,14 @@ shareinput_writer_waitdone(void *ctxt, int share_id, int nsharer_xslice)
 		}
 	}
 
-	elog(DEBUG1, "SISC WRITER (shareid=%d, slice=%d): Writer received all %d reader done notifications",
-			share_id, currentSliceId, nsharer_xslice - pctxt->zcnt);
+	error_context_stack = errcallback.previous;
+
+	INSTR_TIME_SET_CURRENT(waited);
+	INSTR_TIME_SUBTRACT(waited, starttime);
+
+	elog(DEBUG1, "SISC WRITER (shareid=%d, slice=%d): Writer received all %d reader done notifications after %.3f ms",
+			share_id, currentSliceId, nsharer_xslice - pctxt->zcnt,
+			INSTR_TIME_GET_MILLISEC(waited));
 
 	shareinput_clean_lk_ctxt(ctxt);
 	UnregisterXactCallbackOnce(XCallBack_ShareInput_FIFO, (void *) ctxt);

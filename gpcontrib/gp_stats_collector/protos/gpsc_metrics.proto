@@ -175,6 +175,28 @@ message MetricInstrumentation {
     uint64  inherited_calls    = 22; /* the number of executed sub-queries */
     double  inherited_time     = 23; /* total time spend on inherited execution */
     InterconnectStat interconnect = 24;
+    /*
+     * Longest time a cross-slice ShareInputScan consumer spent blocked waiting
+     * for its producer slice to publish the shared tuplestore. Scope is the
+     * reporting process (one per slice), not the segment as a whole. Unlike
+     * the other timings here it is in milliseconds, hence the suffix.
+     *
+     * The wait says how long one slice sat idle on another, which is worth
+     * watching well beyond a mis-wired share:
+     *   - aggregated as max across segments and compared against the average,
+     *     it measures how unevenly the producer finished -- large max/avg gap
+     *     means a skewed producer, not a slow consumer;
+     *   - it splits "this node is slow" from "this node is waiting", so time
+     *     is not attributed to the consumer that merely blocked;
+     *   - it grows when the producer slice is starved of CPU or interconnect,
+     *     making it an early signal of cluster-wide contention;
+     *   - it is the only trace left by a query killed on statement_timeout
+     *     while blocked here, where per-node instrumentation never arrives.
+     *
+     * Kept in sync by hand with protos/yagpcc_metrics.proto in the
+     * yagp_hooks_collector repo, which this directory forked from.
+     */
+    double  cross_slice_wait_ms = 25;
 }
 
 message SpillInfo {
