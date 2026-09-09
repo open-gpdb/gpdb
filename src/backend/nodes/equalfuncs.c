@@ -933,6 +933,7 @@ _equalQuery(const Query *a, const Query *b)
 		return false;
 
 	COMPARE_SCALAR_FIELD(parentStmtType);
+	COMPARE_SCALAR_FIELD(usePostgresPlanner);
 
 	return true;
 }

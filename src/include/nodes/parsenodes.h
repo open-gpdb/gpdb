@@ -215,6 +215,7 @@ typedef struct Query
 	 */
 	ParentStmtType	parentStmtType;
 	bool		expandMatViews; /* force expansion of materialized views during rewrite to treat as views */
+	bool		usePostgresPlanner; /* don't try to plan the query using Orca */
 } Query;
 
 /****************************************************************************

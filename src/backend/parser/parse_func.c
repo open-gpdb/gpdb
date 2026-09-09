@@ -316,6 +316,10 @@ ParseFuncOrColumn(ParseState *pstate, List *funcname, List *fargs,
 					 errmsg("OVER specified, but %s is not a window function nor an aggregate function",
 							NameListToString(funcname)),
 					 parser_errposition(pstate, location)));
+
+		/* Orca supports only the any exec location */
+		if (func_exec_location(funcid) != PROEXECLOCATION_ANY)
+			pstate->usePostgresPlanner = true;
 	}
 	else if (fdresult == FUNCDETAIL_AGGREGATE)
 	{

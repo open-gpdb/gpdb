@@ -231,6 +231,7 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	 * PARALLEL RETRIEVE CURSOR is not supported by ORCA yet.
 	 */
 	if (optimizer &&
+		!parse->usePostgresPlanner &&
 		GP_ROLE_DISPATCH == Gp_role &&
 		IS_QUERY_DISPATCHER() &&
 		(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) == 0)

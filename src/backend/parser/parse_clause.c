@@ -840,6 +840,8 @@ transformRangeFunction(ParseState *pstate, RangeFunction *r)
 
 					/* Now we set our special attribute in the rte. */
 					rte->forceDistRandom = true;
+					/* Orca doesn't support gp_dist_random */
+					pstate->usePostgresPlanner = true;
 
 					return rte;
 				}

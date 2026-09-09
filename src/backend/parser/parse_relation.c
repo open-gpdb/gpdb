@@ -1029,6 +1029,15 @@ parserOpenTable(ParseState *pstate, const RangeVar *relation,
 		}
 	}
 
+	/*
+	 * Orca doesn't support queries on master-only tables.  A view also has
+	 * no distribution policy, but it is expanded into its base relations
+	 * before planning, so exclude it -- otherwise every query over a view is
+	 * needlessly forced onto the Postgres planner.
+	 */
+	if (rel->rd_cdbpolicy == NULL && rel->rd_rel->relkind != RELKIND_VIEW)
+		pstate->usePostgresPlanner = true;
+
 	cancel_parser_errposition_callback(&pcbstate);
 	return rel;
 }
@@ -1259,6 +1268,10 @@ addRangeTableEntryForSubquery(ParseState *pstate,
 	rte->lateral = lateral;
 	rte->inh = false;			/* never true for subqueries */
 	rte->inFromCl = inFromCl;
+
+	/* Orca doesn't support LATERAL */
+	if (pstate != NULL && lateral)
+		pstate->usePostgresPlanner = true;
 
 	rte->requiredPerms = 0;
 	rte->checkAsUser = InvalidOid;
@@ -1634,6 +1647,10 @@ addRangeTableEntryForFunction(ParseState *pstate,
 	rte->inh = false;			/* never true for functions */
 	rte->inFromCl = inFromCl;
 
+	/* Orca doesn't support LATERAL */
+	if (pstate != NULL && lateral)
+		pstate->usePostgresPlanner = true;
+
 	rte->requiredPerms = 0;
 	rte->checkAsUser = InvalidOid;
 	rte->selectedCols = NULL;
@@ -1705,6 +1722,10 @@ addRangeTableEntryForValues(ParseState *pstate,
 	rte->lateral = lateral;
 	rte->inh = false;			/* never true for values RTEs */
 	rte->inFromCl = inFromCl;
+
+	/* Orca doesn't support LATERAL */
+	if (pstate != NULL && lateral)
+		pstate->usePostgresPlanner = true;
 
 	rte->requiredPerms = 0;
 	rte->checkAsUser = InvalidOid;

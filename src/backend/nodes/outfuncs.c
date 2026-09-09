@@ -3837,6 +3837,7 @@ _outQuery(StringInfo str, const Query *node)
 	WRITE_NODE_FIELD(setOperations);
 	WRITE_NODE_FIELD(constraintDeps);
 	WRITE_BOOL_FIELD(parentStmtType);
+	WRITE_BOOL_FIELD(usePostgresPlanner);
 
 	/* Don't serialize policy */
 }

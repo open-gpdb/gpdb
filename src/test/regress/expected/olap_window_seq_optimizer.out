@@ -7394,22 +7394,6 @@ create view v1 as
 select dt, sum(cn) over(order by grouping(cn) range grouping(cn) preceding) 
 from sale group by rollup(cn,dt);
 \d+ v1
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-CONTEXT:  SQL function "col_description" during startup
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-CONTEXT:  SQL statement "SELECT * FROM pg_catalog.pg_rewrite WHERE ev_class = $1 AND rulename = $2"
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
               View "olap_window_seq.v1"
  Column |  Type  | Modifiers | Storage | Description 
 --------+--------+-----------+---------+-------------
@@ -8992,22 +8976,6 @@ ERROR:  DISTINCT is supported only for single-argument window aggregates
 -- Test deparsing (for \d+ and pg_dump)
 create view distinct_windowagg_view as select sum(distinct g/2) OVER (partition by g/4) from generate_series (1, 5) g;
 \d+ distinct_windowagg_view
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-CONTEXT:  SQL function "col_description" during startup
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
-CONTEXT:  SQL statement "SELECT * FROM pg_catalog.pg_rewrite WHERE ev_class = $1 AND rulename = $2"
-INFO:  GPORCA failed to produce a plan, falling back to planner
-DETAIL:  Feature not supported: Queries on master-only tables
    View "olap_window_seq.distinct_windowagg_view"
  Column |  Type  | Modifiers | Storage | Description 
 --------+--------+-----------+---------+-------------
