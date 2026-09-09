@@ -2219,6 +2219,71 @@ shareinput_peekmot(ApplyShareInputContext *ctxt)
 	return linitial_int(ctxt->motStack);
 }
 
+/*
+ * Segment-coverage key of a slice, used to detect cross-slice shared scans
+ * whose producer and consumer gangs run on different segment sets (which
+ * deadlocks the writer/reader rendezvous in nodeShareInputScan.c).
+ *
+ * The key mirrors how FillSliceTable() sizes an ORCA plan's gangs: a slice
+ * runs on a single process when the flow at the top of the slice is
+ * FLOW_SINGLETON (segindex -1 = QD, >= 0 = one segment); otherwise ORCA
+ * dispatches it to all segments. Two slices share the same segment set iff
+ * their keys are equal.
+ */
+#define SLICE_COVERAGE_ALLSEG	(INT_MIN)		/* dispatched to all segments */
+#define SLICE_COVERAGE_UNSET	(INT_MIN + 1)	/* producer not seen yet */
+
+static int
+shareinput_slice_coverage(Flow *flow)
+{
+	if (flow != NULL && flow->flotype == FLOW_SINGLETON)
+		return flow->segindex;
+
+	return SLICE_COVERAGE_ALLSEG;
+}
+
+/*
+ * Coverage key of the top slice. A plain SELECT's top slice runs on the QD,
+ * but when the query is part of a CTAS/COPY/REFRESH, or is a DML on a
+ * distributed relation, FillSliceTable() turns the top slice into a writer
+ * gang dispatched to all segments instead.
+ */
+static int
+shareinput_topslice_coverage(PlannerInfo *root)
+{
+	Query	   *parse = root->parse;
+
+	if (parse->parentStmtType != PARENTSTMTTYPE_NONE)
+		return SLICE_COVERAGE_ALLSEG;
+
+	if (parse->commandType != CMD_SELECT && parse->resultRelation > 0)
+	{
+		RangeTblEntry *rte = rt_fetch(parse->resultRelation, parse->rtable);
+
+		if (GpPolicyFetch(rte->relid)->ptype != POLICYTYPE_ENTRY)
+			return SLICE_COVERAGE_ALLSEG;
+	}
+
+	return -1;					/* top slice runs on the QD */
+}
+
+/* Parallel stack carrying the coverage key of each enclosing slice. */
+static void
+shareinput_pushcov(ApplyShareInputContext *ctxt, int cov)
+{
+	ctxt->covStack = lcons_int(cov, ctxt->covStack);
+}
+static void
+shareinput_popcov(ApplyShareInputContext *ctxt)
+{
+	ctxt->covStack = list_delete_first(ctxt->covStack);
+}
+static int
+shareinput_peekcov(ApplyShareInputContext *ctxt)
+{
+	return linitial_int(ctxt->covStack);
+}
+
 
 /*
  * Replace the target list of ShareInputScan nodes, with references
@@ -2380,7 +2445,10 @@ shareinput_mutator_xslice_1(Node *node, PlannerInfo *root, bool fPop)
 	if (fPop)
 	{
 		if (IsA(plan, Motion))
+		{
 			shareinput_popmot(ctxt);
+			shareinput_popcov(ctxt);
+		}
 		return false;
 	}
 
@@ -2389,6 +2457,10 @@ shareinput_mutator_xslice_1(Node *node, PlannerInfo *root, bool fPop)
 		Motion	   *motion = (Motion *) plan;
 
 		shareinput_pushmot(ctxt, motion->motionID);
+		shareinput_pushcov(ctxt,
+						   shareinput_slice_coverage(motion->plan.lefttree ?
+													 motion->plan.lefttree->flow :
+													 NULL));
 		return true;
 	}
 
@@ -2418,6 +2490,7 @@ shareinput_mutator_xslice_1(Node *node, PlannerInfo *root, bool fPop)
 			 */
 			ctxt->producers[sisc->share_id] = sisc;
 			ctxt->sliceMarks[sisc->share_id] = motId;
+			ctxt->producerCoverage[sisc->share_id] = shareinput_peekcov(ctxt);
 		}
 	}
 
@@ -2438,7 +2511,10 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 	if (fPop)
 	{
 		if (IsA(plan, Motion))
+		{
 			shareinput_popmot(ctxt);
+			shareinput_popcov(ctxt);
+		}
 		return false;
 	}
 
@@ -2447,6 +2523,10 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 		Motion	   *motion = (Motion *) plan;
 
 		shareinput_pushmot(ctxt, motion->motionID);
+		shareinput_pushcov(ctxt,
+						   shareinput_slice_coverage(motion->plan.lefttree ?
+													 motion->plan.lefttree->flow :
+													 NULL));
 		return true;
 	}
 
@@ -2476,6 +2556,27 @@ shareinput_mutator_xslice_2(Node *node, PlannerInfo *root, bool fPop)
 
 				incr_plan_nsharer_xslice(plan_slicemark.plan);
 				sisc->driver_slice = motId;
+
+				/*
+				 * A cross-slice share only rendezvouses correctly when the
+				 * producer and this consumer run on the same set of segments:
+				 * the writer on each producing segment waits for an ack from a
+				 * reader on that same segment (nodeShareInputScan.c). If the
+				 * two slices cover different segment sets, a writer waits for
+				 * an ack that never comes, or a reader waits for a producer
+				 * that never runs -- the query hangs.
+				 *
+				 * QD shares are exempt: pass 4 relocates every slice touching
+				 * such a share onto the QD, so they end up consistent.
+				 */
+				if (!list_member_int(ctxt->qdShares, sisc->share_id))
+				{
+					int			prodCov = ctxt->producerCoverage[sisc->share_id];
+					int			consCov = shareinput_peekcov(ctxt);
+
+					if (prodCov != SLICE_COVERAGE_UNSET && prodCov != consCov)
+						ctxt->crossSliceCoverageHazard = true;
+				}
 			}
 		}
 	}
@@ -2599,15 +2700,22 @@ apply_shareinput_xslice(Plan *plan, PlannerInfo *root)
 	PlannerGlobal *glob = root->glob;
 	ApplyShareInputContext *ctxt = &glob->share;
 	ShareInputContext walker_ctxt;
+	int			i;
 
 	ctxt->motStack = NULL;
+	ctxt->covStack = NULL;
 	ctxt->qdShares = NULL;
 	ctxt->qdSlices = NULL;
 	ctxt->nextPlanId = 0;
+	ctxt->crossSliceCoverageHazard = false;
 
 	ctxt->sliceMarks = palloc0(ctxt->producer_count * sizeof(int));
+	ctxt->producerCoverage = palloc(ctxt->producer_count * sizeof(int));
+	for (i = 0; i < ctxt->producer_count; i++)
+		ctxt->producerCoverage[i] = SLICE_COVERAGE_UNSET;
 
 	shareinput_pushmot(ctxt, 0);
+	shareinput_pushcov(ctxt, shareinput_topslice_coverage(root));
 
 	walker_ctxt.base.node = (Node *) root;
 

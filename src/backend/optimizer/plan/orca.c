@@ -185,6 +185,22 @@ optimize_query(Query *parse, ParamListInfo boundParams)
 	(void) apply_shareinput_xslice(result->planTree, root);
 
 	/*
+	 * apply_shareinput_xslice() flags a cross-slice shared scan whose producer
+	 * and consumer gangs run on different segment sets (e.g. a replicated CTE
+	 * materialized on all segments but consumed in a single-segment slice).
+	 * Such a plan deadlocks at execution in the ShareInputScan writer/reader
+	 * rendezvous, so discard it and let the Postgres planner plan the query.
+	 */
+	if (glob->share.crossSliceCoverageHazard)
+	{
+		ereport(optimizer_trace_fallback ? INFO : DEBUG1,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("GPORCA failed to produce a plan, falling back to planner"),
+				 errdetail("GPORCA produced a cross-slice shared scan with mismatched segment coverage.")));
+		return NULL;
+	}
+
+	/*
 	 * Fix ShareInputScans for EXPLAIN, like in standard_planner(). For all
 	 * subplans first, and then for the main plan tree.
 	 */

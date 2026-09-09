@@ -125,11 +125,11 @@ where
 	and (stat.schema_name || '.' ||stat.table_name not in (select table_nm_onl_act from tbls_w_onl_actl_data))
 	or (stat.schema_name || '.' ||stat.table_name in (select table_nm_onl_act from tbls_w_onl_actl_data));
 
--- ORCA should fallback when a CTE over a replicated table is referenced
--- from multiple scalar subqueries.
--- ss_t1 needs enough rows (40000) to push ORCA to the cross-slice plan;
--- with fewer rows the bug does not manifest and the test would silently
--- pass even without the fix.
+-- A CTE over a replicated table referenced from several scalar subqueries.
+-- Each CTE is consumed within a single slice, so it does not hit the
+-- multi-slice replicated-CTE fallback: ORCA keeps the shared-scan plan and the
+-- query must finish without hanging.
+-- ss_t1 needs enough rows (40000) for ORCA to choose the shared-scan plan.
 CREATE TABLE ss_t1 AS
   SELECT generate_series(1, 40000) id
   DISTRIBUTED BY (id);
@@ -140,6 +140,14 @@ ANALYZE ss_t1;
 ANALYZE ss_t2;
 
 SET statement_timeout = '15s';
+EXPLAIN (COSTS OFF)
+WITH
+    cte1 AS (SELECT v FROM ss_t2 WHERE id = 1),
+    cte2 AS (SELECT v FROM ss_t2 WHERE id = 2)
+  SELECT (SELECT v FROM cte1) + (SELECT v FROM cte2) +
+         (SELECT v FROM cte1) + (SELECT v FROM cte2) AS result
+  FROM ss_t1
+  LIMIT 1;
 WITH
     cte1 AS (SELECT v FROM ss_t2 WHERE id = 1),
     cte2 AS (SELECT v FROM ss_t2 WHERE id = 2)
@@ -149,6 +157,37 @@ WITH
   LIMIT 1;
 RESET statement_timeout;
 DROP TABLE ss_t1, ss_t2;
+
+-- A replicated CTE with a UNION ALL body referenced from two correlated SubPlans
+CREATE TABLE ss_c1 (id bigint, iscalctrg varchar(15) NOT NULL, iscalcdetail varchar(15))
+  DISTRIBUTED REPLICATED;
+CREATE TABLE ss_c2 (id numeric, refrcode varchar(255), referenceid numeric)
+  DISTRIBUTED REPLICATED;
+INSERT INTO ss_c1 SELECT i, 'A'||(i%5), 'A'||(i%7) FROM generate_series(1, 50000) i;
+INSERT INTO ss_c2 SELECT i, 'A'||(i%5), 101991 FROM generate_series(1, 50000) i;
+ANALYZE ss_c1;
+ANALYZE ss_c2;
+
+SET statement_timeout = '15s';
+EXPLAIN (COSTS OFF)
+WITH cte AS (
+    SELECT id, refrcode FROM ss_c2 WHERE referenceid = 101991 AND id <  25000
+    UNION ALL
+    SELECT id, refrcode FROM ss_c2 WHERE referenceid = 101991 AND id >= 25000
+)
+  SELECT (SELECT refrcode FROM cte WHERE refrcode = p.iscalctrg    LIMIT 1) = 'A1'
+     AND (SELECT refrcode FROM cte WHERE refrcode = p.iscalcdetail LIMIT 1) = 'A1' AS ok
+  FROM ss_c1 p WHERE p.id = 1;
+WITH cte AS (
+    SELECT id, refrcode FROM ss_c2 WHERE referenceid = 101991 AND id <  25000
+    UNION ALL
+    SELECT id, refrcode FROM ss_c2 WHERE referenceid = 101991 AND id >= 25000
+)
+  SELECT (SELECT refrcode FROM cte WHERE refrcode = p.iscalctrg    LIMIT 1) = 'A1'
+     AND (SELECT refrcode FROM cte WHERE refrcode = p.iscalcdetail LIMIT 1) = 'A1' AS ok
+  FROM ss_c1 p WHERE p.id = 1;
+RESET statement_timeout;
+DROP TABLE ss_c1, ss_c2;
 
 -- Test the scenario which already opened many fds
 -- start_ignore
@@ -173,7 +212,7 @@ create table t1 (a int, b int, c int) distributed by (a);
 explain (costs off)
 with cte1 as (
   select max(c) as c from t1
-), 
+),
 cte2 as (
   select d as c
   from generate_series(
@@ -185,7 +224,7 @@ left join t1 u on l.c = u.c;
 
 with cte1 as (
   select max(c) as c from t1
-), 
+),
 cte2 as (
   select d as c
   from generate_series(
@@ -209,7 +248,7 @@ select gp_inject_fault('material_pre_tuplestore_flush', 'reset', dbid)
 from gp_segment_configuration where role = 'p' and content = -1;
 select gp_inject_fault('material_pre_tuplestore_flush',
        'sleep', '', '', '', 1, 1, 5, dbid)
-from gp_segment_configuration where role = 'p' and content = -1;       
+from gp_segment_configuration where role = 'p' and content = -1;
 set optimizer_parallel_union = on;
 
 explain (costs off)
