@@ -2490,6 +2490,7 @@ heap_insert(Relation relation, HeapTuple tup, CommandId cid,
 		visibilitymap_clear(relation,
 							ItemPointerGetBlockNumber(&(heaptup->t_self)),
 							vmbuffer);
+		pgstat_count_rev_all_visible(relation);
 	}
 
 	/*
@@ -2831,6 +2832,7 @@ heap_multi_insert(Relation relation, HeapTuple *tuples, int ntuples,
 			visibilitymap_clear(relation,
 								BufferGetBlockNumber(buffer),
 								vmbuffer);
+			pgstat_count_rev_all_visible(relation);
 		}
 
 		/*
@@ -3392,6 +3394,7 @@ l1:
 		PageClearAllVisible(page);
 		visibilitymap_clear(relation, BufferGetBlockNumber(buffer),
 							vmbuffer);
+		pgstat_count_rev_all_visible(relation);
 	}
 
 	/* store transaction information of xact deleting the tuple */
@@ -4347,6 +4350,7 @@ l2:
 		PageClearAllVisible(BufferGetPage(buffer));
 		visibilitymap_clear(relation, BufferGetBlockNumber(buffer),
 							vmbuffer);
+		pgstat_count_rev_all_visible(relation);
 	}
 	if (newbuf != buffer && PageIsAllVisible(BufferGetPage(newbuf)))
 	{
@@ -4354,6 +4358,7 @@ l2:
 		PageClearAllVisible(BufferGetPage(newbuf));
 		visibilitymap_clear(relation, BufferGetBlockNumber(newbuf),
 							vmbuffer_new);
+		pgstat_count_rev_all_visible(relation);
 	}
 
 	if (newbuf != buffer)
