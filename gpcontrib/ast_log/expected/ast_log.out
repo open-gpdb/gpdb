@@ -1,0 +1,294 @@
+-- start_matchsubs
+-- m/\{r \d+ /
+-- s/\{r \d+ /{r XXXX /g
+-- m/\{f \d+ /
+-- s/\{f \d+ /{f XXXX /g
+-- end_matchsubs
+\set VERBOSITY terse
+--------------------------------------------------------------------------------
+-- checking EmitWarningsOnPlaceholders  
+--------------------------------------------------------------------------------
+SET ast_log.unexist = on;
+LOAD '$libdir/ast_log';
+WARNING:  unrecognized configuration parameter "ast_log.unexist"
+DO
+$$
+DECLARE
+  location text;
+BEGIN
+  SELECT 'file://' || hostname || ':' || port || datadir || '/pg_log/ast.log'
+    INTO STRICT location
+    FROM gp_segment_configuration
+   WHERE role = 'p' AND content = -1;
+
+  EXECUTE format(
+    'CREATE EXTERNAL TABLE ast_log_external
+       (logtime timestamp,
+        session_id int, class text, objname text, asttext text)
+     LOCATION (%L) FORMAT ''csv''',
+    location);
+END $$;
+CREATE FUNCTION reset_ast_log() RETURNS void AS $$
+BEGIN
+  PERFORM pg_file_unlink('pg_log/ast.log');
+  PERFORM pg_file_write('pg_log/ast.log', '', false);
+END $$ LANGUAGE plpgsql;
+CREATE FUNCTION show_ast_log()
+  RETURNS TABLE(class text, objname text, asttext text)
+AS $$
+  SELECT class, coalesce(objname, '<null>'),
+    CASE
+      WHEN asttext NOT LIKE '{QUERY %' THEN
+        '<MALFORMED AST>'
+      WHEN position('{r ' IN asttext) > 0 THEN
+        '{QUERY ...}' || substr(asttext, position('{r ' IN asttext))
+      WHEN position('{f ' IN asttext) > 0 THEN
+        '{QUERY ...}' || substr(asttext, position('{f ' IN asttext))
+      ELSE
+        '{QUERY ...}'
+    END
+  FROM ast_log_external
+  WHERE session_id = current_setting('gp_session_id')::integer
+  ORDER BY logtime;
+$$ LANGUAGE sql;
+CREATE TABLE test_src AS SELECT id, data FROM (VALUES (1, 'a'), (2, 'b'), (3, 'c')) AS t(id, data) DISTRIBUTED BY (id);
+CREATE TABLE test_dst (id int, data text) DISTRIBUTED BY (id);
+CREATE TYPE srf_composite_a AS (id int, data text);
+CREATE TYPE srf_composite_b AS (val int, label text);
+CREATE FUNCTION srf_table() RETURNS TABLE(out_id int, out_data text) AS
+  $$ SELECT 1, 'a'::text $$ LANGUAGE sql IMMUTABLE;
+CREATE FUNCTION srf_composite_a() RETURNS SETOF srf_composite_a AS
+  $$ SELECT 1, 'a'::text $$ LANGUAGE sql IMMUTABLE;
+CREATE FUNCTION srf_composite_b() RETURNS SETOF srf_composite_b AS
+  $$ SELECT 2, 'b'::text $$ LANGUAGE sql IMMUTABLE;
+--------------------------------------------------------------------------------
+-- 1. GUC: both off by default, nothing is logged
+--------------------------------------------------------------------------------
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst SELECT * FROM test_src;
+CREATE TABLE test_ctas AS SELECT * FROM test_src DISTRIBUTED BY (id);
+SELECT * FROM show_ast_log();
+ class | objname | asttext 
+-------+---------+---------
+(0 rows)
+
+DROP TABLE test_ctas;
+--------------------------------------------------------------------------------
+-- 2. ast_log.insert: negative cases
+--------------------------------------------------------------------------------
+SET ast_log.insert = on;
+SELECT pg_file_unlink('pg_log/ast.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+INSERT INTO test_dst SELECT * FROM test_src;
+SELECT * FROM show_ast_log();
+ class  |     objname     |                                      asttext                                      
+--------+-----------------+-----------------------------------------------------------------------------------
+ INSERT | public.test_dst | {QUERY ...}{r 16820 public.test_dst {id,data}}{r 16814 public.test_src {id,data}}
+(1 row)
+
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst VALUES (1, 'x');
+SELECT * FROM show_ast_log();
+ class | objname | asttext 
+-------+---------+---------
+(0 rows)
+
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+SELECT count(*) FROM test_src;
+ count 
+-------
+     3
+(1 row)
+
+UPDATE test_dst SET data = 'y' WHERE id = 1;
+DELETE FROM test_dst WHERE id = 1;
+SELECT * FROM show_ast_log();
+ class | objname | asttext 
+-------+---------+---------
+(0 rows)
+
+--------------------------------------------------------------------------------
+-- 3. ast_log.insert: positive cases
+--------------------------------------------------------------------------------
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst SELECT * FROM srf_table();
+SELECT * FROM show_ast_log();
+ class  |     objname     |                                          asttext                                           
+--------+-----------------+--------------------------------------------------------------------------------------------
+ INSERT | public.test_dst | {QUERY ...}{r 16820 public.test_dst {id,data}}{f 16832 public.srf_table {out_id,out_data}}
+(1 row)
+
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst SELECT id, data FROM srf_composite_a();
+SELECT * FROM show_ast_log();
+ class  |     objname     |                                         asttext                                          
+--------+-----------------+------------------------------------------------------------------------------------------
+ INSERT | public.test_dst | {QUERY ...}{r 16820 public.test_dst {id,data}}{f 16833 public.srf_composite_a {id,data}}
+(1 row)
+
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst SELECT a.id, b.label FROM srf_composite_a() a, srf_composite_b() b;
+SELECT * FROM show_ast_log();
+ class  |     objname     |                                                               asttext                                                                
+--------+-----------------+--------------------------------------------------------------------------------------------------------------------------------------
+ INSERT | public.test_dst | {QUERY ...}{r 16820 public.test_dst {id,data}}{f 16833 public.srf_composite_a {id,data}}{f 16834 public.srf_composite_b {val,label}}
+(1 row)
+
+SET ast_log.insert = off;
+--------------------------------------------------------------------------------
+-- 4. ast_log.ctas: positive cases
+--------------------------------------------------------------------------------
+SET ast_log.ctas = on;
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+CREATE TABLE test_ctas AS SELECT * FROM test_src DISTRIBUTED BY (id);
+SELECT * FROM show_ast_log();
+ class |     objname      |                    asttext                     
+-------+------------------+------------------------------------------------
+ CTAS  | public.test_ctas | {QUERY ...}{r 16814 public.test_src {id,data}}
+(1 row)
+
+DROP TABLE test_ctas;
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+CREATE MATERIALIZED VIEW test_matview AS SELECT * FROM test_src DISTRIBUTED BY (id);
+SELECT * FROM show_ast_log();
+ class |       objname       |                    asttext                     
+-------+---------------------+------------------------------------------------
+ CTAS  | public.test_matview | {QUERY ...}{r 16814 public.test_src {id,data}}
+(1 row)
+
+DROP MATERIALIZED VIEW test_matview;
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+CREATE TABLE test_ctas AS SELECT a.id, b.label FROM srf_composite_a() a, srf_composite_b() b DISTRIBUTED BY (id);
+SELECT * FROM show_ast_log();
+ class |     objname      |                                              asttext                                              
+-------+------------------+---------------------------------------------------------------------------------------------------
+ CTAS  | public.test_ctas | {QUERY ...}{f 16833 public.srf_composite_a {id,data}}{f 16834 public.srf_composite_b {val,label}}
+(1 row)
+
+DROP TABLE test_ctas;
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+PREPARE ctas_stmt AS SELECT * FROM test_src;
+CREATE TABLE test_ctas_exec AS EXECUTE ctas_stmt;
+NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT * FROM show_ast_log();
+ class |        objname        |                    asttext                     
+-------+-----------------------+------------------------------------------------
+ CTAS  | public.test_ctas_exec | {QUERY ...}{r 16814 public.test_src {id,data}}
+(1 row)
+
+DEALLOCATE ctas_stmt;
+DROP TABLE test_ctas_exec;
+SET ast_log.ctas = off;
+--------------------------------------------------------------------------------
+-- 5. Both classes on
+--------------------------------------------------------------------------------
+SET ast_log.ctas = on;
+SET ast_log.insert = on;
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst SELECT * FROM test_src;
+CREATE TABLE test_ctas AS SELECT * FROM test_dst DISTRIBUTED BY (id);
+SELECT * FROM show_ast_log();
+ class  |     objname      |                                      asttext                                      
+--------+------------------+-----------------------------------------------------------------------------------
+ CTAS   | public.test_ctas | {QUERY ...}{r 16820 public.test_dst {id,data}}
+ INSERT | public.test_dst  | {QUERY ...}{r 16820 public.test_dst {id,data}}{r 16814 public.test_src {id,data}}
+(2 rows)
+
+DROP TABLE test_ctas;
+SET ast_log.ctas = off;
+SET ast_log.insert = off;
+--------------------------------------------------------------------------------
+-- 6. Both classes off
+--------------------------------------------------------------------------------
+SELECT reset_ast_log();
+ reset_ast_log 
+---------------
+ 
+(1 row)
+
+INSERT INTO test_dst SELECT * FROM test_src;
+CREATE TABLE test_ctas AS SELECT * FROM test_src DISTRIBUTED BY (id);
+SELECT * FROM show_ast_log();
+ class | objname | asttext 
+-------+---------+---------
+(0 rows)
+
+DROP TABLE test_ctas;
+--------------------------------------------------------------------------------
+-- cleanup
+--------------------------------------------------------------------------------
+DROP FUNCTION show_ast_log();
+DROP FUNCTION reset_ast_log();
+DROP FUNCTION srf_table();
+DROP FUNCTION srf_composite_a();
+DROP FUNCTION srf_composite_b();
+DROP TYPE srf_composite_a, srf_composite_b;
+DROP EXTERNAL TABLE ast_log_external;
+DROP TABLE test_dst, test_src;
+RESET ast_log.ctas;
+RESET ast_log.insert;
+SELECT pg_file_unlink('pg_log/ast.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
