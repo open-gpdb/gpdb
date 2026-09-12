@@ -152,23 +152,26 @@ gpdb::split_identifier_string(char *rawstring, char separator,
 }
 
 ExplainState
-gpdb::get_explain_state(QueryDesc *query_desc, bool costs) noexcept
+gpdb::get_explain_state(QueryDesc *query_desc, bool costs, bool as_json) noexcept
 {
 	return wrap_noexcept([&]() {
 		ExplainState es;
 		ExplainInitState(&es);
 		es.costs = costs;
 		es.verbose = true;
-		es.format = EXPLAIN_FORMAT_TEXT;
+		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
+		// Wrap in an array-element object like ExplainOnePlan does; no-op for TEXT.
+		ExplainOpenGroup("Query", NULL, true, &es);
 		ExplainPrintPlan(&es, query_desc);
+		ExplainCloseGroup("Query", NULL, true, &es);
 		ExplainEndOutput(&es);
 		return es;
 	});
 }
 
 ExplainState
-gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze) noexcept
+gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexcept
 {
 	return wrap_noexcept([&]() {
 		ExplainState es;
@@ -178,13 +181,16 @@ gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze) noexcept
 		es.buffers = es.analyze;
 		es.timing = es.analyze;
 		es.summary = es.analyze;
-		es.format = EXPLAIN_FORMAT_TEXT;
+		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
+		// Array-element object wrapper, see get_explain_state. No-op for TEXT.
+		ExplainOpenGroup("Query", NULL, true, &es);
 		if (analyze)
 		{
 			ExplainPrintPlan(&es, query_desc);
 			ExplainPrintExecStatsEnd(&es, query_desc);
 		}
+		ExplainCloseGroup("Query", NULL, true, &es);
 		ExplainEndOutput(&es);
 		return es;
 	});
