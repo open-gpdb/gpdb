@@ -168,6 +168,7 @@ pathnode_walk_kids(Path            *path,
 		case T_SubqueryScan:
 		case T_FunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_TableFunctionScan:
