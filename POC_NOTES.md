@@ -312,6 +312,29 @@ DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs \
 SDK (не нужен); `gpstart` требует python2 `psutil`, исходникам 5.7.0
 нужен `-Wno-error=implicit-function-declaration` с текущим clang.
 
+## Тест планов (2026-09-13)
+
+`test/catalogless_plans.sql` (вывод: `test/catalogless_plans.out`):
+шесть форм запросов по catalogless-таблицам, каждый с EXPLAIN и
+побитовой сверкой count/sum с обычными temp-двойняшками тех же данных;
+для каждой созданной таблицы — дельта pg_class/pg_attribute/pg_type/
+pg_depend на QD и обоих сегментах (итоговая таблица в выводе:
+catalogless — строго 0 везде, обычная temp — +1/+10/+2/+3 на узел).
+
+1. join по ключу распределения — Temp Result Scan без Redistribute;
+2. join по не-ключу — планировщик ставит Broadcast Motion (стороны не
+   считаются co-located ошибочно);
+3. GROUP BY по не-ключу — двухфазный HashAggregate с Redistribute
+   поверх Temp Result Scan;
+4. join двух catalogless-таблиц с разными ключами — сторона с
+   совпадающим ключом на месте, вторая перераспределяется;
+5. EXISTS (semi-join) — работает после фикса: `pathnode_walk_kids`
+   (cdbpath dedup) не знал T_TempResultScan и падал с
+   "unrecognized path type: 126"; добавлен в список листовых путей;
+6. ORDER BY + LIMIT — Sort+Limit на сегментах, Gather, финальный Limit.
+
+Все шесть результатов совпали с контролем бит-в-бит.
+
 ## Diffstat
 
 (относительно OPENGPDB_STABLE; `git diff OPENGPDB_STABLE --stat | tail -5`)
