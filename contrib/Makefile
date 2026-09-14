@@ -46,7 +46,8 @@ SUBDIRS = \
 		try_convert \
 		tsearch2	\
 		tablefunc	\
-		unaccent
+		unaccent	\
+		vacuum_stats
 # GPDB_92_MERGE_FIXME: Why some files (especially Makefile) are missing under
 # these directories?
 #               seg         \
