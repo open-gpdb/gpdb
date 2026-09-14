@@ -15,6 +15,7 @@ extern "C" {
 #include "utils/builtins.h"
 #include "utils/elog.h"
 #include "utils/guc.h"
+#include "utils/memaccounting.h"
 }
 
 namespace
@@ -173,7 +174,10 @@ gpdb::get_explain_state(QueryDesc *query_desc, bool costs, bool as_json) noexcep
 ExplainState
 gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexcept
 {
-	return wrap_noexcept([&]() {
+	int saved_memory_verbosity = explain_memory_verbosity;
+	if (as_json)
+		explain_memory_verbosity = EXPLAIN_MEMORY_VERBOSITY_SUPPRESS;
+	ExplainState es = wrap_noexcept([&]() {
 		ExplainState es;
 		ExplainInitState(&es);
 		es.analyze = analyze;
@@ -194,6 +198,8 @@ gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexc
 		ExplainEndOutput(&es);
 		return es;
 	});
+	explain_memory_verbosity = saved_memory_verbosity;
+	return es;
 }
 
 Instrumentation *

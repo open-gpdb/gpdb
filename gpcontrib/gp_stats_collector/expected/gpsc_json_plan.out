@@ -98,6 +98,28 @@ WHERE segid = -1 AND query_text LIKE '%json_noanalyze%' AND query_status = 'QUER
  t             | t
 (1 row)
 
+-- Test 5: explain_memory_verbosity adds text-only "Memory:" lines; analyze_json stays valid JSON.
+SET explain_memory_verbosity TO detail;
+SET gpsc.enable_analyze TO TRUE;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_memverb*/ COUNT(*) FROM generate_series(1,10);
+ count 
+-------
+    10
+(1 row)
+
+RESET gpsc.logging_mode;
+RESET explain_memory_verbosity;
+SELECT json_typeof(analyze_json::json) AS analyze_json_type,
+       (analyze_json::json->0->'Plan') IS NOT NULL AS has_analyze_node,
+       analyze_json NOT LIKE '%Memory:  %' AS no_memory_text
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_memverb%' AND query_status = 'QUERY_STATUS_DONE';
+ analyze_json_type | has_analyze_node | no_memory_text 
+-------------------+------------------+----------------
+ array             | t                | t
+(1 row)
+
 SELECT gpsc.truncate_log() IS NOT NULL AS t;
  t 
 ---
