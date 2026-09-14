@@ -286,7 +286,7 @@ export MASTER_DATA_DIRECTORY=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/data
 
 # первичная инициализация (нестандартные порты, чтобы не задеть кластеры пользователя):
 cd gpAux/gpdemo
-export DEMO_PORT_BASE=16432 NUM_PRIMARY_MIRROR_PAIRS=2 WITH_MIRRORS=false \
+export DEMO_PORT_BASE=17432 NUM_PRIMARY_MIRROR_PAIRS=2 WITH_MIRRORS=false \
        DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs
 bash demo_cluster.sh        # финальный gpstart внутри gpinitsystem может упасть; тогда:
 pg_ctl -D $MASTER_DATA_DIRECTORY stop -m fast   # остановить utility-мастер, который он оставил
@@ -297,12 +297,12 @@ gpstart -a
 gpstop -a
 
 # прогон смоук-теста:
-createdb -p 16432 pocdb
+createdb -p 17432 pocdb
 DATADIRS=/Users/alena/open-gpdb3-poc/idea1/gpAux/gpdemo/datadirs \
-  psql -p 16432 pocdb -e -f test/catalogless_smoke.sql
+  psql -p 17432 pocdb -e -f test/catalogless_smoke.sql
 ```
 
-Кластер: master :16432, primary :16434/:16435, данные в
+Кластер: master :17432, primary :17434/:17435, данные в
 `gpAux/gpdemo/datadirs` внутри worktree. Каталоги сборки `install/`,
 `gpAux/gpdemo/datadirs/` и распакованные `gpMgmt/bin/pythonSrc/ext/*`
 намеренно оставлены untracked.
