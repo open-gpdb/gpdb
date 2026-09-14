@@ -795,10 +795,9 @@ NOTICE:  AUDIT: SESSION,31,2,READ,SELECT,,,explain select 1;,<none>
 NOTICE:  AUDIT: SESSION,31,3,MISC,EXPLAIN,,,explain select 1;,<none>
                 QUERY PLAN                
 ------------------------------------------
- Result  (cost=0.00..0.00 rows=1 width=4)
-   ->  Result  (cost=0.00..0.00 rows=1 width=1)
- Optimizer: Pivotal Optimizer (GPORCA)
-(3 rows)
+ Result  (cost=0.00..0.01 rows=1 width=0)
+ Optimizer: Postgres query optimizer
+(2 rows)
 
 --
 -- Test that looks inside of do blocks log
@@ -880,12 +879,11 @@ BEGIN
 	EXECUTE 'DROP table ' || table_name;
 END $$;",<none>
 NOTICE:  AUDIT: SESSION,36,2,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,36,3,READ,SELECT,,,SELECT 'do_table',<none>
-NOTICE:  AUDIT: SESSION,36,4,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,36,3,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'weird name' as the Greenplum Database data distribution key for this table.
-NOTICE:  AUDIT: SESSION,36,5,DDL,CREATE TABLE,TABLE,public.do_table,"CREATE TABLE do_table (""weird name"" INT)",<none>
-NOTICE:  AUDIT: SESSION,36,6,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,36,7,DDL,DROP TABLE,TABLE,public.do_table,DROP table do_table,<none>
+NOTICE:  AUDIT: SESSION,36,4,DDL,CREATE TABLE,TABLE,public.do_table,"CREATE TABLE do_table (""weird name"" INT)",<none>
+NOTICE:  AUDIT: SESSION,36,5,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,36,6,DDL,DROP TABLE,TABLE,public.do_table,DROP table do_table,<none>
 --
 -- Generate an error and make sure the stack gets cleared
 DO $$
@@ -1087,11 +1085,10 @@ NOTICE:  AUDIT: SESSION,60,1,AST_SEL,SELECT,,,{QUERY...}{f XXXX public.test {}},
 NOTICE:  AUDIT: SESSION,60,2,READ,SELECT,,,SELECT test();,<none>
 NOTICE:  AUDIT: SESSION,60,3,FUNCTION,EXECUTE,FUNCTION,public.test,SELECT test();,<none>
 NOTICE:  AUDIT: SESSION,60,4,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,60,5,READ,SELECT,,,SELECT 'cur1'::pg_catalog.refcursor,<none>
-NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.hoge {id}}",<none>
-NOTICE:  AUDIT: SESSION,60,6,AST_SEL,SELECT,TABLE,public.hoge,"{QUERY...}{r XXXX public.hoge {id}}",<none>
-NOTICE:  AUDIT: SESSION,60,7,READ,SELECT,TABLE,public.hoge,select * from hoge,<none>
-NOTICE:  AUDIT: SESSION,60,8,AST_SEL,SELECT,,,{QUERY...},<none>
+NOTICE:  AUDIT: SESSION,60,5,AST_SEL,SELECT,,,"{QUERY...}{r XXXX public.hoge {id}}",<none>
+NOTICE:  AUDIT: SESSION,60,5,AST_SEL,SELECT,TABLE,public.hoge,"{QUERY...}{r XXXX public.hoge {id}}",<none>
+NOTICE:  AUDIT: SESSION,60,6,READ,SELECT,TABLE,public.hoge,select * from hoge,<none>
+NOTICE:  AUDIT: SESSION,60,7,AST_SEL,SELECT,,,{QUERY...},<none>
  test 
 ------
      
@@ -1232,10 +1229,9 @@ NOTICE:  AUDIT: SESSION,72,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_out_
 NOTICE:  AUDIT: SESSION,72,2,READ,SELECT,,,SELECT * FROM get_out_args(3);,<none>
 NOTICE:  AUDIT: SESSION,72,3,FUNCTION,EXECUTE,FUNCTION,public.get_out_args,SELECT * FROM get_out_args(3);,<none>
 NOTICE:  AUDIT: SESSION,72,4,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,72,5,READ,SELECT,,,SELECT 1,<none>
+NOTICE:  AUDIT: SESSION,72,5,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  AUDIT: SESSION,72,6,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  AUDIT: SESSION,72,7,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,72,8,AST_SEL,SELECT,,,{QUERY...},<none>
  col_o1 | col_o2 
 --------+--------
       2 |      3
@@ -1273,10 +1269,9 @@ NOTICE:  AUDIT: SESSION,74,1,AST_SEL,SELECT,,,"{QUERY...}{f XXXX public.get_tabl
 NOTICE:  AUDIT: SESSION,74,2,READ,SELECT,,,SELECT * FROM get_table(2);,<none>
 NOTICE:  AUDIT: SESSION,74,3,FUNCTION,EXECUTE,FUNCTION,public.get_table,SELECT * FROM get_table(2);,<none>
 NOTICE:  AUDIT: SESSION,74,4,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,74,5,READ,SELECT,,,SELECT 1,<none>
+NOTICE:  AUDIT: SESSION,74,5,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  AUDIT: SESSION,74,6,AST_SEL,SELECT,,,{QUERY...},<none>
 NOTICE:  AUDIT: SESSION,74,7,AST_SEL,SELECT,,,{QUERY...},<none>
-NOTICE:  AUDIT: SESSION,74,8,AST_SEL,SELECT,,,{QUERY...},<none>
  col_t1 | col_t2 
 --------+--------
       2 |      3

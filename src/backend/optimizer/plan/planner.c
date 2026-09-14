@@ -157,6 +157,7 @@ static Plan *pushdown_preliminary_limit(Plan *plan, Node *limitCount, int64 coun
 
 static Plan *getAnySubplan(Plan *node);
 static bool isSimplyUpdatableQuery(Query *query);
+static bool isQueryForOrca(Query *parse);
 
 
 /*****************************************************************************
@@ -229,11 +230,15 @@ standard_planner(Query *parse, int cursorOptions, ParamListInfo boundParams)
 	 * For these reasons, restrict to using ORCA on the master QD processes only.
 	 *
 	 * PARALLEL RETRIEVE CURSOR is not supported by ORCA yet.
+	 *
+	 * isQueryForOrca() additionally lets us bypass ORCA for queries where it
+	 * has nothing to optimize, such as SELECTs with an empty range table.
 	 */
 	if (optimizer &&
 		GP_ROLE_DISPATCH == Gp_role &&
 		IS_QUERY_DISPATCHER() &&
-		(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) == 0)
+		(cursorOptions & CURSOR_OPT_PARALLEL_RETRIEVE) == 0 &&
+		isQueryForOrca(parse))
 	{
 		if (gp_log_optimization_time)
 			INSTR_TIME_SET_CURRENT(starttime);
@@ -5860,4 +5865,31 @@ isSimplyUpdatableQuery(Query *query)
 			return true;
 	}
 	return false;
+}
+
+/*
+ * isQueryForOrca
+ *		Should this query be handed to the ORCA optimizer at all?
+ *
+ * A SELECT with an empty range table - "SELECT 42" or
+ * "SELECT pg_column_size('...')" - has nothing to distribute across segments,
+ * so ORCA's plan is no better than the Postgres planner's.
+ * The optimization attempt is pure overhead, and we skip it.
+ *
+ * Sublinks and utility statements are excluded.  A sublink can hide a
+ * subquery over a distributed relation, and for CTAS the result row has to be
+ * distributed according to the target table's policy.
+ *
+ * Additional rules for bypassing ORCA can be added here.
+ */
+static bool
+isQueryForOrca(Query *parse)
+{
+	if (parse->commandType == CMD_SELECT &&
+		parse->rtable == NIL &&
+		!parse->hasSubLinks &&
+		parse->parentStmtType == PARENTSTMTTYPE_NONE)
+		return false;
+
+	return true;
 }
