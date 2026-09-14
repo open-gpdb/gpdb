@@ -33,6 +33,9 @@ message QueryInfo {
     string databaseName = 9;
     string rsgname = 10;
     string analyze_text = 11;
+    // EXPLAIN (FORMAT JSON) payloads; numbers 15/16 must match yagpcc's yagpcc_metrics.proto.
+    string plan_json = 15;
+    string analyze_json = 16;
 }
 
 message AdditionalQueryInfo {
