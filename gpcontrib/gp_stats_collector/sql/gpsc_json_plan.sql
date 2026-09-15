@@ -73,6 +73,20 @@ SELECT json_typeof(analyze_json::json) AS analyze_json_type,
 FROM gpsc.log
 WHERE segid = -1 AND query_text LIKE '%json_memverb%' AND query_status = 'QUERY_STATUS_DONE';
 
+-- Test 6: a distributed join has a Motion node and nested plans in plan_json and analyze_json.
+CREATE TABLE gpsc_json_dist (id int, v int) DISTRIBUTED BY (id);
+INSERT INTO gpsc_json_dist SELECT i, i FROM generate_series(1,5) i;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_motion*/ COUNT(*) FROM gpsc_json_dist a JOIN gpsc_json_dist b ON a.id = b.id;
+RESET gpsc.logging_mode;
+SELECT plan_json LIKE '%Motion%' AS plan_has_motion,
+       (plan_json::json->0->'Plan'->'Plans') IS NOT NULL AS plan_has_subplans,
+       analyze_json LIKE '%Motion%' AS analyze_has_motion,
+       (analyze_json::json->0->'Plan'->'Plans') IS NOT NULL AS analyze_has_subplans
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_motion%' AND query_status = 'QUERY_STATUS_DONE';
+DROP TABLE gpsc_json_dist;
+
 SELECT gpsc.truncate_log() IS NOT NULL AS t;
 
 DROP EXTENSION gp_stats_collector;
