@@ -96,16 +96,6 @@ insert_log(const gpsc::SetQueryReq &req, bool utility)
 		return;
 	}
 
-	bool nulls[natts_gpsc_log];
-	Datum values[natts_gpsc_log];
-
-	memset(nulls, true, sizeof(nulls));
-	memset(values, 0, sizeof(values));
-
-	extract_query_req(req, "", values, nulls);
-	nulls[attnum_gpsc_log_utility] = false;
-	values[attnum_gpsc_log_utility] = BoolGetDatum(utility);
-
 	rel = heap_open(relationId, RowExclusiveLock);
 
 	/* Older gpsc.__log layout: positional insert would shift values, so skip until ALTER EXTENSION UPDATE. */
@@ -126,6 +116,16 @@ insert_log(const gpsc::SetQueryReq &req, bool utility)
 		heap_close(rel, NoLock);
 		return;
 	}
+
+	bool nulls[natts_gpsc_log];
+	Datum values[natts_gpsc_log];
+
+	memset(nulls, true, sizeof(nulls));
+	memset(values, 0, sizeof(values));
+
+	extract_query_req(req, "", values, nulls);
+	nulls[attnum_gpsc_log_utility] = false;
+	values[attnum_gpsc_log_utility] = BoolGetDatum(utility);
 
 	/* Insert the tuple as a frozen one to ensure it is logged even if txn rolls
    * back or aborts */
