@@ -1858,6 +1858,7 @@ pgaudit_ddl_command_end(PG_FUNCTION_ARGS)
                 auditEventStack->auditEvent.commandText =
                     query_to_text(linitial(rewritten));
                 auditEventStack->auditEvent.logged = false;
+                auditEventStack->auditEvent.statementLogged = false;
                 log_audit_event(auditEventStack);
             }
         }
