@@ -142,6 +142,32 @@ WHERE segid = -1 AND query_text LIKE '%json_motion%' AND query_status = 'QUERY_S
  t               | t                 | t                  | t
 (1 row)
 
+-- Test 7: every GUC that extends EXPLAIN output keeps plan_json and analyze_json valid.
+SET explain_memory_verbosity TO debug;
+SET gp_enable_explain_allstat TO on;
+SET gp_enable_explain_rows_out TO on;
+SET gp_enable_explain_node_summary TO on;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_gucs*/ COUNT(*) FROM gpsc_json_dist a JOIN gpsc_json_dist b ON a.id = b.id;
+ count 
+-------
+     5
+(1 row)
+
+RESET gpsc.logging_mode;
+RESET gp_enable_explain_node_summary;
+RESET gp_enable_explain_rows_out;
+RESET gp_enable_explain_allstat;
+RESET explain_memory_verbosity;
+SELECT json_typeof(plan_json::json) AS plan_json_type,
+       json_typeof(analyze_json::json) AS analyze_json_type
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_gucs%' AND query_status = 'QUERY_STATUS_DONE';
+ plan_json_type | analyze_json_type 
+----------------+-------------------
+ array          | array
+(1 row)
+
 DROP TABLE gpsc_json_dist;
 SELECT gpsc.truncate_log() IS NOT NULL AS t;
  t 
