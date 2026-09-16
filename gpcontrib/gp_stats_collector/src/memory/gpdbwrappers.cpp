@@ -6,6 +6,7 @@ extern "C" {
 #include "access/htup.h"
 #include "access/tupdesc.h"
 #include "cdb/cdbexplain.h"
+#include "cdb/cdbvars.h"
 #include "commands/dbcommands.h"
 #include "commands/explain.h"
 #include "commands/resgroupcmds.h"
@@ -175,8 +176,12 @@ ExplainState
 gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexcept
 {
 	int saved_memory_verbosity = explain_memory_verbosity;
+	bool saved_allstat = gp_enable_explain_allstat;
 	if (as_json)
+	{
 		explain_memory_verbosity = EXPLAIN_MEMORY_VERBOSITY_SUPPRESS;
+		gp_enable_explain_allstat = false;
+	}
 	ExplainState es = wrap_noexcept([&]() {
 		ExplainState es;
 		ExplainInitState(&es);
@@ -199,6 +204,7 @@ gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexc
 		return es;
 	});
 	explain_memory_verbosity = saved_memory_verbosity;
+	gp_enable_explain_allstat = saved_allstat;
 	return es;
 }
 

@@ -85,6 +85,22 @@ SELECT plan_json LIKE '%Motion%' AS plan_has_motion,
        (analyze_json::json->0->'Plan'->'Plans') IS NOT NULL AS analyze_has_subplans
 FROM gpsc.log
 WHERE segid = -1 AND query_text LIKE '%json_motion%' AND query_status = 'QUERY_STATUS_DONE';
+-- Test 7: every GUC that extends EXPLAIN output keeps plan_json and analyze_json valid.
+SET explain_memory_verbosity TO debug;
+SET gp_enable_explain_allstat TO on;
+SET gp_enable_explain_rows_out TO on;
+SET gp_enable_explain_node_summary TO on;
+SET gpsc.logging_mode TO 'TBL';
+SELECT /*json_gucs*/ COUNT(*) FROM gpsc_json_dist a JOIN gpsc_json_dist b ON a.id = b.id;
+RESET gpsc.logging_mode;
+RESET gp_enable_explain_node_summary;
+RESET gp_enable_explain_rows_out;
+RESET gp_enable_explain_allstat;
+RESET explain_memory_verbosity;
+SELECT json_typeof(plan_json::json) AS plan_json_type,
+       json_typeof(analyze_json::json) AS analyze_json_type
+FROM gpsc.log
+WHERE segid = -1 AND query_text LIKE '%json_gucs%' AND query_status = 'QUERY_STATUS_DONE';
 DROP TABLE gpsc_json_dist;
 
 SELECT gpsc.truncate_log() IS NOT NULL AS t;
