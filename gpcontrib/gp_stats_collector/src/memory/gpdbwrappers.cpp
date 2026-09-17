@@ -6,6 +6,7 @@ extern "C" {
 #include "access/htup.h"
 #include "access/tupdesc.h"
 #include "cdb/cdbexplain.h"
+#include "cdb/cdbvars.h"
 #include "commands/dbcommands.h"
 #include "commands/explain.h"
 #include "commands/resgroupcmds.h"
@@ -15,6 +16,7 @@ extern "C" {
 #include "utils/builtins.h"
 #include "utils/elog.h"
 #include "utils/guc.h"
+#include "utils/memaccounting.h"
 }
 
 namespace
@@ -152,25 +154,35 @@ gpdb::split_identifier_string(char *rawstring, char separator,
 }
 
 ExplainState
-gpdb::get_explain_state(QueryDesc *query_desc, bool costs) noexcept
+gpdb::get_explain_state(QueryDesc *query_desc, bool costs, bool as_json) noexcept
 {
 	return wrap_noexcept([&]() {
 		ExplainState es;
 		ExplainInitState(&es);
 		es.costs = costs;
 		es.verbose = true;
-		es.format = EXPLAIN_FORMAT_TEXT;
+		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
+		// Wrap in an array-element object like ExplainOnePlan does; no-op for TEXT.
+		ExplainOpenGroup("Query", NULL, true, &es);
 		ExplainPrintPlan(&es, query_desc);
+		ExplainCloseGroup("Query", NULL, true, &es);
 		ExplainEndOutput(&es);
 		return es;
 	});
 }
 
 ExplainState
-gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze) noexcept
+gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze, bool as_json) noexcept
 {
-	return wrap_noexcept([&]() {
+	int saved_memory_verbosity = explain_memory_verbosity;
+	bool saved_allstat = gp_enable_explain_allstat;
+	if (as_json)
+	{
+		explain_memory_verbosity = EXPLAIN_MEMORY_VERBOSITY_SUPPRESS;
+		gp_enable_explain_allstat = false;
+	}
+	ExplainState es = wrap_noexcept([&]() {
 		ExplainState es;
 		ExplainInitState(&es);
 		es.analyze = analyze;
@@ -178,16 +190,22 @@ gpdb::get_analyze_state(QueryDesc *query_desc, bool analyze) noexcept
 		es.buffers = es.analyze;
 		es.timing = es.analyze;
 		es.summary = es.analyze;
-		es.format = EXPLAIN_FORMAT_TEXT;
+		es.format = as_json ? EXPLAIN_FORMAT_JSON : EXPLAIN_FORMAT_TEXT;
 		ExplainBeginOutput(&es);
+		// Array-element object wrapper, see get_explain_state. No-op for TEXT.
+		ExplainOpenGroup("Query", NULL, true, &es);
 		if (analyze)
 		{
 			ExplainPrintPlan(&es, query_desc);
 			ExplainPrintExecStatsEnd(&es, query_desc);
 		}
+		ExplainCloseGroup("Query", NULL, true, &es);
 		ExplainEndOutput(&es);
 		return es;
 	});
+	explain_memory_verbosity = saved_memory_verbosity;
+	gp_enable_explain_allstat = saved_allstat;
+	return es;
 }
 
 Instrumentation *
