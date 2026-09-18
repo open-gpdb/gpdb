@@ -70,11 +70,14 @@ ALTER TABLE bttest_a OWNER TO regress_bttest_role;
 -- A dummy index function checking current_user
 CREATE FUNCTION ifun(int8) RETURNS int8 AS $$
 BEGIN
-	ASSERT current_setting('search_path') NOT LIKE '%preempt%',
-		format('ifun(%s) called with current_schemas %s, search_path %s',
+	-- ASSERT is unavailable in GPDB (based on PG 9.4), use IF/RAISE instead
+	IF current_setting('search_path') LIKE '%preempt%' THEN
+		RAISE EXCEPTION '%', format('ifun(%s) called with current_schemas %s, search_path %s',
 			$1, current_schemas(true), current_setting('search_path'));
-	ASSERT "current_user"() = 'regress_bttest_role',
-		format('ifun(%s) called by %s', $1, current_user);
+	END IF;
+	IF "current_user"() <> 'regress_bttest_role' THEN
+		RAISE EXCEPTION '%', format('ifun(%s) called by %s', $1, current_user);
+	END IF;
 	RETURN $1;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
@@ -88,7 +91,7 @@ GRANT USAGE ON SCHEMA preempt TO regress_bttest_role;
 SET LOCAL search_path = preempt, pg_catalog, public;
 CREATE FUNCTION "current_user"() RETURNS name AS $$
 	broken
-$$ LANGUAGE sql STABLE PARALLEL SAFE STRICT;
+$$ LANGUAGE sql STABLE STRICT;
 SELECT bt_index_check('bttest_a_expr_idx', true);
 ROLLBACK;
 
