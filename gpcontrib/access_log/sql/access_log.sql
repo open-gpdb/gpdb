@@ -1,5 +1,7 @@
 -- start_ignore
 drop external table if exists access_log;
+drop function if exists show_log(text);
+drop function if exists show_write_log(text);
 drop table if exists t_heap_part, t_heap, t_ao_part, t_ao, t_aoco_part, t_aoco;
 -- Delete log files from master
 select pg_file_unlink('pg_log/access.log');
@@ -27,8 +29,8 @@ begin
   end loop;
 
   execute 'create external table access_log
-           (logtime timestamp with time zone, loguser text, logsession text, tbl text)
-           location (' || locations || ') format ''csv''';
+           (logtime timestamp with time zone, loguser text, logsession text, tbl text,
+           operation text) location (' || locations || ') format ''csv''';
 end $$;
 
 -- Start logging
@@ -43,7 +45,23 @@ as $$
     loguser=current_user user_ok,
     logsession = 'con' || current_setting('gp_session_id') sess_ok, 
     tbl
-  from access_log;
+  from access_log
+  where operation = 'read';
+$$ language sql;
+
+
+create or replace function show_write_log(before_query text)
+  returns table(gp_segment_id int, date_ok bool, user_ok bool, sess_ok bool,
+                tbl text, operation text)
+as $$
+  select gp_segment_id,
+    logtime between before_query::timestamp with time zone and now() date_ok,
+    loguser=current_user user_ok,
+    logsession = 'con' || current_setting('gp_session_id') sess_ok, 
+    tbl,
+    operation
+  from access_log
+  where operation = 'write';
 $$ language sql;
 
 
@@ -191,6 +209,191 @@ select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
 
 
 --
+-- Write operations
+
+-- INSERT SELECT into heap. It executes on all segments
+select now() as before_query \gset
+insert into t_heap(a)
+select gp_segment_id
+from gp_dist_random('gp_id');
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_heap') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+  from show_write_log(:'before_query')
+ where date_ok;
+
+
+-- INSERT VALUES into heap. It can run on one segment only.
+select now() as before_query \gset
+insert into t_heap values (0);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_heap') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+  from show_write_log(:'before_query')
+ where date_ok;
+
+
+-- INSERT SELECT into t_ao: t_heap is read, t_ao is written.
+select now() as before_query \gset
+insert into t_ao(a)
+select a from t_heap;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+  from access_log
+ where logtime between :'before_query'::timestamp with time zone and now()
+   and loguser = current_user
+   and logsession = 'con' || current_setting('gp_session_id')
+   and tbl in ('public.t_heap', 'public.t_ao')
+ group by operation, tbl
+ order by operation, tbl;
+
+
+-- INSERT SELECT into t_aoco: t_heap is read, t_aoco is written.
+select now() as before_query \gset
+insert into t_aoco(a)
+select a from t_heap;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+  from access_log
+ where logtime between :'before_query'::timestamp with time zone and now()
+   and loguser = current_user
+   and logsession = 'con' || current_setting('gp_session_id')
+   and tbl in ('public.t_heap', 'public.t_aoco')
+ group by operation, tbl
+ order by operation, tbl;
+
+
+-- UPDATE heap: t_heap is read and written.
+select now() as before_query \gset
+update t_heap
+set a = a;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+  from access_log
+ where logtime between :'before_query'::timestamp with time zone and now()
+   and loguser = current_user
+   and logsession = 'con' || current_setting('gp_session_id')
+   and tbl = 'public.t_heap'
+ group by operation, tbl
+ order by operation, tbl;
+
+
+-- DELETE heap: t_heap is read and written.
+select now() as before_query \gset
+delete from t_heap
+where a = 0;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+  from access_log
+ where logtime between :'before_query'::timestamp with time zone and now()
+   and loguser = current_user
+   and logsession = 'con' || current_setting('gp_session_id')
+   and tbl = 'public.t_heap'
+ group by operation, tbl
+ order by operation, tbl;
+
+
+-- Write into partitioned heap table.
+select now() as before_query \gset
+insert into t_heap_part values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_heap_part') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+  from show_write_log(:'before_query')
+ where date_ok;
+
+
+-- Write into partitioned AO table.
+select now() as before_query \gset
+insert into t_ao_part values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_ao_part') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+  from show_write_log(:'before_query')
+ where date_ok;
+
+
+-- Write into partitioned AOCO table.
+select now() as before_query \gset
+insert into t_aoco_part values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_aoco_part') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+  from show_write_log(:'before_query')
+ where date_ok;
+
+
+-- UPDATE partitioned heap table.
+select now() as before_query \gset
+update t_heap_part
+set a = a
+where b = 0 and c = 40;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+  from access_log
+ where logtime between :'before_query'::timestamp with time zone and now()
+   and loguser = current_user
+   and logsession = 'con' || current_setting('gp_session_id')
+   and operation = 'write'
+   and tbl like 'public.t_heap_part%'
+ group by operation, tbl
+ order by operation, tbl;
+
+
+-- DELETE partitioned heap table.
+select now() as before_query \gset
+delete from t_heap_part
+where b = 0 and c = 40;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+  from access_log
+ where logtime between :'before_query'::timestamp with time zone and now()
+   and loguser = current_user
+   and logsession = 'con' || current_setting('gp_session_id')
+   and operation = 'write'
+   and tbl like 'public.t_heap_part%'
+ group by operation, tbl
+ order by operation, tbl;
+
+
+-- Restore tables used by the existing user-name test.
+truncate table t_ao_part;
+truncate table t_aoco;
+
+
+--
 -- Check user name logging
 
 -- start_ignore
@@ -224,11 +427,14 @@ select * from t_aoco;
 
 \c - :"current_user"
 
-select gp_segment_id, loguser, tbl from access_log;
+select gp_segment_id, loguser, tbl from access_log
+ where operation = 'read' and loguser = 'user1';
+
 
 --
 -- Cleanup
 drop function show_log(text);
+drop function show_write_log(text);
 drop external table access_log;
 drop table t_heap_part, t_heap, t_ao_part, t_ao, t_aoco_part, t_aoco;
 -- start_ignore
