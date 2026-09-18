@@ -1,5 +1,7 @@
 -- start_ignore
 drop external table if exists access_log;
+drop function if exists show_log(text);
+drop function if exists show_write_log(text);
 drop table if exists t_heap_part, t_heap, t_ao_part, t_ao, t_aoco_part, t_aoco;
 -- Delete log files from master
 select pg_file_unlink('pg_log/access.log');
@@ -23,12 +25,21 @@ begin
       locations = locations || ',';
     end if;
 
-    locations = locations || '''file://' || seg || '/pg_log/access.log''';
+    locations =
+      locations || '''file://' || seg ||
+      '/pg_log/access.log''';
   end loop;
 
   execute 'create external table access_log
-           (logtime timestamp with time zone, loguser text, logsession text, tbl text)
-           location (' || locations || ') format ''csv''';
+           (
+             logtime timestamp with time zone,
+             loguser text,
+             logsession text,
+             tbl text,
+             operation text
+           )
+           location (' || locations || ')
+           format ''csv''';
 end $$;
 
 -- Start logging
@@ -36,39 +47,79 @@ load '$libdir/access_log.so';
 
 
 create or replace function show_log(before_query text)
-  returns table(gp_segment_id int, date_ok bool, user_ok bool, sess_ok bool, tbl text)
+  returns table
+  (
+    gp_segment_id int,
+    date_ok bool,
+    user_ok bool,
+    sess_ok bool,
+    tbl text
+  )
 as $$
-  select gp_segment_id,
-    logtime between before_query::timestamp with time zone and now() date_ok,
-    loguser=current_user user_ok,
-    logsession = 'con' || current_setting('gp_session_id') sess_ok, 
+  select
+    gp_segment_id,
+    logtime between before_query::timestamp with time zone
+                and now(),
+    loguser = current_user,
+    logsession =
+      'con' || current_setting('gp_session_id'),
     tbl
-  from access_log;
+  from access_log
+  where operation = 'read';
+$$ language sql;
+
+
+create or replace function show_write_log(before_query text)
+  returns table
+  (
+    gp_segment_id int,
+    date_ok bool,
+    user_ok bool,
+    sess_ok bool,
+    tbl text,
+    operation text
+  )
+as $$
+  select
+    gp_segment_id,
+    logtime between before_query::timestamp with time zone
+                and now(),
+    loguser = current_user,
+    logsession =
+      'con' || current_setting('gp_session_id'),
+    tbl,
+    operation
+  from access_log
+  where operation = 'write';
 $$ language sql;
 
 
 --
 -- Heap table
+--
 
 -- Partitioned table
 create table t_heap_part(a int, b int, c int)
 distributed by (a)
 partition by range (b)
   subpartition by range (c)
-    subpartition template (start (40) end (46) every (3))
+    subpartition template
+      (start (40) end (46) every (3))
 (start (0) end (4) every (2));
 
 -- All partitions
 select now() as before_query \gset
 select * from t_heap_part;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 -- Read partitions selected by condition in WHERE
 select now() as before_query \gset
 select * from t_heap_part where c = 40;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 select now() as before_query \gset
 select * from t_heap_part where b = 0;
@@ -80,24 +131,29 @@ select * from show_log(:'before_query');
 -- One segment
 select now() as before_query \gset
 select * from t_heap_part where a = 0;
-select count(distinct gp_segment_id), string_agg(tbl, ',' order by tbl)
-  from show_log(:'before_query')
- where date_ok and user_ok;
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select count(distinct gp_segment_id),
+       string_agg(tbl, ',' order by tbl)
+from show_log(:'before_query')
+where date_ok and user_ok;
+
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 
 -- Table without partitions
-create table t_heap(a int)
+create table t_heap(a int, b int, c int)
 distributed by (a);
 
 select now() as before_query \gset
 select * from t_heap;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 
 --
 -- AO table
+--
 
 -- Partitioned table
 create table t_ao_part(a int, b int, c int)
@@ -105,20 +161,24 @@ with (appendonly = true)
 distributed by (a)
 partition by range (b)
   subpartition by range (c)
-    subpartition template (start (40) end (46) every (3))
+    subpartition template
+      (start (40) end (46) every (3))
 (start (0) end (4) every (2));
 
 -- All partitions
 select now() as before_query \gset
 select * from t_ao_part;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
+
 
 -- Read partitions selected by condition in WHERE
 select now() as before_query \gset
 select * from t_ao_part where c = 40;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 select now() as before_query \gset
 select * from t_ao_part where b = 0;
@@ -127,24 +187,29 @@ select * from show_log(:'before_query');
 -- One segment
 select now() as before_query \gset
 select * from t_ao_part where a = 0;
-select count(distinct gp_segment_id), string_agg(tbl, ',' order by tbl)
-  from show_log(:'before_query')
- where date_ok and user_ok;
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select count(distinct gp_segment_id),
+       string_agg(tbl, ',' order by tbl)
+from show_log(:'before_query')
+where date_ok and user_ok;
+
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 
--- Table without partitions
-create table t_ao(a int, b int)
+create table t_ao(a int, b int, c int)
+with (appendonly = true)
 distributed by (a);
 
 select now() as before_query \gset
 select * from t_ao;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 
 --
 -- AOCO table
+--
 
 -- Partitioned table
 create table t_aoco_part(a int, b int, c int)
@@ -152,20 +217,23 @@ with (appendonly = true, orientation = column)
 distributed by (a)
 partition by range (b)
   subpartition by range (c)
-    subpartition template (start (40) end (46) every (3))
+    subpartition template
+      (start (40) end (46) every (3))
 (start (0) end (4) every (2));
 
 -- All partitions
 select now() as before_query \gset
 select * from t_aoco_part;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 -- Read partitions selected by condition in WHERE
 select now() as before_query \gset
 select * from t_aoco_part where c = 40;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 select now() as before_query \gset
 select * from t_aoco_part where b = 0;
@@ -174,24 +242,170 @@ select * from show_log(:'before_query');
 -- One segment
 select now() as before_query \gset
 select * from t_aoco_part where a = 0;
-select count(distinct gp_segment_id), string_agg(tbl, ',' order by tbl)
-  from show_log(:'before_query')
- where date_ok and user_ok;
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select count(distinct gp_segment_id),
+       string_agg(tbl, ',' order by tbl)
+from show_log(:'before_query')
+where date_ok and user_ok;
+
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
 
 
--- Table without partitions
-create table t_aoco(a int, b int)
+create table t_aoco(a int, b int, c int)
+with (appendonly = true, orientation = column)
 distributed by (a);
 
 select now() as before_query \gset
 select * from t_aoco;
 select * from show_log(:'before_query');
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+
+-- Do not delete files here. A direct INSERT below can be dispatched to only
+-- one segment, while the external table requires the file on every segment.
+
+
+--
+-- Write operations
+--
+
+-- INSERT VALUES into heap. It can run on one segment only.
+select now() as before_query \gset
+insert into t_heap values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_heap') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+from show_write_log(:'before_query')
+where date_ok;
+
+
+-- INSERT SELECT into AO: t_heap is read, t_ao is written.
+select now() as before_query \gset
+insert into t_ao
+select * from t_heap;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+from access_log
+where logtime between
+      :'before_query'::timestamp with time zone
+      and now()
+  and loguser = current_user
+  and logsession =
+      'con' || current_setting('gp_session_id')
+  and tbl in ('public.t_heap', 'public.t_ao')
+group by operation, tbl
+order by operation, tbl;
+
+
+-- INSERT SELECT into AOCO: t_heap is read, t_aoco is written.
+select now() as before_query \gset
+insert into t_aoco
+select * from t_heap;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+from access_log
+where logtime between
+      :'before_query'::timestamp with time zone
+      and now()
+  and loguser = current_user
+  and logsession =
+      'con' || current_setting('gp_session_id')
+  and tbl in ('public.t_heap', 'public.t_aoco')
+group by operation, tbl
+order by operation, tbl;
+
+
+-- UPDATE heap: t_heap is read and written.
+select now() as before_query \gset
+update t_heap
+set b = b + 1;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+from access_log
+where logtime between
+      :'before_query'::timestamp with time zone
+      and now()
+  and loguser = current_user
+  and logsession =
+      'con' || current_setting('gp_session_id')
+  and tbl = 'public.t_heap'
+group by operation, tbl
+order by operation, tbl;
+
+
+-- DELETE heap: t_heap is read and written.
+select now() as before_query \gset
+delete from t_heap
+where a = 0;
+
+select operation,
+       tbl,
+       count(distinct gp_segment_id) as segments
+from access_log
+where logtime between
+      :'before_query'::timestamp with time zone
+      and now()
+  and loguser = current_user
+  and logsession =
+      'con' || current_setting('gp_session_id')
+  and tbl = 'public.t_heap'
+group by operation, tbl
+order by operation, tbl;
+
+
+-- Write into partitioned heap table.
+select now() as before_query \gset
+insert into t_heap_part values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_heap_part') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+from show_write_log(:'before_query')
+where date_ok;
+
+
+-- Write into partitioned AO table.
+select now() as before_query \gset
+insert into t_ao_part values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_ao_part') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+from show_write_log(:'before_query')
+where date_ok;
+
+
+-- Write into partitioned AOCO table.
+select now() as before_query \gset
+insert into t_aoco_part values (0, 0, 40);
+
+select count(*) > 0 as rows_logged,
+       bool_and(date_ok) as date_ok,
+       bool_and(user_ok) as user_ok,
+       bool_and(sess_ok) as sess_ok,
+       bool_and(tbl = 'public.t_aoco_part') as table_ok,
+       bool_and(operation = 'write') as operation_ok
+from show_write_log(:'before_query')
+where date_ok;
 
 
 --
 -- Check user name logging
+--
 
 -- start_ignore
 drop role if exists user1;
@@ -200,13 +414,16 @@ create role user1 login resource queue pg_default;
 grant select on t_ao_part to user1;
 grant select on t_aoco to user1;
 
-select '\! cp "' || setting || '/pg_hba.conf" "'  || setting || '/pg_hba.conf.backup"' as cp_backup
+select '\! cp "' || setting ||
+       '/pg_hba.conf" "' || setting ||
+       '/pg_hba.conf.backup"' as cp_backup
 from pg_settings
 where name = 'data_directory' \gset
 
 :cp_backup
 
-select '\! echo "local all user1 trust" >> ' || setting || '/pg_hba.conf' as add_user
+select '\! echo "local all user1 trust" >> ' ||
+       setting || '/pg_hba.conf' as add_user
 from pg_settings
 where name = 'data_directory' \gset
 
@@ -224,21 +441,39 @@ select * from t_aoco;
 
 \c - :"current_user"
 
-select gp_segment_id, loguser, tbl from access_log;
+select gp_segment_id, loguser, tbl
+from access_log
+where operation = 'read'
+  and loguser = 'user1';
+
 
 --
 -- Cleanup
+--
+
 drop function show_log(text);
+drop function show_write_log(text);
 drop external table access_log;
-drop table t_heap_part, t_heap, t_ao_part, t_ao, t_aoco_part, t_aoco;
+
+drop table t_heap_part,
+           t_heap,
+           t_ao_part,
+           t_ao,
+           t_aoco_part,
+           t_aoco;
+
 -- start_ignore
-select '\! cp "' || setting || '/pg_hba.conf.backup" "' || setting || '/pg_hba.conf"' as cp_restore
+select '\! cp "' || setting ||
+       '/pg_hba.conf.backup" "' || setting ||
+       '/pg_hba.conf"' as cp_restore
 from pg_settings
 where name = 'data_directory' \gset
 
 :cp_restore
 
-select pg_file_unlink('pg_log/access.log') from gp_dist_random('gp_id');
+select pg_file_unlink('pg_log/access.log')
+from gp_dist_random('gp_id');
+
 select pg_file_unlink('pg_log/access.log');
 
 \! gpconfig -r shared_preload_libraries
