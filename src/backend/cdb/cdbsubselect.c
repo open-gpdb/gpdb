@@ -17,6 +17,7 @@
 #include "access/htup_details.h"
 #include "access/skey.h"
 #include "catalog/pg_operator.h"
+#include "catalog/pg_proc.h"
 #include "catalog/pg_type.h"
 #include "nodes/makefuncs.h"
 #include "optimizer/clauses.h"
@@ -43,6 +44,10 @@ static JoinExpr *make_join_expr(Node *larg, int r_rtindex, int join_type);
 static Node *make_lasj_quals(PlannerInfo *root, SubLink *sublink, int subquery_indx);
 
 static Node *add_null_match_clause(Node *clause);
+static bool contains_count_agg_expr(Node *expr);
+static Expr *build_count_coalesce_expr(Var *aggVar, Expr *defaultExpr);
+static Expr *build_count_default_expr(Node *expr);
+static Node *replace_agg_with_empty_default_mutator(Node *node, void *context);
 
 typedef struct NonNullableVarsContext
 {
@@ -574,6 +579,7 @@ convert_EXPR_to_join(PlannerInfo *root, OpExpr *opexp)
 		 * targetlist.
 		 */
 		TargetEntry *origSubqueryTLE = (TargetEntry *) list_nth(subselect->targetList, 0);
+		bool		has_count_expr = contains_count_agg_expr((Node *) origSubqueryTLE->expr);
 
 		List	   *subselectTargetList = (List *) copyObject(ctx1.targetList);
 
@@ -624,12 +630,109 @@ convert_EXPR_to_join(PlannerInfo *root, OpExpr *opexp)
 											 exprCollation((Node *) subselectAggTLE->expr),
 											 0);
 
-		list_nth_replace(opexp->args, 1, aggVar);
+		if (has_count_expr)
+		{
+			/*
+			 * Expressions containing COUNT over no matching rows must evaluate
+			 * with COUNT=0 instead of NULL after pull-up. For non-COUNT
+			 * aggregates in the same expression, use NULL empty-input defaults.
+			 * Preserve semantics with LEFT JOIN + COALESCE(agg_expr, default_expr).
+			 */
+			Expr	   *defaultExpr = build_count_default_expr((Node *) origSubqueryTLE->expr);
+
+			join_expr->jointype = JOIN_LEFT;
+			list_nth_replace(opexp->args, 1, build_count_coalesce_expr(aggVar, defaultExpr));
+		}
+		else
+		{
+			list_nth_replace(opexp->args, 1, aggVar);
+		}
 
 		return join_expr;
 	}
 
 	return NULL;
+}
+
+static bool
+contains_count_agg_expr(Node *expr)
+{
+	if (expr == NULL)
+		return false;
+
+	if (IsA(expr, Aggref))
+	{
+		Aggref	   *aggref = (Aggref *) expr;
+		return aggref->aggfnoid == COUNT_ANY_OID ||
+			   aggref->aggfnoid == COUNT_STAR_OID;
+	}
+
+	return expression_tree_walker(expr,
+								  contains_count_agg_expr,
+								  NULL);
+}
+
+static Expr *
+build_count_coalesce_expr(Var *aggVar, Expr *defaultExpr)
+{
+	CoalesceExpr *coalesce;
+
+	Assert(aggVar != NULL);
+	Assert(defaultExpr != NULL);
+
+	coalesce = makeNode(CoalesceExpr);
+	coalesce->coalescetype = exprType((Node *) aggVar);
+	coalesce->coalescecollid = exprCollation((Node *) aggVar);
+	coalesce->args = list_make2(aggVar, defaultExpr);
+	coalesce->location = -1;
+
+	return (Expr *) coalesce;
+}
+
+static Expr *
+build_count_default_expr(Node *expr)
+{
+	Node	   *rewritten;
+
+	rewritten = replace_agg_with_empty_default_mutator(copyObject(expr), NULL);
+	return (Expr *) rewritten;
+}
+
+static Node *
+replace_agg_with_empty_default_mutator(Node *node, void *context)
+{
+	Aggref	   *aggref;
+	Oid			default_type;
+	Oid			default_collation;
+	int16		typlen;
+	bool		typbyval;
+
+	if (node == NULL)
+		return NULL;
+
+	if (IsA(node, Aggref))
+	{
+		aggref = (Aggref *) node;
+		if (aggref->aggfnoid == COUNT_ANY_OID ||
+			aggref->aggfnoid == COUNT_STAR_OID)
+		{
+			default_type = INT8OID;
+			default_collation = InvalidOid;
+		}
+		else
+		{
+			default_type = aggref->aggtype;
+			default_collation = exprCollation((Node *) aggref);
+		}
+
+		get_typlenbyval(default_type, &typlen, &typbyval);
+		return (Node *) makeConst(default_type, -1, default_collation, typlen,
+								  (default_type == INT8OID) ? Int64GetDatum(0) : (Datum) 0,
+								  (default_type != INT8OID), typbyval);
+	}
+
+	return expression_tree_mutator(node, replace_agg_with_empty_default_mutator,
+								   context);
 }
 
 /* NOTIN subquery transformation -start */
