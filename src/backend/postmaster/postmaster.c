@@ -4326,6 +4326,15 @@ PostmasterStateMachine(void)
 		shmem_exit(1);
 		reset_shared(PostPortNumber);
 
+		/*
+		 * POC: all backends are gone, so every temporary file is garbage.
+		 * Catalogless temp tables keep theirs across statements (interXact),
+		 * and a crashed QE never gets to delete them; without this they
+		 * would pile up until the next full restart.  (PostgreSQL 14 does
+		 * the same by default, see remove_temp_files_after_crash.)
+		 */
+		RemovePgTempFiles();
+
 		StartupPID = StartupDataBase();
 		Assert(StartupPID != 0);
 		StartupStatus = STARTUP_RUNNING;

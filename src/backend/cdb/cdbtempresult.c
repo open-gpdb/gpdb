@@ -24,6 +24,7 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/plancache.h"
+#include "utils/tuplestorenew.h"
 
 /*
  * GUC: defined here, registered in guc_gp.c.  Superuser-only kill-switch
@@ -37,6 +38,13 @@ bool		gp_enable_catalogless_temp = true;
 static HTAB *tempResultHash = NULL;
 static int32 tempResultIdCounter = 0;
 static bool tempResultXactCbRegistered = false;
+
+/*
+ * Reader-side NTupleStores currently open in this process.  A scan closes
+ * its reader in ExecEnd; whatever is left here (error paths) is closed at
+ * end of transaction.  (List cells live in TopMemoryContext.)
+ */
+static List *tempResultOpenReaders = NIL;
 
 static void TempResultXactCallback(XactEvent event, void *arg);
 static void TempResultEnsureHash(void);
@@ -244,6 +252,8 @@ TempResultRegister(const char *name, int32 vid, TupleDesc tupdesc,
 	entry->tupdesc = tupdesc_copy;
 	entry->policy = policy_copy;
 	entry->rowcount = 0;
+	entry->store = NULL;
+	entry->writeacc = NULL;
 
 	/* cached plans may have resolved this name to something else */
 	if (Gp_role != GP_ROLE_EXECUTE)
@@ -253,18 +263,26 @@ TempResultRegister(const char *name, int32 vid, TupleDesc tupdesc,
 }
 
 /*
- * Drop a single entry's resources.
+ * Drop a single entry's resources (the writer side also removes the files).
  */
 static void
 TempResultReleaseEntry(TempResultEntry *entry)
 {
+	NTupleStoreAccessor *writeacc = entry->writeacc;
+	NTupleStore *store = entry->store;
 	TupleDesc	tupdesc = entry->tupdesc;
 	GpPolicy   *policy = entry->policy;
 
 	/* forget the pointers first, so a failure below cannot free twice */
+	entry->writeacc = NULL;
+	entry->store = NULL;
 	entry->tupdesc = NULL;
 	entry->policy = NULL;
 
+	if (writeacc)
+		ntuplestore_destroy_accessor(writeacc);
+	if (store)
+		ntuplestore_destroy(store);
 	if (tupdesc)
 		FreeTupleDesc(tupdesc);
 	if (policy)
@@ -294,7 +312,55 @@ TempResultRemove(const char *name)
 }
 
 /*
- * End-of-transaction cleanup: drop all registered temp results.  POC scope: catalogless temp tables only live until
+ * Deterministic tuplestore name shared between the writing CTAS and later
+ * readers on the same segment.  Modeled on shareinput_create_bufname_prefix.
+ */
+char *
+TempResultStoreName(int32 vid)
+{
+	return psprintf("CTMPRES_%d_%d", gp_session_id, vid);
+}
+
+/*
+ * Open the local tuplestore of a catalogless temp table for reading.
+ * The caller closes it with TempResultCloseReader when the scan ends.
+ */
+struct NTupleStore *
+TempResultOpenReader(int32 vid)
+{
+	NTupleStore *store;
+	MemoryContext oldcxt;
+
+	TempResultEnsureHash();
+
+	/*
+	 * The files are interXact (the writer keeps them across statements),
+	 * so resource owners will not close them on error; track the store and
+	 * keep it out of the per-query context until it is closed.
+	 */
+	oldcxt = MemoryContextSwitchTo(TopMemoryContext);
+	store = ntuplestore_create_readerwriter_xact(TempResultStoreName(vid), 0,
+												 false /* reader */ );
+	tempResultOpenReaders = lappend(tempResultOpenReaders, store);
+	MemoryContextSwitchTo(oldcxt);
+
+	return store;
+}
+
+/*
+ * Close a reader store opened by TempResultOpenReader.  Readers never delete
+ * the files, only the writer does.
+ */
+void
+TempResultCloseReader(struct NTupleStore *store)
+{
+	tempResultOpenReaders = list_delete_ptr(tempResultOpenReaders, store);
+	ntuplestore_destroy(store);
+}
+
+/*
+ * End-of-transaction cleanup: drop all registered temp results and close
+ * all reader stores.  POC scope: catalogless temp tables only live until
  * the end of the top-level transaction.
  *
  * This runs at PRE_COMMIT / PRE_PREPARE rather than at COMMIT: there an
@@ -319,6 +385,9 @@ TempResultXactCallback(XactEvent event, void *arg)
 		default:
 			return;
 	}
+
+	while (tempResultOpenReaders != NIL)
+		TempResultCloseReader((NTupleStore *) linitial(tempResultOpenReaders));
 
 	had_entries = TempResultHasEntries();
 	if (had_entries)

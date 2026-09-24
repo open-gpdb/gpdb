@@ -31,6 +31,9 @@
 #include "catalog/gp_policy.h"
 #include "nodes/primnodes.h"
 
+struct NTupleStore;				/* avoid including tuplestorenew.h here */
+struct NTupleStoreAccessor;
+
 /* Upper bound on the number of live catalogless temp tables per session */
 #define TEMPRESULT_MAX_ENTRIES	1024
 
@@ -46,6 +49,14 @@ typedef struct TempResultEntry
 	TupleDesc	tupdesc;		/* result row descriptor */
 	GpPolicy   *policy;			/* distribution policy */
 	int64		rowcount;		/* QD: global row count; QE: local count */
+
+	/*
+	 * QE-writer side only: the tuplestore this segment wrote, kept open
+	 * until end of transaction so that later readers in the same session
+	 * find the file.
+	 */
+	struct NTupleStore *store;
+	struct NTupleStoreAccessor *writeacc;
 } TempResultEntry;
 
 /* GUC */
@@ -60,5 +71,10 @@ extern IntoClause *TempResultPrepareInto(IntoClause *into);
 extern TempResultEntry *TempResultRegister(const char *name, int32 vid,
 										   TupleDesc tupdesc, GpPolicy *policy);
 extern void TempResultRemove(const char *name);
+
+/* backing files: written by CTAS (createas.c), read by TempResultScan */
+extern char *TempResultStoreName(int32 vid);
+extern struct NTupleStore *TempResultOpenReader(int32 vid);
+extern void TempResultCloseReader(struct NTupleStore *store);
 
 #endif   /* CDBTEMPRESULT_H */

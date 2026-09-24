@@ -45,7 +45,9 @@
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/rel.h"
+#include "utils/memutils.h"
 #include "utils/snapmgr.h"
+#include "utils/tuplestorenew.h"
 
 #include "access/appendonlywriter.h"
 #include "catalog/aoseg.h"
@@ -656,7 +658,8 @@ intorel_initplan(struct QueryDesc *queryDesc, int eflags)
 
 	/*
 	 * POC: catalogless temp table.  Do not touch the catalog at all;
-	 * register the result in the session registry instead.
+	 * register the result in the session registry and (on the QEs) create
+	 * the backing tuplestore.
 	 */
 	if (into->isTempResult)
 	{
@@ -807,8 +810,9 @@ intorel_initplan(struct QueryDesc *queryDesc, int eflags)
  * tempresult_initplan --- POC counterpart of intorel_initplan for
  * catalogless temp tables.
  *
- * Registers the temp result in the session registry (both on QD and QEs).
- * The rows themselves are not stored yet: intorel_receive only counts them.
+ * Registers the temp result in the session registry (both on QD and QEs)
+ * and, on the QE writers, creates the backing NTupleStore that
+ * intorel_receive will fill.
  */
 static void
 tempresult_initplan(struct QueryDesc *queryDesc)
@@ -846,6 +850,26 @@ tempresult_initplan(struct QueryDesc *queryDesc)
 	tre = TempResultRegister(into->rel->relname, into->tempResultId,
 							 storedesc, queryDesc->plannedstmt->intoPolicy);
 
+	/*
+	 * Create the backing tuplestore on the QE writers (and in utility
+	 * mode).  On the QD there is nothing to store: the CTAS plan always
+	 * moves the rows to the segments according to intoPolicy.
+	 *
+	 * The store must live until the end of the transaction, so create it
+	 * in TopMemoryContext.
+	 */
+	if (Gp_role != GP_ROLE_DISPATCH)
+	{
+		MemoryContext oldcxt = MemoryContextSwitchTo(TopMemoryContext);
+
+		tre->store = ntuplestore_create_readerwriter_xact(
+			TempResultStoreName(into->tempResultId),
+			(int64) PlanStateOperatorMemKB((PlanState *) queryDesc->planstate) * 1024,
+			true /* writer */ );
+		tre->writeacc = ntuplestore_create_accessor(tre->store, true);
+		MemoryContextSwitchTo(oldcxt);
+	}
+
 	myState->rel = NULL;
 	myState->tempres = tre;
 }
@@ -859,9 +883,10 @@ intorel_receive(TupleTableSlot *slot, DestReceiver *self)
 	DR_intorel *myState = (DR_intorel *) self;
 	Relation    into_rel = myState->rel;
 
-	/* POC: catalogless temp table --- no storage yet, only count */
+	/* POC: catalogless temp table --- append to the local tuplestore */
 	if (myState->tempres)
 	{
+		ntuplestore_acc_put_tupleslot(myState->tempres->writeacc, slot);
 		myState->tempres->rowcount++;
 		return;
 	}
@@ -921,9 +946,11 @@ intorel_shutdown(DestReceiver *self)
 	DR_intorel *myState = (DR_intorel *) self;
 	Relation	into_rel = myState->rel;
 
-	/* POC: catalogless temp table */
+	/* POC: catalogless temp table --- flush, but keep the store open */
 	if (myState->tempres)
 	{
+		if (myState->tempres->store)
+			ntuplestore_flush(myState->tempres->store);
 		myState->tempres = NULL;
 		return;
 	}
