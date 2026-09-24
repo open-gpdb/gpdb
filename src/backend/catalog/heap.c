@@ -98,6 +98,7 @@
 
 #include "cdb/cdbpartition.h"
 #include "cdb/cdbsreh.h"
+#include "cdb/cdbtempresult.h"
 #include "cdb/cdbvars.h"
 
 #include "utils/guc.h"
@@ -1482,6 +1483,13 @@ heap_create_with_catalog(const char *relname,
 		ereport(ERROR,
 				(errcode(ERRCODE_DUPLICATE_TABLE),
 				 errmsg("relation \"%s\" already exists", relname)));
+
+	/* POC: catalogless temp tables share the pg_temp name space */
+	if (isTempNamespace(relnamespace) && TempResultLookup(relname) != NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_DUPLICATE_TABLE),
+				 errmsg("relation \"%s\" already exists", relname),
+				 errdetail("\"%s\" is a catalogless temp table.", relname)));
 
 	/*
 	 * Since we are going to create a rowtype as well, also check for

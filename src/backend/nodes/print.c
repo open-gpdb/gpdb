@@ -285,6 +285,10 @@ print_rt(const List *rtable)
 				printf("%d\t%s\t[values list]",
 					   i, name);
 				break;
+			case RTE_TEMPRESULT:
+				printf("%d\t%s\t[temp result]",
+					   i, name);
+				break;
 			case RTE_CTE:
 				printf("%d\t%s\t[cte]",
 					   i, name);
@@ -534,6 +538,8 @@ plannode_type(Plan *p)
 			return "FUNCTIONSCAN";
 		case T_ValuesScan:
 			return "VALUESSCAN";
+		case T_TempResultScan:
+			return "TEMPRESULTSCAN";
 		case T_Join:
 			return "JOIN";
 		case T_NestLoop:

@@ -791,6 +791,21 @@ _outValuesScan(StringInfo str, const ValuesScan *node)
 }
 
 static void
+_outTempResultScan(StringInfo str, const TempResultScan *node)
+{
+	WRITE_NODE_TYPE("TEMPRESULTSCAN");
+
+	_outScanInfo(str, (const Scan *) node);
+
+	WRITE_STRING_FIELD(tsname);
+	WRITE_INT_FIELD(tempresid);
+	WRITE_NODE_FIELD(coltypes);
+	WRITE_NODE_FIELD(coltypmods);
+	WRITE_NODE_FIELD(colcollations);
+	WRITE_NODE_FIELD(colnames);
+}
+
+static void
 _outCteScan(StringInfo str, const CteScan *node)
 {
 	WRITE_NODE_TYPE("CTESCAN");
@@ -1337,6 +1352,8 @@ _outIntoClause(StringInfo str, const IntoClause *node)
 	WRITE_NODE_FIELD(viewQuery);
 	WRITE_BOOL_FIELD(skipData);
 	WRITE_NODE_FIELD(distributedBy);
+	WRITE_BOOL_FIELD(isTempResult);
+	WRITE_INT_FIELD(tempResultId);
 }
 
 static void
@@ -4008,6 +4025,13 @@ _outRangeTblEntry(StringInfo str, const RangeTblEntry *node)
 			WRITE_NODE_FIELD(ctecoltypmods);
 			WRITE_NODE_FIELD(ctecolcollations);
 			break;
+		case RTE_TEMPRESULT:
+			WRITE_STRING_FIELD(ctename);
+			WRITE_NODE_FIELD(ctecoltypes);
+			WRITE_NODE_FIELD(ctecoltypmods);
+			WRITE_NODE_FIELD(ctecolcollations);
+			WRITE_INT_FIELD(tempresid);
+			break;
         case RTE_VOID:                                                  /*CDB*/
             break;
 		default:
@@ -4800,6 +4824,9 @@ _outNode(StringInfo str, const void *obj)
 				break;
 			case T_ValuesScan:
 				_outValuesScan(str, obj);
+				break;
+			case T_TempResultScan:
+				_outTempResultScan(str, obj);
 				break;
 			case T_CteScan:
 				_outCteScan(str, obj);

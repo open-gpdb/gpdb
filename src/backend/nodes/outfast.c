@@ -1371,6 +1371,9 @@ _outNode(StringInfo str, void *obj)
 			case T_ValuesScan:
 				_outValuesScan(str, obj);
 				break;
+			case T_TempResultScan:
+				_outTempResultScan(str, obj);
+				break;
 			case T_Join:
 				_outJoin(str, obj);
 				break;

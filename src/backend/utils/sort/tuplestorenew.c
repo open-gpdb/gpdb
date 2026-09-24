@@ -788,6 +788,53 @@ ntuplestore_create_readerwriter(const char *filename, int64 maxBytes, bool isWri
 }
 
 /*
+ * ntuplestore_create_readerwriter_xact
+ *
+ * POC (catalogless temp tables): same as ntuplestore_create_readerwriter,
+ * but the underlying files are created with interXact = true and without
+ * workfile-manager tracking, so that the store survives across statements
+ * within the same transaction.  The caller owns the lifecycle and must
+ * destroy the store (at end of transaction) explicitly.
+ */
+NTupleStore *
+ntuplestore_create_readerwriter_xact(const char *filename, int64 maxBytes, bool isWriter)
+{
+	NTupleStore *store = NULL;
+	char		filenamelob[MAXPGPATH];
+
+	snprintf(filenamelob, sizeof(filenamelob), "%s_LOB", filename);
+
+	if (isWriter)
+	{
+		store = ntuplestore_create_common(maxBytes, "TempResultStore");
+		store->rwflag = NTS_IS_WRITER;
+		store->lobbytes = 0;
+		store->work_set = NULL;
+		store->pfile = BufFileCreateNamedTemp(filename,
+											  true /* interXact */,
+											  NULL /* no workfile set */);
+		store->plobfile = BufFileCreateNamedTemp(filenamelob,
+												 true /* interXact */,
+												 NULL /* no workfile set */);
+	}
+	else
+	{
+		store = (NTupleStore *) palloc(sizeof(NTupleStore));
+		store->mcxt = CurrentMemoryContext;
+		store->work_set = NULL;
+
+		store->pfile = BufFileOpenNamedTemp(filename,
+											true /* interXact */);
+
+		store->plobfile = BufFileOpenNamedTemp(filenamelob,
+											   true /* interXact */);
+
+		ntuplestore_init_reader(store, maxBytes);
+	}
+	return store;
+}
+
+/*
  * Initializes a ntuplestore based on existing files.
  *
  * spill_filename and spill_lob_filename are required to have pgsql_tmp/ part of the name
