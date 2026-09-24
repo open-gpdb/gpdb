@@ -467,6 +467,15 @@ ExplainOneUtility(Node *utilityStmt, IntoClause *into, ExplainState *es,
 		CreateTableAsStmt *ctas = (CreateTableAsStmt *) utilityStmt;
 		List	   *rewritten;
 
+		/*
+		 * POC: EXPLAIN ANALYZE would have to register the catalogless temp
+		 * table the same way ExecCreateTableAs does; not implemented.
+		 */
+		if (ctas->into->isTempResult && es->analyze)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("catalogless temp tables: EXPLAIN ANALYZE of CREATE TABLE AS is not implemented in this POC")));
+
 		Assert(IsA(ctas->query, Query));
 		rewritten = QueryRewrite((Query *) copyObject(ctas->query));
 		Assert(list_length(rewritten) == 1);

@@ -3316,6 +3316,79 @@ transformExplainStmt(ParseState *pstate, ExplainStmt *stmt)
 
 
 /*
+ * transformCataloglessOption -
+ *	POC: recognize the WITH (catalogless[=bool]) option of CREATE TABLE AS.
+ *
+ * The option is removed from into->options (so that reloption validation
+ * never sees it) and recorded in into->isTempResult.  This runs during parse
+ * analysis, which always works on a fresh copy of the raw parse tree, so the
+ * cached statement of a plpgsql function or an EXPLAIN sees exactly the same
+ * IntoClause as a plain CTAS.  Only syntactic restrictions are checked here;
+ * the kill-switch GUC is checked at execution time.
+ */
+static void
+transformCataloglessOption(CreateTableAsStmt *stmt)
+{
+	IntoClause *into = stmt->into;
+	List	   *options = NIL;
+	DefElem    *found = NULL;
+	ListCell   *lc;
+
+	foreach(lc, into->options)
+	{
+		DefElem    *def = (DefElem *) lfirst(lc);
+
+		if (IsA(def, DefElem) &&
+			def->defnamespace == NULL &&
+			pg_strcasecmp(def->defname, "catalogless") == 0)
+		{
+			if (found != NULL)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("conflicting or redundant options")));
+			found = def;
+		}
+		else
+			options = lappend(options, def);
+	}
+
+	if (found == NULL)
+		return;
+
+	into->options = options;
+	into->isTempResult = defGetBoolean(found);
+	if (!into->isTempResult)
+		return;
+
+	if (stmt->relkind == OBJECT_MATVIEW)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("catalogless is not supported for materialized views")));
+	if (into->rel->relpersistence != RELPERSISTENCE_TEMP)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("catalogless requires TEMP"),
+				 errhint("Use CREATE TEMP TABLE ... WITH (catalogless) AS ...")));
+	if (into->rel->schemaname != NULL &&
+		strcmp(into->rel->schemaname, "pg_temp") != 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_TABLE_DEFINITION),
+				 errmsg("catalogless temp tables cannot be created in a named schema")));
+	if (into->skipData)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("catalogless temp tables: WITH NO DATA is not implemented in this POC")));
+	if (into->onCommit != ONCOMMIT_NOOP)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("catalogless temp tables: ON COMMIT clauses are not implemented in this POC")));
+	if (IsA(stmt->query, ExecuteStmt))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("catalogless temp tables: CREATE TABLE AS EXECUTE is not implemented in this POC")));
+}
+
+/*
  * transformCreateTableAsStmt -
  *	transform a CREATE TABLE AS, SELECT ... INTO, or CREATE MATERIALIZED VIEW
  *	Statement
@@ -3327,6 +3400,9 @@ transformCreateTableAsStmt(ParseState *pstate, CreateTableAsStmt *stmt)
 {
 	Query	   *result;
 	Query	   *query;
+
+	/* POC: catalogless temp tables */
+	transformCataloglessOption(stmt);
 
 	/* transform contained query */
 	query = transformStmt(pstate, stmt->query);

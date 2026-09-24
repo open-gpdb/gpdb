@@ -1488,6 +1488,8 @@ _copyIntoClause(const IntoClause *from)
 	COPY_NODE_FIELD(viewQuery);
 	COPY_SCALAR_FIELD(skipData);
 	COPY_NODE_FIELD(distributedBy);
+	COPY_SCALAR_FIELD(isTempResult);
+	COPY_SCALAR_FIELD(tempResultId);
 
 	return newnode;
 }

@@ -56,6 +56,7 @@
 #include "cdb/cdbappendonlyam.h"
 #include "cdb/cdbaocsam.h"
 #include "cdb/cdbdisp_query.h"
+#include "cdb/cdbtempresult.h"
 #include "cdb/cdbutil.h"
 #include "cdb/cdbvars.h"
 #include "cdb/memquota.h"
@@ -369,6 +370,22 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 	AutoStatsCmdType cmdType = AUTOSTATS_CMDTYPE_SENTINEL;  /* command type */
 
 	Assert(Gp_role != GP_ROLE_EXECUTE);
+
+	/*
+	 * POC: catalogless temp table.  The WITH (catalogless) option was
+	 * recognized during parse analysis; only the kill-switch exists so far.
+	 */
+	if (into->isTempResult)
+	{
+		if (!gp_enable_catalogless_temp)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("catalogless temp tables are disabled"),
+					 errhint("A superuser can enable them with gp_enable_catalogless_temp.")));
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("catalogless temp tables are not implemented yet")));
+	}
 
 	/*
 	 * Create the tuple receiver object and insert info it will need

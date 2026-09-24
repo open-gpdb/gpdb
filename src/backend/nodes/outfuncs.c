@@ -1337,6 +1337,8 @@ _outIntoClause(StringInfo str, const IntoClause *node)
 	WRITE_NODE_FIELD(viewQuery);
 	WRITE_BOOL_FIELD(skipData);
 	WRITE_NODE_FIELD(distributedBy);
+	WRITE_BOOL_FIELD(isTempResult);
+	WRITE_INT_FIELD(tempResultId);
 }
 
 static void
