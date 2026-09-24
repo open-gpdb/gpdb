@@ -148,6 +148,7 @@ typedef enum NodeTag
 	T_FunctionScanState,
 	T_TableFunctionState,
 	T_ValuesScanState,
+	T_TempResultScanState,
 	T_CteScanState,
 	T_WorkTableScanState,
 	T_ForeignScanState,
