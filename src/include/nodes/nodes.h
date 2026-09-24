@@ -83,6 +83,7 @@ typedef enum NodeTag
 	T_FunctionScan,
 	T_TableFunctionScan,
 	T_ValuesScan,
+	T_TempResultScan,
 	T_CteScan,
 	T_WorkTableScan,
 	T_ForeignScan,

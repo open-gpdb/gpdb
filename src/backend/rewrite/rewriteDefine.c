@@ -31,6 +31,7 @@
 #include "catalog/storage.h"
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
+#include "parser/parse_relation.h"
 #include "parser/parse_utilcmd.h"
 #include "rewrite/rewriteDefine.h"
 #include "rewrite/rewriteManip.h"
@@ -270,6 +271,20 @@ DefineQueryRewrite(char *rulename,
 	bool		RelisBecomingView = false;
 	Oid			ruleId = InvalidOid;
 	ObjectAddress address;
+
+	/*
+	 * POC: a rule (and hence a view or materialized view) must not reference
+	 * a catalogless temp table.  It has no OID to record a dependency on, so
+	 * the stored rule would outlive the table and could later bind to a
+	 * different table of the same name.
+	 */
+	foreach(l, action)
+	{
+		if (isQueryUsingTempResult((Query *) lfirst(l)))
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("views and rules cannot reference catalogless temp tables")));
+	}
 
 	/*
 	 * If we are installing an ON SELECT rule, we had better grab

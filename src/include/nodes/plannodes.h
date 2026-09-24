@@ -778,6 +778,28 @@ typedef struct ValuesScan
 } ValuesScan;
 
 /* ----------------
+ *		TempResultScan node
+ *
+ * POC: scan of a "catalogless" temp table (CREATE TEMP TABLE ... AS with
+ * gp_enable_catalogless_temp).  The data lives in a segment-local
+ * NTupleStore; tsname/tempresid identify the session-registry entry and
+ * the tuplestore file.  Column type info is carried in the plan so that
+ * every process can reconstruct the scan tuple descriptor without any
+ * catalog access.
+ * ----------------
+ */
+typedef struct TempResultScan
+{
+	Scan		scan;
+	char	   *tsname;			/* registry name of the temp result */
+	int			tempresid;		/* per-session virtual id */
+	List	   *coltypes;		/* OID list of column type OIDs */
+	List	   *coltypmods;		/* integer list of column typmods */
+	List	   *colcollations;	/* OID list of column collation OIDs */
+	List	   *colnames;		/* list of String */
+} TempResultScan;
+
+/* ----------------
  *		CteScan node
  * ----------------
  */

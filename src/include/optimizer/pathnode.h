@@ -97,6 +97,8 @@ extern Path *create_functionscan_path(PlannerInfo *root, RelOptInfo *rel,
 extern Path *create_tablefunction_path(PlannerInfo *root, RelOptInfo *rel,
 						 RangeTblEntry *rte,
 						 Relids required_outer);
+extern Path *create_tempresultscan_path(PlannerInfo *root, RelOptInfo *rel,
+						   RangeTblEntry *rte, Relids required_outer);
 extern Path *create_valuesscan_path(PlannerInfo *root, RelOptInfo *rel,
 					   RangeTblEntry *rte,
 					   Relids required_outer);

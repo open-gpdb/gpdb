@@ -2253,6 +2253,22 @@ _readRangeTblEntry(void)
 			READ_NODE_FIELD(ctecoltypmods);
 			READ_NODE_FIELD(ctecolcollations);
 			break;
+		case RTE_TEMPRESULT:
+#ifndef COMPILING_BINARY_FUNCS
+			/*
+			 * The text format is what the catalog stores (pg_rewrite etc.).
+			 * A catalogless temp table must never be referenced from there:
+			 * it would outlive the table and could later bind to a different
+			 * table of the same name.
+			 */
+			elog(ERROR, "cannot read a reference to a catalogless temp table");
+#endif
+			READ_STRING_FIELD(ctename);
+			READ_NODE_FIELD(ctecoltypes);
+			READ_NODE_FIELD(ctecoltypmods);
+			READ_NODE_FIELD(ctecolcollations);
+			READ_INT_FIELD(tempresid);
+			break;
         case RTE_VOID:                                                  /*CDB*/
             break;
 		default:
