@@ -4,6 +4,7 @@
 
 #include "catalog/pg_namespace.h"
 #include "cdb/cdbvars.h"
+#include "executor/executor.h"
 #include "executor/nodeSeqscan.h"
 #include "libpq/auth.h"
 #include "utils/syscache.h"
@@ -17,6 +18,7 @@ void _PG_init(void);
 
 
 static init_scan_hook_type next_init_scan_hook = NULL;
+static ExecutorStart_hook_type next_ExecutorStart_hook = NULL;
 
 static void
 write_to_log(const char* str)
@@ -40,7 +42,7 @@ write_to_log(const char* str)
 }
 
 static void
-access_log_init_scan_hook(Relation currentRelation)
+build_and_write_log(Relation currentRelation, const char *operation)
 {
 	char		buf[512];
 	HeapTuple	tp;
@@ -75,12 +77,56 @@ access_log_init_scan_hook(Relation currentRelation)
 	}
 
 	strlcat(buf, NameStr(currentRelation->rd_rel->relname), sizeof(buf));
+	strlcat(buf, ",", sizeof(buf));
+	strlcat(buf, operation, sizeof(buf));
 	strlcat(buf, "\n", sizeof(buf));
 
 	write_to_log(buf);
+}
+
+static void
+access_log_init_scan_hook(Relation currentRelation)
+{
+	build_and_write_log(currentRelation, "read");
 
 	if (next_init_scan_hook)
 		next_init_scan_hook(currentRelation);
+}
+
+static void
+access_log_ExecutorStart(QueryDesc *queryDesc, int eflags)
+{
+	EState		   *estate;
+	ResultRelInfo  *resultRelInfo;
+	Relation		currentRelation;
+
+	if (next_ExecutorStart_hook)
+		next_ExecutorStart_hook(queryDesc, eflags);
+	else
+		standard_ExecutorStart(queryDesc, eflags);
+
+	if (eflags & EXEC_FLAG_EXPLAIN_ONLY)
+		return;
+
+	if (queryDesc->operation != CMD_INSERT &&
+		queryDesc->operation != CMD_UPDATE &&
+		queryDesc->operation != CMD_DELETE)
+		return;
+
+	estate = queryDesc->estate;
+	resultRelInfo = estate->es_result_relations;
+
+	if (resultRelInfo == NULL || estate->es_num_result_relations <= 0)
+		return;
+
+	currentRelation = resultRelInfo[0].ri_RelationDesc;
+
+	if (currentRelation == NULL ||
+		currentRelation->rd_rel == NULL ||
+		currentRelation->rd_rel->relkind != RELKIND_RELATION)
+		return;
+
+	build_and_write_log(currentRelation, "write");
 }
 
 void
@@ -94,6 +140,9 @@ _PG_init(void)
 
 	next_init_scan_hook = init_scan_hook;
 	init_scan_hook = access_log_init_scan_hook;
+
+	next_ExecutorStart_hook = ExecutorStart_hook;
+	ExecutorStart_hook = access_log_ExecutorStart;
 
 	inited = true;
 }
