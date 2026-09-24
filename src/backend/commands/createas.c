@@ -78,6 +78,9 @@ typedef struct
 
 	struct AppendOnlyInsertDescData *ao_insertDesc; /* descriptor to AO tables */
 	struct AOCSInsertDescData *aocs_insertDes;      /* descriptor for aocs */
+
+	/* POC: non-NULL if writing into a catalogless temp result instead */
+	struct TempResultEntry *tempres;
 } DR_intorel;
 
 static void intorel_startup_dummy(DestReceiver *self, int operation, TupleDesc typeinfo);
@@ -89,6 +92,7 @@ static ObjectAddress	create_ctas_nodata(List *tlist, IntoClause *into, QueryDesc
 static ObjectAddress CreateAsReladdr = {InvalidOid, InvalidOid, 0};
 
 static void intorel_receive(TupleTableSlot *slot, DestReceiver *self);
+static void tempresult_initplan(struct QueryDesc *queryDesc);
 static void intorel_shutdown(DestReceiver *self);
 static void intorel_destroy(DestReceiver *self);
 
@@ -373,19 +377,13 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 
 	/*
 	 * POC: catalogless temp table.  The WITH (catalogless) option was
-	 * recognized during parse analysis; only the kill-switch exists so far.
+	 * already recognized during parse analysis; here, at execution time,
+	 * check the kill-switch and name conflicts, and assign the virtual id.
+	 * The id goes into a private copy of the IntoClause: the statement
+	 * itself may be a cached plan that is executed again later.
 	 */
 	if (into->isTempResult)
-	{
-		if (!gp_enable_catalogless_temp)
-			ereport(ERROR,
-					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-					 errmsg("catalogless temp tables are disabled"),
-					 errhint("A superuser can enable them with gp_enable_catalogless_temp.")));
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("catalogless temp tables are not implemented yet")));
-	}
+		into = TempResultPrepareInto(into);
 
 	/*
 	 * Create the tuple receiver object and insert info it will need
@@ -453,7 +451,7 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 	 * GPDB_92_MERGE_FIXME: it really should be an optimizer's responsibility
 	 * to correctly set the into-clause and into-policy of the PlannedStmt.
 	 */
-	plan->intoClause = copyObject(stmt->into);
+	plan->intoClause = copyObject(into);
 
 	/*
 	 * Use a snapshot with an updated command ID to ensure this query sees
@@ -502,7 +500,7 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 		/* call ExecutorStart to prepare the plan for execution */
 		ExecutorStart(queryDesc, GetIntoRelEFlags(into));
 
-		if (Gp_role == GP_ROLE_DISPATCH)
+		if (Gp_role == GP_ROLE_DISPATCH && !into->isTempResult)
 			autostats_get_cmdtype(queryDesc, &cmdType, &relationOid);
 
 		/* run the plan to completion */
@@ -517,8 +515,20 @@ ExecCreateTableAs(CreateTableAsStmt *stmt, const char *queryString,
 			queryDesc->es_processed /= ((DistributedBy *)(into->distributedBy))->numsegments;
 
 		/* MPP-14001: Running auto_stats */
-		if (Gp_role == GP_ROLE_DISPATCH)
+		if (Gp_role == GP_ROLE_DISPATCH && !into->isTempResult)
 			auto_stats(cmdType, relationOid, queryDesc->es_processed, already_under_executor_run());
+
+		/*
+		 * POC: remember the global row count of the catalogless temp table
+		 * on the QD; the planner uses it for costing later reads.
+		 */
+		if (into->isTempResult)
+		{
+			TempResultEntry *tre = TempResultLookupId(into->rel->relname,
+													  into->tempResultId);
+
+			tre->rowcount = queryDesc->es_processed;
+		}
 
 		/* save the rowcount if we're given a completionTag to fill */
 		if (completionTag)
@@ -643,6 +653,18 @@ intorel_initplan(struct QueryDesc *queryDesc, int eflags)
 	if ((eflags & EXEC_FLAG_EXPLAIN_ONLY) ||
 		(Gp_role == GP_ROLE_EXECUTE && !Gp_is_writer))
 		return;
+
+	/*
+	 * POC: catalogless temp table.  Do not touch the catalog at all;
+	 * register the result in the session registry instead.
+	 */
+	if (into->isTempResult)
+	{
+		if (queryDesc->dest->mydest != DestIntoRel)
+			queryDesc->dest = CreateIntoRelDestReceiver(into);
+		tempresult_initplan(queryDesc);
+		return;
+	}
 
 	/* This code supports both CREATE TABLE AS and CREATE MATERIALIZED VIEW */
 	is_matview = (into->viewQuery != NULL);
@@ -782,6 +804,53 @@ intorel_initplan(struct QueryDesc *queryDesc, int eflags)
 }
 
 /*
+ * tempresult_initplan --- POC counterpart of intorel_initplan for
+ * catalogless temp tables.
+ *
+ * Registers the temp result in the session registry (both on QD and QEs).
+ * The rows themselves are not stored yet: intorel_receive only counts them.
+ */
+static void
+tempresult_initplan(struct QueryDesc *queryDesc)
+{
+	DR_intorel *myState = (DR_intorel *) queryDesc->dest;
+	IntoClause *into = queryDesc->plannedstmt->intoClause;
+	TupleDesc	typeinfo = queryDesc->tupDesc;
+	TupleDesc	storedesc;
+	TempResultEntry *tre;
+	ListCell   *lc;
+	int			attnum;
+
+	Assert(into != NULL && into->isTempResult);
+
+	/*
+	 * Build the stored tuple descriptor: same as the query output, but
+	 * with the CREATE TABLE AS column names applied, if any.
+	 */
+	storedesc = CreateTupleDescCopy(typeinfo);
+	lc = list_head(into->colNames);
+	for (attnum = 0; attnum < storedesc->natts; attnum++)
+	{
+		if (lc)
+		{
+			namestrcpy(&(storedesc->attrs[attnum]->attname),
+					   strVal(lfirst(lc)));
+			lc = lnext(lc);
+		}
+	}
+	if (lc != NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_SYNTAX_ERROR),
+				 errmsg("too many column names were specified")));
+
+	tre = TempResultRegister(into->rel->relname, into->tempResultId,
+							 storedesc, queryDesc->plannedstmt->intoPolicy);
+
+	myState->rel = NULL;
+	myState->tempres = tre;
+}
+
+/*
  * intorel_receive --- receive one tuple
  */
 static void
@@ -789,6 +858,13 @@ intorel_receive(TupleTableSlot *slot, DestReceiver *self)
 {
 	DR_intorel *myState = (DR_intorel *) self;
 	Relation    into_rel = myState->rel;
+
+	/* POC: catalogless temp table --- no storage yet, only count */
+	if (myState->tempres)
+	{
+		myState->tempres->rowcount++;
+		return;
+	}
 
 	if (RelationIsAoRows(into_rel))
 	{
@@ -844,6 +920,13 @@ intorel_shutdown(DestReceiver *self)
 {
 	DR_intorel *myState = (DR_intorel *) self;
 	Relation	into_rel = myState->rel;
+
+	/* POC: catalogless temp table */
+	if (myState->tempres)
+	{
+		myState->tempres = NULL;
+		return;
+	}
 
 	if (into_rel == NULL)
 		return;
