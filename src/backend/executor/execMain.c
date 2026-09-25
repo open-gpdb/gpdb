@@ -2981,7 +2981,7 @@ SendAOTupCounts(EState *estate)
 		return;
 
 	resultRelInfo = estate->es_result_relations;
-	for (i = 0; i < estate->es_num_result_relations; i++)
+	for (i = 0; i < 1; i++)
 	{
 		resultRelInfo = &estate->es_result_relations[i];
 
