@@ -27,6 +27,11 @@ public:
 		return enable_analyze_;
 	}
 	bool
+	enable_json_plan() const
+	{
+		return enable_json_plan_;
+	}
+	bool
 	enable_cdbstats() const
 	{
 		return enable_cdbstats_;
@@ -74,6 +79,7 @@ private:
 	std::unique_ptr<IgnoredUsers> ignored_users_;
 	std::string uds_path_;
 	bool enable_analyze_;
+	bool enable_json_plan_;
 	bool enable_cdbstats_;
 	bool enable_collector_;
 	bool enable_utility_;
