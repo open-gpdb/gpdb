@@ -109,10 +109,12 @@ typedef struct ExtensionVersionInfo
 static List *find_update_path(List *evi_list,
 				 ExtensionVersionInfo *evi_start,
 				 ExtensionVersionInfo *evi_target,
+				 bool reject_indirect,
 				 bool reinitialize);
 static void get_available_versions_for_extension(ExtensionControlFile *pcontrol,
 									 Tuplestorestate *tupstore,
 									 TupleDesc tupdesc);
+static Datum convert_requires_to_datum(List *requires);
 static void ApplyExtensionUpdates(Oid extensionOid,
 					  ExtensionControlFile *pcontrol,
 					  const char *initialVersion,
@@ -1239,7 +1241,7 @@ identify_update_path(ExtensionControlFile *control,
 	evi_target = get_ext_ver_info(newVersion, &evi_list);
 
 	/* Find shortest path */
-	result = find_update_path(evi_list, evi_start, evi_target, false);
+	result = find_update_path(evi_list, evi_start, evi_target, false, false);
 
 	if (result == NIL)
 		ereport(ERROR,
@@ -1254,9 +1256,13 @@ identify_update_path(ExtensionControlFile *control,
  * Apply Dijkstra's algorithm to find the shortest path from evi_start to
  * evi_target.
  *
+ * If reject_indirect is true, ignore paths that go through installable
+ * versions.  This saves work when the caller will consider starting from
+ * all installable versions anyway.
+ *
  * If reinitialize is false, assume the ExtensionVersionInfo list has not
  * been used for this before, and the initialization done by get_ext_ver_info
- * is still good.
+ * is still good.  Otherwise, reinitialize all transient fields used here.
  *
  * Result is a List of names of versions to transition through (the initial
  * version is *not* included).  Returns NIL if no such path.
@@ -1265,6 +1271,7 @@ static List *
 find_update_path(List *evi_list,
 				 ExtensionVersionInfo *evi_start,
 				 ExtensionVersionInfo *evi_target,
+				 bool reject_indirect,
 				 bool reinitialize)
 {
 	List	   *result;
@@ -1273,6 +1280,8 @@ find_update_path(List *evi_list,
 
 	/* Caller error if start == target */
 	Assert(evi_start != evi_target);
+	/* Caller error if reject_indirect and target is installable */
+	Assert(!(reject_indirect && evi_target->installable));
 
 	if (reinitialize)
 	{
@@ -1299,6 +1308,9 @@ find_update_path(List *evi_list,
 			ExtensionVersionInfo *evi2 = (ExtensionVersionInfo *) lfirst(lc);
 			int			newdist;
 
+			/* if reject_indirect, treat installable versions as unreachable */
+			if (reject_indirect && evi2->installable)
+				continue;
 			newdist = evi->distance + 1;
 			if (newdist < evi2->distance)
 			{
@@ -1335,18 +1347,77 @@ find_update_path(List *evi_list,
 }
 
 /*
- * CREATE EXTENSION
+ * Given a target version that is not directly installable, find the
+ * best installation sequence starting from a directly-installable version.
+ *
+ * evi_list: previously-collected version update graph
+ * evi_target: member of that list that we want to reach
+ *
+ * Returns the best starting-point version, or NULL if there is none.
+ * On success, *best_path is set to the path from the start point.
+ *
+ * If there's more than one possible start point, prefer shorter update paths,
+ * and break any ties arbitrarily on the basis of strcmp'ing the starting
+ * versions' names.
  */
-ObjectAddress
-CreateExtension(CreateExtensionStmt *stmt)
+static ExtensionVersionInfo *
+find_install_path(List *evi_list, ExtensionVersionInfo *evi_target,
+				  List **best_path)
 {
-	DefElem    *d_schema = NULL;
-	DefElem    *d_new_version = NULL;
-	DefElem    *d_old_version = NULL;
-	char	   *schemaName;
-	Oid			schemaOid;
-	char	   *versionName;
-	char	   *oldVersionName;
+	ExtensionVersionInfo *evi_start = NULL;
+	ListCell   *lc;
+
+	*best_path = NIL;
+
+	/*
+	 * We don't expect to be called for an installable target, but if we are,
+	 * the answer is easy: just start from there, with an empty update path.
+	 */
+	if (evi_target->installable)
+		return evi_target;
+
+	/* Consider all installable versions as start points */
+	foreach(lc, evi_list)
+	{
+		ExtensionVersionInfo *evi1 = (ExtensionVersionInfo *) lfirst(lc);
+		List	   *path;
+
+		if (!evi1->installable)
+			continue;
+
+		/*
+		 * Find shortest path from evi1 to evi_target; but no need to consider
+		 * paths going through other installable versions.
+		 */
+		path = find_update_path(evi_list, evi1, evi_target, true, true);
+		if (path == NIL)
+			continue;
+
+		/* Remember best path */
+		if (evi_start == NULL ||
+			list_length(path) < list_length(*best_path) ||
+			(list_length(path) == list_length(*best_path) &&
+			 strcmp(evi_start->name, evi1->name) < 0))
+		{
+			evi_start = evi1;
+			*best_path = path;
+		}
+	}
+
+	return evi_start;
+}
+
+/*
+ * CREATE EXTENSION worker
+ */
+static ObjectAddress
+CreateExtensionInternal(char *extensionName,
+						char *schemaName,
+						char *versionName,
+						char *oldVersionName)
+{
+	CreateExtensionStmt *stmt = NULL;
+	Oid			schemaOid = InvalidOid;
 	Oid			extowner = GetUserId();
 	ExtensionControlFile *pcontrol;
 	ExtensionControlFile *control;
@@ -1354,134 +1425,43 @@ CreateExtension(CreateExtensionStmt *stmt)
 	List	   *requiredExtensions;
 	List	   *requiredSchemas;
 	Oid			extensionOid;
-	ListCell   *lc;
 	ObjectAddress address;
-
-	/* Check extension name validity before any filesystem access */
-	check_valid_extension_name(stmt->extname);
-
-	/*
-	 * Check for duplicate extension name.  The unique index on
-	 * pg_extension.extname would catch this anyway, and serves as a backstop
-	 * in case of race conditions; but this is a friendlier error message, and
-	 * besides we need a check to support IF NOT EXISTS.
-	 */
-	if (stmt->create_ext_state != CREATE_EXTENSION_END &&
-			get_extension_oid(stmt->extname, true) != InvalidOid)
-	{
-		if (stmt->if_not_exists)
-		{
-			ereport(NOTICE,
-					(errcode(ERRCODE_DUPLICATE_OBJECT),
-					 errmsg("extension \"%s\" already exists, skipping",
-							stmt->extname)));
-			return InvalidObjectAddress;
-		}
-		else
-			ereport(ERROR,
-					(errcode(ERRCODE_DUPLICATE_OBJECT),
-					 errmsg("extension \"%s\" already exists",
-							stmt->extname)));
-	}
-
-	if (Gp_role == GP_ROLE_EXECUTE)
-	{
-		switch (stmt->create_ext_state)
-		{
-			case CREATE_EXTENSION_INIT:
-				elog(ERROR, "invalid CREATE EXTENSION state");
-				return InvalidObjectAddress;
-
-			case CREATE_EXTENSION_BEGIN:
-				break;
-			case CREATE_EXTENSION_END:		/* Mark creating_extension flag = false */
-				Assert(segment_nestlevel > 0);
-				AtEOXact_GUC(true, segment_nestlevel);
-				ResetExtensionCreatingGlobalVarsOnQE();
-				
-				ObjectAddressSet(address, ExtensionRelationId, get_extension_oid(stmt->extname, true));
-				return address;
-
-			default:
-				elog(ERROR, "unrecognized create_ext_state: %d",
-						stmt->create_ext_state);
-		}
-	}
-
-	/*
-	 * We use global variables to track the extension being created, so we can
-	 * create only one extension at the same time.
-	 */
-	if (creating_extension)
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("nested CREATE EXTENSION is not supported")));
+	ListCell   *lc;
 
 	/*
 	 * Read the primary control file.  Note we assume that it does not contain
 	 * any non-ASCII data, so there is no need to worry about encoding at this
 	 * point.
 	 */
-	pcontrol = read_extension_control_file(stmt->extname);
-
-	/*
-	 * Read the statement option list
-	 */
-	foreach(lc, stmt->options)
-	{
-		DefElem    *defel = (DefElem *) lfirst(lc);
-
-		if (strcmp(defel->defname, "schema") == 0)
-		{
-			if (d_schema)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options")));
-			d_schema = defel;
-		}
-		else if (strcmp(defel->defname, "new_version") == 0)
-		{
-			if (d_new_version)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options")));
-			d_new_version = defel;
-		}
-		else if (strcmp(defel->defname, "old_version") == 0)
-		{
-			if (d_old_version)
-				ereport(ERROR,
-						(errcode(ERRCODE_SYNTAX_ERROR),
-						 errmsg("conflicting or redundant options")));
-			d_old_version = defel;
-		}
-		else
-			elog(ERROR, "unrecognized option: %s", defel->defname);
-	}
+	pcontrol = read_extension_control_file(extensionName);
 
 	/*
 	 * Determine the version to install
 	 */
-	if (d_new_version && d_new_version->arg)
-		versionName = strVal(d_new_version->arg);
-	else if (pcontrol->default_version)
-		versionName = pcontrol->default_version;
-	else
+	if (versionName == NULL)
 	{
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("version to install must be specified")));
-		versionName = NULL;		/* keep compiler quiet */
+		if (pcontrol->default_version)
+			versionName = pcontrol->default_version;
+		else
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("version to install must be specified")));
 	}
 	check_valid_version_name(versionName);
 
 	/*
-	 * Determine the (unpackaged) version to update from, if any, and then
-	 * figure out what sequence of update scripts we need to apply.
+	 * Figure out which script(s) we need to run to install the desired
+	 * version of the extension.  If we do not have a script that directly
+	 * does what is needed, we try to find a sequence of update scripts that
+	 * will get us there.
 	 */
-	if (d_old_version && d_old_version->arg)
+	if (oldVersionName)
 	{
-		oldVersionName = strVal(d_old_version->arg);
+		/*
+		 * "FROM old_version" was specified, indicating that we're trying to
+		 * update from some unpackaged version of the extension.  Locate a
+		 * series of update scripts that will do it.
+		 */
 		check_valid_version_name(oldVersionName);
 
 		if (strcmp(oldVersionName, versionName) == 0)
@@ -1516,8 +1496,48 @@ CreateExtension(CreateExtensionStmt *stmt)
 	}
 	else
 	{
+		/*
+		 * No FROM, so we're installing from scratch.  If there is an install
+		 * script for the desired version, we only need to run that one.
+		 */
+		char	   *filename;
+		struct stat fst;
+
 		oldVersionName = NULL;
-		updateVersions = NIL;
+
+		filename = get_extension_script_filename(pcontrol, NULL, versionName);
+		if (stat(filename, &fst) == 0)
+		{
+			/* Easy, no extra scripts */
+			updateVersions = NIL;
+		}
+		else
+		{
+			/* Look for best way to install this version */
+			List	   *evi_list;
+			ExtensionVersionInfo *evi_start;
+			ExtensionVersionInfo *evi_target;
+
+			/* Extract the version update graph from the script directory */
+			evi_list = get_ext_ver_list(pcontrol);
+
+			/* Identify the target version */
+			evi_target = get_ext_ver_info(versionName, &evi_list);
+
+			/* Identify best path to reach target */
+			evi_start = find_install_path(evi_list, evi_target,
+										  &updateVersions);
+
+			/* Fail if no path ... */
+			if (evi_start == NULL)
+				ereport(ERROR,
+						(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+						 errmsg("extension \"%s\" has no installation script nor update path for version \"%s\"",
+								pcontrol->name, versionName)));
+
+			/* Otherwise, install best starting point and then upgrade */
+			versionName = evi_start->name;
+		}
 	}
 
 	/*
@@ -1528,7 +1548,7 @@ CreateExtension(CreateExtensionStmt *stmt)
 	/*
 	 * Determine the target schema to install the extension into
 	 */
-	if (d_schema && d_schema->arg)
+	if (schemaName)
 	{
 		/*
 		 * User given schema, CREATE EXTENSION ... WITH SCHEMA ...
@@ -1536,8 +1556,6 @@ CreateExtension(CreateExtensionStmt *stmt)
 		 * It's an error to give a schema different from control->schema if
 		 * control->schema is specified.
 		 */
-		schemaName = strVal(d_schema->arg);
-
 		if (control->schema != NULL &&
 			strcmp(control->schema, schemaName) != 0)
 			ereport(ERROR,
@@ -1578,8 +1596,9 @@ CreateExtension(CreateExtensionStmt *stmt)
 	else
 	{
 		/*
-		 * Else, use the current default creation namespace, which is the
-		 * first explicit entry in the search_path.
+		 * Neither user nor author of the extension specified schema; use the
+		 * current default creation namespace, which is the first explicit
+		 * entry in the search_path.
 		 */
 		List	   *search_path = fetch_search_path(false);
 
@@ -1660,7 +1679,26 @@ CreateExtension(CreateExtensionStmt *stmt)
 	 */
 	if (Gp_role == GP_ROLE_DISPATCH)
 	{
-		/* We must tell QE to create extension */
+		/*
+		 * We must tell QE to create extension. We don't have the original
+		 * statement at hand here, so build one that carries the options we
+		 * resolved above.
+		 */
+		stmt = makeNode(CreateExtensionStmt);
+
+		stmt->extname = extensionName;
+
+		if (schemaName)
+			stmt->options = lappend(stmt->options,
+									makeDefElem("schema", (Node *) makeString(schemaName)));
+		if (versionName)
+			stmt->options = lappend(stmt->options,
+									makeDefElem("new_version", (Node *) makeString(pstrdup(versionName))));
+		if (oldVersionName)
+			stmt->options = lappend(stmt->options,
+									makeDefElem("old_version", (Node *) makeString(pstrdup(oldVersionName))));
+
+		stmt->if_not_exists = false;
 		stmt->create_ext_state = CREATE_EXTENSION_BEGIN;
 		CdbDispatchUtilityStatement((Node *) stmt,
 									DF_WITH_SNAPSHOT | DF_CANCEL_ON_ERROR | DF_NEED_TWO_PHASE,
@@ -1690,6 +1728,130 @@ CreateExtension(CreateExtensionStmt *stmt)
 	}
 
 	return address;
+}
+
+/*
+ * CREATE EXTENSION
+ */
+ObjectAddress
+CreateExtension(CreateExtensionStmt *stmt)
+{
+	DefElem    *d_schema = NULL;
+	DefElem    *d_new_version = NULL;
+	DefElem    *d_old_version = NULL;
+	char	   *schemaName = NULL;
+	char	   *versionName = NULL;
+	char	   *oldVersionName = NULL;
+	ObjectAddress address;
+	ListCell   *lc;
+
+	/* Check extension name validity before any filesystem access */
+	check_valid_extension_name(stmt->extname);
+
+	/*
+	 * Check for duplicate extension name.  The unique index on
+	 * pg_extension.extname would catch this anyway, and serves as a backstop
+	 * in case of race conditions; but this is a friendlier error message, and
+	 * besides we need a check to support IF NOT EXISTS.
+	 */
+	if (stmt->create_ext_state != CREATE_EXTENSION_END &&
+			get_extension_oid(stmt->extname, true) != InvalidOid)
+	{
+		if (stmt->if_not_exists)
+		{
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("extension \"%s\" already exists, skipping",
+							stmt->extname)));
+			return InvalidObjectAddress;
+		}
+		else
+			ereport(ERROR,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("extension \"%s\" already exists",
+							stmt->extname)));
+	}
+
+	if (Gp_role == GP_ROLE_EXECUTE)
+	{
+		switch (stmt->create_ext_state)
+		{
+			case CREATE_EXTENSION_INIT:
+				elog(ERROR, "invalid CREATE EXTENSION state");
+				return InvalidObjectAddress;
+
+			case CREATE_EXTENSION_BEGIN:
+				break;
+			case CREATE_EXTENSION_END:		/* Mark creating_extension flag = false */
+				Assert(segment_nestlevel > 0);
+				AtEOXact_GUC(true, segment_nestlevel);
+				ResetExtensionCreatingGlobalVarsOnQE();
+
+				ObjectAddressSet(address, ExtensionRelationId, get_extension_oid(stmt->extname, true));
+				return address;
+
+			default:
+				elog(ERROR, "unrecognized create_ext_state: %d",
+						stmt->create_ext_state);
+		}
+	}
+
+	/*
+	 * We use global variables to track the extension being created, so we can
+	 * create only one extension at the same time.
+	 */
+	if (creating_extension)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("nested CREATE EXTENSION is not supported")));
+
+	/*
+	 * Read the statement option list
+	 */
+	foreach(lc, stmt->options)
+	{
+		DefElem    *defel = (DefElem *) lfirst(lc);
+
+		if (strcmp(defel->defname, "schema") == 0)
+		{
+			if (d_schema)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("conflicting or redundant options")));
+			d_schema = defel;
+		}
+		else if (strcmp(defel->defname, "new_version") == 0)
+		{
+			if (d_new_version)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("conflicting or redundant options")));
+			d_new_version = defel;
+		}
+		else if (strcmp(defel->defname, "old_version") == 0)
+		{
+			if (d_old_version)
+				ereport(ERROR,
+						(errcode(ERRCODE_SYNTAX_ERROR),
+						 errmsg("conflicting or redundant options")));
+			d_old_version = defel;
+		}
+		else
+			elog(ERROR, "unrecognized option: %s", defel->defname);
+	}
+
+	if (d_schema && d_schema->arg)
+		schemaName = strVal(d_schema->arg);
+	if (d_new_version && d_new_version->arg)
+		versionName = strVal(d_new_version->arg);
+	if (d_old_version && d_old_version->arg)
+		oldVersionName = strVal(d_old_version->arg);
+
+	/* Call CreateExtensionInternal to do the real work. */
+	return CreateExtensionInternal(stmt->extname,
+								   schemaName,
+								   versionName,
+								   oldVersionName);
 }
 
 /*
@@ -2046,43 +2208,28 @@ get_available_versions_for_extension(ExtensionControlFile *pcontrol,
 									 Tuplestorestate *tupstore,
 									 TupleDesc tupdesc)
 {
-	int			extnamelen = strlen(pcontrol->name);
-	char	   *location;
-	DIR		   *dir;
-	struct dirent *de;
+	List	   *evi_list;
+	ListCell   *lc;
 
-	location = get_extension_script_directory(pcontrol);
-	dir = AllocateDir(location);
-	/* Note this will fail if script directory doesn't exist */
-	while ((de = ReadDir(dir, location)) != NULL)
+	/* Extract the version update graph from the script directory */
+	evi_list = get_ext_ver_list(pcontrol);
+
+	/* For each installable version ... */
+	foreach(lc, evi_list)
 	{
+		ExtensionVersionInfo *evi = (ExtensionVersionInfo *) lfirst(lc);
 		ExtensionControlFile *control;
-		char	   *vername;
 		Datum		values[7];
 		bool		nulls[7];
+		ListCell   *lc2;
 
-		/* must be a .sql file ... */
-		if (!is_extension_script_filename(de->d_name))
-			continue;
-
-		/* ... matching extension name followed by separator */
-		if (strncmp(de->d_name, pcontrol->name, extnamelen) != 0 ||
-			de->d_name[extnamelen] != '-' ||
-			de->d_name[extnamelen + 1] != '-')
-			continue;
-
-		/* extract version name from 'extname--something.sql' filename */
-		vername = pstrdup(de->d_name + extnamelen + 2);
-		*strrchr(vername, '.') = '\0';
-
-		/* ignore it if it's an update script */
-		if (strstr(vername, "--"))
+		if (!evi->installable)
 			continue;
 
 		/*
 		 * Fetch parameters for specific version (pcontrol is not changed)
 		 */
-		control = read_extension_aux_control_file(pcontrol, vername);
+		control = read_extension_aux_control_file(pcontrol, evi->name);
 
 		memset(values, 0, sizeof(values));
 		memset(nulls, 0, sizeof(nulls));
@@ -2091,7 +2238,7 @@ get_available_versions_for_extension(ExtensionControlFile *pcontrol,
 		values[0] = DirectFunctionCall1(namein,
 										CStringGetDatum(control->name));
 		/* version */
-		values[1] = CStringGetTextDatum(vername);
+		values[1] = CStringGetTextDatum(evi->name);
 		/* superuser */
 		values[2] = BoolGetDatum(control->superuser);
 		/* relocatable */
@@ -2106,27 +2253,7 @@ get_available_versions_for_extension(ExtensionControlFile *pcontrol,
 		if (control->requires == NIL)
 			nulls[5] = true;
 		else
-		{
-			Datum	   *datums;
-			int			ndatums;
-			ArrayType  *a;
-			ListCell   *lc;
-
-			ndatums = list_length(control->requires);
-			datums = (Datum *) palloc(ndatums * sizeof(Datum));
-			ndatums = 0;
-			foreach(lc, control->requires)
-			{
-				char	   *curreq = (char *) lfirst(lc);
-
-				datums[ndatums++] =
-					DirectFunctionCall1(namein, CStringGetDatum(curreq));
-			}
-			a = construct_array(datums, ndatums,
-								NAMEOID,
-								NAMEDATALEN, false, 'c');
-			values[5] = PointerGetDatum(a);
-		}
+			values[5] = convert_requires_to_datum(control->requires);
 		/* comment */
 		if (control->comment == NULL)
 			nulls[6] = true;
@@ -2134,9 +2261,75 @@ get_available_versions_for_extension(ExtensionControlFile *pcontrol,
 			values[6] = CStringGetTextDatum(control->comment);
 
 		tuplestore_putvalues(tupstore, tupdesc, values, nulls);
-	}
 
-	FreeDir(dir);
+		/*
+		 * Find all non-directly-installable versions that would be installed
+		 * starting from this version, and report them, inheriting the
+		 * parameters that aren't changed in updates from this version.
+		 */
+		foreach(lc2, evi_list)
+		{
+			ExtensionVersionInfo *evi2 = (ExtensionVersionInfo *) lfirst(lc2);
+			List	   *best_path;
+
+			if (evi2->installable)
+				continue;
+			if (find_install_path(evi_list, evi2, &best_path) == evi)
+			{
+				/*
+				 * Fetch parameters for this version (pcontrol is not changed)
+				 */
+				control = read_extension_aux_control_file(pcontrol, evi2->name);
+
+				/* name stays the same */
+				/* version */
+				values[1] = CStringGetTextDatum(evi2->name);
+				/* superuser */
+				values[2] = BoolGetDatum(control->superuser);
+				/* relocatable */
+				values[3] = BoolGetDatum(control->relocatable);
+				/* schema stays the same */
+				/* requires */
+				if (control->requires == NIL)
+					nulls[5] = true;
+				else
+				{
+					values[5] = convert_requires_to_datum(control->requires);
+					nulls[5] = false;
+				}
+				/* comment stays the same */
+
+				tuplestore_putvalues(tupstore, tupdesc, values, nulls);
+			}
+		}
+	}
+}
+
+/*
+ * Convert a list of extension names to a name[] Datum
+ */
+static Datum
+convert_requires_to_datum(List *requires)
+{
+	Datum	   *datums;
+	int			ndatums;
+	ArrayType  *a;
+	ListCell   *lc;
+
+	ndatums = list_length(requires);
+	datums = (Datum *) palloc(ndatums * sizeof(Datum));
+	ndatums = 0;
+	foreach(lc, requires)
+	{
+		char	   *curreq = (char *) lfirst(lc);
+
+		datums[ndatums++] =
+			DirectFunctionCall1(namein, CStringGetDatum(curreq));
+	}
+	a = construct_array(datums, ndatums,
+						NAMEOID,
+						NAMEDATALEN, false, 'c');
+	return PointerGetDatum(a);
 }
 
 /*
@@ -2208,7 +2401,7 @@ pg_extension_update_paths(PG_FUNCTION_ARGS)
 				continue;
 
 			/* Find shortest path from evi1 to evi2 */
-			path = find_update_path(evi_list, evi1, evi2, true);
+			path = find_update_path(evi_list, evi1, evi2, false, true);
 
 			/* Emit result row */
 			memset(values, 0, sizeof(values));
