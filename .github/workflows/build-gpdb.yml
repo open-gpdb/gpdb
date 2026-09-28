@@ -170,7 +170,8 @@ jobs:
                                "gpcontrib/gpmapreduce:installcheck",
                                "gpcontrib/orafce:installcheck",
                                "gpcontrib/pgaudit:installcheck",
-                               "gpcontrib/temp_tables_stat:installcheck"]
+                               "gpcontrib/temp_tables_stat:installcheck",
+                               "gpcontrib/view_log:installcheck"]
               },
               {"test":"ic-mirrorless",
                "make_configs":["src/test/isolation2:installcheck-mirrorless"]
