@@ -118,6 +118,10 @@ ExecInitTempResultScan(TempResultScan *node, EState *estate, int eflags)
 	ListCell   *lcc;
 	ListCell   *lcn;
 
+	/* Recheck on execution as a prepared plan may survive SET ROLE. */
+	if (Gp_role != GP_ROLE_EXECUTE)
+		TempResultLookupId(node->tsname, node->tempresid);
+
 	/* TempResultScan should not have any children */
 	Assert(outerPlan(node) == NULL);
 	Assert(innerPlan(node) == NULL);

@@ -44,6 +44,7 @@ struct NTupleStoreAccessor;
 typedef struct TempResultEntry
 {
 	char		name[NAMEDATALEN];	/* hash key: table name */
+	Oid			owner;		/* creator; no catalog ACL exists */
 	int32		vid;			/* per-session virtual id (assigned on QD,
 								 * dispatched to QEs in the IntoClause) */
 	TupleDesc	tupdesc;		/* result row descriptor */
@@ -65,6 +66,7 @@ extern bool gp_enable_catalogless_temp;
 /* registry */
 extern bool TempResultHasEntries(void);
 extern TempResultEntry *TempResultLookup(const char *name);
+extern void TempResultCheckOwner(const TempResultEntry *entry);
 extern TempResultEntry *TempResultLookupId(const char *name, int32 vid);
 extern TempResultEntry *TempResultResolve(const RangeVar *rv);
 extern IntoClause *TempResultPrepareInto(IntoClause *into);

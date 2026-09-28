@@ -431,6 +431,46 @@ match the previous ones (in the smoke output only the error texts changed:
 `"poc_neg1" is a catalogless temp table` instead of `relation ... does not
 exist`, and the new kill-switch HINT).
 
+## Additional correctness fixes (2026-09-28)
+
+`test/catalogless_review.sql` is an assertion-based check, run with
+`psql -X -v ON_ERROR_STOP=1 -f test/catalogless_review.sql` as a superuser
+in a disposable database. The test creates the `catalogless_review_user`
+role before its transaction (so reader gangs can see it), rolls back the
+table and database-ACL changes, then drops the role. If the test stops on
+an error, remove the test role before rerunning it.
+
+Changes:
+
+- Catalogless CTAS copies external TOAST values into the store, including
+  when the input is already a MemTuple. The result no longer depends on
+  the source relation's TOAST files after a co-located CTAS without Motion.
+- The registry records the creator. Reading and dropping require the
+  creator's privileges (`has_privs_of_role`); the QD scan initialization
+  checks again when executing an already prepared plan. There are no
+  per-object GRANTs in this prototype.
+- Creation checks database TEMP privileges and rejects security-restricted
+  operations, even if the session already has a temporary namespace.
+- The final CTAS descriptor is checked with `CheckAttributeNamesTypes`
+  before registration, rejecting duplicate names and pseudo-type columns.
+- Transaction-lived stores use a private memory context. If opening the
+  second file or initializing a reader fails, the constructor closes the
+  opened files and deletes the context. Normal destruction also deletes
+  the private context, including accessors left behind by error paths.
+- TempResultScan no longer advertises backward scanning. Greenplum already
+  rejects FETCH BACKWARD globally, so the originally suspected SQL cursor
+  failure is not reachable in this version; this change corrects the
+  executor capability declaration.
+
+Validation: a full backend rebuild (using the documented macOS HZ build
+workaround) and the new SQL checks passed on an isolated coordinator plus
+two primary segments. The CTAS TOAST test's EXPLAIN has no Motion; values
+remain correct after truncating the source. A separate filesystem failure
+check used a directory in place of the `_LOB` file: the second open failed,
+ROLLBACK removed the first file while the backend was still connected, and
+another CTAS succeeded in that same backend. The temporary test cluster
+was stopped after verification.
+
 ## History layout
 
 The branch was rewritten layer by layer (the original history is kept in

@@ -19,7 +19,10 @@
 #include "catalog/namespace.h"
 #include "cdb/cdbtempresult.h"
 #include "cdb/cdbvars.h"
+#include "commands/dbcommands.h"
+#include "miscadmin.h"
 #include "nodes/pg_list.h"
+#include "utils/acl.h"
 #include "utils/hsearch.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
@@ -107,6 +110,15 @@ TempResultLookup(const char *name)
 										   HASH_FIND, NULL);
 }
 
+void
+TempResultCheckOwner(const TempResultEntry *entry)
+{
+	if (!has_privs_of_role(GetUserId(), entry->owner))
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("must be owner of catalogless temp table \"%s\"", entry->name)));
+}
+
 /*
  * Look up a catalogless temp table by name and verify that it is still the
  * same table (virtual id) that the caller resolved earlier.
@@ -121,6 +133,7 @@ TempResultLookupId(const char *name, int32 vid)
 				(errcode(ERRCODE_UNDEFINED_TABLE),
 				 errmsg("catalogless temp table \"%s\" no longer exists", name),
 				 errdetail("The table was dropped or recreated after the statement was parsed.")));
+	TempResultCheckOwner(entry);
 	return entry;
 }
 
@@ -180,6 +193,16 @@ TempResultPrepareInto(IntoClause *into)
 	Oid			tempns;
 
 	Assert(into->isTempResult);
+
+	if (pg_database_aclcheck(MyDatabaseId, GetUserId(), ACL_CREATE_TEMP) != ACLCHECK_OK)
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("permission denied to create temporary tables in database \"%s\"",
+						get_database_name(MyDatabaseId))));
+	if (InSecurityRestrictedOperation())
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 errmsg("cannot create temporary table within security-restricted operation")));
 
 	if (!gp_enable_catalogless_temp)
 		ereport(ERROR,
@@ -248,6 +271,7 @@ TempResultRegister(const char *name, int32 vid, TupleDesc tupdesc,
 				 errmsg("relation \"%s\" already exists", name)));
 	}
 
+	entry->owner = GetUserId();
 	entry->vid = vid;
 	entry->tupdesc = tupdesc_copy;
 	entry->policy = policy_copy;
@@ -302,6 +326,7 @@ TempResultRemove(const char *name)
 	if (entry == NULL)
 		return;
 
+	TempResultCheckOwner(entry);
 	TempResultCheckNotSubxact("drop");
 
 	TempResultReleaseEntry(entry);

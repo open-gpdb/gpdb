@@ -1867,7 +1867,9 @@ addRangeTableEntryForTempResult(ParseState *pstate,
 						refname, tupdesc->natts, numaliases)));
 	rte->eref = eref;
 
-	/* No catalog access, hence no permission checks */
+	TempResultCheckOwner(tre);
+
+	/* Access is checked against the registry owner, not a catalog ACL. */
 	rte->lateral = false;
 	rte->inh = false;
 	rte->inFromCl = inFromCl;

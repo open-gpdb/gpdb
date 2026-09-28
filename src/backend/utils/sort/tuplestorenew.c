@@ -254,6 +254,7 @@ struct NTupleStore
 	List *accessors;    /* all current accessors of the store */
 	bool fwacc; 		/* if I had already has a write acc */
 
+	bool owns_context; /* private context for transaction-lived stores */
 	MemoryContext mcxt; /* memory context holding this tuplestore, and the page structs */
 
 	/* instrumentation for explain analyze */
@@ -652,6 +653,7 @@ static NTupleStorePage *nts_load_prev_page(NTupleStore *store, NTupleStorePage *
 void
 ntuplestore_destroy(NTupleStore *ts)
 {
+	MemoryContext owned_context = ts->owns_context ? ts->mcxt : NULL;
 	NTupleStorePage *p = ts->first_page;
 	ListCell *cell;
 
@@ -696,6 +698,8 @@ ntuplestore_destroy(NTupleStore *ts)
 	}
 
 	pfree(ts);
+	if (owned_context)
+		MemoryContextDelete(owned_context);
 }
 
 static NTupleStore *
@@ -703,6 +707,7 @@ ntuplestore_create_common(int64 maxBytes, char *operation_name)
 {
 	NTupleStore *store = (NTupleStore *) palloc(sizeof(NTupleStore));
 	store->mcxt = CurrentMemoryContext;
+	store->owns_context = false;
 
 	store->pfile = NULL;
 	store->first_ondisk_blockn = 0;
@@ -774,6 +779,7 @@ ntuplestore_create_readerwriter(const char *filename, int64 maxBytes, bool isWri
 	{
 		store = (NTupleStore *) palloc(sizeof(NTupleStore));
 		store->mcxt = CurrentMemoryContext;
+		store->owns_context = false;
 		store->work_set = NULL;
 
 		store->pfile = BufFileOpenNamedTemp(filename,
@@ -800,37 +806,55 @@ NTupleStore *
 ntuplestore_create_readerwriter_xact(const char *filename, int64 maxBytes, bool isWriter)
 {
 	NTupleStore *store = NULL;
-	char		filenamelob[MAXPGPATH];
+	BufFile *volatile datafile = NULL;
+	BufFile *volatile lobfile = NULL;
+	MemoryContext oldcxt = CurrentMemoryContext;
+	MemoryContext storecxt;
+	char filenamelob[MAXPGPATH];
 
 	snprintf(filenamelob, sizeof(filenamelob), "%s_LOB", filename);
-
-	if (isWriter)
+	storecxt = AllocSetContextCreate(oldcxt, "TempResultStore",
+									ALLOCSET_DEFAULT_MINSIZE,
+									ALLOCSET_DEFAULT_INITSIZE,
+									ALLOCSET_DEFAULT_MAXSIZE);
+	PG_TRY();
 	{
-		store = ntuplestore_create_common(maxBytes, "TempResultStore");
-		store->rwflag = NTS_IS_WRITER;
-		store->lobbytes = 0;
-		store->work_set = NULL;
-		store->pfile = BufFileCreateNamedTemp(filename,
-											  true /* interXact */,
-											  NULL /* no workfile set */);
-		store->plobfile = BufFileCreateNamedTemp(filenamelob,
-												 true /* interXact */,
-												 NULL /* no workfile set */);
+		MemoryContextSwitchTo(storecxt);
+		if (isWriter)
+		{
+			store = ntuplestore_create_common(maxBytes, "TempResultStore");
+			store->rwflag = NTS_IS_WRITER;
+			datafile = BufFileCreateNamedTemp(filename, true, NULL);
+			lobfile = BufFileCreateNamedTemp(filenamelob, true, NULL);
+			store->pfile = datafile;
+			store->plobfile = lobfile;
+		}
+		else
+		{
+			store = (NTupleStore *) palloc0(sizeof(NTupleStore));
+			store->mcxt = storecxt;
+			datafile = BufFileOpenNamedTemp(filename, true);
+			lobfile = BufFileOpenNamedTemp(filenamelob, true);
+			store->pfile = datafile;
+			store->plobfile = lobfile;
+			ntuplestore_init_reader(store, maxBytes);
+		}
+		store->owns_context = true;
+		MemoryContextSwitchTo(oldcxt);
 	}
-	else
+	PG_CATCH();
 	{
-		store = (NTupleStore *) palloc(sizeof(NTupleStore));
-		store->mcxt = CurrentMemoryContext;
-		store->work_set = NULL;
-
-		store->pfile = BufFileOpenNamedTemp(filename,
-											true /* interXact */);
-
-		store->plobfile = BufFileOpenNamedTemp(filenamelob,
-											   true /* interXact */);
-
-		ntuplestore_init_reader(store, maxBytes);
+		MemoryContextSwitchTo(oldcxt);
+		/* interXact files are not released by the resource owner. */
+		if (datafile)
+			BufFileClose(datafile);
+		if (lobfile)
+			BufFileClose(lobfile);
+		MemoryContextDelete(storecxt);
+		PG_RE_THROW();
 	}
+	PG_END_TRY();
+
 	return store;
 }
 

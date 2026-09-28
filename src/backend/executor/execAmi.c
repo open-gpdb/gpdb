@@ -543,7 +543,6 @@ ExecSupportsBackwardScan(Plan *node)
 		case T_TidScan:
 		case T_FunctionScan:
 		case T_ValuesScan:
-		case T_TempResultScan:
 		case T_CteScan:
 		case T_WorkTableScan:
 			return TargetListSupportsBackwardScan(node->targetlist);

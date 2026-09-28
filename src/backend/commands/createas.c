@@ -28,6 +28,7 @@
 #include "access/htup_details.h"
 #include "access/sysattr.h"
 #include "access/xact.h"
+#include "catalog/heap.h"
 #include "catalog/toasting.h"
 #include "commands/createas.h"
 #include "commands/matview.h"
@@ -83,6 +84,7 @@ typedef struct
 
 	/* POC: non-NULL if writing into a catalogless temp result instead */
 	struct TempResultEntry *tempres;
+	TupleTableSlot *tempres_slot;
 } DR_intorel;
 
 static void intorel_startup_dummy(DestReceiver *self, int operation, TupleDesc typeinfo);
@@ -847,6 +849,8 @@ tempresult_initplan(struct QueryDesc *queryDesc)
 				(errcode(ERRCODE_SYNTAX_ERROR),
 				 errmsg("too many column names were specified")));
 
+	CheckAttributeNamesTypes(storedesc, RELKIND_RELATION, false);
+
 	tre = TempResultRegister(into->rel->relname, into->tempResultId,
 							 storedesc, queryDesc->plannedstmt->intoPolicy);
 
@@ -872,6 +876,7 @@ tempresult_initplan(struct QueryDesc *queryDesc)
 
 	myState->rel = NULL;
 	myState->tempres = tre;
+	myState->tempres_slot = MakeSingleTupleTableSlot(typeinfo);
 }
 
 /*
@@ -886,7 +891,16 @@ intorel_receive(TupleTableSlot *slot, DestReceiver *self)
 	/* POC: catalogless temp table --- append to the local tuplestore */
 	if (myState->tempres)
 	{
-		ntuplestore_acc_put_tupleslot(myState->tempres->writeacc, slot);
+		MemTuple tuple;
+
+		/* The result must outlive the source relation and its TOAST data. */
+		slot_getallattrs(slot);
+		tuple = memtuple_form_to(slot->tts_mt_bind, slot_get_values(slot),
+								 slot_get_isnull(slot), NULL, NULL, true);
+		ExecStoreMinimalTuple(tuple, myState->tempres_slot, true);
+		ntuplestore_acc_put_tupleslot(myState->tempres->writeacc,
+									myState->tempres_slot);
+		ExecClearTuple(myState->tempres_slot);
 		myState->tempres->rowcount++;
 		return;
 	}
@@ -951,6 +965,8 @@ intorel_shutdown(DestReceiver *self)
 	{
 		if (myState->tempres->store)
 			ntuplestore_flush(myState->tempres->store);
+		ExecDropSingleTupleTableSlot(myState->tempres_slot);
+		myState->tempres_slot = NULL;
 		myState->tempres = NULL;
 		return;
 	}
