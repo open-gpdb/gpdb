@@ -771,6 +771,27 @@ GetPreassignedOidForRelation(Oid namespaceOid, const char *relname)
 }
 
 /*
+ * Get the relfilenode pre-assigned by the QD for a temp relation, see
+ * AddDispatchTempRelfilenode().
+ *
+ * Unlike the other GetPreassigned*() functions, a missing entry is not an
+ * error here: returns InvalidOid, and the caller decides what to do.
+ */
+Oid
+GetPreassignedTempRelfilenode(Oid relid, Oid namespaceOid, const char *relname)
+{
+	OidAssignment searchkey;
+
+	memset(&searchkey, 0, sizeof(OidAssignment));
+	searchkey.catalog = TempRelfilenodePseudoCatalogId;
+	searchkey.keyOid1 = relid;
+	searchkey.namespaceOid = namespaceOid;
+	searchkey.objname = (char *) relname;
+
+	return GetPreassignedOid(&searchkey);
+}
+
+/*
  * A specialized version of GetPreassignedOidForTuple(). To be used when we don't
  * have a whole pg_type tuple yet.
  *
@@ -988,6 +1009,47 @@ AddDispatchOidFromTuple(Relation catalogrel, HeapTuple tuple)
 }
 
 /*
+ * Remember a relfilenode assigned for a new temp relation, to be included in
+ * the next command that's dispatched to QEs.
+ *
+ * This piggybacks on the OID dispatch machinery: the entry is an ordinary
+ * OidAssignment, marked with TempRelfilenodePseudoCatalogId and keyed by the
+ * relation's OID (in 'keyOid1'), namespace and name, with the relfilenode in
+ * the 'oid' field.  The relation OID is the same on all nodes, and a new one
+ * is used for every new relation, so an entry left over from an aborted
+ * attempt to create a relation can't be picked up for another relation of
+ * the same name.  A relation that gets a new relfilenode several times
+ * (e.g. TRUNCATE) gets one entry each time, and they are consumed in order.
+ */
+void
+AddDispatchTempRelfilenode(Oid relid, Oid namespaceOid, const char *relname,
+						   Oid relfilenode)
+{
+	OidAssignment assignment;
+	MemoryContext oldcontext;
+
+	if (Gp_role != GP_ROLE_DISPATCH || IsBootstrapProcessingMode())
+		return;
+
+	memset(&assignment, 0, sizeof(OidAssignment));
+	assignment.type = T_OidAssignment;
+	assignment.catalog = TempRelfilenodePseudoCatalogId;
+	assignment.keyOid1 = relid;
+	assignment.namespaceOid = namespaceOid;
+	assignment.objname = (char *) relname;
+	assignment.oid = relfilenode;
+
+	oldcontext = MemoryContextSwitchTo(TopTransactionContext);
+	dispatch_oids = lappend(dispatch_oids, copyObject(&assignment));
+	MemoryContextSwitchTo(oldcontext);
+
+#ifdef OID_DISPATCH_DEBUG
+	elog(NOTICE, "adding temp relfilenode assignment: relid: %u, namespace: %u, name: \"%s\": %u",
+		 relid, namespaceOid, relname, relfilenode);
+#endif
+}
+
+/*
  * Get list of OIDs assigned in this transaction, since the last call.
  */
 List *
@@ -1047,6 +1109,28 @@ AtEOXact_DispatchOids(bool isCommit)
 	 */
 	if (!IsBinaryUpgrade)
 	{
+		/*
+		 * A temp relfilenode assignment should always be consumed by the
+		 * writer, by the same command that brought it.  One left over means
+		 * the QD assigned a relfilenode for an operation that this QE did
+		 * not perform, or performed without asking for it.  Report it, as
+		 * such a leftover could be picked up by a later operation on the
+		 * same relation in this transaction.
+		 */
+		if (Gp_role == GP_ROLE_EXECUTE && Gp_is_writer)
+		{
+			ListCell   *lc;
+
+			foreach(lc, preassigned_oids)
+			{
+				OidAssignment *p = (OidAssignment *) lfirst(lc);
+
+				if (p->catalog == TempRelfilenodePseudoCatalogId)
+					elog(LOG, "unused pre-assigned temp relfilenode %u for relation \"%s\" (relid %u)",
+						 p->oid, p->objname ? p->objname : "", p->keyOid1);
+			}
+		}
+
 #ifdef OID_DISPATCH_DEBUG
 		while (preassigned_oids)
 		{
@@ -1078,6 +1162,10 @@ IsOidAcceptable(Oid oid)
 	foreach(lc, preassigned_oids)
 	{
 		OidAssignment *p = (OidAssignment *) lfirst(lc);
+
+		/* these carry a relfilenode, not an OID */
+		if (p->catalog == TempRelfilenodePseudoCatalogId)
+			continue;
 
 		if (p->oid == oid)
 			return false;

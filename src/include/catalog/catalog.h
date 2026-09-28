@@ -65,7 +65,10 @@ extern Oid GetNewOidWithIndex(Relation relation, Oid indexId,
 				   AttrNumber oidcolumn);
 extern Oid GetNewRelFileNode(Oid reltablespace, Relation pg_class,
 				  char relpersistence);
-extern Oid GetNewTempRelFileNode(Oid reltablespace, char relpersistence);
+extern Oid GetNewOrPreassignedTempRelFileNode(Oid reltablespace,
+				  char relpersistence, Oid relid, Oid relnamespace,
+				  const char *relname);
+extern bool SetLocalTempRelFileNodes(bool local);
 
 extern void reldir_and_filename(RelFileNode rnode, BackendId backend, ForkNumber forknum,
 					char **dir, char **filename);

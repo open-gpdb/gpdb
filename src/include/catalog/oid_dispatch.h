@@ -16,9 +16,18 @@
 #include "utils/relcache.h"
 #include "access/htup.h"
 
+/*
+ * Pseudo catalog id used to mark OidAssignment entries that carry a
+ * relfilenode of a temp relation (in the 'oid' field) instead of an OID.
+ * See AddDispatchTempRelfilenode().
+ */
+#define TempRelfilenodePseudoCatalogId	((Oid) 0xFFFFFFFE)
+
 /* Functions used in master */
 extern void AddDispatchOidFromTuple(Relation catalogrel, HeapTuple tuple);
 extern List *GetAssignedOidsForDispatch(void);
+extern void AddDispatchTempRelfilenode(Oid relid, Oid namespaceOid,
+									   const char *relname, Oid relfilenode);
 
 /* Functions used in QE nodes */
 extern void AddPreassignedOids(List *l);
@@ -29,6 +38,8 @@ extern Oid GetPreassignedOidForRelation(Oid namespaceOid, const char *relname);
 extern Oid GetPreassignedOidForType(Oid namespaceOid, const char *typname,
 									bool allowMissing);
 extern Oid GetPreassignedOidForDatabase(const char *datname);
+extern Oid GetPreassignedTempRelfilenode(Oid relid, Oid namespaceOid,
+										 const char *relname);
 
 /* Functions used in master and QE nodes */
 extern void RestoreOidAssignments(List *oid_assignments);

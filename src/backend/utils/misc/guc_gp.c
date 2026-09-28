@@ -2058,8 +2058,8 @@ struct config_bool ConfigureNamesBool_gp[] =
 
 	{
 		{"gp_enable_preassigned_temp_relfilenode", PGC_USERSET, DEVELOPER_OPTIONS,
-			gettext_noop("Assign relfilenodes of temp relations on the coordinator from a separate range."),
-			NULL,
+			gettext_noop("Assign relfilenodes of temp relations on the coordinator and dispatch them to segments."),
+			gettext_noop("With this on, a temp relation has the same relfilenode on all nodes."),
 			GUC_NOT_IN_SAMPLE | GUC_GPDB_NEED_SYNC
 		},
 		&gp_enable_preassigned_temp_relfilenode,

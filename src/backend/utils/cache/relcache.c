@@ -3126,8 +3126,9 @@ RelationBuildLocalRelation(const char *relname,
 		rel->rd_rel->relfilenode = relfilenode;
 	else
 	{
-		rel->rd_rel->relfilenode = GetNewTempRelFileNode(reltablespace,
-														 relpersistence);
+		rel->rd_rel->relfilenode =
+			GetNewOrPreassignedTempRelFileNode(reltablespace, relpersistence,
+											   relid, relnamespace, relname);
 		if (Gp_role == GP_ROLE_EXECUTE || IsBinaryUpgrade)
 			AdvanceObjectId(relid);
 	}
@@ -3211,9 +3212,23 @@ RelationSetNewRelfilenode(Relation relation, TransactionId freezeXid,
 		   TransactionIdIsNormal(freezeXid));
 	Assert(TransactionIdIsNormal(freezeXid) == MultiXactIdIsValid(minmulti));
 
-	/* Allocate a new relfilenode */
-	newrelfilenode = GetNewTempRelFileNode(relation->rd_rel->reltablespace,
+	/*
+	 * Allocate a new relfilenode.
+	 *
+	 * Sequences are left out of relfilenode pre-assignment: ResetSequence()
+	 * (TRUNCATE ... RESTART IDENTITY) runs on the QD after the command has
+	 * been dispatched, so the assignment would never reach the QEs.
+	 */
+	if (relation->rd_rel->relkind == RELKIND_SEQUENCE)
+		newrelfilenode = GetNewRelFileNode(relation->rd_rel->reltablespace, NULL,
 										   relation->rd_rel->relpersistence);
+	else
+		newrelfilenode =
+			GetNewOrPreassignedTempRelFileNode(relation->rd_rel->reltablespace,
+											   relation->rd_rel->relpersistence,
+											   RelationGetRelid(relation),
+											   RelationGetNamespace(relation),
+											   RelationGetRelationName(relation));
 
 	/*
 	 * Get a writable copy of the pg_class tuple for the given relation.

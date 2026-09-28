@@ -637,7 +637,8 @@ GetNewSegRelfilenodeUnderLock(void)
 
 	/*
 	 * Wrap around before the temp relfilenode range: relfilenodes in it are
-	 * assigned by the coordinator (GetNewTempRelFileNodeCounter()).
+	 * assigned by the coordinator (GetNewTempRelFileNodeCounter()), and a
+	 * segment can't check them against its own ones.
 	 */
 	if ((ShmemVariableCache->nextRelfilenode < ((Oid) FirstNormalObjectId) ||
 		 ShmemVariableCache->nextRelfilenode >= FirstTempRelfilenodeValue) &&
@@ -688,14 +689,16 @@ GetNewSegRelfilenode(void)
  * GetNewTempRelFileNodeCounter -- allocate a relfilenode for a temp relation
  *
  * Used on the coordinator when gp_enable_preassigned_temp_relfilenode is on.
- * Values come from a reserved range starting at FirstTempRelfilenodeValue.
+ * The value is dispatched to the segments, so that the temp relation gets
+ * the same relfilenode on every node.  Values come from a reserved range
+ * starting at FirstTempRelfilenodeValue.
  *
  * The counter is not persisted.  Temp relations left behind by sessions
  * that didn't exit cleanly may still hold values from before a restart, in
- * the catalogs and files, so the first call after startup (or after a
- * wraparound) starts at a random point of the range, which makes reusing
- * them unlikely.  The caller must still check the value, see
- * GetNewTempRelFileNode().
+ * the catalogs and files of any node, so the first call after startup (or
+ * after a wraparound) starts at a random point of the range, which makes
+ * reusing them unlikely.  The caller must still check the value on every
+ * node, see GetNewOrPreassignedTempRelFileNode().
  */
 Oid
 GetNewTempRelFileNodeCounter(void)

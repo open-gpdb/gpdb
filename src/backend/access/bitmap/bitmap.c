@@ -23,6 +23,7 @@
 #include "access/genam.h"
 #include "access/bitmap.h"
 #include "access/xact.h"
+#include "catalog/catalog.h"
 #include "catalog/index.h"
 #include "miscadmin.h"
 #include "nodes/tidbitmap.h"
@@ -492,7 +493,25 @@ bmbulkdelete(PG_FUNCTION_ARGS)
 		result = (IndexBulkDeleteResult *)
 			palloc0(sizeof(IndexBulkDeleteResult));	
 
-	reindex_index(RelationGetRelid(rel), true);
+	/*
+	 * Whether this runs depends on the node's own data, so the QD can't
+	 * pre-assign relfilenodes of a temp index for it.  Allocate them locally.
+	 */
+	{
+		bool		save_local = SetLocalTempRelFileNodes(true);
+
+		PG_TRY();
+		{
+			reindex_index(RelationGetRelid(rel), true);
+		}
+		PG_CATCH();
+		{
+			SetLocalTempRelFileNodes(save_local);
+			PG_RE_THROW();
+		}
+		PG_END_TRY();
+		SetLocalTempRelFileNodes(save_local);
+	}
 
 	CommandCounterIncrement();
 

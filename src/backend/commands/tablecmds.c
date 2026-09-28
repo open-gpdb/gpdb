@@ -1921,12 +1921,15 @@ ExecuteTruncate(TruncateStmt *stmt)
 	{
 		ListCell	*lc;
 
-		Assert(GetAssignedOidsForDispatch() == NIL);
+		/*
+		 * The only OID assignments TRUNCATE makes are relfilenodes of temp
+		 * relations, see GetNewOrPreassignedTempRelFileNode().
+		 */
 		CdbDispatchUtilityStatement((Node *) stmt,
 									DF_CANCEL_ON_ERROR |
 									DF_WITH_SNAPSHOT |
 									DF_NEED_TWO_PHASE,
-									NIL,
+									GetAssignedOidsForDispatch(),
 									NULL);
 
 		/* MPP-6929: metadata tracking */
@@ -13523,8 +13526,11 @@ ATExecSetTableSpace(Oid tableOid, Oid newTableSpace, LOCKMODE lockmode)
 	 * Relfilenodes are not unique in databases across tablespaces, so we need
 	 * to allocate a new one in the new tablespace.
 	 */
-	newrelfilenode = GetNewTempRelFileNode(newTableSpace,
-										   rel->rd_rel->relpersistence);
+	newrelfilenode = GetNewOrPreassignedTempRelFileNode(newTableSpace,
+														rel->rd_rel->relpersistence,
+														tableOid,
+														RelationGetNamespace(rel),
+														RelationGetRelationName(rel));
 
 	/* Open old and new relation */
 	newrnode = rel->rd_node;

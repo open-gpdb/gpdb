@@ -43,9 +43,10 @@
 /* ----------------
  *		Temp relfilenode range
  *
- * With gp_enable_preassigned_temp_relfilenode, the coordinator assigns
- * relfilenodes of temporary relations from a reserved range starting at
- * FirstTempRelfilenodeValue; the
+ * With gp_enable_preassigned_temp_relfilenode, relfilenodes of temporary
+ * relations are assigned on the coordinator and dispatched to the segments,
+ * so that all nodes use the same relfilenode for a temp table.  They are
+ * taken from a reserved range starting at FirstTempRelfilenodeValue; the
  * regular relfilenode counter wraps around before reaching it.  Temp and
  * regular relations share the buffer tag space, so the two must never meet.
  * ----------------

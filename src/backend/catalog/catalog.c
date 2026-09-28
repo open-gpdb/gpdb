@@ -784,28 +784,58 @@ GetNewRelFileNode(Oid reltablespace, Relation pg_class, char relpersistence)
 }
 
 /*
- * GetNewTempRelFileNode
- *		Like GetNewRelFileNode(), but for a temp relation on the QD, when
- *		gp_enable_preassigned_temp_relfilenode is on, take the relfilenode
- *		from the temp relfilenode range.
+ * When set, GetNewOrPreassignedTempRelFileNode() allocates relfilenodes
+ * locally, on the QD and the QEs alike.  For operations that each node
+ * decides to perform on its own, based on its local data, so that the QD
+ * can't pre-assign anything for them.
+ */
+static bool localTempRelFileNodes = false;
+
+/*
+ * Set localTempRelFileNodes, return the previous value.
+ */
+bool
+SetLocalTempRelFileNodes(bool local)
+{
+	bool		prev = localTempRelFileNodes;
+
+	localTempRelFileNodes = local;
+	return prev;
+}
+
+/*
+ * GetNewOrPreassignedTempRelFileNode
+ *		Like GetNewRelFileNode(), but for a temp relation, when
+ *		gp_enable_preassigned_temp_relfilenode is on, make the relfilenode
+ *		the same on the QD and all QEs.
  *
  * This is used both for new relations and for new relfilenodes of existing
  * ones (TRUNCATE, REINDEX, ALTER TABLE SET TABLESPACE).
  *
- * The value comes from the dedicated temp relfilenode counter
- * (GetNewTempRelFileNodeCounter()) and is checked against the files and
- * pg_class, as the counter is not persisted and may return values still in
- * use.  The buffer tag doesn't tell temp and regular relations apart, so a
- * value used by a relation of any persistence is skipped.
+ * On the QD, the relfilenode is taken from the dedicated temp relfilenode
+ * counter (GetNewTempRelFileNodeCounter()) and recorded for dispatch, keyed
+ * by the relation's OID, namespace and name.  On a QE, the value dispatched
+ * by the QD must be used; if there is none, it's an error, as the relation
+ * would silently end up with different relfilenodes on different nodes.
+ *
+ * Operations that nodes perform independently of each other (see
+ * SetLocalTempRelFileNodes()) get a local relfilenode, which differs across
+ * the nodes.
+ *
+ * Each node checks the value against its own files and pg_class.  The QD
+ * re-picks on a collision; a QE can't, since all the nodes must agree on the
+ * value, so there a collision is an error.  Going ahead would make two
+ * relations share buffers: the buffer tag doesn't tell temp and regular
+ * relations apart.
  */
 Oid
-GetNewTempRelFileNode(Oid reltablespace, char relpersistence)
+GetNewOrPreassignedTempRelFileNode(Oid reltablespace, char relpersistence,
+								   Oid relid, Oid relnamespace,
+								   const char *relname)
 {
 	RelFileNodeBackend rnode;
 
-	if (relpersistence != RELPERSISTENCE_TEMP ||
-		Gp_role != GP_ROLE_DISPATCH ||
-		!gp_enable_preassigned_temp_relfilenode)
+	if (relpersistence != RELPERSISTENCE_TEMP || localTempRelFileNodes)
 		return GetNewRelFileNode(reltablespace, NULL, relpersistence);
 
 	/* This logic should match RelationInitPhysicalAddr */
@@ -813,13 +843,44 @@ GetNewTempRelFileNode(Oid reltablespace, char relpersistence)
 	rnode.node.dbNode = (rnode.node.spcNode == GLOBALTABLESPACE_OID) ? InvalidOid : MyDatabaseId;
 	rnode.backend = InvalidBackendId;
 
-	do
+	if (Gp_role == GP_ROLE_DISPATCH && gp_enable_preassigned_temp_relfilenode)
 	{
-		CHECK_FOR_INTERRUPTS();
-		rnode.node.relNode = GetNewTempRelFileNodeCounter();
-	} while (GpCheckTempRelFileNodeInUse(rnode));
+		/* Nothing has been dispatched yet, so we're still free to re-pick. */
+		do
+		{
+			CHECK_FOR_INTERRUPTS();
+			rnode.node.relNode = GetNewTempRelFileNodeCounter();
+		} while (GpCheckTempRelFileNodeInUse(rnode));
 
-	elog(DEBUG1, "assigned temp relfilenode %u", rnode.node.relNode);
+		AddDispatchTempRelfilenode(relid, relnamespace, relname,
+								   rnode.node.relNode);
 
-	return rnode.node.relNode;
+		elog(DEBUG1, "assigned temp relfilenode %u for relation \"%s\"",
+			 rnode.node.relNode, relname);
+
+		return rnode.node.relNode;
+	}
+
+	if (Gp_role == GP_ROLE_EXECUTE && gp_enable_preassigned_temp_relfilenode)
+	{
+		rnode.node.relNode = GetPreassignedTempRelfilenode(relid, relnamespace,
+														   relname);
+		if (!OidIsValid(rnode.node.relNode))
+			elog(ERROR, "no pre-assigned relfilenode for temp relation \"%s\" (relid %u)",
+				 relname, relid);
+
+		if (GpCheckTempRelFileNodeInUse(rnode))
+			ereport(ERROR,
+					(errcode(ERRCODE_INTERNAL_ERROR),
+					 errmsg("pre-assigned relfilenode %u for temp relation \"%s\" is already in use on segment %d",
+							rnode.node.relNode, relname, GpIdentity.segindex),
+					 errhint("Retry the command, or set gp_enable_preassigned_temp_relfilenode to off.")));
+
+		elog(DEBUG1, "using pre-assigned temp relfilenode %u for relation \"%s\"",
+			 rnode.node.relNode, relname);
+
+		return rnode.node.relNode;
+	}
+
+	return GetNewRelFileNode(reltablespace, NULL, relpersistence);
 }
