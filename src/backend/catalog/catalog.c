@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include "access/genam.h"
+#include "access/heapam.h"
 #include "access/sysattr.h"
 #include "access/transam.h"
 #include "catalog/catalog.h"
@@ -634,6 +635,89 @@ GpCheckRelFileCollision(RelFileNodeBackend rnode)
 }
 
 /*
+ * Check for an existing file with the given relfilenode, both as a regular
+ * and as a temp relation file.
+ */
+static bool
+GpCheckRelFileCollisionAnyPersistence(RelFileNodeBackend rnode)
+{
+	BackendId	backend = rnode.backend;
+
+	if (GpCheckRelFileCollision(rnode))
+		return true;
+
+	if (rnode.node.spcNode == GLOBALTABLESPACE_OID)
+		return false;
+
+	/*
+	 * GPDB_91_MERGE_FIXME: check again for a collision with a temp
+	 * table (if this is a normal relation) or a normal table (if this
+	 * is a temp relation).
+	 *
+	 * The shared buffer manager currently assumes that relfilenodes of
+	 * relations stored in shared buffers can't conflict, which is
+	 * trivially true in upstream because temp tables don't use shared
+	 * buffers at all. We have to make this additional check to make
+	 * sure of that.
+	 */
+	rnode.backend = (backend == InvalidBackendId) ? TempRelBackendId
+												  : InvalidBackendId;
+	return GpCheckRelFileCollision(rnode);
+}
+
+/*
+ * Is the relfilenode used by a relation of the current database, according
+ * to pg_class?  That covers relations whose files are gone, e.g. temp
+ * relations left behind by a crashed session after a restart: dropping one
+ * of them later would remove the files and buffers of whatever relation got
+ * the same relfilenode in the meantime.
+ */
+static bool
+GpCheckRelFileNodeInCatalog(RelFileNode node)
+{
+	Relation	pg_class;
+	ScanKeyData key[2];
+	SysScanDesc scan;
+	bool		found;
+
+	if (node.spcNode == GLOBALTABLESPACE_OID)
+		return false;
+
+	pg_class = heap_open(RelationRelationId, AccessShareLock);
+
+	/* pg_class shows 0 for the database's default tablespace */
+	ScanKeyInit(&key[0],
+				Anum_pg_class_reltablespace,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(node.spcNode == MyDatabaseTableSpace ?
+								 InvalidOid : node.spcNode));
+	ScanKeyInit(&key[1],
+				Anum_pg_class_relfilenode,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(node.relNode));
+
+	scan = systable_beginscan(pg_class, ClassTblspcRelfilenodeIndexId, true,
+							  NULL, 2, key);
+	found = HeapTupleIsValid(systable_getnext(scan));
+	systable_endscan(scan);
+
+	heap_close(pg_class, AccessShareLock);
+
+	return found;
+}
+
+/*
+ * Is the temp relfilenode in use on this node, as a file of any persistence
+ * or in pg_class?
+ */
+static bool
+GpCheckTempRelFileNodeInUse(RelFileNodeBackend rnode)
+{
+	return GpCheckRelFileCollisionAnyPersistence(rnode) ||
+		GpCheckRelFileNodeInCatalog(rnode.node);
+}
+
+/*
  * GetNewRelFileNode
  *		Generate a new relfilenode number that is unique within the
  *		database of the given tablespace.
@@ -691,28 +775,51 @@ GetNewRelFileNode(Oid reltablespace, Relation pg_class, char relpersistence)
 		/* Generate the Relfilenode */
 		rnode.node.relNode = GetNewSegRelfilenode();
 
-		collides = GpCheckRelFileCollision(rnode);
-
-		if (!collides && rnode.node.spcNode != GLOBALTABLESPACE_OID)
-		{
-			/*
-			 * GPDB_91_MERGE_FIXME: check again for a collision with a temp
-			 * table (if this is a normal relation) or a normal table (if this
-			 * is a temp relation).
-			 *
-			 * The shared buffer manager currently assumes that relfilenodes of
-			 * relations stored in shared buffers can't conflict, which is
-			 * trivially true in upstream because temp tables don't use shared
-			 * buffers at all. We have to make this additional check to make
-			 * sure of that.
-			 */
-			rnode.backend = (backend == InvalidBackendId) ? TempRelBackendId
-														  : InvalidBackendId;
-			collides = GpCheckRelFileCollision(rnode);
-		}
+		collides = GpCheckRelFileCollisionAnyPersistence(rnode);
 	} while (collides);
 
 	elog(DEBUG1, "Calling GetNewRelFileNode returns new relfilenode = %d", rnode.node.relNode);
+
+	return rnode.node.relNode;
+}
+
+/*
+ * GetNewTempRelFileNode
+ *		Like GetNewRelFileNode(), but for a temp relation on the QD, when
+ *		gp_enable_preassigned_temp_relfilenode is on, take the relfilenode
+ *		from the temp relfilenode range.
+ *
+ * This is used both for new relations and for new relfilenodes of existing
+ * ones (TRUNCATE, REINDEX, ALTER TABLE SET TABLESPACE).
+ *
+ * The value comes from the dedicated temp relfilenode counter
+ * (GetNewTempRelFileNodeCounter()) and is checked against the files and
+ * pg_class, as the counter is not persisted and may return values still in
+ * use.  The buffer tag doesn't tell temp and regular relations apart, so a
+ * value used by a relation of any persistence is skipped.
+ */
+Oid
+GetNewTempRelFileNode(Oid reltablespace, char relpersistence)
+{
+	RelFileNodeBackend rnode;
+
+	if (relpersistence != RELPERSISTENCE_TEMP ||
+		Gp_role != GP_ROLE_DISPATCH ||
+		!gp_enable_preassigned_temp_relfilenode)
+		return GetNewRelFileNode(reltablespace, NULL, relpersistence);
+
+	/* This logic should match RelationInitPhysicalAddr */
+	rnode.node.spcNode = reltablespace ? reltablespace : MyDatabaseTableSpace;
+	rnode.node.dbNode = (rnode.node.spcNode == GLOBALTABLESPACE_OID) ? InvalidOid : MyDatabaseId;
+	rnode.backend = InvalidBackendId;
+
+	do
+	{
+		CHECK_FOR_INTERRUPTS();
+		rnode.node.relNode = GetNewTempRelFileNodeCounter();
+	} while (GpCheckTempRelFileNodeInUse(rnode));
+
+	elog(DEBUG1, "assigned temp relfilenode %u", rnode.node.relNode);
 
 	return rnode.node.relNode;
 }

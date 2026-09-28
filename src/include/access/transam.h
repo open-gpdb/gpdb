@@ -16,6 +16,7 @@
 
 #include "catalog/pg_magic_oid.h"
 #include "access/xlogdefs.h"
+#include "storage/s_lock.h"
 
 
 /* ----------------
@@ -39,6 +40,18 @@
  *		transaction ID manipulation macros
  * ----------------
  */
+/* ----------------
+ *		Temp relfilenode range
+ *
+ * With gp_enable_preassigned_temp_relfilenode, the coordinator assigns
+ * relfilenodes of temporary relations from a reserved range starting at
+ * FirstTempRelfilenodeValue; the
+ * regular relfilenode counter wraps around before reaching it.  Temp and
+ * regular relations share the buffer tag space, so the two must never meet.
+ * ----------------
+ */
+#define FirstTempRelfilenodeValue	((Oid) 0x40000000)
+
 #define TransactionIdIsValid(xid)		((xid) != InvalidTransactionId)
 #define TransactionIdIsNormal(xid)		((xid) >= FirstNormalTransactionId)
 #define TransactionIdEquals(id1, id2)	((id1) == (id2))
@@ -112,6 +125,16 @@ typedef struct VariableCacheData
 										 * aborted */
 	TransactionId latestCompletedDxid;	/* newest distributed XID that has
 										   committed or aborted */
+
+	/*
+	 * This field is protected by tempRelfilenodeLock.  It is not WAL-logged;
+	 * see GetNewTempRelFileNodeCounter() for how it starts after a restart.
+	 *
+	 * Keep these at the end of the struct, so that the offsets of the other
+	 * fields don't change.
+	 */
+	slock_t		tempRelfilenodeLock;
+	Oid			nextTempRelfilenode;	/* next temp relfilenode to assign */
 } VariableCacheData;
 
 typedef VariableCacheData *VariableCache;
@@ -159,6 +182,7 @@ extern bool ForceTransactionIdLimitUpdate(void);
 extern Oid	GetNewObjectId(void);
 extern void AdvanceObjectId(Oid newOid);
 extern Oid	GetNewSegRelfilenode(void);
+extern Oid	GetNewTempRelFileNodeCounter(void);
 extern bool OidFollowsNextOid(Oid id);
 
 #endif   /* TRAMSAM_H */

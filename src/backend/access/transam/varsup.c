@@ -22,6 +22,7 @@
 #include "postmaster/autovacuum.h"
 #include "storage/pmsignal.h"
 #include "storage/proc.h"
+#include "storage/spin.h"
 #include "utils/faultinjector.h"
 #include "utils/guc.h"
 #include "utils/syscache.h"
@@ -634,7 +635,12 @@ GetNewSegRelfilenodeUnderLock(void)
 
 	Assert(LWLockHeldByMe(RelfilenodeGenLock));
 
-	if (ShmemVariableCache->nextRelfilenode < ((Oid) FirstNormalObjectId) &&
+	/*
+	 * Wrap around before the temp relfilenode range: relfilenodes in it are
+	 * assigned by the coordinator (GetNewTempRelFileNodeCounter()).
+	 */
+	if ((ShmemVariableCache->nextRelfilenode < ((Oid) FirstNormalObjectId) ||
+		 ShmemVariableCache->nextRelfilenode >= FirstTempRelfilenodeValue) &&
 		IsPostmasterEnvironment)
 	{
 		/* wraparound in normal environment */
@@ -674,6 +680,42 @@ GetNewSegRelfilenode(void)
 	result = GetNewSegRelfilenodeUnderLock();
 
 	LWLockRelease(RelfilenodeGenLock);
+
+	return result;
+}
+
+/*
+ * GetNewTempRelFileNodeCounter -- allocate a relfilenode for a temp relation
+ *
+ * Used on the coordinator when gp_enable_preassigned_temp_relfilenode is on.
+ * Values come from a reserved range starting at FirstTempRelfilenodeValue.
+ *
+ * The counter is not persisted.  Temp relations left behind by sessions
+ * that didn't exit cleanly may still hold values from before a restart, in
+ * the catalogs and files, so the first call after startup (or after a
+ * wraparound) starts at a random point of the range, which makes reusing
+ * them unlikely.  The caller must still check the value, see
+ * GetNewTempRelFileNode().
+ */
+Oid
+GetNewTempRelFileNodeCounter(void)
+{
+	Oid			result;
+	Oid			start = FirstTempRelfilenodeValue + (Oid) random();
+
+	/* safety check, we should never get this far in a HS slave */
+	if (RecoveryInProgress())
+		elog(ERROR, "cannot assign relfilenodes during recovery");
+
+	SpinLockAcquire(&ShmemVariableCache->tempRelfilenodeLock);
+
+	if (ShmemVariableCache->nextTempRelfilenode < FirstTempRelfilenodeValue)
+		ShmemVariableCache->nextTempRelfilenode = start;
+
+	result = ShmemVariableCache->nextTempRelfilenode;
+	(ShmemVariableCache->nextTempRelfilenode)++;
+
+	SpinLockRelease(&ShmemVariableCache->tempRelfilenodeLock);
 
 	return result;
 }

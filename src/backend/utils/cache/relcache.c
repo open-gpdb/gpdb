@@ -3126,7 +3126,8 @@ RelationBuildLocalRelation(const char *relname,
 		rel->rd_rel->relfilenode = relfilenode;
 	else
 	{
-		rel->rd_rel->relfilenode = GetNewRelFileNode(reltablespace, NULL, relpersistence);
+		rel->rd_rel->relfilenode = GetNewTempRelFileNode(reltablespace,
+														 relpersistence);
 		if (Gp_role == GP_ROLE_EXECUTE || IsBinaryUpgrade)
 			AdvanceObjectId(relid);
 	}
@@ -3211,8 +3212,8 @@ RelationSetNewRelfilenode(Relation relation, TransactionId freezeXid,
 	Assert(TransactionIdIsNormal(freezeXid) == MultiXactIdIsValid(minmulti));
 
 	/* Allocate a new relfilenode */
-	newrelfilenode = GetNewRelFileNode(relation->rd_rel->reltablespace, NULL,
-									   relation->rd_rel->relpersistence);
+	newrelfilenode = GetNewTempRelFileNode(relation->rd_rel->reltablespace,
+										   relation->rd_rel->relpersistence);
 
 	/*
 	 * Get a writable copy of the pg_class tuple for the given relation.

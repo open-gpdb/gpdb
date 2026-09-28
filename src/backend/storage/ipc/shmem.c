@@ -170,6 +170,7 @@ InitShmemAllocation(void)
 	ShmemVariableCache = (VariableCache)
 		ShmemAlloc(sizeof(*ShmemVariableCache));
 	memset(ShmemVariableCache, 0, sizeof(*ShmemVariableCache));
+	SpinLockInit(&ShmemVariableCache->tempRelfilenodeLock);
 }
 
 /*

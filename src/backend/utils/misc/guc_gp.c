@@ -153,6 +153,7 @@ bool		Debug_datumstream_block_write_check_integrity = false;
 bool		Debug_datumstream_read_print_varlena_info = false;
 bool		Debug_datumstream_write_use_small_initial_buffers = false;
 bool		gp_create_table_random_default_distribution = false;
+bool		gp_enable_preassigned_temp_relfilenode = false;
 bool		gp_allow_non_uniform_partitioning_ddl = true;
 bool		gp_print_create_gang_time = false;
 bool		gp_enable_exchange_default_partition = false;
@@ -2051,6 +2052,17 @@ struct config_bool ConfigureNamesBool_gp[] =
 			GUC_NOT_IN_SAMPLE
 		},
 		&gp_create_table_random_default_distribution,
+		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_enable_preassigned_temp_relfilenode", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Assign relfilenodes of temp relations on the coordinator from a separate range."),
+			NULL,
+			GUC_NOT_IN_SAMPLE | GUC_GPDB_NEED_SYNC
+		},
+		&gp_enable_preassigned_temp_relfilenode,
 		false,
 		NULL, NULL, NULL
 	},
