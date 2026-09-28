@@ -310,6 +310,7 @@ searchRangeTableForRel(ParseState *pstate, RangeVar *relation)
 	const char *refname = relation->relname;
 	Oid			relId = InvalidOid;
 	CommonTableExpr *cte = NULL;
+	TempResultEntry *tempres = NULL;
 	Index		ctelevelsup = 0;
 	Index		levelsup;
 
@@ -328,7 +329,18 @@ searchRangeTableForRel(ParseState *pstate, RangeVar *relation)
 	if (!relation->schemaname)
 		cte = scanNameSpaceForCTE(pstate, refname, &ctelevelsup);
 	if (!cte)
-		relId = RangeVarGetRelid(relation, NoLock, true);
+	{
+		/*
+		 * This lookup only improves a missing-RTE diagnostic.  Catalogless
+		 * results have no relation OID, and RangeVarGetRelid would replace
+		 * the scope/alias error with the catalog-operation prohibition.
+		 * Resolve them as in addRangeTableEntry, preserving CTE precedence.
+		 */
+		if (Gp_role != GP_ROLE_EXECUTE)
+			tempres = TempResultResolve(relation);
+		if (tempres == NULL)
+			relId = RangeVarGetRelid(relation, NoLock, true);
+	}
 
 	/* Now look for RTEs matching either the relation/CTE or the alias */
 	for (levelsup = 0;
@@ -344,6 +356,10 @@ searchRangeTableForRel(ParseState *pstate, RangeVar *relation)
 			if (rte->rtekind == RTE_RELATION &&
 				OidIsValid(relId) &&
 				rte->relid == relId)
+				return rte;
+			if (rte->rtekind == RTE_TEMPRESULT &&
+				tempres != NULL &&
+				rte->tempresid == tempres->vid)
 				return rte;
 			if (rte->rtekind == RTE_CTE &&
 				cte != NULL &&

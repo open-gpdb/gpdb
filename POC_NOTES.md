@@ -471,6 +471,21 @@ ROLLBACK removed the first file while the backend was still connected, and
 another CTAS succeeded in that same backend. The temporary test cluster
 was stopped after verification.
 
+## SQLancer scope diagnostic fix (2026-09-28)
+
+`searchRangeTableForRel` now resolves catalogless results by virtual id
+when constructing missing-FROM and alias diagnostics. A forward JOIN
+reference or use of a table's original name after aliasing now reports
+SQLSTATE `42P01` with the normal scope/alias hint, rather than the `0A000`
+catalog-operation prohibition. CTE precedence is preserved.
+
+`test/catalogless_scope.sql` compares SQLSTATE, message and hint against
+ordinary temp tables for forward references, aliases, JOIN scope, parent
+parse states, CTE shadowing and explicit `pg_temp` qualification. It also
+checks that INSERT, TRUNCATE and CREATE INDEX remain prohibited. The test
+failed on the previous binary and passed on the fixed binary on an
+isolated two-segment cluster; the backend build passed as well.
+
 ## History layout
 
 The branch was rewritten layer by layer (the original history is kept in
