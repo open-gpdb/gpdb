@@ -1,0 +1,5 @@
+# gp_incremental_backups extension
+comment = 'Extension for sequre Greenplum AO/AOCS relations incremental backups with wal-g'
+default_version = '0.0.1'
+module_pathname = '$libdir/gp_incremental_backups'
+trusted = true
