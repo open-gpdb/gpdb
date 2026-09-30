@@ -113,6 +113,8 @@ extern void cost_functionscan(Path *path, PlannerInfo *root,
 				  RelOptInfo *baserel, ParamPathInfo *param_info);
 extern void cost_tablefunction(Path *path, PlannerInfo *root,
 				  RelOptInfo *baserel, ParamPathInfo *param_info);
+extern void cost_tempresultscan(Path *path, PlannerInfo *root,
+					RelOptInfo *baserel, ParamPathInfo *param_info);
 extern void cost_valuesscan(Path *path, PlannerInfo *root,
 				RelOptInfo *baserel, ParamPathInfo *param_info);
 extern void cost_ctescan(Path *path, PlannerInfo *root,

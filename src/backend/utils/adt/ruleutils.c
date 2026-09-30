@@ -6412,6 +6412,7 @@ get_name_for_var_field(Var *var, int fieldno,
 	{
 		case RTE_RELATION:
 		case RTE_VALUES:
+		case RTE_TEMPRESULT:
 
 			/*
 			 * This case should not occur: a column of a table or values list
@@ -9324,6 +9325,10 @@ get_from_clause_item(Node *jtnode, Query *query, deparse_context *context)
 				appendStringInfoChar(buf, ')');
 				break;
 			case RTE_CTE:
+				appendStringInfoString(buf, quote_identifier(rte->ctename));
+				break;
+			case RTE_TEMPRESULT:
+				/* POC: catalogless temp table */
 				appendStringInfoString(buf, quote_identifier(rte->ctename));
 				break;
 			default:

@@ -36,7 +36,7 @@ OBJS = cdbappendonlystorageformat.o \
 	   cdbplan.o cdbpullup.o \
 	   cdbrelsize.o \
 	   cdbsetop.o cdbsreh.o cdbsrlz.o cdbsubplan.o cdbsubselect.o \
-	   cdbtargeteddispatch.o cdbthreadlog.o \
+	   cdbtargeteddispatch.o cdbtempresult.o cdbthreadlog.o \
 	   cdbtimer.o \
 	   cdbtm.o cdbtmutils.o \
 	   cdbutil.o \
