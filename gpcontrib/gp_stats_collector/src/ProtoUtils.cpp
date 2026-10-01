@@ -113,13 +113,22 @@ set_query_plan(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			*qi->mutable_plan_text() = trim_str_shrink_utf8(
 				es.str->data, es.str->len, config.max_plan_size());
 			StringInfo norm_plan = gpdb::gen_normplan(es.str->data);
-			*qi->mutable_template_plan_text() = trim_str_shrink_utf8(
-				norm_plan->data, norm_plan->len, config.max_plan_size());
-			qi->set_plan_id(
-				hash_any((unsigned char *) norm_plan->data, norm_plan->len));
+			if (norm_plan)
+			{
+				*qi->mutable_template_plan_text() = trim_str_shrink_utf8(
+					norm_plan->data, norm_plan->len, config.max_plan_size());
+				qi->set_plan_id(hash_any((unsigned char *) norm_plan->data,
+										 norm_plan->len));
+				gpdb::pfree(norm_plan->data);
+			}
+			else
+			{
+				/* plan_id must be calculated even if normalization failed */
+				qi->set_plan_id(
+					hash_any((unsigned char *) es.str->data, es.str->len));
+			}
 			qi->set_query_id(query_desc->plannedstmt->queryId);
 			gpdb::pfree(es.str->data);
-			gpdb::pfree(norm_plan->data);
 		}
 		gpdb::mem_ctx_switch_to(oldcxt);
 	}
@@ -136,8 +145,11 @@ set_query_text(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			query_desc->sourceText, strlen(query_desc->sourceText),
 			config.max_text_size());
 		char *norm_query = gpdb::gen_normquery(query_desc->sourceText);
-		*qi->mutable_template_query_text() = trim_str_shrink_utf8(
-			norm_query, strlen(norm_query), config.max_text_size());
+		if (norm_query)
+		{
+			*qi->mutable_template_query_text() = trim_str_shrink_utf8(
+				norm_query, strlen(norm_query), config.max_text_size());
+		}
 	}
 }
 

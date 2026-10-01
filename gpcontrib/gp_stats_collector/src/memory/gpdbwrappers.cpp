@@ -22,7 +22,7 @@ namespace
 
 template <bool Throws, typename Func, typename... Args>
 auto
-wrap(Func &&func, Args &&...args) noexcept(!Throws)
+wrap(const char *warn_context, Func &&func, Args &&...args) noexcept(!Throws)
 	-> decltype(func(std::forward<Args>(args)...))
 {
 	using RetType = decltype(func(std::forward<Args>(args)...));
@@ -83,6 +83,11 @@ wrap(Func &&func, Args &&...args) noexcept(!Throws)
 			throw std::runtime_error(err);
 		}
 
+		if (warn_context)
+		{
+			ereport(WARNING, (errmsg("%s: %s", warn_context, err.c_str())));
+		}
+
 		if constexpr (!std::is_void_v<RetType>)
 		{
 			return RetType{};
@@ -108,7 +113,8 @@ auto
 wrap_throw(Func &&func, Args &&...args)
 	-> decltype(func(std::forward<Args>(args)...))
 {
-	return wrap<true>(std::forward<Func>(func), std::forward<Args>(args)...);
+	return wrap<true>(nullptr, std::forward<Func>(func),
+					  std::forward<Args>(args)...);
 }
 
 template <typename Func, typename... Args>
@@ -116,7 +122,17 @@ auto
 wrap_noexcept(Func &&func, Args &&...args) noexcept
 	-> decltype(func(std::forward<Args>(args)...))
 {
-	return wrap<false>(std::forward<Func>(func), std::forward<Args>(args)...);
+	return wrap<false>(nullptr, std::forward<Func>(func),
+					   std::forward<Args>(args)...);
+}
+
+template <typename Func, typename... Args>
+auto
+wrap_noexcept(const char *warn_context, Func &&func, Args &&...args) noexcept
+	-> decltype(func(std::forward<Args>(args)...))
+{
+	return wrap<false>(warn_context, std::forward<Func>(func),
+					   std::forward<Args>(args)...);
 }
 }  // namespace
 
@@ -260,18 +276,20 @@ gpdb::instr_end_loop(Instrumentation *instr)
 }
 
 char *
-gpdb::gen_normquery(const char *query)
+gpdb::gen_normquery(const char *query) noexcept
 {
-	return wrap_throw(::gen_normquery, query);
+	return wrap_noexcept("GPSC failed to normalize query text", ::gen_normquery,
+					   query);
 }
 
 StringInfo
-gpdb::gen_normplan(const char *exec_plan)
+gpdb::gen_normplan(const char *exec_plan) noexcept
 {
 	if (!exec_plan)
-		throw std::runtime_error("Invalid execution plan string");
+		return nullptr;
 
-	return wrap_throw(::gen_normplan, exec_plan);
+	return wrap_noexcept("GPSC failed to normalize plan text", ::gen_normplan,
+					   exec_plan);
 }
 
 char *
