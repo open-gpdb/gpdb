@@ -106,10 +106,12 @@ submit -> ExecutorStart() -> start -> ExecutorRun() -> ExecutorFinish() -> end -
 | `plan_text`                  | string | T       | ABS      | -      | Cluster |     +      |    -    | text    | EXPLAIN text                                        |
 | `template_query_text`        | string | S       | ABS      | -      | Cluster |     +      |    -    | text    | Normalized query text                               |
 | `template_plan_text`         | string | T       | ABS      | -      | Cluster |     +      |    -    | text    | Normalized plan text                                |
+| `plan_json`                  | string | T       | ABS      | -      | Cluster |     +      |    -    | text    | EXPLAIN (FORMAT JSON) plan, if enable_json_plan     |
 | `userName`                   | string | All     | ABS      | -      | Cluster |     +      |    -    | text    | Session user                                        |
 | `databaseName`               | string | All     | ABS      | -      | Cluster |     +      |    -    | text    | Database name                                       |
 | `rsgname`                    | string | All     | ABS      | -      | Cluster |     +      |    -    | text    | Resource group name                                 |
 | `analyze_text`               | string | D       | ABS      | -      | Cluster |     +      |    -    | text    | EXPLAIN ANALYZE                                |
+| `analyze_json`               | string | D       | ABS      | -      | Cluster |     +      |    -    | text    | EXPLAIN ANALYZE (FORMAT JSON), if enable_json_plan  |
 | **AdditionalQueryInfo**      |        |         |          |        |         |            |         |         |                                                     |
 | `nested_level`               | int64  | All     | ABS      | -      | Node    |     +      |    +    | count   | Current nesting level                               |
 | `error_message`              | string | D       | ABS      | -      | Node    |     +      |    +    | text    | Error message                                       |

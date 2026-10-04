@@ -95,6 +95,17 @@ trim_str_shrink_utf8(const char *str, size_t len, size_t lim)
 	return std::string(str, cut_pos);
 }
 
+// Never trim JSON: a truncated payload is unparseable, so drop it if over the limit.
+static void
+set_json_if_fits(std::string *dst, ExplainState es, int limit)
+{
+	if (!es.str)
+		return;
+	if (es.str->len <= limit)
+		dst->assign(es.str->data, es.str->len);
+	gpdb::pfree(es.str->data);
+}
+
 void
 set_query_plan(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			   const Config &config)
@@ -120,6 +131,13 @@ set_query_plan(gpsc::SetQueryReq *req, QueryDesc *query_desc,
 			qi->set_query_id(query_desc->plannedstmt->queryId);
 			gpdb::pfree(es.str->data);
 			gpdb::pfree(norm_plan->data);
+		}
+		// Also capture EXPLAIN (FORMAT JSON); plan_id still comes from the TEXT plan above.
+		if (config.enable_json_plan())
+		{
+			set_json_if_fits(qi->mutable_plan_json(),
+							 gpdb::get_explain_state(query_desc, true, true),
+							 config.max_plan_size());
 		}
 		gpdb::mem_ctx_switch_to(oldcxt);
 	}
@@ -152,6 +170,8 @@ clear_big_fields(gpsc::SetQueryReq *req)
 		qi->clear_query_text();
 		qi->clear_template_query_text();
 		qi->clear_analyze_text();
+		qi->clear_plan_json();
+		qi->clear_analyze_json();
 	}
 }
 
@@ -319,10 +339,15 @@ set_analyze_plan_text(QueryDesc *query_desc, gpsc::SetQueryReq *req,
 	{
 		return;
 	}
+	bool do_analyze =
+		query_desc->instrument_options && config.enable_analyze();
 	MemoryContext oldcxt =
 		gpdb::mem_ctx_switch_to(query_desc->estate->es_query_cxt);
-	ExplainState es = gpdb::get_analyze_state(
-		query_desc, query_desc->instrument_options && config.enable_analyze());
+	ExplainState es = gpdb::get_analyze_state(query_desc, do_analyze);
+	// EXPLAIN (ANALYZE, FORMAT JSON); needs do_analyze, otherwise it would repeat the plain plan.
+	ExplainState es_json = {};
+	if (do_analyze && config.enable_json_plan())
+		es_json = gpdb::get_analyze_state(query_desc, true, true);
 	gpdb::mem_ctx_switch_to(oldcxt);
 	if (es.str)
 	{
@@ -336,4 +361,6 @@ set_analyze_plan_text(QueryDesc *query_desc, gpsc::SetQueryReq *req,
 		req->mutable_query_info()->set_analyze_text(trimmed_analyze);
 		gpdb::pfree(es.str->data);
 	}
+	set_json_if_fits(req->mutable_query_info()->mutable_analyze_json(), es_json,
+					 config.max_plan_size());
 }
