@@ -1,5 +1,5 @@
 services:
-  minio:
+  seaweedfs:
     image: chrislusf/seaweedfs:4.40@sha256:52194fba4fecd0083c842158b3a902ba6e04a63619b2b0efcd08007bdb6a4602
     command: "mini -s3.port=9000"
     expose:
@@ -14,7 +14,7 @@ services:
       timeout: 2s
       retries: 30
       start_period: 2s
-    hostname: minio
+    hostname: seaweedfs
 
   yezzey:
     image: yezzey
@@ -25,8 +25,8 @@ services:
         accessKeyId: some_key
         secretAccessKey: some_key
         bucketName: gpyezzey
-        s3endpoint: "http:\\/\\/minio:9000"
+        s3endpoint: "http:\\/\\/seaweedfs:9000"
         yezzeyRef: ${YEZZEY_GITHUB_REF:-v1.8_opengpdb}
     depends_on:
-      minio:
+      seaweedfs:
         condition: service_healthy
