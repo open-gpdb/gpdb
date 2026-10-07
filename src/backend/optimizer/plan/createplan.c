@@ -29,6 +29,7 @@
 #include "catalog/pg_proc.h"
 #include "foreign/fdwapi.h"
 #include "miscadmin.h"
+#include "nodes/extensible.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
 #include "executor/execHHashagg.h"
@@ -108,6 +109,8 @@ static SubqueryScan *create_ctescan_plan(PlannerInfo *root, Path *best_path,
 static WorkTableScan *create_worktablescan_plan(PlannerInfo *root, Path *best_path,
 						  List *tlist, List *scan_clauses);
 static ForeignScan *create_foreignscan_plan(PlannerInfo *root, ForeignPath *best_path,
+						List *tlist, List *scan_clauses);
+static CustomScan *create_customscan_plan(PlannerInfo *root, CustomPath *best_path,
 						List *tlist, List *scan_clauses);
 static NestLoop *create_nestloop_plan(PlannerInfo *root, NestPath *best_path,
 					 Plan *outer_plan, Plan *inner_plan);
@@ -295,6 +298,7 @@ create_plan_recurse(PlannerInfo *root, Path *best_path)
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
+		case T_CustomScan:
 			plan = create_scan_plan(root, best_path);
 			break;
 		case T_HashJoin:
@@ -505,6 +509,13 @@ create_scan_plan(PlannerInfo *root, Path *best_path)
 													scan_clauses);
 			break;
 
+		case T_CustomScan:
+			plan = (Plan *) create_customscan_plan(root,
+												   (CustomPath *) best_path,
+												   tlist,
+												   scan_clauses);
+			break;
+
 		default:
 			elog(ERROR, "unrecognized node type: %d",
 				 (int) best_path->pathtype);
@@ -656,6 +667,7 @@ disuse_physical_tlist(PlannerInfo *root, Plan *plan, Path *path)
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
+		case T_CustomScan:
 			plan->targetlist = build_path_tlist(root, path);
 
 			/**
@@ -3065,6 +3077,62 @@ create_foreignscan_plan(PlannerInfo *root, ForeignPath *best_path,
 	return scan_plan;
 }
 
+/*
+ * create_customscan_plan
+ *
+ * Transform a CustomPath into a Plan.
+ */
+static CustomScan *
+create_customscan_plan(PlannerInfo *root, CustomPath *best_path,
+					   List *tlist, List *scan_clauses)
+{
+	CustomScan *cplan;
+	RelOptInfo *rel = best_path->path.parent;
+	List	   *custom_plans = NIL;
+	ListCell   *lc;
+
+	/* Recursively transform child paths. */
+	foreach(lc, best_path->custom_paths)
+	{
+		Plan	   *plan = create_plan_recurse(root, (Path *) lfirst(lc));
+
+		custom_plans = lappend(custom_plans, plan);
+	}
+
+	/*
+	 * Sort clauses into best execution order
+	 */
+	scan_clauses = order_qual_clauses(root, scan_clauses);
+
+	/*
+	 * Invoke custom path's PlanCustomPath callback to create the CustomScan
+	 * plan node.
+	 */
+	cplan = castNode(CustomScan,
+					 best_path->methods->PlanCustomPath(root, rel,
+														best_path,
+														tlist,
+														scan_clauses,
+														custom_plans));
+
+	/*
+	 * Copy cost data from Path to Plan; no need to make custom-scan provider
+	 * do this.
+	 */
+	copy_path_costsize(root, &cplan->scan.plan, &best_path->path);
+
+	/* Replace any outer-relation variables with nestloop params */
+	if (best_path->path.param_info)
+	{
+		cplan->scan.plan.qual = (List *)
+			replace_nestloop_params(root, (Node *) cplan->scan.plan.qual);
+		cplan->custom_exprs = (List *)
+			replace_nestloop_params(root, (Node *) cplan->custom_exprs);
+	}
+
+	return cplan;
+}
+
 static Expr *
 remove_isnotfalse_expr(Expr *expr)
 {
@@ -4841,6 +4909,33 @@ make_foreignscan(List *qptlist,
 	node->fdw_private = fdw_private;
 	/* fsSystemCol will be filled in by create_foreignscan_plan */
 	node->fsSystemCol = false;
+
+	return node;
+}
+
+CustomScan *
+make_customscan(List *qptlist,
+				List *qpqual,
+				Index scanrelid,
+				List *custom_plans,
+				List *custom_exprs,
+				List *custom_private)
+{
+	CustomScan *node = makeNode(CustomScan);
+	Plan	   *plan = &node->scan.plan;
+
+	plan->targetlist = qptlist;
+	plan->qual = qpqual;
+	plan->lefttree = NULL;
+	plan->righttree = NULL;
+	node->scan.scanrelid = scanrelid;
+	node->flags = 0;
+	node->custom_plans = custom_plans;
+	node->custom_exprs = custom_exprs;
+	node->custom_private = custom_private;
+	node->custom_scan_tlist = NIL;
+	node->custom_relids = NULL;
+	node->methods = NULL;
 
 	return node;
 }

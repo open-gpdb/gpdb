@@ -30,6 +30,7 @@
 
 #include <math.h>
 
+#include "nodes/extensible.h"
 #include "nodes/parsenodes.h"
 #include "nodes/plannodes.h"
 #include "nodes/readfuncs.h"
@@ -1632,6 +1633,74 @@ _readForeignScan(void)
 	READ_DONE();
 }
 
+static CustomScan *
+_readCustomScan(void)
+{
+	READ_LOCALS(CustomScan);
+
+	readScanInfo((Scan *) local_node);
+
+	READ_UINT_FIELD(flags);
+	READ_NODE_FIELD(custom_plans);
+	READ_NODE_FIELD(custom_exprs);
+	READ_NODE_FIELD(custom_private);
+	READ_NODE_FIELD(custom_scan_tlist);
+	READ_BITMAPSET_FIELD(custom_relids);
+
+	/* Deserialize the CustomName and look up methods */
+	{
+		int		slen;
+		char   *custom_name = NULL;
+
+		memcpy(&slen, read_str_ptr, sizeof(int));
+		read_str_ptr += sizeof(int);
+		if (slen > 0)
+		{
+			custom_name = palloc(slen + 1);
+			memcpy(custom_name, read_str_ptr, slen);
+			read_str_ptr += slen;
+			custom_name[slen] = '\0';
+		}
+
+		local_node->methods = GetCustomScanMethods(custom_name, false);
+
+		if (custom_name)
+			pfree(custom_name);
+	}
+
+	READ_DONE();
+}
+
+static ExtensibleNode *
+_readExtensibleNode(void)
+{
+	char	   *extnodename;
+	const ExtensibleNodeMethods *methods;
+	ExtensibleNode *local_node;
+
+	/* Read the extnodename first */
+	{
+		int		slen;
+
+		memcpy(&slen, read_str_ptr, sizeof(int));
+		read_str_ptr += sizeof(int);
+		extnodename = palloc(slen + 1);
+		memcpy(extnodename, read_str_ptr, slen);
+		read_str_ptr += slen;
+		extnodename[slen] = '\0';
+	}
+
+	methods = GetExtensibleNodeMethods(extnodename, false);
+
+	local_node = (ExtensibleNode *) newNode(methods->node_size, T_ExtensibleNode);
+	local_node->extnodename = extnodename;
+
+	/* deserialize the private fields */
+	methods->nodeRead(local_node);
+
+	return local_node;
+}
+
 static LogicalIndexInfo *
 readLogicalIndexInfo(void)
 {
@@ -3114,6 +3183,9 @@ readNodeBinary(void)
 			case T_ForeignScan:
 				return_value = _readForeignScan();
 				break;
+			case T_CustomScan:
+				return_value = _readCustomScan();
+				break;
 			case T_Join:
 				return_value = _readJoin();
 				break;
@@ -3831,6 +3903,9 @@ readNodeBinary(void)
 				break;
 			case T_LockingClause:
 				return_value = _readLockingClause();
+				break;
+			case T_ExtensibleNode:
+				return_value = _readExtensibleNode();
 				break;
 			default:
 				return_value = NULL; /* keep the compiler silent */

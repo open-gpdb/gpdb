@@ -25,6 +25,7 @@
 #include "executor/execUtils.h"
 #include "executor/hashjoin.h"
 #include "foreign/fdwapi.h"
+#include "nodes/extensible.h"
 #include "optimizer/clauses.h"
 #include "parser/parsetree.h"
 #include "rewrite/rewriteHandler.h"
@@ -1090,6 +1091,10 @@ ExplainPreScanNode(PlanState *planstate, Bitmapset **rels_used)
 			*rels_used = bms_add_member(*rels_used,
 										((Scan *) plan)->scanrelid);
 			break;
+		case T_CustomScan:
+			*rels_used = bms_add_members(*rels_used,
+										 ((CustomScan *) plan)->custom_relids);
+			break;
 		case T_ModifyTable:
 			/* cf ExplainModifyTarget */
 			*rels_used = bms_add_member(*rels_used,
@@ -1417,7 +1422,15 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			break;
 		case T_ForeignScan:
 			pname = sname = "Foreign Scan";
-		break;
+			break;
+		case T_CustomScan:
+			{
+				CustomScan *cscan = (CustomScan *) plan;
+
+				pname = psprintf("Custom Scan (%s)", cscan->methods->CustomName);
+				sname = "Custom Scan";
+			}
+			break;
 		case T_ShareInputScan:
 			pname = sname = "Shared Scan";
 			break;
@@ -1680,6 +1693,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		case T_CteScan:
 		case T_WorkTableScan:
 		case T_ForeignScan:
+		case T_CustomScan:
 			ExplainScanTarget((Scan *) plan, es);
 			break;
 		case T_IndexScan:
@@ -2065,6 +2079,15 @@ ExplainNode(PlanState *planstate, List *ancestors,
 				show_instrumentation_count("Rows Removed by Filter", 1,
 										   planstate, es);
 			show_foreignscan_info((ForeignScanState *) planstate, es);
+			break;
+		case T_CustomScan:
+			show_scan_qual(plan->qual, "Filter", planstate, ancestors, es);
+			if (plan->qual)
+				show_instrumentation_count("Rows Removed by Filter", 1,
+										   planstate, es);
+			if (((CustomScanState *) planstate)->methods->ExplainCustomScan)
+				((CustomScanState *) planstate)->methods->ExplainCustomScan(
+					(CustomScanState *) planstate, ancestors, es);
 			break;
 		case T_NestLoop:
 			show_upper_qual(((NestLoop *) plan)->join.joinqual,
@@ -2984,6 +3007,7 @@ ExplainTargetRel(Plan *plan, Index rti, ExplainState *es)
 		case T_DynamicBitmapHeapScan:
 		case T_TidScan:
 		case T_ForeignScan:
+		case T_CustomScan:
 		case T_ModifyTable:
 		case T_ExternalScan:
 			/* Assert it's on a real relation */

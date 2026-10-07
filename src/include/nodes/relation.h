@@ -1171,6 +1171,23 @@ typedef struct ForeignPath
 } ForeignPath;
 
 /*
+ * CustomPath represents a table scan done by some out-of-core extension.
+ *
+ * We provide a set of hooks that the provider of a custom path can use to
+ * convert the path to a plan and to implement the execution.
+ */
+struct CustomPathMethods;
+
+typedef struct CustomPath
+{
+	Path		path;
+	uint32		flags;				/* mask of CUSTOMPATH_* flags */
+	List	   *custom_paths;		/* list of child Path nodes, if any */
+	List	   *custom_private;		/* private data for custom code */
+	const struct CustomPathMethods *methods;
+} CustomPath;
+
+/*
  * AppendPath represents an Append plan, ie, successive execution of
  * several member plans.
  *

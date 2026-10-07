@@ -19,6 +19,7 @@
 #include <math.h>
 
 #include "miscadmin.h"
+#include "nodes/extensible.h"
 #include "nodes/nodeFuncs.h"
 #include "optimizer/clauses.h"
 #include "optimizer/cost.h"
@@ -162,6 +163,7 @@ pathnode_walk_kids(Path            *path,
 		case T_SeqScan:
 		case T_ExternalScan:
 		case T_ForeignScan:
+		case T_CustomScan:
 		case T_IndexScan:
 		case T_IndexOnlyScan:
 		case T_TidScan:
@@ -3102,6 +3104,40 @@ create_foreignscan_path(PlannerInfo *root, RelOptInfo *rel,
 	}
 
 	pathnode->fdw_private = fdw_private;
+
+	return pathnode;
+}
+
+/*
+ * create_customscan_path
+ *	  Creates a path node for a custom scan.
+ *
+ * This function is not used by core code, but is expected to be called
+ * by extensions that define custom scan providers.
+ */
+CustomPath *
+create_customscan_path(PlannerInfo *root, RelOptInfo *rel,
+					   List *custom_private,
+					   uint32 flags,
+					   const CustomPathMethods *methods)
+{
+	CustomPath *pathnode = makeNode(CustomPath);
+
+	pathnode->path.pathtype = T_CustomScan;
+	pathnode->path.parent = rel;
+	pathnode->path.param_info = NULL;	/* caller may override */
+	pathnode->path.rows = rel->rows;
+	pathnode->path.startup_cost = 0;
+	pathnode->path.total_cost = 0;
+	pathnode->path.pathkeys = NIL;
+
+	/* For now, use entry locus; caller can override */
+	CdbPathLocus_MakeEntry(&(pathnode->path.locus));
+
+	pathnode->flags = flags;
+	pathnode->custom_paths = NIL;
+	pathnode->custom_private = custom_private;
+	pathnode->methods = methods;
 
 	return pathnode;
 }

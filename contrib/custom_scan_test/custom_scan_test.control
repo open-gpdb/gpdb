@@ -1,0 +1,5 @@
+# custom_scan_test extension
+comment = 'test extension for CustomScan node infrastructure'
+default_version = '1.0'
+module_pathname = '$libdir/custom_scan_test'
+relocatable = true

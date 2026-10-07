@@ -111,6 +111,10 @@ extern ForeignPath *create_foreignscan_path(PlannerInfo *root, RelOptInfo *rel,
 						List *pathkeys,
 						Relids required_outer,
 						List *fdw_private);
+extern CustomPath *create_customscan_path(PlannerInfo *root, RelOptInfo *rel,
+						List *custom_private,
+						uint32 flags,
+						const struct CustomPathMethods *methods);
 
 extern Relids calc_nestloop_required_outer(Path *outer_path, Path *inner_path);
 extern Relids calc_non_nestloop_required_outer(Path *outer_path, Path *inner_path);

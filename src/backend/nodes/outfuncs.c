@@ -31,6 +31,7 @@
 
 #include "lib/stringinfo.h"
 #include "miscadmin.h"
+#include "nodes/extensible.h"
 #include "nodes/plannodes.h"
 #include "nodes/relation.h"
 #include "utils/datum.h"
@@ -821,6 +822,61 @@ _outForeignScan(StringInfo str, const ForeignScan *node)
 	WRITE_NODE_FIELD(fdw_exprs);
 	WRITE_NODE_FIELD(fdw_private);
 	WRITE_BOOL_FIELD(fsSystemCol);
+}
+
+static void
+_outCustomScan(StringInfo str, const CustomScan *node)
+{
+	WRITE_NODE_TYPE("CUSTOMSCAN");
+
+	_outScanInfo(str, (const Scan *) node);
+
+	WRITE_UINT_FIELD(flags);
+	WRITE_NODE_FIELD(custom_plans);
+	WRITE_NODE_FIELD(custom_exprs);
+	WRITE_NODE_FIELD(custom_private);
+	WRITE_NODE_FIELD(custom_scan_tlist);
+	WRITE_BITMAPSET_FIELD(custom_relids);
+
+	/* Serialize the CustomName so we can look up methods on read */
+#ifndef COMPILING_BINARY_FUNCS
+	appendStringInfo(str, " :methods ");
+	_outToken(str, node->methods->CustomName);
+#else
+	{
+		const char *custom_name = node->methods->CustomName;
+		int slen = custom_name != NULL ? strlen(custom_name) : 0;
+		appendBinaryStringInfo(str, (const char *) &slen, sizeof(int));
+		if (slen > 0)
+			appendBinaryStringInfo(str, custom_name, slen);
+	}
+#endif
+}
+
+static void
+_outExtensibleNode(StringInfo str, const ExtensibleNode *node)
+{
+	const ExtensibleNodeMethods *methods;
+
+	methods = GetExtensibleNodeMethods(node->extnodename, false);
+
+	WRITE_NODE_TYPE("EXTENSIBLENODE");
+
+#ifndef COMPILING_BINARY_FUNCS
+	appendStringInfo(str, " :extnodename ");
+	_outToken(str, node->extnodename);
+#else
+	{
+		const char *name = node->extnodename;
+		int slen = name != NULL ? strlen(name) : 0;
+		appendBinaryStringInfo(str, (const char *) &slen, sizeof(int));
+		if (slen > 0)
+			appendBinaryStringInfo(str, name, slen);
+	}
+#endif
+
+	/* serialize the private fields */
+	methods->nodeOut(str, node);
 }
 
 static void
@@ -2105,6 +2161,18 @@ _outForeignPath(StringInfo str, const ForeignPath *node)
 	_outPathInfo(str, (const Path *) node);
 
 	WRITE_NODE_FIELD(fdw_private);
+}
+
+static void
+_outCustomPath(StringInfo str, const CustomPath *node)
+{
+	WRITE_NODE_TYPE("CUSTOMPATH");
+
+	_outPathInfo(str, (const Path *) node);
+
+	WRITE_UINT_FIELD(flags);
+	WRITE_NODE_FIELD(custom_paths);
+	WRITE_NODE_FIELD(custom_private);
 }
 
 static void
@@ -4810,6 +4878,9 @@ _outNode(StringInfo str, const void *obj)
 			case T_ForeignScan:
 				_outForeignScan(str, obj);
 				break;
+			case T_CustomScan:
+				_outCustomScan(str, obj);
+				break;
 			case T_Join:
 				_outJoin(str, obj);
 				break;
@@ -5050,6 +5121,9 @@ _outNode(StringInfo str, const void *obj)
 				break;
 			case T_ForeignPath:
 				_outForeignPath(str, obj);
+				break;
+			case T_CustomPath:
+				_outCustomPath(str, obj);
 				break;
 			case T_AppendPath:
 				_outAppendPath(str, obj);
@@ -5616,6 +5690,9 @@ _outNode(StringInfo str, const void *obj)
 				break;
 			case T_AlterTSDictionaryStmt:
 				_outAlterTSDictionaryStmt(str, obj);
+				break;
+			case T_ExtensibleNode:
+				_outExtensibleNode(str, obj);
 				break;
 			default:
 

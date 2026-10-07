@@ -89,6 +89,7 @@
 #include "executor/nodeDynamicBitmapIndexscan.h"
 #include "executor/nodeBitmapOr.h"
 #include "executor/nodeCtescan.h"
+#include "executor/nodeCustom.h"
 #include "executor/nodeForeignscan.h"
 #include "executor/nodeFunctionscan.h"
 #include "executor/nodeHash.h"
@@ -596,6 +597,17 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 			END_MEMORY_ACCOUNT();
 			break;
 
+		case T_CustomScan:
+			curMemoryAccountId = CREATE_EXECUTOR_MEMORY_ACCOUNT(isAlienPlanNode, node, CustomScan);
+
+			START_MEMORY_ACCOUNT(curMemoryAccountId);
+			{
+			result = (PlanState *) ExecInitCustomScan((CustomScan *) node,
+													   estate, eflags);
+			}
+			END_MEMORY_ACCOUNT();
+			break;
+
 			/*
 			 * join nodes
 			 */
@@ -1091,6 +1103,10 @@ ExecProcNode(PlanState *node)
 			result = ExecForeignScan((ForeignScanState *) node);
 			break;
 
+		case T_CustomScanState:
+			result = ExecCustomScan((CustomScanState *) node);
+			break;
+
 			/*
 			 * join nodes
 			 */
@@ -1451,6 +1467,10 @@ ExecEndNode(PlanState *node)
 
 		case T_ForeignScanState:
 			ExecEndForeignScan((ForeignScanState *) node);
+			break;
+
+		case T_CustomScanState:
+			ExecEndCustomScan((CustomScanState *) node);
 			break;
 
 			/*

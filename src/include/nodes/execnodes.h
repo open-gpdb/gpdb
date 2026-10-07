@@ -2188,6 +2188,26 @@ typedef struct ForeignScanState
 } ForeignScanState;
 
 /* ----------------
+ *	 CustomScanState information
+ *
+ *		CustomScan nodes are used to execute custom code within executor.
+ *
+ * Core code must avoid assuming that the CustomScanState is only as large as
+ * the struct seen here; providers are allowed to make it the first element in
+ * a larger struct, and typically will need to do so.
+ * ----------------
+ */
+struct CustomExecMethods;
+
+typedef struct CustomScanState
+{
+	ScanState	ss;
+	uint32		flags;				/* mask of CUSTOMPATH_* flags */
+	List	   *custom_ps;			/* list of child PlanState nodes, if any */
+	const struct CustomExecMethods *methods;
+} CustomScanState;
+
+/* ----------------
  *         ExternalScanState information
  *
  *	 ExternalScan nodes are used to scan external tables
