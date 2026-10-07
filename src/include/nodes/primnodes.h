@@ -103,6 +103,10 @@ typedef struct IntoClause
 	Node	   *viewQuery;		/* materialized view's SELECT query */
 	bool		skipData;		/* true for WITH NO DATA */
 	Node       *distributedBy;  /* GPDB: columns to distribubte the data on. */
+
+	/* POC: catalogless temp table support (gp_enable_catalogless_temp) */
+	bool		isTempResult;	/* write into session tuplestore, no catalog */
+	int32		tempResultId;	/* per-session virtual id, assigned on QD */
 } IntoClause;
 
 typedef struct CopyIntoClause

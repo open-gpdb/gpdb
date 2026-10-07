@@ -19,6 +19,8 @@ typedef struct NTupleStorePos
 typedef struct NTupleStoreAccessor NTupleStoreAccessor;
 typedef struct NTupleStore NTupleStore;
 
+struct Instrumentation;			/* avoid including executor/instrument.h */
+
 /* Instrument tuple store 
  * Caller must ensure ins ptr remain valid during the lifetype of the tuple store 
  */
@@ -27,6 +29,7 @@ void ntuplestore_setinstrument(NTupleStore* ts, struct Instrumentation *ins);
 /* Tuple store method */
 extern NTupleStore *ntuplestore_create(int64 maxBytes, char *operation_name);
 extern NTupleStore *ntuplestore_create_readerwriter(const char* filename, int64 maxBytes, bool isWriter);
+extern NTupleStore *ntuplestore_create_readerwriter_xact(const char *filename, int64 maxBytes, bool isWriter);
 extern bool ntuplestore_is_readerwriter_reader(NTupleStore* nts);
 extern void ntuplestore_flush(NTupleStore *ts);
 extern void ntuplestore_destroy(NTupleStore *ts);

@@ -150,6 +150,8 @@ _equalIntoClause(const IntoClause *a, const IntoClause *b)
 	COMPARE_NODE_FIELD(viewQuery);
 	COMPARE_SCALAR_FIELD(skipData);
 	COMPARE_NODE_FIELD(distributedBy);
+	COMPARE_SCALAR_FIELD(isTempResult);
+	COMPARE_SCALAR_FIELD(tempResultId);
 
 	return true;
 }
@@ -2565,6 +2567,7 @@ _equalRangeTblEntry(const RangeTblEntry *a, const RangeTblEntry *b)
 	COMPARE_NODE_FIELD(ctecoltypes);
 	COMPARE_NODE_FIELD(ctecoltypmods);
 	COMPARE_NODE_FIELD(ctecolcollations);
+	COMPARE_SCALAR_FIELD(tempresid);
 	COMPARE_NODE_FIELD(alias);
 	COMPARE_NODE_FIELD(eref);
 	COMPARE_SCALAR_FIELD(lateral);

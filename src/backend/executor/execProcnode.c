@@ -111,6 +111,7 @@
 #include "executor/nodeSubqueryscan.h"
 #include "executor/nodeTidscan.h"
 #include "executor/nodeUnique.h"
+#include "executor/nodeTempResultScan.h"
 #include "executor/nodeValuesscan.h"
 #include "executor/nodeWindowAgg.h"
 #include "executor/nodeWorktablescan.h"
@@ -559,6 +560,18 @@ ExecInitNode(Plan *node, EState *estate, int eflags)
 			{
 			result = (PlanState *) ExecInitValuesScan((ValuesScan *) node,
 													  estate, eflags);
+			}
+			END_MEMORY_ACCOUNT();
+			break;
+
+		case T_TempResultScan:
+			/* POC: reuse the ValuesScan memory-owner tag */
+			curMemoryAccountId = CREATE_EXECUTOR_MEMORY_ACCOUNT(isAlienPlanNode, node, ValuesScan);
+
+			START_MEMORY_ACCOUNT(curMemoryAccountId);
+			{
+			result = (PlanState *) ExecInitTempResultScan((TempResultScan *) node,
+														  estate, eflags);
 			}
 			END_MEMORY_ACCOUNT();
 			break;
@@ -1079,6 +1092,10 @@ ExecProcNode(PlanState *node)
 			result = ExecValuesScan((ValuesScanState *) node);
 			break;
 
+		case T_TempResultScanState:
+			result = ExecTempResultScan((TempResultScanState *) node);
+			break;
+
 		case T_CteScanState:
 			result = ExecCteScan((CteScanState *) node);
 			break;
@@ -1439,6 +1456,10 @@ ExecEndNode(PlanState *node)
 
 		case T_ValuesScanState:
 			ExecEndValuesScan((ValuesScanState *) node);
+			break;
+
+		case T_TempResultScanState:
+			ExecEndTempResultScan((TempResultScanState *) node);
 			break;
 
 		case T_CteScanState:

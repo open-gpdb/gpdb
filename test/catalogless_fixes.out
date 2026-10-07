@@ -1,0 +1,433 @@
+DROP TABLE IF EXISTS fx_heap, fx_shadow, fx_other;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:8: NOTICE:  table "fx_heap" does not exist, skipping
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:8: NOTICE:  table "fx_shadow" does not exist, skipping
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:8: NOTICE:  table "fx_other" does not exist, skipping
+DROP TABLE
+DROP FUNCTION IF EXISTS fx_ctas();
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:9: NOTICE:  function fx_ctas() does not exist, skipping
+DROP FUNCTION
+DROP FUNCTION IF EXISTS fx_count();
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:10: NOTICE:  function fx_count() does not exist, skipping
+DROP FUNCTION
+DROP FUNCTION IF EXISTS fx_drop();
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:11: NOTICE:  function fx_drop() does not exist, skipping
+DROP FUNCTION
+DROP FUNCTION IF EXISTS fx_loop(int);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:12: NOTICE:  function fx_loop(pg_catalog.int4) does not exist, skipping
+DROP FUNCTION
+DROP ROLE IF EXISTS fx_user;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:13: NOTICE:  role "fx_user" does not exist, skipping
+DROP ROLE
+CREATE TABLE fx_heap(id int, v int) DISTRIBUTED BY (id);
+CREATE TABLE
+INSERT INTO fx_heap SELECT g, g FROM generate_series(1,100) g;
+INSERT 0 100
+CREATE FUNCTION fx_ctas() RETURNS bigint LANGUAGE plpgsql AS $$
+BEGIN
+  CREATE TEMP TABLE fx_f WITH (catalogless) AS
+    SELECT g AS id FROM generate_series(1,10) g DISTRIBUTED BY (id);
+  RETURN (SELECT count(*) FROM fx_f);
+END $$;
+CREATE FUNCTION
+BEGIN;
+BEGIN
+SELECT fx_ctas() AS first_call;
+ first_call 
+------------
+         10
+(1 row)
+
+SELECT count(*) AS pg_class_rows FROM pg_class WHERE relname = 'fx_f';
+ pg_class_rows 
+---------------
+             0
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+SELECT fx_ctas() AS second_call;
+ second_call 
+-------------
+          10
+(1 row)
+
+SELECT count(*) AS pg_class_rows FROM pg_class WHERE relname = 'fx_f';
+ pg_class_rows 
+---------------
+             0
+(1 row)
+
+COMMIT;
+COMMIT
+SET gp_enable_catalogless_temp = off;
+SET
+BEGIN;
+BEGIN
+SELECT fx_ctas() AS third_call;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:40: ERROR:  catalogless temp tables are disabled
+HINT:  A superuser can enable them with gp_enable_catalogless_temp.
+CONTEXT:  SQL statement "CREATE TEMP TABLE fx_f WITH (catalogless) AS
+    SELECT g AS id FROM generate_series(1,10) g DISTRIBUTED BY (id)"
+PL/pgSQL function fx_ctas() line 3 at SQL statement
+ROLLBACK;
+ROLLBACK
+RESET gp_enable_catalogless_temp;
+RESET
+CREATE ROLE fx_user;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:45: NOTICE:  resource queue required -- using default resource queue "pg_default"
+CREATE ROLE
+SET ROLE fx_user;
+SET
+SET gp_enable_catalogless_temp = off;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:47: ERROR:  permission denied to set parameter "gp_enable_catalogless_temp"
+RESET ROLE;
+RESET
+EXPLAIN CREATE TEMP TABLE fx_e WITH (catalogless) AS SELECT * FROM fx_heap;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:54: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+                                           QUERY PLAN                                            
+-------------------------------------------------------------------------------------------------
+ Result  (cost=0.00..0.00 rows=0 width=0)
+   ->  Result  (cost=0.00..433.35 rows=50 width=8)
+         ->  Redistribute Motion 2:2  (slice1; segments: 2)  (cost=0.00..431.00 rows=50 width=8)
+               ->  Seq Scan on fx_heap  (cost=0.00..431.00 rows=50 width=8)
+ Optimizer: Pivotal Optimizer (GPORCA)
+(5 rows)
+
+EXPLAIN ANALYZE CREATE TEMP TABLE fx_e WITH (catalogless) AS SELECT * FROM fx_heap;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:55: ERROR:  catalogless temp tables: EXPLAIN ANALYZE of CREATE TABLE AS is not implemented in this POC
+CREATE TEMP TABLE fx_e WITH (catalogless, catalogless=false) AS SELECT 1;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:57: ERROR:  conflicting or redundant options
+CREATE TABLE fx_shadow(src text) DISTRIBUTED RANDOMLY;
+CREATE TABLE
+INSERT INTO fx_shadow VALUES ('catalog');
+INSERT 0 1
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_shadow WITH (catalogless) AS SELECT 'catalogless'::text AS src;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:65: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+SELECT src AS default_path FROM fx_shadow;
+ default_path 
+--------------
+ catalogless
+(1 row)
+
+SET LOCAL search_path = public, pg_temp;
+SET
+SELECT src AS pg_temp_last FROM fx_shadow;
+ pg_temp_last 
+--------------
+ catalog
+(1 row)
+
+SELECT src AS pg_temp_qualified FROM pg_temp.fx_shadow;
+ pg_temp_qualified 
+-------------------
+ catalogless
+(1 row)
+
+SET LOCAL search_path = pg_temp, public;
+SET
+SELECT src AS pg_temp_first FROM fx_shadow;
+ pg_temp_first 
+---------------
+ catalogless
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_shadow WITH (catalogless) AS SELECT 'catalogless'::text AS src;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:78: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+INSERT INTO fx_shadow VALUES ('oops');
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:79: ERROR:  "fx_shadow" is a catalogless temp table
+LINE 1: INSERT INTO fx_shadow VALUES ('oops');
+                    ^
+DETAIL:  Catalogless temp tables can only be read by queries and dropped with DROP TABLE.
+ROLLBACK;
+ROLLBACK
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_shadow WITH (catalogless) AS SELECT 'catalogless'::text AS src;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:82: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+TRUNCATE fx_shadow;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:83: ERROR:  "fx_shadow" is a catalogless temp table
+DETAIL:  Catalogless temp tables can only be read by queries and dropped with DROP TABLE.
+ROLLBACK;
+ROLLBACK
+SELECT src AS catalog_table_intact FROM fx_shadow;
+ catalog_table_intact 
+----------------------
+ catalog
+(1 row)
+
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_v WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:91: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+CREATE VIEW fx_view AS SELECT * FROM fx_v;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:92: ERROR:  views and rules cannot reference catalogless temp tables
+ROLLBACK;
+ROLLBACK
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_n WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:99: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+CREATE TEMP TABLE fx_n (a int);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:100: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:100: ERROR:  relation "fx_n" already exists
+DETAIL:  "fx_n" is a catalogless temp table.
+ROLLBACK;
+ROLLBACK
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_n (a int);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:103: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'a' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+CREATE TABLE
+CREATE TEMP TABLE fx_n WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:104: ERROR:  relation "fx_n" already exists
+ROLLBACK;
+ROLLBACK
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_r WITH (catalogless) AS
+  SELECT g AS id FROM generate_series(1,50) g DISTRIBUTED BY (id);
+SELECT 50
+DROP TABLE fx_r;
+DROP TABLE
+CREATE TEMP TABLE fx_r WITH (catalogless) AS
+  SELECT g AS id, repeat('x', g) AS s FROM generate_series(1,20) g DISTRIBUTED BY (id);
+SELECT 20
+SELECT count(*) AS cnt, sum(length(s)) AS len FROM fx_r;
+ cnt | len 
+-----+-----
+  20 | 210
+(1 row)
+
+COMMIT;
+COMMIT
+CREATE TABLE fx_other(a int) DISTRIBUTED BY (a);
+CREATE TABLE
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_m WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:123: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+DROP TABLE fx_m, fx_other;
+DROP TABLE
+SELECT count(*) AS fx_other_gone FROM pg_class WHERE relname = 'fx_other';
+ fx_other_gone 
+---------------
+             0
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_s WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:133: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+SAVEPOINT sp;
+SAVEPOINT
+DROP TABLE fx_s;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:135: ERROR:  cannot drop a catalogless temp table inside a subtransaction
+DETAIL:  Subtransactions are not supported by catalogless temp tables in this POC.
+ROLLBACK TO SAVEPOINT sp;
+ROLLBACK
+SELECT count(*) AS still_there FROM fx_s;
+ still_there 
+-------------
+           1
+(1 row)
+
+COMMIT;
+COMMIT
+CREATE FUNCTION fx_count() RETURNS bigint LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN (SELECT count(*) FROM fx_c);
+END $$;
+CREATE FUNCTION
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_c WITH (catalogless) AS SELECT g AS id FROM generate_series(1,5) g;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:149: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 5
+SELECT fx_count() AS xact1;
+ xact1 
+-------
+     5
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_c WITH (catalogless) AS SELECT g AS id FROM generate_series(1,7) g;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:153: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 7
+SELECT fx_count() AS xact2;
+ xact2 
+-------
+     7
+(1 row)
+
+COMMIT;
+COMMIT
+CREATE FUNCTION fx_drop() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  DROP TABLE fx_d;
+END $$;
+CREATE FUNCTION
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_d WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:163: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+SELECT fx_drop();
+ fx_drop 
+---------
+ 
+(1 row)
+
+CREATE TEMP TABLE fx_d WITH (catalogless) AS SELECT 1 AS a;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:165: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause. Creating a NULL policy entry.
+SELECT 1
+SELECT fx_drop();
+ fx_drop 
+---------
+ 
+(1 row)
+
+SELECT * FROM fx_d;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_fixes.sql:167: ERROR:  relation "fx_d" does not exist
+LINE 1: SELECT * FROM fx_d;
+                      ^
+ROLLBACK;
+ROLLBACK
+CREATE FUNCTION fx_loop(n int) RETURNS bigint LANGUAGE plpgsql AS $$
+DECLARE s bigint := 0;
+BEGIN
+  FOR i IN 1..n LOOP
+    s := s + (SELECT count(*) FROM fx_l WHERE id = i % 100);
+  END LOOP;
+  RETURN s;
+END $$;
+CREATE FUNCTION
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_l WITH (catalogless) AS
+  SELECT g AS id FROM generate_series(0,99) g DISTRIBUTED BY (id);
+SELECT 100
+SELECT fx_loop(3000) AS loop_sum;
+ loop_sum 
+----------
+     3000
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_rep WITH (catalogless) AS
+  SELECT g AS id FROM generate_series(1,10) g DISTRIBUTED REPLICATED;
+SELECT 10
+SELECT count(*) AS rep_cnt FROM fx_rep;
+ rep_cnt 
+---------
+      10
+(1 row)
+
+SELECT count(*) AS rep_join FROM fx_rep r JOIN pg_class c ON c.relnatts = r.id;
+ rep_join 
+----------
+      388
+(1 row)
+
+SELECT count(*) AS rep_join_expected FROM pg_class WHERE relnatts BETWEEN 1 AND 10;
+ rep_join_expected 
+-------------------
+               388
+(1 row)
+
+EXPLAIN SELECT count(*) FROM fx_rep r JOIN pg_class c ON c.relnatts = r.id;
+                                          QUERY PLAN                                           
+-----------------------------------------------------------------------------------------------
+ Aggregate  (cost=14.97..14.98 rows=1 width=8)
+   ->  Hash Join  (cost=0.25..14.62 rows=137 width=0)
+         Hash Cond: (c.relnatts = r.id)
+         ->  Seq Scan on pg_class c  (cost=0.00..11.37 rows=437 width=2)
+         ->  Hash  (cost=0.12..0.12 rows=5 width=4)
+               ->  Gather Motion 1:1  (slice1; segments: 1)  (cost=0.12..0.12 rows=10 width=4)
+                     ->  Temp Result Scan on fx_rep r  (cost=0.00..0.12 rows=10 width=4)
+ Optimizer: Postgres query optimizer
+(8 rows)
+
+CREATE TEMP TABLE fx_rnd WITH (catalogless) AS
+  SELECT g AS id FROM generate_series(1,1000) g DISTRIBUTED RANDOMLY;
+SELECT 1000
+SELECT count(*) AS rnd_cnt, sum(id) AS rnd_sum FROM fx_rnd;
+ rnd_cnt | rnd_sum 
+---------+---------
+    1000 |  500500
+(1 row)
+
+CREATE TEMP TABLE fx_one WITH (catalogless) AS
+  SELECT * FROM fx_heap WHERE id = 1 DISTRIBUTED BY (id);
+SELECT 1
+SELECT count(*) AS one_cnt FROM fx_one;
+ one_cnt 
+---------
+       1
+(1 row)
+
+SELECT count(*) AS one_join FROM fx_one JOIN fx_heap USING (id);
+ one_join 
+----------
+        1
+(1 row)
+
+SELECT count(*) AS dd FROM fx_rnd r JOIN fx_heap h ON h.id = r.id WHERE h.id = 7;
+ dd 
+----
+  1
+(1 row)
+
+COMMIT;
+COMMIT
+BEGIN;
+BEGIN
+CREATE TEMP TABLE fx_2pc WITH (catalogless) AS
+  SELECT g AS id FROM generate_series(1,100) g DISTRIBUTED BY (id);
+SELECT 100
+INSERT INTO fx_heap SELECT id + 1000, 0 FROM fx_2pc;
+INSERT 0 100
+COMMIT;
+COMMIT
+SELECT count(*) AS heap_after_2pc FROM fx_heap;
+ heap_after_2pc 
+----------------
+            200
+(1 row)
+
+DROP TABLE fx_heap, fx_shadow;
+DROP TABLE
+DROP FUNCTION fx_ctas();
+DROP FUNCTION
+DROP FUNCTION fx_count();
+DROP FUNCTION
+DROP FUNCTION fx_drop();
+DROP FUNCTION
+DROP FUNCTION fx_loop(int);
+DROP FUNCTION
+DROP ROLE fx_user;
+DROP ROLE

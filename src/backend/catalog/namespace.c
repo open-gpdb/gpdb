@@ -63,6 +63,7 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/syscache.h"
+#include "cdb/cdbtempresult.h"
 #include "cdb/cdbvars.h"
 #include "tcop/utility.h"
 
@@ -261,6 +262,20 @@ RangeVarGetRelidExtended(const RangeVar *relation, LOCKMODE lockmode,
 							relation->catalogname, relation->schemaname,
 							relation->relname)));
 	}
+
+	/*
+	 * POC: a name that resolves to a catalogless temp table must not fall
+	 * through to the catalog, where it would silently hit a different
+	 * (shadowed) relation of the same name.  Queries resolve such names in
+	 * addRangeTableEntry and DROP TABLE in RemoveRelations, before getting
+	 * here; everything else (DML targets, DDL, COPY, LOCK, ANALYZE, ...) is
+	 * rejected.
+	 */
+	if (Gp_role != GP_ROLE_EXECUTE && TempResultResolve(relation) != NULL)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("\"%s\" is a catalogless temp table", relation->relname),
+				 errdetail("Catalogless temp tables can only be read by queries and dropped with DROP TABLE.")));
 
 	/*
 	 * DDL operations can change the results of a name lookup.  Since all such
@@ -727,6 +742,91 @@ RelnameGetRelid(const char *relname)
 
 	/* Not found in path */
 	return InvalidOid;
+}
+
+/*
+ * RelnameTempNamespaceFirst
+ *		POC (catalogless temp tables): would an unqualified reference to
+ *		relname reach the session's temp namespace before any other schema
+ *		of the search path that holds a relation of that name?
+ *
+ * Catalogless temp tables live "in pg_temp" but have no catalog rows, so
+ * they cannot be found by walking activeSearchPath (which omits the temp
+ * namespace until it is created).  Mirror recomputeNamespacePath instead:
+ * an implicit pg_temp is searched first of all, an explicit one at its
+ * position in the path, after an implicit pg_catalog.
+ */
+bool
+RelnameTempNamespaceFirst(const char *relname)
+{
+	Oid			roleid = GetUserId();
+	char	   *rawname;
+	List	   *namelist;
+	ListCell   *l;
+	bool		temp_listed = false;
+	bool		catalog_listed = false;
+
+	/*
+	 * An override path (extension scripts etc.) is used rarely enough that
+	 * the POC just takes the conservative answer: the temp table wins only
+	 * if the effective path has no relation of that name at all.
+	 */
+	if (overrideStack)
+		return !OidIsValid(RelnameGetRelid(relname));
+
+	rawname = pstrdup(namespace_search_path);
+	if (!SplitIdentifierString(rawname, ',', &namelist))
+		return !OidIsValid(RelnameGetRelid(relname));
+
+	foreach(l, namelist)
+	{
+		char	   *curname = (char *) lfirst(l);
+
+		if (strcmp(curname, "pg_temp") == 0)
+			temp_listed = true;
+		else if (strcmp(curname, "pg_catalog") == 0)
+			catalog_listed = true;
+	}
+
+	/* not listed: pg_temp is implicitly searched first */
+	if (!temp_listed)
+		return true;
+
+	/* pg_catalog is implicitly searched before the explicit list */
+	if (!catalog_listed &&
+		OidIsValid(get_relname_relid(relname, PG_CATALOG_NAMESPACE)))
+		return false;
+
+	foreach(l, namelist)
+	{
+		char	   *curname = (char *) lfirst(l);
+		Oid			namespaceId = InvalidOid;
+
+		if (strcmp(curname, "pg_temp") == 0)
+			return true;
+
+		if (strcmp(curname, "$user") == 0)
+		{
+			HeapTuple	tuple;
+
+			tuple = SearchSysCache1(AUTHOID, ObjectIdGetDatum(roleid));
+			if (HeapTupleIsValid(tuple))
+			{
+				namespaceId = get_namespace_oid(NameStr(((Form_pg_authid) GETSTRUCT(tuple))->rolname),
+												true);
+				ReleaseSysCache(tuple);
+			}
+		}
+		else
+			namespaceId = get_namespace_oid(curname, true);
+
+		if (OidIsValid(namespaceId) &&
+			pg_namespace_aclcheck(namespaceId, roleid, ACL_USAGE) == ACLCHECK_OK &&
+			OidIsValid(get_relname_relid(relname, namespaceId)))
+			return false;
+	}
+
+	return true;				/* not reached */
 }
 
 
