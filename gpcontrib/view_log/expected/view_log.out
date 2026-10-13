@@ -1,0 +1,265 @@
+-- start_matchsubs
+-- m/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} [A-Z]{3},/
+-- s/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} [A-Z]{3},/TIMESTAMP,/g
+-- end_matchsubs
+\set VERBOSITY terse
+LOAD '$libdir/view_log.so';
+CREATE TABLE base_table(id int, val text) DISTRIBUTED RANDOMLY;
+INSERT INTO base_table VALUES (1, 'a'), (2, 'b');
+CREATE VIEW my_view AS SELECT * FROM base_table;
+CREATE OR REPLACE FUNCTION show_view_log_simple(before_query text)
+RETURNS TABLE(loguser text, logsession text, viewname text)
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 'userXXX'::text AS loguser,
+           'conXXX'::text AS logsession,
+           split_part(line, ',', 4) AS viewname
+    FROM (
+        SELECT unnest(string_to_array(pg_read_file('pg_log/view.log'), E'\n')) AS line
+    ) AS lines
+    WHERE line LIKE '%,%'
+      AND split_part(line, ',', 1)::timestamptz >= before_query::timestamptz;
+EXCEPTION
+    WHEN others THEN
+        RETURN;
+END;
+$$ LANGUAGE plpgsql;
+--------------------------------------------------------------------------------
+-- Test 1: Direct SELECT from a view
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ f
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM my_view;
+ id | val 
+----+-----
+  1 | a
+  2 | b
+(2 rows)
+
+SELECT * FROM show_view_log_simple(:'before_query');
+ loguser | logsession |    viewname    
+---------+------------+----------------
+ userXXX | conXXX     | public.my_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 2: View in a subquery in WHERE clause
+--------------------------------------------------------------------------------
+CREATE VIEW filtered_view AS SELECT * FROM base_table WHERE id > 1;
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM base_table WHERE id IN (SELECT id FROM filtered_view);
+ id | val 
+----+-----
+  2 | b
+(1 row)
+
+SELECT * FROM show_view_log_simple(:'before_query');
+ loguser | logsession |       viewname       
+---------+------------+----------------------
+ userXXX | conXXX     | public.filtered_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 3: View in a subquery in SELECT target list
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT (SELECT count(*) FROM my_view) AS cnt;
+ cnt 
+-----
+   2
+(1 row)
+
+SELECT * FROM show_view_log_simple(:'before_query');
+ loguser | logsession |    viewname    
+---------+------------+----------------
+ userXXX | conXXX     | public.my_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 4: View in a subquery in HAVING clause
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT max(id) FROM base_table HAVING max(id) > (SELECT avg(id) FROM my_view);
+ max 
+-----
+   2
+(1 row)
+
+SELECT * FROM show_view_log_simple(:'before_query');
+ loguser | logsession |    viewname    
+---------+------------+----------------
+ userXXX | conXXX     | public.my_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 5: View inside an operator in WHERE
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM base_table WHERE id = (SELECT max(id) FROM my_view);
+ id | val 
+----+-----
+  2 | b
+(1 row)
+
+SELECT * FROM show_view_log_simple(:'before_query');
+ loguser | logsession |    viewname    
+---------+------------+----------------
+ userXXX | conXXX     | public.my_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 6: View in a subquery in FROM
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM (SELECT * FROM my_view) AS sub;
+ id | val 
+----+-----
+  1 | a
+  2 | b
+(2 rows)
+
+SELECT * FROM show_view_log_simple(:'before_query');
+ loguser | logsession |    viewname    
+---------+------------+----------------
+ userXXX | conXXX     | public.my_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 7: Query with a function in FROM
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ t
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM base_table, generate_series(1,1) AS g;
+ id | val | g 
+----+-----+---
+  1 | a   | 1
+  2 | b   | 1
+(2 rows)
+
+SELECT count(*) = 0 AS no_views_logged FROM show_view_log_simple(:'before_query');
+ no_views_logged 
+-----------------
+ t
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 8: Query with no views (plain table)
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ f
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM base_table;
+ id | val 
+----+-----
+  1 | a
+  2 | b
+(2 rows)
+
+SELECT count(*) = 0 AS no_views_logged FROM show_view_log_simple(:'before_query');
+ no_views_logged 
+-----------------
+ t
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Test 9: Materialized view is NOT logged
+--------------------------------------------------------------------------------
+CREATE MATERIALIZED VIEW test_matview AS SELECT * FROM base_table DISTRIBUTED BY (id);
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ f
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM test_matview;
+ id | val 
+----+-----
+  1 | a
+  2 | b
+(2 rows)
+
+SELECT count(*) = 0 AS matview_not_logged FROM show_view_log_simple(:'before_query');
+ matview_not_logged 
+--------------------
+ t
+(1 row)
+
+DROP MATERIALIZED VIEW test_matview;
+--------------------------------------------------------------------------------
+-- Test 10: Verify log fields
+--------------------------------------------------------------------------------
+SELECT pg_file_unlink('pg_log/view.log');
+ pg_file_unlink 
+----------------
+ f
+(1 row)
+
+SELECT now() AS before_query \gset
+SELECT * FROM my_view;
+ id | val 
+----+-----
+  1 | a
+  2 | b
+(2 rows)
+
+SELECT loguser, logsession, viewname
+FROM show_view_log_simple(:'before_query')
+WHERE viewname IS NOT NULL;
+ loguser | logsession |    viewname    
+---------+------------+----------------
+ userXXX | conXXX     | public.my_view
+(1 row)
+
+--------------------------------------------------------------------------------
+-- Cleanup
+--------------------------------------------------------------------------------
+DROP VIEW my_view;
+DROP VIEW filtered_view;
+DROP TABLE base_table;
+DROP FUNCTION show_view_log_simple(text);

@@ -30,7 +30,8 @@ ifeq "$(enable_debug_extensions)" "yes"
                gp_check_functions \
                gp_aux_catalog \
                gp_interconnect_stats \
-               temp_tables_stat
+               temp_tables_stat \
+			   view_log
 else
 	recurse_targets = access_log \
 			   ast_log \
@@ -49,7 +50,8 @@ else
                gp_check_functions \
                gp_aux_catalog \
                gp_interconnect_stats \
-               temp_tables_stat
+               temp_tables_stat \
+			   view_log
 endif
 
 ifeq "$(with_gp_stats_collector)" "yes"
@@ -161,3 +163,4 @@ installcheck:
 	$(MAKE) -C gp_check_functions installcheck
 	if [ "${enable_pgaudit}" = "yes" ]; then $(MAKE) -C pgaudit installcheck; fi
 	$(MAKE) -C temp_tables_stat installcheck
+	$(MAKE) -C view_log installcheck
