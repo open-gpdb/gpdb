@@ -26,7 +26,7 @@ services:
         secretAccessKey: some_key
         bucketName: gpyezzey
         s3endpoint: "http:\\/\\/seaweedfs:9000"
-        yezzeyRef: ${YEZZEY_GITHUB_REF:-v1.8_opengpdb}
+        yezzeyRef: ${YEZZEY_GITHUB_REF:-OPENGPDB_STABLE}
     depends_on:
       seaweedfs:
         condition: service_healthy
