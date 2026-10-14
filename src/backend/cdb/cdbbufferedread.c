@@ -177,8 +177,11 @@ BufferedReadIo(
 	while (largeReadLen > 0)
 	{
 		int			actualLen;
+		off_t		fileOffset;
 		instr_time	io_start,
 					io_time;
+
+		fileOffset = bufferedRead->fileOff;
 
 		if (track_io_timing)
 			INSTR_TIME_SET_CURRENT(io_start);
@@ -186,7 +189,7 @@ BufferedReadIo(
 		actualLen = FileRead(bufferedRead->file,
 							 (char *) largeReadMemory,
 							 largeReadLen,
-							 bufferedRead->fileOff,
+							 fileOffset,
 							 WAIT_EVENT_DATA_FILE_READ);
 
 		SIMPLE_FAULT_INJECTOR("ao_storage_read_after_fileread");
@@ -202,38 +205,50 @@ BufferedReadIo(
 		if (actualLen == 0)
 			ereport(ERROR, (errcode_for_file_access(),
 							errmsg("read beyond eof in table \"%s\" file \"%s\", "
-								   "read position " INT64_FORMAT " (small offset %d), "
+									   "read position " INT64_FORMAT " (small offset %d, "
+									   "file offset " INT64_FORMAT "), "
 								   "actual read length %d (large read length %d)",
 								   bufferedRead->relationName,
 								   bufferedRead->filePathName,
 								   bufferedRead->largeReadPosition,
 								   offset,
+									   (int64) fileOffset,
 								   actualLen,
 								   bufferedRead->largeReadLen)));
 		else if (actualLen < 0)
 			ereport(ERROR, (errcode_for_file_access(),
 							errmsg("unable to read table \"%s\" file \"%s\", "
-								   "read position " INT64_FORMAT " (small offset %d), "
+									   "read position " INT64_FORMAT " (small offset %d, "
+									   "file offset " INT64_FORMAT "), "
 								   "actual read length %d (large read length %d): %m",
 								   bufferedRead->relationName,
 								   bufferedRead->filePathName,
 								   bufferedRead->largeReadPosition,
 								   offset,
+									   (int64) fileOffset,
 								   actualLen,
 								   bufferedRead->largeReadLen)));
 
 		bufferedRead->fileOff += actualLen;
 
-		elogif(Debug_appendonly_print_read_block, LOG,
-			   "Append-Only storage read: table \"%s\", segment file \"%s\", read position " INT64_FORMAT " (small offset %d), "
-			   "actual read length %d (equals large read length %d is %s)",
-			   bufferedRead->relationName,
-			   bufferedRead->filePathName,
-			   bufferedRead->largeReadPosition,
-			   offset,
-			   actualLen,
-			   bufferedRead->largeReadLen,
-			   (actualLen == bufferedRead->largeReadLen ? "true" : "false"));
+		elog(LOG,
+			 "Append-Only storage read: table \"%s\", segment file \"%s\", "
+			 "coordinates: read position " INT64_FORMAT ", small offset %d, "
+			 "file offset " INT64_FORMAT "; FileRead arguments: file %d, "
+			 "buffer %p, length %d, wait event %s; actual read length %d "
+			 "(equals large read length %d is %s)",
+			 bufferedRead->relationName,
+			 bufferedRead->filePathName,
+			 bufferedRead->largeReadPosition,
+			 offset,
+			 (int64) fileOffset,
+			 bufferedRead->file,
+			 largeReadMemory,
+			 largeReadLen,
+			 "WAIT_EVENT_DATA_FILE_READ",
+			 actualLen,
+			 bufferedRead->largeReadLen,
+			 (actualLen == bufferedRead->largeReadLen ? "true" : "false"));
 
 		largeReadLen -= actualLen;
 		largeReadMemory += actualLen;
