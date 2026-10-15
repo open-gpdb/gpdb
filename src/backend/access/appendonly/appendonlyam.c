@@ -170,7 +170,7 @@ SetNextFileSegForRead(AppendOnlyScanDesc scan)
 	int			segno = -1;
 	int64		eof = 0;
 	int			formatversion = -2; /* some invalid value */
-	bool		finished_all_files = true;	/* assume */
+	bool		finished_all_files;
 	int32		fileSegNo;
 
 	Assert(scan->aos_need_new_segfile); /* only call me when last segfile
@@ -258,6 +258,7 @@ SetNextFileSegForRead(AppendOnlyScanDesc scan)
 	}
 
 	next_segment:
+	finished_all_files = true;	/* assume */
 	/*
 	 * Do we have more segment files to read or are we done?
 	 */
