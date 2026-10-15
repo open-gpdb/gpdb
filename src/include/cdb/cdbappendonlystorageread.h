@@ -209,7 +209,7 @@ extern char *AppendOnlyStorageRead_RelationName(AppendOnlyStorageRead *storageRe
 extern char *AppendOnlyStorageRead_SegmentFileName(AppendOnlyStorageRead *storageRead);
 extern void AppendOnlyStorageRead_FinishSession(AppendOnlyStorageRead *storageRead);
 
-extern void AppendOnlyStorageRead_OpenFile(AppendOnlyStorageRead *storageRead,
+extern bool AppendOnlyStorageRead_OpenFile(AppendOnlyStorageRead *storageRead,
 							   char *filePathName, int version, int64 logicalEof, RelFileNode relFileNode);
 extern bool AppendOnlyStorageRead_TryOpenFile(AppendOnlyStorageRead *storageRead,
 								  char *filePathName, int version, int64 logicalEof);
