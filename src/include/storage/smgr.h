@@ -131,6 +131,8 @@ typedef struct f_smgr
 
 typedef int SMGRFile;
 
+/* A remote AO segment could not be read and may be skipped by a scan. */
+#define SMGR_AO_SEGMENT_SKIPPED (-2)
 
 typedef struct f_smgr_ao {
 	int64       (*smgr_NonVirtualCurSeek) (SMGRFile file);
