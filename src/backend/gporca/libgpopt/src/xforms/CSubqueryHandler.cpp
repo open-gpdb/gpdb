@@ -752,7 +752,8 @@ CSubqueryHandler::FCreateOuterApplyForScalarSubquery(
 	*ppexprNewOuter = pexprPrj;
 
 	BOOL fGeneratedByQuantified = popSubquery->FGeneratedByQuantified();
-	if (fGeneratedByQuantified)
+	if (fGeneratedByQuantified ||
+		(fHasCountAggMatchingColumn && 0 == pgbAgg->Pdrgpcr()->Size()))
 	{
 		CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
 		const IMDTypeInt8 *pmdtypeint8 = md_accessor->PtMDType<IMDTypeInt8>();
@@ -763,17 +764,27 @@ CSubqueryHandler::FCreateOuterApplyForScalarSubquery(
 						CUtils::PexprScalarIdent(mp, pcrComputed),
 						CUtils::PexprScalarConstInt8(mp, 0 /*val*/));
 
-		// we produce Null if count(*) value is -1,
-		// this case can only occur when transforming quantified subquery to
-		// count(*) subquery using CXformSimplifySubquery
-		pmdidInt8->AddRef();
-		*ppexprResidualScalar = GPOS_NEW(mp) CExpression(
-			mp, GPOS_NEW(mp) CScalarIf(mp, pmdidInt8),
-			CUtils::PexprScalarEqCmp(
-				mp, pcrComputed,
-				CUtils::PexprScalarConstInt8(mp, -1 /*value*/)),
-			CUtils::PexprScalarConstInt8(mp, 0 /*value*/, true /*is_null*/),
-			pexprCoalesce);
+		if (fGeneratedByQuantified)
+		{
+			// we produce Null if count(*) value is -1,
+			// this case can only occur when transforming quantified subquery to
+			// count(*) subquery using CXformSimplifySubquery
+			pmdidInt8->AddRef();
+			*ppexprResidualScalar = GPOS_NEW(mp) CExpression(
+				mp, GPOS_NEW(mp) CScalarIf(mp, pmdidInt8),
+				CUtils::PexprScalarEqCmp(
+					mp, pcrComputed,
+					CUtils::PexprScalarConstInt8(mp, -1 /*value*/)),
+				CUtils::PexprScalarConstInt8(mp, 0 /*value*/, true /*is_null*/),
+				pexprCoalesce);
+		}
+		else
+		{
+			// count(*) value can either be NULL (if produced by a lower outer join), or some value >= 0,
+			// we return coalesce(count(*), 0) in this case
+
+			*ppexprResidualScalar = pexprCoalesce;
+		}
 
 		return fSuccess;
 	}
@@ -1449,6 +1460,62 @@ CSubqueryHandler::FRemoveAnySubquery(CExpression *pexprOuter,
 	BOOL fSuccess = true;
 	BOOL fUseCorrelated = false;
 	BOOL fUseNotNullableInnerOpt = false;
+
+	// "a IN (SELECT count(*) ... WHERE y = a)": a correlated scalar count() is
+	// single-valued, so IN is equivalent to "a = (SELECT count(*) ...)". A plain
+	// semi-join would drop outer rows whose correlated group is empty, losing
+	// the count()=0 match (the "count bug"). Instead build a LEFT outer apply
+	// that keeps every outer row and compare the outer value against
+	// coalesce(count, 0), so the empty-group count of 0 survives decorrelation
+	// into a LEFT outer join.
+	//
+	// This is needed in both contexts. In a value context -- the subquery sits
+	// under OR, say -- the generic quantified rewrite reads the subquery column
+	// directly, so the NULL that the outer join produces for an empty group
+	// makes the comparison NULL instead of true.
+	//
+	// Only correlated subqueries need it: an uncorrelated count() always yields
+	// exactly one row, so the semi-join stays correct there and costs far less.
+	CColRef *pcrCount = NULL;
+	if (fOuterRefsUnderInner && CUtils::FHasCountAgg(pexprInner, &pcrCount) &&
+		1 >= pexprInner->DeriveMaxCard().Ull())
+	{
+		pexprSelect->Release();
+
+		pexprInner->AddRef();
+		CExpression *pexprLeftOuterApply =
+			CUtils::PexprLogicalApply<CLogicalLeftOuterApply>(
+				mp, pexprOuter, pexprInner, colref, eopidSubq);
+
+		// project the count column so it can be referenced in coalesce
+		CExpression *pexprPrj = CUtils::PexprAddProjection(
+			mp, pexprLeftOuterApply, CUtils::PexprScalarIdent(mp, colref));
+		const CColRef *pcrComputed =
+			CScalarProjectElement::PopConvert((*(*pexprPrj)[1])[0]->Pop())->Pcr();
+		*ppexprNewOuter = pexprPrj;
+
+		// coalesce(count, 0): a no-match outer row gets a NULL count from the
+		// LEFT join, which must read back as 0
+		CMDAccessor *md_accessor = COptCtxt::PoctxtFromTLS()->Pmda();
+		const IMDTypeInt8 *pmdtypeint8 = md_accessor->PtMDType<IMDTypeInt8>();
+		IMDId *pmdidInt8 = pmdtypeint8->MDId();
+		pmdidInt8->AddRef();
+		CExpression *pexprCoalesce = GPOS_NEW(mp)
+			CExpression(mp, GPOS_NEW(mp) CScalarCoalesce(mp, pmdidInt8),
+						CUtils::PexprScalarIdent(mp, pcrComputed),
+						CUtils::PexprScalarConstInt8(mp, 0 /*val*/));
+
+		// residual: outer_expr <op> coalesce(count, 0)
+		IMDId *mdid_op = pScalarSubqAny->MdIdOp();
+		mdid_op->AddRef();
+		CExpression *pexprOuterScalar = (*pexprSubquery)[1];
+		pexprOuterScalar->AddRef();
+		*ppexprResidualScalar =
+			CUtils::PexprScalarCmp(mp, pexprOuterScalar, pexprCoalesce,
+								   *pScalarSubqAny->PstrOp(), mdid_op);
+
+		return true;
+	}
 
 	if (EsqctxtValue == esqctxt)
 	{

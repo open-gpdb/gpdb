@@ -1314,3 +1314,73 @@ explain (costs off) select (select b from bar)[(select 1)][1:3] from bar;
 select (select b from bar)[(select 1)][1:3] from bar;
 
 drop table bar;
+
+--
+-- Test the COUNT bug for a correlated count() subquery under IN.
+--
+-- An outer row whose correlated group is empty must still match count() = 0.
+-- Decorrelating IN into a semi-join drops such rows, so the subquery has to be
+-- turned into a LEFT join comparing against coalesce(count, 0) instead. That is
+-- needed both when the subquery is a plain filter and when it sits inside an OR,
+-- which puts it in a value context.
+--
+-- Each case is run under both optimizers. The plans differ -- ORCA decorrelates
+-- into a join, the Postgres planner keeps a SubPlan -- but the rows must not.
+--
+drop table if exists count_bug_outer, count_bug_inner;
+create table count_bug_outer (a int) distributed by (a);
+create table count_bug_inner (x int, y int) distributed by (x);
+insert into count_bug_outer values (0), (1), (2);
+insert into count_bug_inner values (1, 1), (5, 2), (6, 2);
+analyze count_bug_outer;
+analyze count_bug_inner;
+
+-- filter context: a = 0 must match the empty group
+set optimizer to off;
+explain (costs off) select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a);
+select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a) order by 1;
+set optimizer to on;
+explain (costs off) select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a);
+select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a) order by 1;
+
+-- value context: the same subquery under OR
+set optimizer to off;
+explain (costs off) select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a) or a = 99;
+select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a) or a = 99
+  order by 1;
+set optimizer to on;
+explain (costs off) select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a) or a = 99;
+select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner i where i.y = o.a) or a = 99
+  order by 1;
+
+-- count(attr) behaves the same way
+set optimizer to off;
+select a from count_bug_outer o
+  where a in (select count(i.x) from count_bug_inner i where i.y = o.a) order by 1;
+set optimizer to on;
+select a from count_bug_outer o
+  where a in (select count(i.x) from count_bug_inner i where i.y = o.a) order by 1;
+
+-- an uncorrelated count() always returns exactly one row, so no outer row can
+-- be lost and the cheaper semi-join plan must be kept
+set optimizer to off;
+explain (costs off) select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner);
+select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner) order by 1;
+set optimizer to on;
+explain (costs off) select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner);
+select a from count_bug_outer o
+  where a in (select count(*) from count_bug_inner) order by 1;
+
+reset optimizer;
+drop table count_bug_outer, count_bug_inner;
