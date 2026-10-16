@@ -2137,6 +2137,23 @@ typedef struct ValuesScanState
 } ValuesScanState;
 
 /* ----------------
+ *	 TempResultScanState information
+ *
+ *		POC: scan of a catalogless temp table (see TempResultScan).
+ *		The underlying NTupleStore is opened lazily on first fetch,
+ *		because during ExecInit the store may not exist on this process
+ *		(e.g. on the QD for a slice that only runs on segments).
+ * ----------------
+ */
+typedef struct TempResultScanState
+{
+	ScanState	ss;				/* its first field is NodeTag */
+	struct NTupleStore *ts_store;
+	struct NTupleStoreAccessor *ts_acc;
+	bool		ts_opened;
+} TempResultScanState;
+
+/* ----------------
  *	 CteScanState information
  *
  *		CteScan nodes are used to scan a CommonTableExpr query.

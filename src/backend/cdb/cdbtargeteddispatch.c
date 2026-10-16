@@ -633,6 +633,15 @@ AssignContentIdsToPlanData_Walker(Node *node, void *context)
 			case T_WorkTableScan:
 				DisableTargetedDispatch(&dispatchInfo);
 				break;
+			case T_TempResultScan:
+				/*
+				 * POC: a catalogless temp table is partitioned data, unlike
+				 * a VALUES list, so it must not be ignored here.  Its policy
+				 * is not in the catalog, so we cannot compute the target
+				 * segments from the quals: scan everywhere.
+				 */
+				DisableTargetedDispatch(&dispatchInfo);
+				break;
 			case T_ValuesScan:
 				/* no change to dispatchInfo */
 				break;

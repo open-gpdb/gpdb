@@ -803,6 +803,20 @@ set_plan_refs(PlannerInfo *root, Plan *plan, int rtoffset)
 					fix_scan_list(root, splan->values_lists, rtoffset);
 			}
 			break;
+		case T_TempResultScan:
+			{
+				TempResultScan *splan = (TempResultScan *) plan;
+
+				if (cdb_expr_requires_full_eval((Node *) plan->targetlist))
+					return cdb_insert_result_node(root, plan, rtoffset);
+
+				splan->scan.scanrelid += rtoffset;
+				splan->scan.plan.targetlist =
+					fix_scan_list(root, splan->scan.plan.targetlist, rtoffset);
+				splan->scan.plan.qual =
+					fix_scan_list(root, splan->scan.plan.qual, rtoffset);
+			}
+			break;
 		case T_CteScan:
 			{
 				CteScan    *splan = (CteScan *) plan;

@@ -64,6 +64,7 @@ extern Oid RangeVarGetAndCheckCreationNamespace(RangeVar *newRelation,
 extern void RangeVarAdjustRelationPersistence(RangeVar *newRelation, Oid nspid);
 extern bool RangeVarIsAppendOptimizedTable(RangeVar *relation);
 extern Oid	RelnameGetRelid(const char *relname);
+extern bool RelnameTempNamespaceFirst(const char *relname);
 extern bool RelationIsVisible(Oid relid);
 
 extern Oid	TypenameGetTypid(const char *typname);

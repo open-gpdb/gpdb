@@ -74,6 +74,7 @@
 #include "commands/defrem.h"
 #include "commands/event_trigger.h"
 #include "commands/sequence.h"
+#include "cdb/cdbtempresult.h"
 #include "commands/tablecmds.h"
 #include "commands/tablespace.h"
 #include "commands/trigger.h"
@@ -1245,6 +1246,35 @@ RemoveRelations(DropStmt *drop)
 			ereport(ERROR,
 					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 				errmsg("DROP INDEX CONCURRENTLY does not support CASCADE")));
+	}
+
+	/*
+	 * POC: catalogless temp tables.  A DROP TABLE naming a catalogless temp
+	 * table is handled entirely outside the catalog: remove the registry
+	 * entry (and, on the QE writers, its tuplestore).  ExecDropStmt
+	 * dispatches the original statement, so the QEs come through here too.
+	 * Work on a copy: the statement may belong to a cached plan (plpgsql).
+	 */
+	if (drop->removeType == OBJECT_TABLE && TempResultHasEntries())
+	{
+		List	   *remaining = NIL;
+
+		foreach(cell, drop->objects)
+		{
+			RangeVar   *rel = makeRangeVarFromNameList((List *) lfirst(cell));
+
+			if (TempResultResolve(rel) != NULL)
+				TempResultRemove(rel->relname);
+			else
+				remaining = lappend(remaining, lfirst(cell));
+		}
+		if (remaining == NIL)
+			return;
+		if (list_length(remaining) != list_length(drop->objects))
+		{
+			drop = (DropStmt *) copyObject(drop);
+			drop->objects = remaining;
+		}
 	}
 
 	/*

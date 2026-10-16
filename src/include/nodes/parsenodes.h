@@ -794,6 +794,11 @@ typedef enum RTEKind
 	RTE_VOID,                   /* CDB: deleted RTE */
 	RTE_CTE,					/* common table expr (WITH list element) */
 	RTE_TABLEFUNCTION,          /* CDB: Functions over multiset input */
+	RTE_TEMPRESULT,             /* POC: catalogless temp table (session
+								 * registry backed, see cdbtempresult.h).
+								 * Reuses the ctename/ctecoltypes/... fields
+								 * of the CTE representation for name and
+								 * column metadata. */
 } RTEKind;
 
 typedef struct RangeTblEntry
@@ -873,6 +878,13 @@ typedef struct RangeTblEntry
 	List	   *ctecoltypes;	/* OID list of column type OIDs */
 	List	   *ctecoltypmods;	/* integer list of column typmods */
 	List	   *ctecolcollations;		/* OID list of column collation OIDs */
+
+	/*
+	 * Fields valid for a catalogless temp result RTE (POC; else zero).  Such
+	 * an RTE also uses ctename and the ctecol* lists above for its name and
+	 * column metadata, so that expandRTE and friends share the CTE code.
+	 */
+	int32		tempresid;		/* virtual id, see cdbtempresult.h */
 
 	/* GPDB: Valid for base-relations, true if GP_DIST_RANDOM
 	 * pseudo-function was specified as modifier in FROM-clause
