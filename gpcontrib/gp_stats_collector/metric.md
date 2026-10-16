@@ -69,6 +69,7 @@ submit -> ExecutorStart() -> start -> ExecutorRun() -> ExecutorFinish() -> end -
 | `blk_write_time`             | double | E, D    | ABS      | +      | Node    |     +      |    +    | seconds | Time writing data blocks                            |
 | `inherited_calls`            | uint64 | E, D    | ABS      | -      | Node    |     +      |    +    | count   | Nested query count (GPSC-specific)                |
 | `inherited_time`             | double | E, D    | ABS      | -      | Node    |     +      |    +    | seconds | Nested query time (GPSC-specific)                 |
+| `cross_slice_wait_ms`        | double | E, D    | ABS      | +      | Node    |     +      |    +    | ms**    | Longest cross-slice ShareInputScan wait (GPSC-specific) |
 | **NetworkStat (sent)**       |        |         |          |        |         |            |         |         |                                                     |
 | `sent.total_bytes`           | uint32 | D       | ABS      | -      | Node    |     +      |    +    | bytes   | Bytes sent, including headers                       |
 | `sent.tuple_bytes`           | uint32 | D       | ABS      | -      | Node    |     +      |    +    | bytes   | Bytes of pure tuple-data sent                       |
@@ -121,6 +122,19 @@ submit -> ExecutorStart() -> start -> ExecutorRun() -> ExecutorFinish() -> end -
 | **SegmentKey**               |        |         |          |        |         |            |         |         |                                                     |
 | `dbid`                       | int32  | All     | ABS      | -      | Node    |     +      |    +    | id      | Database ID                                         |
 | `segment_index`              | int32  | All     | ABS      | -      | Node    |     +      |    +    | id      | Segment index (-1=coordinator)                      |
+
+**\*\* `cross_slice_wait_ms`** is how long a cross-slice ShareInputScan consumer
+blocked waiting for its producer slice to publish the shared tuplestore. Read as
+max across segments against the average: a wide gap means the producer finished
+unevenly, not that the consumer is slow. It also rises when the producer slice is
+starved of CPU or interconnect, and it is the only trace left by a query killed on
+`statement_timeout` while blocked there.
+
+Two things set it apart from the rest of the table. It is reported in milliseconds
+rather than seconds -- the unit is part of the field name, so the wire contract
+stays unambiguous. And it is the one `MetricInstrumentation` field filled without
+instrumentation enabled: the executor measures the wait either way. A zero wait is
+not reported.
 
 ---
 
