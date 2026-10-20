@@ -19,7 +19,8 @@
 -- m/.*ERROR:.*function cannot execute on a QE slice because it accesses relation.*/
 -- s/.*ERROR:.*/ERROR: error message might be different for CTE/
 --
--- m/.*ERROR:  query plan with multiple segworker groups is not supported.*/
+-- # PL/Python may prefix the message with spiexceptions.FeatureNotSupported.
+-- m/.*ERROR:.*query plan with multiple segworker groups is not supported.*/
 -- s/.*ERROR:.*/ERROR: error message might be different for CTE/
 --
 -- # This test file is included in the launcher script,
@@ -334,6 +335,8 @@ WHERE v1.a < v2.a ORDER BY 1,2;
 -- easiest to mask out with this.
 \set VERBOSITY terse
 
+-- No volatility clause: cte_func3() is VOLATILE by default. READS SQL DATA
+-- does not make it STABLE; ORCA must not decorrelate subqueries that call it.
 CREATE OR REPLACE FUNCTION cte_func3()
 RETURNS SETOF int 
 RETURNS NULL ON NULL INPUT

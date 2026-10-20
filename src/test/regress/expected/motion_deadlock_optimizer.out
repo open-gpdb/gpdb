@@ -328,49 +328,45 @@ from
   on x.b = y.a
 where
    x.a is null or exists (select random() from t_motion_deadlock_3 z where z.b < x.a + y.b);
-                                                                                                                                       QUERY PLAN                                                                                                                                        
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   Output: count(1)
+   Output: count((count(1)))
    ->  Gather Motion 3:1  (slice3; segments: 3)
-         ->  Result
-               ->  GroupAggregate
-                     Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                     Group Key: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                     ->  Sort
-                           Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                           Sort Key: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                           ->  Result
-                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                                 Filter: ((t_motion_deadlock_1.a IS NULL) OR CASE WHEN (NOT ("outer".ColRef_0029 IS NULL)) THEN true ELSE false END)
-                                 ->  Nested Loop Left Join
-                                       Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                                       Join Filter: (t_motion_deadlock_3.b < (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
-                                       ->  Hash Left Join
-                                             Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                             Hash Cond: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
-                                             ->  Redistribute Motion 3:3  (slice2; segments: 3)
-                                                   Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id
-                                                   Hash Key: t_motion_deadlock_1.b
-                                                   ->  Seq Scan on public.t_motion_deadlock_1
-                                                         Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id
-                                             ->  Hash
-                                                   Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                                   ->  Seq Scan on public.t_motion_deadlock_2
-                                                         Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                       ->  Materialize
-                                             Output: t_motion_deadlock_3.b, "outer".ColRef_0029
-                                             ->  Broadcast Motion 3:3  (slice1; segments: 3)
-                                                   Output: t_motion_deadlock_3.b, "outer".ColRef_0029
-                                                   ->  Result
-                                                         Output: t_motion_deadlock_3.b, "outer".ColRef_0029
-                                                         ->  Result
-                                                               Output: random(), true, t_motion_deadlock_3.b
-                                                               ->  Seq Scan on public.t_motion_deadlock_3
-                                                                     Output: t_motion_deadlock_3.b
+         Output: (count(1))
+         ->  Aggregate
+               Output: count(1)
+               ->  Result
+                     Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
+                     ->  Hash Left Join
+                           Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
+                           Hash Cond: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
+                           ->  Redistribute Motion 3:3  (slice1; segments: 3)
+                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                                 Hash Key: t_motion_deadlock_1.b
+                                 ->  Seq Scan on public.t_motion_deadlock_1
+                                       Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                           ->  Hash
+                                 Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                                 ->  Seq Scan on public.t_motion_deadlock_2
+                                       Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                     SubPlan 1  (slice3; segments: 3)
+                       ->  Result
+                             Output: "outer".ColRef_0030
+                             ->  Result
+                                   Output: random(), true, t_motion_deadlock_3.a
+                                   ->  Result
+                                         Output: t_motion_deadlock_3.a
+                                         Filter: (t_motion_deadlock_3.b < (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
+                                         ->  Materialize
+                                               Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                               ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                                                     Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                                     ->  Seq Scan on public.t_motion_deadlock_3
+                                                           Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
  Optimizer: Pivotal Optimizer (GPORCA)
  Settings: optimizer=on
-(40 rows)
+(36 rows)
 
 select count(1)
 from
@@ -391,56 +387,45 @@ from
   on x.b = y.a
 where
    x.a is null or exists (select random() from t_motion_deadlock_3 z where z.b = x.a + y.b);
-                                                                                                                                          QUERY PLAN                                                                                                                                           
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   Output: count(1)
-   ->  Gather Motion 3:1  (slice5; segments: 3)
-         ->  Result
-               ->  GroupAggregate
-                     Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                     Group Key: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                     ->  Sort
-                           Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                           Sort Key: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                           ->  Redistribute Motion 3:3  (slice4; segments: 3)
-                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                                 Hash Key: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                                 ->  Result
-                                       Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                                       Filter: ((t_motion_deadlock_1.a IS NULL) OR CASE WHEN (NOT ("outer".ColRef_0029 IS NULL)) THEN true ELSE false END)
-                                       ->  Hash Left Join
-                                             Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id, "outer".ColRef_0029
-                                             Hash Cond: ((t_motion_deadlock_1.a + t_motion_deadlock_2.b) = t_motion_deadlock_3.b)
-                                             ->  Redistribute Motion 3:3  (slice2; segments: 3)
-                                                   Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                                   Hash Key: (t_motion_deadlock_1.a + t_motion_deadlock_2.b)
-                                                   ->  Hash Left Join
-                                                         Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id, t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                                         Hash Cond: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
-                                                         ->  Redistribute Motion 3:3  (slice1; segments: 3)
-                                                               Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id
-                                                               Hash Key: t_motion_deadlock_1.b
-                                                               ->  Seq Scan on public.t_motion_deadlock_1
-                                                                     Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b, t_motion_deadlock_1.ctid, t_motion_deadlock_1.gp_segment_id
-                                                         ->  Hash
-                                                               Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                                               ->  Seq Scan on public.t_motion_deadlock_2
-                                                                     Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b, t_motion_deadlock_2.ctid, t_motion_deadlock_2.gp_segment_id
-                                             ->  Hash
-                                                   Output: t_motion_deadlock_3.b, "outer".ColRef_0029
-                                                   ->  Redistribute Motion 3:3  (slice3; segments: 3)
-                                                         Output: t_motion_deadlock_3.b, "outer".ColRef_0029
-                                                         Hash Key: t_motion_deadlock_3.b
-                                                         ->  Result
-                                                               Output: t_motion_deadlock_3.b, "outer".ColRef_0029
-                                                               ->  Result
-                                                                     Output: random(), true, t_motion_deadlock_3.b
-                                                                     ->  Seq Scan on public.t_motion_deadlock_3
-                                                                           Output: t_motion_deadlock_3.b
+   Output: count((count(1)))
+   ->  Gather Motion 3:1  (slice3; segments: 3)
+         Output: (count(1))
+         ->  Aggregate
+               Output: count(1)
+               ->  Result
+                     Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
+                     ->  Hash Left Join
+                           Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
+                           Hash Cond: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
+                           ->  Redistribute Motion 3:3  (slice1; segments: 3)
+                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                                 Hash Key: t_motion_deadlock_1.b
+                                 ->  Seq Scan on public.t_motion_deadlock_1
+                                       Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                           ->  Hash
+                                 Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                                 ->  Seq Scan on public.t_motion_deadlock_2
+                                       Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                     SubPlan 1  (slice3; segments: 3)
+                       ->  Result
+                             Output: "outer".ColRef_0030
+                             ->  Result
+                                   Output: random(), true, t_motion_deadlock_3.a
+                                   ->  Result
+                                         Output: t_motion_deadlock_3.a
+                                         Filter: (t_motion_deadlock_3.b = (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
+                                         ->  Materialize
+                                               Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                               ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                                                     Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                                     ->  Seq Scan on public.t_motion_deadlock_3
+                                                           Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
  Optimizer: Pivotal Optimizer (GPORCA)
  Settings: optimizer=on
-(47 rows)
+(36 rows)
 
 select count(1)
 from
@@ -464,41 +449,44 @@ from
   on x.b = y.a
 where
    x.a is null or exists (select random() from t_motion_deadlock_3 z where z.b < x.a + y.b);
-                                                     QUERY PLAN                                                      
----------------------------------------------------------------------------------------------------------------------
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   Output: count(1)
+   Output: count((count(1)))
    ->  Gather Motion 3:1  (slice3; segments: 3)
-         ->  Result
-               Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
-               ->  Nested Loop Left Join
-                     Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
-                     Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
-                     ->  Seq Scan on public.t_motion_deadlock_1
-                           Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
-                     ->  Materialize
-                           Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                           ->  Broadcast Motion 3:3  (slice1; segments: 3)
+         Output: (count(1))
+         ->  Aggregate
+               Output: count(1)
+               ->  Result
+                     Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
+                     ->  Nested Loop Left Join
+                           Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
+                           Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
+                           ->  Seq Scan on public.t_motion_deadlock_1
+                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                           ->  Materialize
                                  Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                                 ->  Seq Scan on public.t_motion_deadlock_2
+                                 ->  Broadcast Motion 3:3  (slice1; segments: 3)
                                        Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-               SubPlan 1  (slice3; segments: 3)
-                 ->  Result
-                       Output: "outer".ColRef_0030
+                                       ->  Seq Scan on public.t_motion_deadlock_2
+                                             Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                     SubPlan 1  (slice3; segments: 3)
                        ->  Result
-                             Output: random(), true, t_motion_deadlock_3.a
+                             Output: "outer".ColRef_0030
                              ->  Result
-                                   Output: t_motion_deadlock_3.a
-                                   Filter: (t_motion_deadlock_3.b < (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
-                                   ->  Materialize
-                                         Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                         ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                                   Output: random(), true, t_motion_deadlock_3.a
+                                   ->  Result
+                                         Output: t_motion_deadlock_3.a
+                                         Filter: (t_motion_deadlock_3.b < (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
+                                         ->  Materialize
                                                Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                               ->  Seq Scan on public.t_motion_deadlock_3
+                                               ->  Broadcast Motion 3:3  (slice2; segments: 3)
                                                      Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                                     ->  Seq Scan on public.t_motion_deadlock_3
+                                                           Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
  Optimizer: Pivotal Optimizer (GPORCA)
  Settings: enable_hashjoin=off, enable_mergejoin=off, enable_nestloop=on, optimizer=on
-(32 rows)
+(35 rows)
 
 select count(1)
 from
@@ -519,41 +507,44 @@ from
   on x.b = y.a
 where
    x.a is null or exists (select random() from t_motion_deadlock_3 z where z.b = x.a + y.b);
-                                                     QUERY PLAN                                                      
----------------------------------------------------------------------------------------------------------------------
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   Output: count(1)
+   Output: count((count(1)))
    ->  Gather Motion 3:1  (slice3; segments: 3)
-         ->  Result
-               Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
-               ->  Nested Loop Left Join
-                     Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
-                     Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
-                     ->  Seq Scan on public.t_motion_deadlock_1
-                           Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
-                     ->  Materialize
-                           Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                           ->  Broadcast Motion 3:3  (slice1; segments: 3)
+         Output: (count(1))
+         ->  Aggregate
+               Output: count(1)
+               ->  Result
+                     Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
+                     ->  Nested Loop Left Join
+                           Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
+                           Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
+                           ->  Seq Scan on public.t_motion_deadlock_1
+                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                           ->  Materialize
                                  Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                                 ->  Seq Scan on public.t_motion_deadlock_2
+                                 ->  Broadcast Motion 3:3  (slice1; segments: 3)
                                        Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-               SubPlan 1  (slice3; segments: 3)
-                 ->  Result
-                       Output: "outer".ColRef_0030
+                                       ->  Seq Scan on public.t_motion_deadlock_2
+                                             Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                     SubPlan 1  (slice3; segments: 3)
                        ->  Result
-                             Output: random(), true, t_motion_deadlock_3.a
+                             Output: "outer".ColRef_0030
                              ->  Result
-                                   Output: t_motion_deadlock_3.a
-                                   Filter: (t_motion_deadlock_3.b = (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
-                                   ->  Materialize
-                                         Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                         ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                                   Output: random(), true, t_motion_deadlock_3.a
+                                   ->  Result
+                                         Output: t_motion_deadlock_3.a
+                                         Filter: (t_motion_deadlock_3.b = (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
+                                         ->  Materialize
                                                Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                               ->  Seq Scan on public.t_motion_deadlock_3
+                                               ->  Broadcast Motion 3:3  (slice2; segments: 3)
                                                      Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                                     ->  Seq Scan on public.t_motion_deadlock_3
+                                                           Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
  Optimizer: Pivotal Optimizer (GPORCA)
  Settings: enable_hashjoin=off, enable_mergejoin=off, enable_nestloop=on, optimizer=on
-(32 rows)
+(35 rows)
 
 select count(1)
 from
@@ -577,41 +568,44 @@ from
   on x.b = y.a
 where
    x.a is null or exists (select random() from t_motion_deadlock_3 z where z.b < x.a + y.b);
-                                                     QUERY PLAN                                                      
----------------------------------------------------------------------------------------------------------------------
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   Output: count(1)
+   Output: count((count(1)))
    ->  Gather Motion 3:1  (slice3; segments: 3)
-         ->  Result
-               Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
-               ->  Nested Loop Left Join
-                     Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
-                     Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
-                     ->  Seq Scan on public.t_motion_deadlock_1
-                           Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
-                     ->  Materialize
-                           Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                           ->  Broadcast Motion 3:3  (slice1; segments: 3)
+         Output: (count(1))
+         ->  Aggregate
+               Output: count(1)
+               ->  Result
+                     Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
+                     ->  Nested Loop Left Join
+                           Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
+                           Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
+                           ->  Seq Scan on public.t_motion_deadlock_1
+                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                           ->  Materialize
                                  Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                                 ->  Seq Scan on public.t_motion_deadlock_2
+                                 ->  Broadcast Motion 3:3  (slice1; segments: 3)
                                        Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-               SubPlan 1  (slice3; segments: 3)
-                 ->  Result
-                       Output: "outer".ColRef_0030
+                                       ->  Seq Scan on public.t_motion_deadlock_2
+                                             Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                     SubPlan 1  (slice3; segments: 3)
                        ->  Result
-                             Output: random(), true, t_motion_deadlock_3.a
+                             Output: "outer".ColRef_0030
                              ->  Result
-                                   Output: t_motion_deadlock_3.a
-                                   Filter: (t_motion_deadlock_3.b < (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
-                                   ->  Materialize
-                                         Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                         ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                                   Output: random(), true, t_motion_deadlock_3.a
+                                   ->  Result
+                                         Output: t_motion_deadlock_3.a
+                                         Filter: (t_motion_deadlock_3.b < (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
+                                         ->  Materialize
                                                Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                               ->  Seq Scan on public.t_motion_deadlock_3
+                                               ->  Broadcast Motion 3:3  (slice2; segments: 3)
                                                      Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                                     ->  Seq Scan on public.t_motion_deadlock_3
+                                                           Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
  Optimizer: Pivotal Optimizer (GPORCA)
  Settings: enable_hashjoin=off, enable_mergejoin=on, enable_nestloop=off, optimizer=on
-(32 rows)
+(35 rows)
 
 select count(1)
 from
@@ -632,41 +626,44 @@ from
   on x.b = y.a
 where
    x.a is null or exists (select random() from t_motion_deadlock_3 z where z.b = x.a + y.b);
-                                                     QUERY PLAN                                                      
----------------------------------------------------------------------------------------------------------------------
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
  Aggregate
-   Output: count(1)
+   Output: count((count(1)))
    ->  Gather Motion 3:1  (slice3; segments: 3)
-         ->  Result
-               Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
-               ->  Nested Loop Left Join
-                     Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
-                     Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
-                     ->  Seq Scan on public.t_motion_deadlock_1
-                           Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
-                     ->  Materialize
-                           Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                           ->  Broadcast Motion 3:3  (slice1; segments: 3)
+         Output: (count(1))
+         ->  Aggregate
+               Output: count(1)
+               ->  Result
+                     Filter: ((t_motion_deadlock_1.a IS NULL) OR (SubPlan 1))
+                     ->  Nested Loop Left Join
+                           Output: t_motion_deadlock_1.a, t_motion_deadlock_2.b
+                           Join Filter: (t_motion_deadlock_1.b = t_motion_deadlock_2.a)
+                           ->  Seq Scan on public.t_motion_deadlock_1
+                                 Output: t_motion_deadlock_1.a, t_motion_deadlock_1.b
+                           ->  Materialize
                                  Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-                                 ->  Seq Scan on public.t_motion_deadlock_2
+                                 ->  Broadcast Motion 3:3  (slice1; segments: 3)
                                        Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
-               SubPlan 1  (slice3; segments: 3)
-                 ->  Result
-                       Output: "outer".ColRef_0030
+                                       ->  Seq Scan on public.t_motion_deadlock_2
+                                             Output: t_motion_deadlock_2.a, t_motion_deadlock_2.b
+                     SubPlan 1  (slice3; segments: 3)
                        ->  Result
-                             Output: random(), true, t_motion_deadlock_3.a
+                             Output: "outer".ColRef_0030
                              ->  Result
-                                   Output: t_motion_deadlock_3.a
-                                   Filter: (t_motion_deadlock_3.b = (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
-                                   ->  Materialize
-                                         Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                         ->  Broadcast Motion 3:3  (slice2; segments: 3)
+                                   Output: random(), true, t_motion_deadlock_3.a
+                                   ->  Result
+                                         Output: t_motion_deadlock_3.a
+                                         Filter: (t_motion_deadlock_3.b = (t_motion_deadlock_1.a + t_motion_deadlock_2.b))
+                                         ->  Materialize
                                                Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
-                                               ->  Seq Scan on public.t_motion_deadlock_3
+                                               ->  Broadcast Motion 3:3  (slice2; segments: 3)
                                                      Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
+                                                     ->  Seq Scan on public.t_motion_deadlock_3
+                                                           Output: t_motion_deadlock_3.a, t_motion_deadlock_3.b
  Optimizer: Pivotal Optimizer (GPORCA)
  Settings: enable_hashjoin=off, enable_mergejoin=on, enable_nestloop=off, optimizer=on
-(32 rows)
+(35 rows)
 
 select count(1)
 from
