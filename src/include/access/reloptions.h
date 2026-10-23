@@ -41,6 +41,7 @@
 #endif
 #define AO_DEFAULT_CHECKSUM       true
 #define AO_DEFAULT_COLUMNSTORE    false
+#define AO_DEFAULT_OFFLOADED      false
 #define ANALYZE_DEFAULT_HLL       false
 
 /* types supported by reloptions */
