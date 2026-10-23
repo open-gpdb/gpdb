@@ -243,6 +243,14 @@ typedef struct StdRdOptions
 	bool		offloaded;		/* offloaded (AO rels only) */
 } StdRdOptions;
 
+/*
+ * RelationIsOffloaded
+ *		Returns the value of the "offloaded" reloption (AO rels only).
+ */
+#define RelationIsOffloaded(relation) \
+	((relation)->rd_options ? \
+	 ((StdRdOptions *) (relation)->rd_options)->offloaded : false)
+
 #define HEAP_MIN_FILLFACTOR			10
 #define HEAP_DEFAULT_FILLFACTOR		100
 

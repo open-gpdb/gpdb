@@ -3063,6 +3063,7 @@ appendonly_insert_init(Relation fromrel, Relation rel, int segno, bool update_mo
 	attr->compressLevel = rel->rd_appendonly->compresslevel;
 	attr->checksum = rel->rd_appendonly->checksum;
 	attr->safeFSWriteSize = rel->rd_appendonly->safefswritesize;
+	attr->offloaded = RelationIsOffloaded(rel);
 
 	fns = get_funcs_for_compression(NameStr(rel->rd_appendonly->compresstype));
 
