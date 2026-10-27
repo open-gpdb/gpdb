@@ -19,6 +19,7 @@
 #include "nodes/makefuncs.h"                /* makeVar() */
 #include "nodes/nodeFuncs.h"
 #include "catalog/gp_policy.h"
+#include "cdb/cdbtempresult.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -170,6 +171,29 @@ build_simple_rel(PlannerInfo *root, int relid, RelOptKind reloptkind)
 				root->upd_del_replicated_table = relid;
 			}
 			break;
+		case RTE_TEMPRESULT:
+			{
+				/*
+				 * POC: catalogless temp result.  Same attr setup as the
+				 * subquery-ish rels below, plus the distribution policy
+				 * recorded at CTAS time (used to derive the path locus).
+				 */
+				TempResultEntry *tre = TempResultLookupId(rte->ctename,
+														  rte->tempresid);
+
+				rel->min_attr = FirstLowInvalidHeapAttributeNumber + 1;
+				rel->max_attr = list_length(rte->eref->colnames);
+				rel->attr_needed = (Relids *)
+					palloc0((rel->max_attr - rel->min_attr + 1) * sizeof(Relids));
+				rel->attr_widths = (int32 *)
+					palloc0((rel->max_attr - rel->min_attr + 1) * sizeof(int32));
+				/* without a policy the locus would silently become Entry */
+				if (tre->policy == NULL)
+					elog(ERROR, "catalogless temp table \"%s\" has no distribution policy",
+						 rte->ctename);
+				rel->cdbpolicy = GpPolicyCopy(tre->policy);
+				break;
+			}
 		case RTE_SUBQUERY:
 		case RTE_FUNCTION:
 		case RTE_TABLEFUNCTION:

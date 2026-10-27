@@ -29,6 +29,7 @@
 #include "cdb/cdbdisp_query.h"
 #include "cdb/cdbhash.h"
 #include "cdb/cdbsreh.h"
+#include "cdb/cdbtempresult.h"
 #include "cdb/cdbvars.h"
 #include "cdb/memquota.h"
 #include "commands/vacuum.h"
@@ -2019,6 +2020,19 @@ struct config_bool ConfigureNamesBool_gp[] =
 		},
 		&gp_enable_relsize_collection,
 		false,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"gp_enable_catalogless_temp", PGC_SUSET, QUERY_TUNING_METHOD,
+			gettext_noop("POC: global kill-switch for catalogless temporary tables."),
+			gettext_noop("The per-object trigger is CREATE TEMP TABLE ... WITH (catalogless) "
+						 "AS SELECT; with this GUC off the option raises an error.  "
+						 "Only creation is affected: existing catalogless tables stay "
+						 "visible until the end of their transaction.")
+		},
+		&gp_enable_catalogless_temp,
+		true,
 		NULL, NULL, NULL
 	},
 

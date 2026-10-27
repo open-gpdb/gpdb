@@ -1,0 +1,280 @@
+DROP TABLE IF EXISTS poc_heap;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:12: NOTICE:  table "poc_heap" does not exist, skipping
+DROP TABLE
+CREATE TABLE poc_heap(id int, hval int) DISTRIBUTED BY (id);
+CREATE TABLE
+INSERT INTO poc_heap SELECT g, g*10 FROM generate_series(1,100) g;
+INSERT 0 100
+CREATE TEMP TABLE poc_warmup(x int);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:19: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'x' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+CREATE TABLE
+DROP TABLE poc_warmup;
+DROP TABLE
+SELECT 'QD baseline' AS phase,
+       (SELECT count(*) FROM pg_class)     AS pg_class,
+       (SELECT count(*) FROM pg_attribute) AS pg_attribute,
+       (SELECT count(*) FROM pg_type)      AS pg_type,
+       (SELECT count(*) FROM pg_depend)    AS pg_depend;
+    phase    | pg_class | pg_attribute | pg_type | pg_depend 
+-------------+----------+--------------+---------+-----------
+ QD baseline |      438 |         3376 |     441 |      8072
+(1 row)
+
+SELECT 'seg baseline pg_class' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_class') GROUP BY 2 ORDER BY 2;
+         what          | gp_segment_id | count 
+-----------------------+---------------+-------
+ seg baseline pg_class |             0 |   438
+ seg baseline pg_class |             1 |   438
+(2 rows)
+
+SELECT 'seg baseline pg_attribute' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_attribute') GROUP BY 2 ORDER BY 2;
+           what            | gp_segment_id | count 
+---------------------------+---------------+-------
+ seg baseline pg_attribute |             0 |  3376
+ seg baseline pg_attribute |             1 |  3376
+(2 rows)
+
+SELECT 'seg baseline pg_type' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_type') GROUP BY 2 ORDER BY 2;
+         what         | gp_segment_id | count 
+----------------------+---------------+-------
+ seg baseline pg_type |             0 |   441
+ seg baseline pg_type |             1 |   441
+(2 rows)
+
+SELECT 'seg baseline pg_depend' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_depend') GROUP BY 2 ORDER BY 2;
+          what          | gp_segment_id | count 
+------------------------+---------------+-------
+ seg baseline pg_depend |             0 |  8072
+ seg baseline pg_depend |             1 |  8072
+(2 rows)
+
+BEGIN;
+BEGIN
+CREATE TEMP TABLE poc_t WITH (catalogless=true) AS
+  SELECT g AS id, g*2 AS val FROM generate_series(1,1000) g
+  DISTRIBUTED BY (id);
+SELECT 1000
+SELECT count(*) AS cnt, sum(val) AS sumval FROM poc_t;
+ cnt  | sumval  
+------+---------
+ 1000 | 1001000
+(1 row)
+
+SELECT * FROM poc_t WHERE id < 5 ORDER BY id;
+ id | val 
+----+-----
+  1 |   2
+  2 |   4
+  3 |   6
+  4 |   8
+(4 rows)
+
+EXPLAIN SELECT count(*) FROM poc_t JOIN poc_heap USING (id);
+                                       QUERY PLAN                                       
+----------------------------------------------------------------------------------------
+ Aggregate  (cost=21.80..21.81 rows=1 width=8)
+   ->  Gather Motion 2:1  (slice1; segments: 2)  (cost=21.75..21.79 rows=1 width=8)
+         ->  Aggregate  (cost=21.75..21.76 rows=1 width=8)
+               ->  Hash Join  (cost=4.25..21.50 rows=50 width=0)
+                     Hash Cond: (poc_t.id = poc_heap.id)
+                     ->  Temp Result Scan on poc_t  (cost=0.00..12.50 rows=500 width=4)
+                     ->  Hash  (cost=3.00..3.00 rows=50 width=4)
+                           ->  Seq Scan on poc_heap  (cost=0.00..3.00 rows=50 width=4)
+ Optimizer: Postgres query optimizer
+(9 rows)
+
+SELECT count(*) AS join_cnt, sum(val + hval) AS join_sum
+  FROM poc_t JOIN poc_heap USING (id);
+ join_cnt | join_sum 
+----------+----------
+      100 |    60600
+(1 row)
+
+SELECT count(*) AS selfjoin_cnt
+  FROM poc_t a JOIN poc_t b USING (id);
+ selfjoin_cnt 
+--------------
+         1000
+(1 row)
+
+SELECT count(*) AS qd_pgclass_poc_t
+  FROM pg_class WHERE relname = 'poc_t';
+ qd_pgclass_poc_t 
+------------------
+                0
+(1 row)
+
+SELECT gp_segment_id, count(*) AS seg_pgclass_poc_t
+  FROM gp_dist_random('pg_class') WHERE relname = 'poc_t'
+ GROUP BY 1 ORDER BY 1;
+ gp_segment_id | seg_pgclass_poc_t 
+---------------+-------------------
+(0 rows)
+
+SELECT 'QD during txn' AS phase,
+       (SELECT count(*) FROM pg_class)     AS pg_class,
+       (SELECT count(*) FROM pg_attribute) AS pg_attribute,
+       (SELECT count(*) FROM pg_type)      AS pg_type,
+       (SELECT count(*) FROM pg_depend)    AS pg_depend;
+     phase     | pg_class | pg_attribute | pg_type | pg_depend 
+---------------+----------+--------------+---------+-----------
+ QD during txn |      438 |         3376 |     441 |      8072
+(1 row)
+
+SELECT 'seg during pg_class' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_class') GROUP BY 2 ORDER BY 2;
+        what         | gp_segment_id | count 
+---------------------+---------------+-------
+ seg during pg_class |             0 |   438
+ seg during pg_class |             1 |   438
+(2 rows)
+
+SELECT 'seg during pg_attribute' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_attribute') GROUP BY 2 ORDER BY 2;
+          what           | gp_segment_id | count 
+-------------------------+---------------+-------
+ seg during pg_attribute |             0 |  3376
+ seg during pg_attribute |             1 |  3376
+(2 rows)
+
+SELECT 'seg during pg_type' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_type') GROUP BY 2 ORDER BY 2;
+        what        | gp_segment_id | count 
+--------------------+---------------+-------
+ seg during pg_type |             0 |   441
+ seg during pg_type |             1 |   441
+(2 rows)
+
+SELECT 'seg during pg_depend' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_depend') GROUP BY 2 ORDER BY 2;
+         what         | gp_segment_id | count 
+----------------------+---------------+-------
+ seg during pg_depend |             0 |  8072
+ seg during pg_depend |             1 |  8072
+(2 rows)
+
+dbfast2/demoDataDir1/base/pgsql_tmp/pgsql_tmp_CTMPRES_7_1
+dbfast2/demoDataDir1/base/pgsql_tmp/pgsql_tmp_CTMPRES_7_1_LOB
+dbfast1/demoDataDir0/base/pgsql_tmp/pgsql_tmp_CTMPRES_7_1
+dbfast1/demoDataDir0/base/pgsql_tmp/pgsql_tmp_CTMPRES_7_1_LOB
+COMMIT;
+COMMIT
+(no CTMPRES files means cleanup worked)
+SELECT count(*) FROM poc_t;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:100: ERROR:  relation "poc_t" does not exist
+LINE 1: SELECT count(*) FROM poc_t;
+                             ^
+SELECT 'QD after txn' AS phase,
+       (SELECT count(*) FROM pg_class)     AS pg_class,
+       (SELECT count(*) FROM pg_attribute) AS pg_attribute,
+       (SELECT count(*) FROM pg_type)      AS pg_type,
+       (SELECT count(*) FROM pg_depend)    AS pg_depend;
+    phase     | pg_class | pg_attribute | pg_type | pg_depend 
+--------------+----------+--------------+---------+-----------
+ QD after txn |      438 |         3376 |     441 |      8072
+(1 row)
+
+CREATE TEMP TABLE poc_control WITH (catalogless=false) AS
+  SELECT g AS id, g*2 AS val FROM generate_series(1,1000) g
+  DISTRIBUTED BY (id);
+SELECT 1000
+SELECT 'QD control (catalogless=false)' AS phase,
+       (SELECT count(*) FROM pg_class)     AS pg_class,
+       (SELECT count(*) FROM pg_attribute) AS pg_attribute,
+       (SELECT count(*) FROM pg_type)      AS pg_type,
+       (SELECT count(*) FROM pg_depend)    AS pg_depend;
+             phase              | pg_class | pg_attribute | pg_type | pg_depend 
+--------------------------------+----------+--------------+---------+-----------
+ QD control (catalogless=false) |      439 |         3385 |     443 |      8075
+(1 row)
+
+SELECT 'seg control pg_class' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_class') GROUP BY 2 ORDER BY 2;
+         what         | gp_segment_id | count 
+----------------------+---------------+-------
+ seg control pg_class |             0 |   439
+ seg control pg_class |             1 |   439
+(2 rows)
+
+SELECT 'seg control pg_attribute' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_attribute') GROUP BY 2 ORDER BY 2;
+           what           | gp_segment_id | count 
+--------------------------+---------------+-------
+ seg control pg_attribute |             0 |  3385
+ seg control pg_attribute |             1 |  3385
+(2 rows)
+
+SELECT 'seg control pg_type' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_type') GROUP BY 2 ORDER BY 2;
+        what         | gp_segment_id | count 
+---------------------+---------------+-------
+ seg control pg_type |             0 |   443
+ seg control pg_type |             1 |   443
+(2 rows)
+
+SELECT 'seg control pg_depend' AS what, gp_segment_id, count(*)
+  FROM gp_dist_random('pg_depend') GROUP BY 2 ORDER BY 2;
+         what          | gp_segment_id | count 
+-----------------------+---------------+-------
+ seg control pg_depend |             0 |  8075
+ seg control pg_depend |             1 |  8075
+(2 rows)
+
+SELECT count(*) AS control_pgclass_rows
+  FROM pg_class WHERE relname = 'poc_control';
+ control_pgclass_rows 
+----------------------
+                    1
+(1 row)
+
+DROP TABLE poc_control;
+DROP TABLE
+CREATE TABLE poc_neg0 WITH (catalogless=true) AS SELECT 1 AS id DISTRIBUTED BY (id);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:140: ERROR:  catalogless requires TEMP
+HINT:  Use CREATE TEMP TABLE ... WITH (catalogless) AS ...
+SET gp_enable_catalogless_temp = off;
+SET
+CREATE TEMP TABLE poc_neg00 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:144: ERROR:  catalogless temp tables are disabled
+HINT:  A superuser can enable them with gp_enable_catalogless_temp.
+RESET gp_enable_catalogless_temp;
+RESET
+BEGIN;
+BEGIN
+CREATE TEMP TABLE poc_neg1 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
+SELECT 1
+INSERT INTO poc_neg1 VALUES (2);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:150: ERROR:  "poc_neg1" is a catalogless temp table
+LINE 1: INSERT INTO poc_neg1 VALUES (2);
+                    ^
+DETAIL:  Catalogless temp tables can only be read by queries and dropped with DROP TABLE.
+ROLLBACK;
+ROLLBACK
+BEGIN;
+BEGIN
+CREATE TEMP TABLE poc_neg2 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
+SELECT 1
+CREATE INDEX poc_neg2_idx ON poc_neg2(id);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:156: ERROR:  "poc_neg2" is a catalogless temp table
+DETAIL:  Catalogless temp tables can only be read by queries and dropped with DROP TABLE.
+ROLLBACK;
+ROLLBACK
+BEGIN;
+BEGIN
+CREATE TEMP TABLE poc_neg3 WITH (catalogless) AS SELECT 1 AS id DISTRIBUTED BY (id);
+SELECT 1
+DROP TABLE poc_neg3;
+DROP TABLE
+SELECT * FROM poc_neg3;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_smoke.sql:164: ERROR:  relation "poc_neg3" does not exist
+LINE 1: SELECT * FROM poc_neg3;
+                      ^
+ROLLBACK;
+ROLLBACK
+DROP TABLE poc_heap;
+DROP TABLE

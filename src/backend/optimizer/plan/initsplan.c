@@ -2062,6 +2062,10 @@ rel_need_upper(PlannerInfo *root, RelOptInfo *rel)
 		case RTE_VALUES:
 			return false;
 
+		case RTE_TEMPRESULT:
+			/* POC: data is segment-local, no motion hazard from the scan */
+			return false;
+
 		case RTE_TABLEFUNCTION:
 			/* no correlated subqueries are allowed in a tablefunctions. So not sure
 			 * if this can happen */

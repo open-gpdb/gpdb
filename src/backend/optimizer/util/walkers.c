@@ -261,6 +261,11 @@ plan_tree_walker(Node *node,
 				return true;
 			break;
 
+		case T_TempResultScan:
+			if (walk_scan_node_fields((Scan *) node, walker, context))
+				return true;
+			break;
+
 		case T_TableFunctionScan:
 			if (walker((Node *) ((TableFunctionScan *) node)->function, context))
 				return true;

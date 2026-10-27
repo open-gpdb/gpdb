@@ -30,6 +30,7 @@
 #endif
 #include "optimizer/clauses.h"
 #include "optimizer/cost.h"
+#include "cdb/cdbtempresult.h"
 #include "optimizer/orca.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -5889,6 +5890,14 @@ isQueryForOrca(Query *parse)
 		parse->rtable == NIL &&
 		!parse->hasSubLinks &&
 		parse->parentStmtType == PARENTSTMTTYPE_NONE)
+		return false;
+
+	/*
+	 * POC: ORCA knows nothing about catalogless temp tables
+	 * (RTE_TEMPRESULT); plan any query referencing one with the Postgres
+	 * planner.  The walk is skipped while the session has no such tables.
+	 */
+	if (TempResultHasEntries() && isQueryUsingTempResult(parse))
 		return false;
 
 	return true;

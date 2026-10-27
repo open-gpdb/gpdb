@@ -1970,6 +1970,7 @@ cdbpath_dedup_fixup_walker(Path *path, void *context)
 		case T_SubqueryScan:
 		case T_FunctionScan:
 		case T_ValuesScan:
+		case T_TempResultScan:
 		case T_CteScan:
 		case T_ForeignScan:
 			cdbpath_dedup_fixup_baserel(path, ctx);

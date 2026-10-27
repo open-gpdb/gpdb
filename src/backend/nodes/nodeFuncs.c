@@ -2255,6 +2255,9 @@ range_table_walker(List *rtable,
 				if (walker(rte->values_lists, context))
 					return true;
 				break;
+			case RTE_TEMPRESULT:
+				/* POC: nothing to walk */
+				break;
 		}
 
 		if (walker(rte->securityQuals, context))
@@ -3150,6 +3153,9 @@ range_table_mutator(List *rtable,
 				break;
 			case RTE_VALUES:
 				MUTATE(newrte->values_lists, rte->values_lists, List *);
+				break;
+			case RTE_TEMPRESULT:
+				/* POC: nothing to mutate */
 				break;
 		}
 		MUTATE(newrte->securityQuals, rte->securityQuals, List *);

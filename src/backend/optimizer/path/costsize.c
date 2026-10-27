@@ -1325,6 +1325,43 @@ cost_valuesscan(Path *path, PlannerInfo *root,
 }
 
 /*
+ * cost_tempresultscan
+ *	  POC: cost of scanning a catalogless temp result tuplestore.
+ *	  Modeled on cost_valuesscan; the rows estimate comes from the exact
+ *	  row count recorded at CTAS time (set_tempresult_size_estimates).
+ */
+void
+cost_tempresultscan(Path *path, PlannerInfo *root,
+					RelOptInfo *baserel, ParamPathInfo *param_info)
+{
+	Cost		startup_cost = 0;
+	Cost		run_cost = 0;
+	QualCost	qpqual_cost;
+	Cost		cpu_per_tuple;
+
+	Assert(baserel->relid > 0);
+	Assert(baserel->rtekind == RTE_TEMPRESULT);
+
+	/* Mark the path with the correct row estimate */
+	if (param_info)
+		path->rows = param_info->ppi_rows;
+	else
+		path->rows = baserel->rows;
+
+	/* Charge one cpu_operator_cost per tuple for reading the tuplestore */
+	cpu_per_tuple = cpu_operator_cost;
+
+	get_restriction_qual_cost(root, baserel, param_info, &qpqual_cost);
+
+	startup_cost += qpqual_cost.startup;
+	cpu_per_tuple += cpu_tuple_cost + qpqual_cost.per_tuple;
+	run_cost += cpu_per_tuple * baserel->tuples;
+
+	path->startup_cost = startup_cost;
+	path->total_cost = startup_cost + run_cost;
+}
+
+/*
  * cost_ctescan
  *	  Determines and returns the cost of scanning a CTE RTE.
  *

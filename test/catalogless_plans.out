@@ -1,0 +1,316 @@
+DROP TABLE IF EXISTS plans_probe;
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_plans.sql:21: NOTICE:  table "plans_probe" does not exist, skipping
+DROP TABLE
+CREATE TABLE plans_probe(id int, pv bigint) DISTRIBUTED BY (id);
+CREATE TABLE
+INSERT INTO plans_probe SELECT g, g*5 FROM generate_series(1,20000) g;
+INSERT 0 20000
+CREATE TEMP TABLE plans_warmup(x int);
+psql:/Users/alena/open-gpdb3-poc/idea1/test/catalogless_plans.sql:26: NOTICE:  Table doesn't have 'DISTRIBUTED BY' clause -- Using column named 'x' as the Greenplum Database data distribution key for this table.
+HINT:  The 'DISTRIBUTED BY' clause determines the distribution of data. Make sure column(s) chosen are the optimal data distribution key to minimize skew.
+CREATE TABLE
+DROP TABLE plans_warmup;
+DROP TABLE
+SELECT (SELECT count(*) FROM pg_class)     AS qc,
+       (SELECT count(*) FROM pg_attribute) AS qa,
+       (SELECT count(*) FROM pg_type)      AS qt,
+       (SELECT count(*) FROM pg_depend)    AS qd,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=0) AS c0,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=0) AS a0,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=0) AS t0,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=0) AS d0,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=1) AS c1,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=1) AS a1,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=1) AS t1,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=1) AS d1
+BEGIN;
+BEGIN
+CREATE TEMP TABLE ct_a WITH (catalogless) AS
+  SELECT g AS id, g % 97 AS grp, (g*11)::bigint AS v
+  FROM generate_series(1,100000) g
+  DISTRIBUTED BY (id);
+SELECT 100000
+SELECT (SELECT count(*) FROM pg_class)     AS qc,
+       (SELECT count(*) FROM pg_attribute) AS qa,
+       (SELECT count(*) FROM pg_type)      AS qt,
+       (SELECT count(*) FROM pg_depend)    AS qd,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=0) AS c0,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=0) AS a0,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=0) AS t0,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=0) AS d0,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=1) AS c1,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=1) AS a1,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=1) AS t1,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=1) AS d1
+CREATE TEMP TABLE ct_b WITH (catalogless) AS
+  SELECT g AS id, g % 1000 AS fk, (g*13)::bigint AS w
+  FROM generate_series(1,50000) g
+  DISTRIBUTED BY (fk);
+SELECT 50000
+SELECT (SELECT count(*) FROM pg_class)     AS qc,
+       (SELECT count(*) FROM pg_attribute) AS qa,
+       (SELECT count(*) FROM pg_type)      AS qt,
+       (SELECT count(*) FROM pg_depend)    AS qd,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=0) AS c0,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=0) AS a0,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=0) AS t0,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=0) AS d0,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=1) AS c1,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=1) AS a1,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=1) AS t1,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=1) AS d1
+CREATE TEMP TABLE ht_a AS
+  SELECT g AS id, g % 97 AS grp, (g*11)::bigint AS v
+  FROM generate_series(1,100000) g
+  DISTRIBUTED BY (id);
+SELECT 100000
+SELECT (SELECT count(*) FROM pg_class)     AS qc,
+       (SELECT count(*) FROM pg_attribute) AS qa,
+       (SELECT count(*) FROM pg_type)      AS qt,
+       (SELECT count(*) FROM pg_depend)    AS qd,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=0) AS c0,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=0) AS a0,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=0) AS t0,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=0) AS d0,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=1) AS c1,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=1) AS a1,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=1) AS t1,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=1) AS d1
+CREATE TEMP TABLE ht_b AS
+  SELECT g AS id, g % 1000 AS fk, (g*13)::bigint AS w
+  FROM generate_series(1,50000) g
+  DISTRIBUTED BY (fk);
+SELECT 50000
+SELECT (SELECT count(*) FROM pg_class)     AS qc,
+       (SELECT count(*) FROM pg_attribute) AS qa,
+       (SELECT count(*) FROM pg_type)      AS qt,
+       (SELECT count(*) FROM pg_depend)    AS qd,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=0) AS c0,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=0) AS a0,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=0) AS t0,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=0) AS d0,
+       (SELECT count(*) FROM gp_dist_random('pg_class')     WHERE gp_segment_id=1) AS c1,
+       (SELECT count(*) FROM gp_dist_random('pg_attribute') WHERE gp_segment_id=1) AS a1,
+       (SELECT count(*) FROM gp_dist_random('pg_type')      WHERE gp_segment_id=1) AS t1,
+       (SELECT count(*) FROM gp_dist_random('pg_depend')    WHERE gp_segment_id=1) AS d1
+SELECT 'ct_a  catalogless (id)'  AS created_table,
+       438 - 438 AS qd_class, 3376 - 3376 AS qd_attr,
+       441 - 441 AS qd_type,  8072 - 8072 AS qd_depend,
+       438 - 438 AS s0_class, 3376 - 3376 AS s0_attr,
+       441 - 441 AS s0_type,  8072 - 8072 AS s0_depend,
+       438 - 438 AS s1_class, 3376 - 3376 AS s1_attr,
+       441 - 441 AS s1_type,  8072 - 8072 AS s1_depend
+UNION ALL
+SELECT 'ct_b  catalogless (fk)',
+       438 - 438, 3376 - 3376, 441 - 441, 8072 - 8072,
+       438 - 438, 3376 - 3376, 441 - 441, 8072 - 8072,
+       438 - 438, 3376 - 3376, 441 - 441, 8072 - 8072
+UNION ALL
+SELECT 'ht_a  ordinary temp (id)',
+       439 - 438, 3386 - 3376, 443 - 441, 8075 - 8072,
+       439 - 438, 3386 - 3376, 443 - 441, 8075 - 8072,
+       439 - 438, 3386 - 3376, 443 - 441, 8075 - 8072
+UNION ALL
+SELECT 'ht_b  ordinary temp (fk)',
+       440 - 439, 3396 - 3386, 445 - 443, 8078 - 8075,
+       440 - 439, 3396 - 3386, 445 - 443, 8078 - 8075,
+       440 - 439, 3396 - 3386, 445 - 443, 8078 - 8075
+ORDER BY 1;
+      created_table       | qd_class | qd_attr | qd_type | qd_depend | s0_class | s0_attr | s0_type | s0_depend | s1_class | s1_attr | s1_type | s1_depend 
+--------------------------+----------+---------+---------+-----------+----------+---------+---------+-----------+----------+---------+---------+-----------
+ ct_a  catalogless (id)   |        0 |       0 |       0 |         0 |        0 |       0 |       0 |         0 |        0 |       0 |       0 |         0
+ ct_b  catalogless (fk)   |        0 |       0 |       0 |         0 |        0 |       0 |       0 |         0 |        0 |       0 |       0 |         0
+ ht_a  ordinary temp (id) |        1 |      10 |       2 |         3 |        1 |      10 |       2 |         3 |        1 |      10 |       2 |         3
+ ht_b  ordinary temp (fk) |        1 |      10 |       2 |         3 |        1 |      10 |       2 |         3 |        1 |      10 |       2 |         3
+(4 rows)
+
+EXPLAIN SELECT count(*), sum(v + pv) FROM ct_a JOIN plans_probe USING (id);
+                                           QUERY PLAN                                           
+------------------------------------------------------------------------------------------------
+ Aggregate  (cost=3853.06..3853.07 rows=1 width=40)
+   ->  Gather Motion 2:1  (slice1; segments: 2)  (cost=3853.00..3853.04 rows=1 width=40)
+         ->  Aggregate  (cost=3853.00..3853.01 rows=1 width=40)
+               ->  Hash Join  (cost=478.00..3103.00 rows=50000 width=16)
+                     Hash Cond: (ct_a.id = plans_probe.id)
+                     ->  Temp Result Scan on ct_a  (cost=0.00..1250.00 rows=50000 width=12)
+                     ->  Hash  (cost=228.00..228.00 rows=10000 width=12)
+                           ->  Seq Scan on plans_probe  (cost=0.00..228.00 rows=10000 width=12)
+ Optimizer: Postgres query optimizer
+(9 rows)
+
+SELECT count(*) AS q1_cnt, sum(v + pv) AS q1_sum FROM ct_a JOIN plans_probe USING (id);
+ q1_cnt |   q1_sum   
+--------+------------
+  20000 | 3200160000
+(1 row)
+
+SELECT count(*) AS q1_cnt_ctl, sum(v + pv) AS q1_sum_ctl FROM ht_a JOIN plans_probe USING (id);
+ q1_cnt_ctl | q1_sum_ctl 
+------------+------------
+      20000 | 3200160000
+(1 row)
+
+EXPLAIN SELECT count(*), sum(v + pv) FROM ct_a JOIN plans_probe p ON ct_a.grp = p.id;
+                                                     QUERY PLAN                                                     
+--------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=4828.06..4828.07 rows=1 width=40)
+   ->  Gather Motion 2:1  (slice2; segments: 2)  (cost=4828.00..4828.04 rows=1 width=40)
+         ->  Aggregate  (cost=4828.00..4828.01 rows=1 width=40)
+               ->  Hash Join  (cost=1328.00..4078.00 rows=50000 width=16)
+                     Hash Cond: (ct_a.grp = p.id)
+                     ->  Temp Result Scan on ct_a  (cost=0.00..1250.00 rows=50000 width=12)
+                     ->  Hash  (cost=828.00..828.00 rows=20000 width=12)
+                           ->  Broadcast Motion 2:2  (slice1; segments: 2)  (cost=0.00..828.00 rows=20000 width=12)
+                                 ->  Seq Scan on plans_probe p  (cost=0.00..228.00 rows=10000 width=12)
+ Optimizer: Postgres query optimizer
+(10 rows)
+
+SELECT count(*) AS q2_cnt, sum(v + pv) AS q2_sum FROM ct_a JOIN plans_probe p ON ct_a.grp = p.id;
+ q2_cnt |   q2_sum    
+--------+-------------
+  98970 | 54458009220
+(1 row)
+
+SELECT count(*) AS q2_cnt_ctl, sum(v + pv) AS q2_sum_ctl FROM ht_a JOIN plans_probe p ON ht_a.grp = p.id;
+ q2_cnt_ctl | q2_sum_ctl  
+------------+-------------
+      98970 | 54458009220
+(1 row)
+
+EXPLAIN SELECT grp, count(*), sum(v) FROM ct_a GROUP BY grp;
+                                              QUERY PLAN                                               
+-------------------------------------------------------------------------------------------------------
+ Gather Motion 2:1  (slice2; segments: 2)  (cost=2037.50..2050.00 rows=1000 width=44)
+   ->  HashAggregate  (cost=2037.50..2050.00 rows=500 width=44)
+         Group Key: ct_a.grp
+         ->  Redistribute Motion 2:2  (slice1; segments: 2)  (cost=2000.00..2020.00 rows=500 width=44)
+               Hash Key: ct_a.grp
+               ->  HashAggregate  (cost=2000.00..2000.00 rows=500 width=44)
+                     Group Key: ct_a.grp
+                     ->  Temp Result Scan on ct_a  (cost=0.00..1250.00 rows=50000 width=12)
+ Optimizer: Postgres query optimizer
+(9 rows)
+
+SELECT count(*) AS q3_groups, sum(cnt) AS q3_rows, sum(s) AS q3_sum
+  FROM (SELECT grp, count(*) AS cnt, sum(v) AS s FROM ct_a GROUP BY grp) x;
+ q3_groups | q3_rows |   q3_sum    
+-----------+---------+-------------
+        97 |  100000 | 55000550000
+(1 row)
+
+SELECT count(*) AS q3_groups_ctl, sum(cnt) AS q3_rows_ctl, sum(s) AS q3_sum_ctl
+  FROM (SELECT grp, count(*) AS cnt, sum(v) AS s FROM ht_a GROUP BY grp) x;
+ q3_groups_ctl | q3_rows_ctl | q3_sum_ctl  
+---------------+-------------+-------------
+            97 |      100000 | 55000550000
+(1 row)
+
+EXPLAIN SELECT count(*), sum(v + w) FROM ct_a a JOIN ct_b b ON a.id = b.id;
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=716250.06..716250.07 rows=1 width=40)
+   ->  Gather Motion 2:1  (slice2; segments: 2)  (cost=716250.00..716250.04 rows=1 width=40)
+         ->  Aggregate  (cost=716250.00..716250.01 rows=1 width=40)
+               ->  Hash Join  (cost=2250.00..678750.00 rows=2500000 width=16)
+                     Hash Cond: (a.id = b.id)
+                     ->  Temp Result Scan on ct_a a  (cost=0.00..1250.00 rows=50000 width=12)
+                     ->  Hash  (cost=1625.00..1625.00 rows=25000 width=12)
+                           ->  Redistribute Motion 2:2  (slice1; segments: 2)  (cost=0.00..1625.00 rows=25000 width=12)
+                                 Hash Key: b.id
+                                 ->  Temp Result Scan on ct_b b  (cost=0.00..625.00 rows=25000 width=12)
+ Optimizer: Postgres query optimizer
+(11 rows)
+
+SELECT count(*) AS q4_cnt, sum(v + w) AS q4_sum FROM ct_a a JOIN ct_b b ON a.id = b.id;
+ q4_cnt |   q4_sum    
+--------+-------------
+  50000 | 30000600000
+(1 row)
+
+SELECT count(*) AS q4_cnt_ctl, sum(v + w) AS q4_sum_ctl FROM ht_a a JOIN ht_b b ON a.id = b.id;
+ q4_cnt_ctl | q4_sum_ctl  
+------------+-------------
+      50000 | 30000600000
+(1 row)
+
+EXPLAIN SELECT count(*) FROM plans_probe p WHERE EXISTS (SELECT 1 FROM ct_b b WHERE b.id = p.id);
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=2200.55..2200.56 rows=1 width=8)
+   ->  Gather Motion 2:1  (slice2; segments: 2)  (cost=2200.50..2200.54 rows=1 width=8)
+         ->  Aggregate  (cost=2200.50..2200.51 rows=1 width=8)
+               ->  Hash Join  (cost=1772.50..2175.50 rows=5000 width=0)
+                     Hash Cond: (p.id = b.id)
+                     ->  Seq Scan on plans_probe p  (cost=0.00..228.00 rows=10000 width=4)
+                     ->  Hash  (cost=1760.00..1760.00 rows=500 width=4)
+                           ->  HashAggregate  (cost=1750.00..1760.00 rows=500 width=4)
+                                 Group Key: b.id
+                                 ->  Redistribute Motion 2:2  (slice1; segments: 2)  (cost=0.00..1625.00 rows=25000 width=4)
+                                       Hash Key: b.id
+                                       ->  Temp Result Scan on ct_b b  (cost=0.00..625.00 rows=25000 width=4)
+ Optimizer: Postgres query optimizer
+(13 rows)
+
+SELECT count(*) AS q5_cnt FROM plans_probe p WHERE EXISTS (SELECT 1 FROM ct_b b WHERE b.id = p.id);
+ q5_cnt 
+--------
+  20000
+(1 row)
+
+SELECT count(*) AS q5_cnt_ctl FROM plans_probe p WHERE EXISTS (SELECT 1 FROM ht_b b WHERE b.id = p.id);
+ q5_cnt_ctl 
+------------
+      20000
+(1 row)
+
+EXPLAIN SELECT id, v FROM ct_a ORDER BY v DESC LIMIT 10;
+                                         QUERY PLAN                                         
+--------------------------------------------------------------------------------------------
+ Limit  (cost=3410.96..3411.19 rows=10 width=12)
+   ->  Gather Motion 2:1  (slice1; segments: 2)  (cost=3410.96..3411.19 rows=10 width=12)
+         Merge Key: v
+         ->  Limit  (cost=3410.96..3410.99 rows=5 width=12)
+               ->  Sort  (cost=3410.96..3660.96 rows=50000 width=12)
+                     Sort Key: v
+                     ->  Temp Result Scan on ct_a  (cost=0.00..1250.00 rows=50000 width=12)
+ Optimizer: Postgres query optimizer
+(8 rows)
+
+SELECT id, v FROM ct_a ORDER BY v DESC LIMIT 10;
+   id   |    v    
+--------+---------
+ 100000 | 1100000
+  99999 | 1099989
+  99998 | 1099978
+  99997 | 1099967
+  99996 | 1099956
+  99995 | 1099945
+  99994 | 1099934
+  99993 | 1099923
+  99992 | 1099912
+  99991 | 1099901
+(10 rows)
+
+SELECT id, v FROM ht_a ORDER BY v DESC LIMIT 10;
+   id   |    v    
+--------+---------
+ 100000 | 1100000
+  99999 | 1099989
+  99998 | 1099978
+  99997 | 1099967
+  99996 | 1099956
+  99995 | 1099945
+  99994 | 1099934
+  99993 | 1099923
+  99992 | 1099912
+  99991 | 1099901
+(10 rows)
+
+COMMIT;
+COMMIT
+DROP TABLE ht_a;
+DROP TABLE
+DROP TABLE ht_b;
+DROP TABLE
+DROP TABLE plans_probe;
+DROP TABLE

@@ -34,7 +34,7 @@ OBJS += nodeExternalscan.o \
        nodeDynamicBitmapIndexscan.o \
        nodeMotion.o \
        nodeRepeat.o \
-       nodeShareInputScan.o \
+       nodeShareInputScan.o nodeTempResultScan.o \
        nodeTableFunction.o \
        nodeDynamicSeqscan.o \
        nodeSequence.o \

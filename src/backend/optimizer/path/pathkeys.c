@@ -856,6 +856,25 @@ find_indexkey_var(PlannerInfo *root, RelOptInfo *rel, AttrNumber varattno)
 	}
 
 	relid = rel->relid;
+
+	/*
+	 * POC: a catalogless temp result has no pg_attribute rows; take the
+	 * column type info from the RTE instead.
+	 */
+	{
+		RangeTblEntry *rte = planner_rt_fetch(relid, root);
+
+		if (rte->rtekind == RTE_TEMPRESULT)
+		{
+			Assert(varattno >= 1 &&
+				   varattno <= list_length(rte->ctecoltypes));
+			vartypeid = list_nth_oid(rte->ctecoltypes, varattno - 1);
+			type_mod = list_nth_int(rte->ctecoltypmods, varattno - 1);
+			varcollid = list_nth_oid(rte->ctecolcollations, varattno - 1);
+			return makeVar(relid, varattno, vartypeid, type_mod, varcollid, 0);
+		}
+	}
+
 	reloid = getrelid(relid, root->parse->rtable);
 	get_atttypetypmodcoll(reloid, varattno, &vartypeid, &type_mod, &varcollid);
 
