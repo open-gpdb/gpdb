@@ -1195,6 +1195,7 @@ default_reloptions(Datum reloptions, bool validate, relopt_kind kind)
 		{SOPT_COMPTYPE, RELOPT_TYPE_STRING, offsetof(StdRdOptions, compresstype)},
 		{SOPT_CHECKSUM, RELOPT_TYPE_BOOL, offsetof(StdRdOptions, checksum)},
 		{SOPT_ORIENTATION, RELOPT_TYPE_STRING, offsetof(StdRdOptions, orientation)},
+		{SOPT_OFFLOADED, RELOPT_TYPE_BOOL, offsetof(StdRdOptions, offloaded)},
 
 		{"autovacuum_enabled", RELOPT_TYPE_BOOL,
 		offsetof(StdRdOptions, autovacuum) +offsetof(AutoVacOpts, enabled)},

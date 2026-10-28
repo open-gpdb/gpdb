@@ -3063,6 +3063,7 @@ appendonly_insert_init(Relation fromrel, Relation rel, int segno, bool update_mo
 	attr->compressLevel = rel->rd_appendonly->compresslevel;
 	attr->checksum = rel->rd_appendonly->checksum;
 	attr->safeFSWriteSize = rel->rd_appendonly->safefswritesize;
+	attr->offloaded = RelationIsOffloaded(rel);
 
 	fns = get_funcs_for_compression(NameStr(rel->rd_appendonly->compresstype));
 
@@ -3134,7 +3135,7 @@ appendonly_insert_init(Relation fromrel, Relation rel, int segno, bool update_mo
 								aoInsertDesc->from_aoi_rel ? RelationGetRelid(aoInsertDesc->from_aoi_rel) : RelationGetRelid(aoInsertDesc->aoi_rel),
 								aoInsertDesc->title,
 								&aoInsertDesc->storageAttributes,
-								XLogIsNeeded() && RelationNeedsWAL(aoInsertDesc->aoi_rel));
+								XLogIsNeeded() && RelationNeedsWAL(aoInsertDesc->aoi_rel) && !RelationIsOffloaded(aoInsertDesc->aoi_rel));
 
 	pfree(nspname);
 

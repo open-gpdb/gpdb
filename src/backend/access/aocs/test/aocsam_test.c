@@ -98,6 +98,7 @@ test__aocs_addcol_init(void **state)
 	expect_value(create_datumstreamwrite, compLevel, 2);
 	expect_value(create_datumstreamwrite, compLevel, 0);
 	expect_value_count(create_datumstreamwrite, checksum, true, 2);
+	expect_value_count(create_datumstreamwrite, offloaded, false, 2);
 	expect_value_count(create_datumstreamwrite, safeFSWriteSize, 0, 2);
 	expect_value(create_datumstreamwrite, maxsz, 8192);
 	expect_value(create_datumstreamwrite, maxsz, 8192 * 2);
@@ -114,6 +115,7 @@ test__aocs_addcol_init(void **state)
 	reldata.rd_rel = &rel;
 	reldata.rd_rel->relnatts = 5;
 	reldata.rd_appendonly = &pgappendonly;
+	reldata.rd_options = NULL;
 	reldata.rd_att = (TupleDesc) palloc(sizeof(struct tupleDesc));
 	reldata.rd_att->attrs =
 		(Form_pg_attribute *) palloc(sizeof(Form_pg_attribute *) * nattr);
