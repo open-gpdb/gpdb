@@ -240,6 +240,7 @@ typedef struct StdRdOptions
 	int			check_option_offset;	/* for views */
 	bool		user_catalog_table;		/* use as an additional catalog
 										 * relation */
+	bool		offloaded;		/* offloaded (AO rels only) */
 } StdRdOptions;
 
 #define HEAP_MIN_FILLFACTOR			10

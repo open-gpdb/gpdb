@@ -4271,6 +4271,12 @@ transformStorageEncodingClause(List *options)
 					 errmsg("\"%s\" is not a column specific option",
 							SOPT_CHECKSUM)));
 		}
+		if (pg_strcasecmp(dl->defname, SOPT_OFFLOADED) == 0)
+		{
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("\"" SOPT_OFFLOADED  "\" is not a column specific option")));
+		}
 	}
 	List *extra = list_make2(makeDefElem("appendonly",
 										 (Node *)makeString("true")),
@@ -4510,6 +4516,9 @@ form_default_storage_directive(List *enc)
 			continue;
 		/* checksum is not a column specific attribute. */
 		if (pg_strcasecmp("checksum", el->defname) == 0)
+			continue;
+		/* offloaded is not a column specific attribute. */
+		if (pg_strcasecmp(SOPT_OFFLOADED, el->defname) == 0)
 			continue;
 		out = lappend(out, copyObject(el));
 	}

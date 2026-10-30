@@ -5713,8 +5713,10 @@ storageOptToString(const StdRdOptions *ao_opts)
 	}
 	appendStringInfo(&buf, "%s=%s,", SOPT_CHECKSUM,
 					 ao_opts->checksum ? "true" : "false");
-	appendStringInfo(&buf, "%s=%s", SOPT_ORIENTATION,
+	appendStringInfo(&buf, "%s=%s,", SOPT_ORIENTATION,
 					 ao_opts->columnstore ? "column" : "row");
+	appendStringInfoString(&buf, ao_opts->offloaded ? SOPT_OFFLOADED "=true" :
+							 						  SOPT_OFFLOADED "=false");
 	ret = strdup(buf.data);
 	if (ret == NULL)
 		elog(ERROR, "out of memory");
