@@ -1423,8 +1423,24 @@ static int
 external_getdata_callback(void *outbuf, int datasize, void *extra)
 {
 	FileScanDesc scan = (FileScanDesc) extra;
+	MemoryContext oldcontext;
+	int			bytesread;
 
-	return external_getdata(scan->fs_file, scan->fs_pstate, outbuf, datasize);
+	/* Decoder allocations made during reads must outlive the current row. */
+	oldcontext = MemoryContextSwitchTo(scan->fs_pstate->copycontext);
+	PG_TRY();
+	{
+		bytesread = external_getdata(scan->fs_file, scan->fs_pstate, outbuf, datasize);
+	}
+	PG_CATCH();
+	{
+		MemoryContextSwitchTo(oldcontext);
+		PG_RE_THROW();
+	}
+	PG_END_TRY();
+	MemoryContextSwitchTo(oldcontext);
+
+	return bytesread;
 }
 
 /*
