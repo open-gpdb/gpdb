@@ -39,7 +39,9 @@ create table t7(i int) with(appendonly) distributed by(i);
 create table t8(i int) distributed by(i);
 reset gp_default_storage_options;
 -- Check reloptions
-select relname, reloptions from pg_class where relname in ('t1', 't2', 't3', 't4', 't5', 't6', 't7', 't8');
+select relname, reloptions from pg_class where oid in (
+  't1'::regclass, 't2'::regclass, 't3'::regclass, 't4'::regclass,
+  't5'::regclass, 't6'::regclass, 't7'::regclass, 't8'::regclass);
  relname |            reloptions             
 ---------+-----------------------------------
  t1      | {appendonly=true,offloaded=true}
@@ -85,7 +87,9 @@ show gp_default_storage_options;
 create table t7(i int) with(appendonly, orientation=column) distributed by(i);
 reset gp_default_storage_options;
 -- Check reloptions
-select relname, reloptions from pg_class where relname in ('t1', 't2', 't3', 't4', 't5', 't6', 't7');
+select relname, reloptions from pg_class where oid in (
+  't1'::regclass, 't2'::regclass, 't3'::regclass, 't4'::regclass,
+  't5'::regclass, 't6'::regclass, 't7'::regclass);
  relname |                      reloptions                      
 ---------+------------------------------------------------------
  t1      | {appendonly=true,orientation=column,offloaded=true}
