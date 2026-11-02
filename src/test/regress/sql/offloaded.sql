@@ -1,3 +1,7 @@
+-- start_ignore
+drop table if exists t, t1, t2, t3, t4, t5, t6, t7, t8;
+-- end_ignore
+
 -- Default value for offloaded is false
 reset gp_default_storage_options;
 show gp_default_storage_options;
