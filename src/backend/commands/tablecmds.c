@@ -13140,6 +13140,28 @@ ATPartsPrepSetTableSpace(List **wqueue, Relation rel, AlterTableCmd *cmd, List *
 	}
 }
 
+/* "offloaded" is the only reloption that may be set or reset for AO table */
+static bool
+reloptions_only_offloaded(List *defList, AlterTableType operation)
+{
+	ListCell   *cell;
+
+	if (defList == NIL ||
+		(operation != AT_SetRelOptions && operation != AT_ResetRelOptions))
+		return false;
+
+	foreach(cell, defList)
+	{
+		DefElem    *def = lfirst(cell);
+
+		if (def->defnamespace != NULL ||
+			pg_strcasecmp(def->defname, SOPT_OFFLOADED) != 0)
+			return false;
+	}
+
+	return true;
+}
+
 /*
  * Set, reset, or replace reloptions.
  */
@@ -13247,7 +13269,8 @@ ATExecSetRelOptions(Relation rel, List *defList, AlterTableType operation,
 		case RELKIND_AOBLOCKDIR:
 		case RELKIND_AOVISIMAP:
 		case RELKIND_YEZZEYINDEX:
-			if (RelationIsAppendOptimized(rel))
+			if (RelationIsAppendOptimized(rel) &&
+				!reloptions_only_offloaded(defList, operation))
 				ereport(ERROR,
 						(errcode(ERRCODE_WRONG_OBJECT_TYPE),
 						 errmsg("altering reloptions for append only tables"

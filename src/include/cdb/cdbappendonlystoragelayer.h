@@ -119,6 +119,11 @@ typedef struct AppendOnlyStorageAttributes
 			 * When 0, do no zero pad.
 			 */
 
+	bool				offloaded;
+			/*
+			 * Value of the "offloaded" reloption of the relation.
+			 */
+
 } AppendOnlyStorageAttributes;
 
 /*

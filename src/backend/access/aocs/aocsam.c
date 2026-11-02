@@ -183,6 +183,7 @@ open_ds_write(Relation rel, DatumStreamWrite **ds, TupleDesc relationTupleDesc,
 		ds[i] = create_datumstreamwrite(ct,
 										clvl,
 										checksum,
+										RelationIsOffloaded(rel),
 										 /* safeFSWriteSize */ 0,	/* UNDONE: Need to wire
 																	 * down pg_appendonly
 																	 * column? */
@@ -192,7 +193,7 @@ open_ds_write(Relation rel, DatumStreamWrite **ds, TupleDesc relationTupleDesc,
 										RelationGetRelationName(rel),
 										RelationGetRelid(rel),
 										/* title */ titleBuf.data,
-										XLogIsNeeded() && RelationNeedsWAL(rel));
+										XLogIsNeeded() && RelationNeedsWAL(rel) && !RelationIsOffloaded(rel));
 
 
 		pfree(nspname);
@@ -2385,11 +2386,13 @@ aocs_addcol_init(Relation rel,
 		}
 
 
-		desc->dsw[i] = create_datumstreamwrite(ct, clvl, rel->rd_appendonly->checksum, 0, blksz /* safeFSWriteSize */ ,
+		desc->dsw[i] = create_datumstreamwrite(ct, clvl, rel->rd_appendonly->checksum,
+											   RelationIsOffloaded(rel),
+											   0, blksz /* safeFSWriteSize */ ,
 											   attr, nspname, RelationGetRelationName(rel),
 											   RelationGetRelid(rel),
 											   titleBuf.data,
-											   XLogIsNeeded() && RelationNeedsWAL(rel));
+											   XLogIsNeeded() && RelationNeedsWAL(rel) && !RelationIsOffloaded(rel));
 
 
 

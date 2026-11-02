@@ -257,6 +257,7 @@ extern DatumStreamWrite *create_datumstreamwrite(
 						char *compName,
 						int32 compLevel,
 						bool checksum,
+						bool offloaded,
 						int32 safeFSWriteSize,
 						int32 maxsz,
 						Form_pg_attribute attr,

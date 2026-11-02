@@ -210,7 +210,7 @@ TruncateAOSegmentFile(File fd, Relation rel, int32 segFileNum, int64 offset)
 		ereport(ERROR,
 				(errmsg("\"%s\": failed to truncate data after eof: %m",
 					    relname)));
-	if (XLogIsNeeded() && RelationNeedsWAL(rel))
+	if (XLogIsNeeded() && RelationNeedsWAL(rel) && !RelationIsOffloaded(rel))
 		xlog_ao_truncate(rel->rd_node, segFileNum, offset);
 
 	if (file_truncate_hook)

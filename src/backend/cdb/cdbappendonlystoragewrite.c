@@ -276,10 +276,10 @@ AppendOnlyStorageWrite_TransactionCreateFile(AppendOnlyStorageWrite *storageWrit
 {
 	Assert(segmentFileNum > 0);
 
+	if (storageWrite->storageAttributes.offloaded)
+		return;
 
-	SMgrRelation reln;
-
-	reln = smgropen(relFileNode->node, relFileNode->backend);
+	SMgrRelation reln = smgropen(relFileNode->node, relFileNode->backend);
 
 	/* The file might already exist. that's OK */
 	// WALREP_FIXME: Pass isRedo == true, so that you don't get an error if it

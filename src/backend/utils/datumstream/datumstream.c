@@ -504,6 +504,7 @@ create_datumstreamwrite(
 						char *compName,
 						int32 compLevel,
 						bool checksum,
+						bool offloaded,
 						int32 safeFSWriteSize,
 						int32 maxsz,
 						Form_pg_attribute attr,
@@ -572,6 +573,8 @@ create_datumstreamwrite(
 			}
 		}
 	}
+
+	acc->ao_attr.offloaded = offloaded;
 
 	AppendOnlyStorageWrite_Init(
 								&acc->ao_write,
