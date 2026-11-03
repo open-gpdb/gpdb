@@ -123,9 +123,9 @@ SET gp_default_storage_options = 'appendonly=true,blocksize=32768,compresstype=n
 ERROR:  parameter "appendonly" specified more than once
 SET gp_default_storage_options = 'appendoptimized=true,blocksize=32768,compresstype=none,checksum=true,orientation=row';
 SHOW gp_default_storage_options;
-                           gp_default_storage_options                            
----------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row
+                                   gp_default_storage_options                                    
+-------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 CREATE TABLE tenk_ao14 (like tenk_heap);

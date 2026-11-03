@@ -27,9 +27,9 @@ CREATE
 3:set gp_default_storage_options="appendonly=true,orientation=row";
 SET
 3:show gp_default_storage_options;
- gp_default_storage_options                                                      
----------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row 
+ gp_default_storage_options                                                                      
+-------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false 
 (1 row)
 3:DROP TABLE IF EXISTS crash_before_cleanup_phase CASCADE;
 DROP
@@ -293,9 +293,9 @@ UPDATE 1
 2:set gp_default_storage_options="appendonly=true,orientation=row";
 SET
 2:show gp_default_storage_options;
- gp_default_storage_options                                                      
----------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row 
+ gp_default_storage_options                                                                      
+-------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false 
 (1 row)
 2:DROP TABLE IF EXISTS crash_master_before_cleanup_phase CASCADE;
 DROP

@@ -623,6 +623,7 @@ extern IndexCheckType gp_indexcheck_vacuum;
 #define SOPT_COMPLEVEL     "compresslevel"
 #define SOPT_CHECKSUM      "checksum"
 #define SOPT_ORIENTATION   "orientation"
+#define SOPT_OFFLOADED     "offloaded"
 /* Aliases for storage option names */
 #define SOPT_ALIAS_APPENDOPTIMIZED "appendoptimized"
 /* Max number of chars needed to hold value of a storage option. */

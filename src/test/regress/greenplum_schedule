@@ -310,4 +310,5 @@ test: bfv_gpexpand
 # run this at the end of the schedule for more chance to catch abnormalies
 test: gp_check_files
 
+test: offloaded
 # end of tests
