@@ -739,7 +739,7 @@ jobs:
         run: |
           set -eux
           sudo apt update
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils guestfs-tools
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-system-x86 qemu-utils cloud-image-utils guestfs-tools
 
           wget -q -O ubuntu-22.04.img https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
