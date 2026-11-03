@@ -159,4 +159,3 @@ alter table t7 set (offloaded=false);
 
 -- Clean up
 drop table t1, t2, t3, t4, t5, t6, t7, t9;
-
