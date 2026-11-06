@@ -5088,6 +5088,12 @@ has_privs_of_role(Oid member, Oid role)
 	return list_member_oid(roles_has_privs_of(member), role);
 }
 
+bool
+has_privs_of_unwanted_system_role_prestartup(Oid role)
+{
+	return superuser_arg(role);
+}
+
 
 /*
  * Is member a member of role (directly or indirectly)?
