@@ -19,6 +19,8 @@ CREATE TABLE foo2(fooid int, f2 int);
 INSERT INTO foo2 VALUES(1, 11);
 INSERT INTO foo2 VALUES(2, 22);
 INSERT INTO foo2 VALUES(1, 111);
+-- No volatility clause: foot() is VOLATILE by default, so ORCA must not
+-- decorrelate subqueries that call it, even with a constant argument.
 CREATE FUNCTION foot(int) returns setof foo2 as 'SELECT * FROM foo2 WHERE fooid = $1 ORDER BY f2;' LANGUAGE SQL;
 -- function with ORDINALITY
 select * from foot(1) with ordinality as z(a,b,ord);
@@ -278,8 +280,9 @@ HINT:  likely caused by a function that reads or modifies data in a distributed 
 CONTEXT:  SQL function "foot" statement 1
 -- function in subselect
 select * from foo2 where f2 in (select f2 from foot(1) z where z.fooid = foo2.fooid) ORDER BY 1,2;
-ERROR:  function cannot execute on a QE slice because it accesses relation "public.foo2"
-CONTEXT:  SQL function "foot" during startup
+ERROR:  query plan with multiple segworker groups is not supported
+HINT:  likely caused by a function that reads or modifies data in a distributed table
+CONTEXT:  SQL function "foot" statement 1
 -- function in subselect
 select * from foo2 where f2 in (select f2 from foot(foo2.fooid) z where z.fooid = 1) ORDER BY 1,2;
 ERROR:  query plan with multiple segworker groups is not supported

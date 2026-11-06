@@ -5,6 +5,8 @@ INSERT INTO foo2 VALUES(1, 11);
 INSERT INTO foo2 VALUES(2, 22);
 INSERT INTO foo2 VALUES(1, 111);
 
+-- No volatility clause: foot() is VOLATILE by default, so ORCA must not
+-- decorrelate subqueries that call it, even with a constant argument.
 CREATE FUNCTION foot(int) returns setof foo2 as 'SELECT * FROM foo2 WHERE fooid = $1 ORDER BY f2;' LANGUAGE SQL;
 
 -- function with ORDINALITY
