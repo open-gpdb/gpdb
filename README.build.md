@@ -84,20 +84,6 @@ source gpAux/gpdemo/gpdemo-env.sh
 make installcheck-world
 ```
 
-Preserve any other configure options and dependency settings required by your
-environment. Use a disposable test cluster. The separate
-`--enable-debug-extensions` option installs test extensions such as
-`gp_inject_fault`, which are also required by parts of the regression suite.
-
-With Python 2, the untrusted language option installs `plpythonu` and
-`plpython2u`; with Python 3, it installs `plpython3u`. With Perl support, it
-also installs `plperlu`. It does not change installation of trusted `plperl`.
-
-To verify the default configuration without these extensions, use a separate,
-clean installation prefix without `--enable-pl-untrusted-extensions`.
-Reinstalling into an existing prefix does not remove extension files left by
-an earlier installation.
-
 * The default regression tests
 
 ```
