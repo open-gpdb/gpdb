@@ -76,7 +76,7 @@ CAutoMemoryPool::Detach()
 //		(2) no checking while pending exception indicated and no pending exception
 //
 //---------------------------------------------------------------------------
-CAutoMemoryPool::~CAutoMemoryPool() noexcept(false)
+CAutoMemoryPool::~CAutoMemoryPool()
 {
 	if (NULL == m_mp)
 	{
