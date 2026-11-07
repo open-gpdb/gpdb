@@ -1554,7 +1554,7 @@ Optional Features:
   --enable-debug-extensions
                           include debug extensions in gpcontrib
   --enable-pl-untrusted-extensions
-                          install the untrusted plperlu and plpythonu extensions
+                          install the untrusted PL/Perl and PL/Python extensions
   --enable-orafce         build with Oracle compatibility functions
   --enable-gpperfmon      build with gpperfmon
   --enable-debug          build with debugging symbols (-g)

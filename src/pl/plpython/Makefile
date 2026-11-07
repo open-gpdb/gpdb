@@ -58,9 +58,12 @@ OBJS = \
 	plpy_typeio.o \
 	plpy_util.o
 
-DATA = $(NAME)u.control $(NAME)u--1.0.sql $(NAME)u--unpackaged--1.0.sql
-ifeq ($(python_majorversion)-$(enable_pl_untrusted_extensions),2-yes)
+DATA =
+ifeq ($(enable_pl_untrusted_extensions),yes)
+DATA += $(NAME)u.control $(NAME)u--1.0.sql $(NAME)u--unpackaged--1.0.sql
+ifeq ($(python_majorversion),2)
 DATA += plpythonu.control plpythonu--1.0.sql plpythonu--unpackaged--1.0.sql
+endif
 endif
 
 
@@ -137,7 +140,9 @@ installdirs: installdirs-lib
 uninstall: uninstall-lib uninstall-data
 
 install-data: installdirs
+ifneq ($(strip $(DATA)),)
 	$(INSTALL_DATA) $(addprefix $(srcdir)/, $(DATA)) '$(DESTDIR)$(datadir)/extension/'
+endif
 
 uninstall-data:
 	rm -f $(addprefix '$(DESTDIR)$(datadir)/extension'/, $(notdir $(DATA)))

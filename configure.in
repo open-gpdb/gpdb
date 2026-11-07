@@ -215,7 +215,7 @@ AC_SUBST(enable_debug_extensions)
 
 # Untrusted language extensions are available for test builds.
 PGAC_ARG_BOOL(enable, pl-untrusted-extensions, no,
-              [install the untrusted plperlu and plpythonu extensions])
+              [install the untrusted PL/Perl and PL/Python extensions])
 AC_SUBST(enable_pl_untrusted_extensions)
 
 #
