@@ -787,6 +787,7 @@ GCOV
 enable_debug
 enable_gpperfmon
 enable_orafce
+enable_pl_untrusted_extensions
 enable_debug_extensions
 enable_gpfdist
 enable_rpath
@@ -856,6 +857,7 @@ enable_spinlocks
 enable_atomics
 enable_gpfdist
 enable_debug_extensions
+enable_pl_untrusted_extensions
 enable_orafce
 enable_gpperfmon
 enable_debug
@@ -1551,6 +1553,8 @@ Optional Features:
   --disable-gpfdist       do not use gpfdist
   --enable-debug-extensions
                           include debug extensions in gpcontrib
+  --enable-pl-untrusted-extensions
+                          install the untrusted plperlu and plpythonu extensions
   --enable-orafce         build with Oracle compatibility functions
   --enable-gpperfmon      build with gpperfmon
   --enable-debug          build with debugging symbols (-g)
@@ -3357,6 +3361,34 @@ else
   enable_debug_extensions=no
 
 fi
+
+
+
+
+# Untrusted language extensions are available for test builds.
+
+
+# Check whether --enable-pl-untrusted-extensions was given.
+if test "${enable_pl_untrusted_extensions+set}" = set; then :
+  enableval=$enable_pl_untrusted_extensions;
+  case $enableval in
+    yes)
+      :
+      ;;
+    no)
+      :
+      ;;
+    *)
+      as_fn_error $? "no argument expected for --enable-pl-untrusted-extensions option" "$LINENO" 5
+      ;;
+  esac
+
+else
+  enable_pl_untrusted_extensions=no
+
+fi
+
+
 
 
 

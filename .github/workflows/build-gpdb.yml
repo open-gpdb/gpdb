@@ -53,7 +53,7 @@ jobs:
             },
             {
               "name": "test",
-              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests"
+              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests --enable-pl-untrusted-extensions"
             }
           ]}'
           # Output the matrix for GitHub Actions
