@@ -152,6 +152,7 @@ script:
             --enable-cassert \
             --enable-debug \
             --enable-debug-extensions \
+            --enable-pl-untrusted-extensions \
             --with-perl \
             --with-python \
             --disable-orca \
@@ -175,6 +176,7 @@ script:
       if [ "$T" = "production" ]; then
         ./configure \
             --prefix=${TRAVIS_BUILD_DIR}/gpsql \
+            --enable-pl-untrusted-extensions \
             --with-perl \
             --with-python \
             --disable-orca \
