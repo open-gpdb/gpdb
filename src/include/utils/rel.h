@@ -243,6 +243,15 @@ typedef struct StdRdOptions
 	bool		offloaded;		/* offloaded (AO rels only) */
 } StdRdOptions;
 
+/* Returns the value of the "offloaded" reloption */
+inline static bool RelationIsOffloaded(Relation r)
+{
+	if (r->rd_options == NULL)
+		return false;
+
+	return ((StdRdOptions *) r->rd_options)->offloaded;
+}
+
 #define HEAP_MIN_FILLFACTOR			10
 #define HEAP_DEFAULT_FILLFACTOR		100
 
@@ -503,6 +512,12 @@ typedef struct ViewOptions
  */
 #define RelationNeedsWAL(relation) \
 	((relation)->rd_rel->relpersistence == RELPERSISTENCE_PERMANENT)
+
+/* True if relation needs RM_APPEND_ONLY_ID WAL records */
+inline static bool RelationNeedsRMAO(Relation r)
+{
+	return RelationNeedsWAL(r) && !RelationIsOffloaded(r);
+}
 
 /*
  * RelationUsesLocalBuffers
