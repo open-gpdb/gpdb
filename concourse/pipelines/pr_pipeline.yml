@@ -100,7 +100,7 @@ jobs:
       file: gpdb_pr/concourse/tasks/compile_gpdb.yml
       image: gpdb6-rocky8-build
       params:
-        CONFIGURE_FLAGS: "--enable-cassert --enable-debug-extensions"
+        CONFIGURE_FLAGS: "--enable-cassert --enable-debug-extensions --enable-pl-untrusted-extensions"
         BLD_TARGETS: "clients loaders"
       timeout: 30m
 
@@ -190,7 +190,7 @@ jobs:
       file: gpdb_pr/concourse/tasks/compile_gpdb.yml
       image: gpdb6-rocky8-build
       params:
-        CONFIGURE_FLAGS: "--disable-cassert --enable-debug-extensions"
+        CONFIGURE_FLAGS: "--disable-cassert --enable-debug-extensions --enable-pl-untrusted-extensions"
         BLD_TARGETS: "clients loaders"
       timeout: 30m
 

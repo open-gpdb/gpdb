@@ -59,6 +59,31 @@ make distclean
 
 ## Running tests
 
+### Untrusted procedural language extensions
+
+Untrusted PL/Perl and PL/Python extension files are not installed by default.
+To run the PL/Perl regression suite (`src/pl/plperl`, including `plperlu`
+and mixed `plperl`/`plperlu` tests), the PL/Python regression suite
+(`src/pl/plpython`), or other tests that create functions in these languages,
+add `--enable-pl-untrusted-extensions` to your configure options, then rebuild
+and install before running the tests. This also applies to
+`installcheck-world`, which includes these suites when built with Perl and
+Python support.
+
+For example, for a separate test installation:
+
+```bash
+./configure --with-perl --with-python --with-libxml --with-gssapi \
+    --prefix=/usr/local/gpdb-test --without-mdblocales \
+    --enable-pl-untrusted-extensions --enable-debug-extensions
+make -j8
+make -j8 install
+source /usr/local/gpdb-test/greenplum_path.sh
+make create-demo-cluster
+source gpAux/gpdemo/gpdemo-env.sh
+make installcheck-world
+```
+
 * The default regression tests
 
 ```
