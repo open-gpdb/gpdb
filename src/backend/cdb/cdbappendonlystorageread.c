@@ -343,7 +343,7 @@ AppendOnlyStorageRead_FinishOpenFile(AppendOnlyStorageRead *storageRead,
  * logicalEof	- snapshot version of the EOF value to use as the read end
  *				  of the segment file.
  */
-void
+bool
 AppendOnlyStorageRead_OpenFile(AppendOnlyStorageRead *storageRead,
 							   char *filePathName,
 							   int version,
@@ -369,6 +369,8 @@ AppendOnlyStorageRead_OpenFile(AppendOnlyStorageRead *storageRead,
 
 	file = AppendOnlyStorageRead_DoOpenFile(storageRead,
 											filePathName);
+	if (file == SMGR_AO_SEGMENT_SKIPPED)
+		return false;
 	if (file < 0)
 	{
 		ereport(ERROR,
@@ -383,6 +385,8 @@ AppendOnlyStorageRead_OpenFile(AppendOnlyStorageRead *storageRead,
 										 filePathName,
 										 version,
 										 logicalEof);
+
+	return true;
 }
 
 /*

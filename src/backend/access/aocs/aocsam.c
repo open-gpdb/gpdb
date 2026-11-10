@@ -68,7 +68,7 @@ static AOCSScanDesc aocs_beginscan_internal(Relation relation,
  * Open the segment file for a specified column associated with the datum
  * stream.
  */
-static void
+static bool
 open_datumstreamread_segfile(
 							 char *basepath, RelFileNode node,
 							 AOCSFileSegInfo *segInfo,
@@ -85,8 +85,8 @@ open_datumstreamread_segfile(
 	Assert(strlen(fn) + 1 <= MAXPGPATH);
 
 	Assert(ds);
-	datumstreamread_open_file(ds, fn, e->eof, e->eof_uncompressed, node,
-							  fileSegNo, segInfo->formatversion);
+	return datumstreamread_open_file(ds, fn, e->eof, e->eof_uncompressed, node,
+									fileSegNo, segInfo->formatversion);
 }
 
 /*
@@ -98,7 +98,7 @@ open_datumstreamread_segfile(
  * If blockDirectory is not NULL, the first block info is written to
  * the block directory.
  */
-static void
+static bool
 open_all_datumstreamread_segfiles(AOCSScanDesc scan, AOCSFileSegInfo *segInfo)
 {
 	Relation	rel = scan->aos_rel;
@@ -111,7 +111,16 @@ open_all_datumstreamread_segfiles(AOCSScanDesc scan, AOCSFileSegInfo *segInfo)
 	{
 		int			attno = scan->proj_atts[i];
 
-		open_datumstreamread_segfile(basepath, rel->rd_node, segInfo, scan->ds[attno], attno);
+		if (!open_datumstreamread_segfile(basepath, rel->rd_node, segInfo, scan->ds[attno], attno))
+		{
+			pfree(basepath);
+			return false;
+		}
+	}
+
+	for (i = 0; i < scan->num_proj_atts; i++)
+	{
+		int			attno = scan->proj_atts[i];
 
 		/* skip reading block for ANALYZE */
 		if (scan->targrow >= 0)
@@ -121,6 +130,7 @@ open_all_datumstreamread_segfiles(AOCSScanDesc scan, AOCSFileSegInfo *segInfo)
 	}
 
 	pfree(basepath);
+	return true;
 }
 
 /*
@@ -399,7 +409,11 @@ open_next_scan_seg(AOCSScanDesc scan)
 											firstSequence);
 				}
 
-				open_all_datumstreamread_segfiles(scan, curSegInfo);
+				if (!open_all_datumstreamread_segfiles(scan, curSegInfo))
+				{
+					close_cur_scan_seg(scan);
+					continue;
+				}
 
 				return scan->cur_seg;
 			}
@@ -1667,10 +1681,11 @@ openFetchSegmentFile(AOCSFetchDesc aocsFetchDesc,
 	if (logicalEof == 0 || fsInfo->state == AOSEG_STATE_AWAITING_DROP)
 		return false;
 
-	open_datumstreamread_segfile(aocsFetchDesc->basepath, aocsFetchDesc->relation->rd_node,
-								 fsInfo,
-								 datumStreamFetchDesc->datumStream,
-								 colNo);
+	if (!open_datumstreamread_segfile(aocsFetchDesc->basepath, aocsFetchDesc->relation->rd_node,
+								  fsInfo,
+								  datumStreamFetchDesc->datumStream,
+								  colNo))
+		return false;
 
 	datumStreamFetchDesc->currentSegmentFile.num = openSegmentFileNum;
 	datumStreamFetchDesc->currentSegmentFile.logicalEof = logicalEof;
@@ -2309,8 +2324,11 @@ aocs_headerscan_opensegfile(AOCSHeaderScanDesc hdesc,
 							hdesc->colno, &fileSegNo, fn);
 	Assert(strlen(fn) + 1 <= MAXPGPATH);
 	vpe = getAOCSVPEntry(seginfo, hdesc->colno);
-	AppendOnlyStorageRead_OpenFile(&hdesc->ao_read, fn, seginfo->formatversion,
-								   vpe->eof, rnode);
+	if (!AppendOnlyStorageRead_OpenFile(&hdesc->ao_read, fn, seginfo->formatversion,
+									vpe->eof, rnode))
+		ereport(ERROR,
+				(errcode(ERRCODE_IO_ERROR),
+				 errmsg("could not open append-only segment file '%s'", fn)));
 }
 
 bool

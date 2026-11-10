@@ -288,7 +288,7 @@ extern void datumstreamwrite_open_file(
 						   int32 segmentFileNum,
 						   int version);
 
-extern void datumstreamread_open_file(
+extern bool datumstreamread_open_file(
 						  DatumStreamRead * ds,
 						  char *fn,
 						  int64 eof,
