@@ -5,4 +5,3 @@ override CPPFLAGS := -I$(top_builddir)/src/backend/gporca/libgpdbcost/include $(
 # Do not omit frame pointer. Even with RELEASE builds, it is used for
 # backtracing.
 override CPPFLAGS := -Werror -Wextra -Wpedantic -Wno-variadic-macros -fno-omit-frame-pointer $(CPPFLAGS)
-override CPPFLAGS := -std=gnu++98 $(CPPFLAGS)

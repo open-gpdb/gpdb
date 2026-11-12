@@ -187,10 +187,7 @@ private:
 			: m_group_info(g), m_expr_index(ix)
 		{
 		}
-		SGroupAndExpression(const SGroupAndExpression &other)
-			: m_group_info(other.m_group_info), m_expr_index(other.m_expr_index)
-		{
-		}
+		SGroupAndExpression(const SGroupAndExpression &other) = default;
 		SExpressionInfo *
 		GetExprInfo() const
 		{

@@ -15,11 +15,6 @@ namespace gpos
 // allocation-less lists, e.g. in synchronized hashtables etc.
 struct SLink
 {
-private:
-	// no copy constructor
-	SLink(const SLink &);
-
-public:
 	// link forward/backward
 	void *m_next;
 	void *m_prev;
