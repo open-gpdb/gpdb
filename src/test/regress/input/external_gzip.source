@@ -1,0 +1,40 @@
+-- Keep decoder allocations alive across per-row memory context resets.
+-- start_ignore
+DROP EXTERNAL TABLE IF EXISTS external_gzip_plain;
+DROP EXTERNAL TABLE IF EXISTS external_gzip_single;
+DROP EXTERNAL TABLE IF EXISTS external_gzip_rotations;
+-- end_ignore
+
+-- Generate 1 MiB of CSV so that decoding spans multiple input buffers.
+COPY (SELECT repeat('x', 127) FROM generate_series(1, 8192))
+TO '@abs_builddir@/results/external_gzip.csv' CSV;
+\! gzip -n -c @abs_builddir@/results/external_gzip.csv > @abs_builddir@/results/external_gzip.1.csv.gz
+\! cp @abs_builddir@/results/external_gzip.1.csv.gz @abs_builddir@/results/external_gzip.2.csv.gz
+
+-- The uncompressed file provides a control for the same CSV contents.
+CREATE READABLE EXTERNAL TABLE external_gzip_plain (message text)
+LOCATION ('file://@hostname@@abs_builddir@/results/external_gzip.csv')
+ON MASTER FORMAT 'CSV' ENCODING 'UTF8';
+SELECT count(*) FROM external_gzip_plain;
+
+-- COUNT must continue decoding after the per-row context has been reset.
+CREATE READABLE EXTERNAL TABLE external_gzip_single (message text)
+LOCATION ('file://@hostname@@abs_builddir@/results/external_gzip.1.csv.gz')
+ON MASTER FORMAT 'CSV' ENCODING 'UTF8';
+SELECT count(*) FROM external_gzip_single;
+
+-- Validate decoded contents, not just the number of records.
+SELECT count(*), sum(length(message)), bool_and(message = repeat('x', 127))
+FROM external_gzip_single;
+
+-- A glob must read both gzip streams and preserve their contents.
+CREATE READABLE EXTERNAL TABLE external_gzip_rotations (message text)
+LOCATION ('file://@hostname@@abs_builddir@/results/external_gzip.*.csv.gz')
+ON MASTER FORMAT 'CSV' ENCODING 'UTF8';
+SELECT count(*), sum(length(message)), bool_and(message = repeat('x', 127))
+FROM external_gzip_rotations;
+
+DROP EXTERNAL TABLE external_gzip_plain;
+DROP EXTERNAL TABLE external_gzip_single;
+DROP EXTERNAL TABLE external_gzip_rotations;
+\! rm @abs_builddir@/results/external_gzip.csv @abs_builddir@/results/external_gzip.1.csv.gz @abs_builddir@/results/external_gzip.2.csv.gz

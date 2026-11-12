@@ -36,9 +36,9 @@ alter database dsp2 set gp_default_storage_options =
 -- Therefore drop them in the end.
 \c dsp1
 show gp_default_storage_options;
-                             gp_default_storage_options                             
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                     gp_default_storage_options                                     
+----------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table t1 (a int, b int) distributed by (a);
@@ -57,9 +57,9 @@ update t1 set b = 50 where a < 50;
 set gp_default_storage_options=
 	"appendonly=true,orientation=column,blocksize=8192";
 show gp_default_storage_options;
-                            gp_default_storage_options                             
------------------------------------------------------------------------------------
- appendonly=true,blocksize=8192,compresstype=none,checksum=true,orientation=column
+                                    gp_default_storage_options                                     
+---------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=8192,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table t2 (a int, b varchar, c text) distributed by (a);
@@ -90,9 +90,9 @@ create table t4 (a int, b float, c text) with
 -- Set defaults to heap, verify basic operations.
 set gp_default_storage_options="appendonly=false";
 show gp_default_storage_options;
-                            gp_default_storage_options                            
-----------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row
+                                    gp_default_storage_options                                    
+--------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 create table h1 (a int, b int) distributed by (a);
@@ -138,9 +138,9 @@ select relid::regclass, blocksize, compresstype,
 set gp_default_storage_options=
 	"appendonly=true,compresslevel=2,checksum=true";
 show gp_default_storage_options;
-                                   gp_default_storage_options                                    
--------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=2,checksum=true,orientation=row
+                                           gp_default_storage_options                                            
+-----------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=2,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 create table t1 (a int, b int) distributed by (a);
@@ -210,9 +210,9 @@ select attrelid::regclass, attnum, attoptions
 set gp_default_storage_options=
 	"appendonly=true,compresslevel=4,checksum=false";
 show gp_default_storage_options;
-                                    gp_default_storage_options                                    
---------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=4,checksum=false,orientation=row
+                                            gp_default_storage_options                                            
+------------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=4,checksum=false,orientation=row,offloaded=false
 (1 row)
 
 create table t3 (a int, b int, c text) distributed by (a);
@@ -307,9 +307,9 @@ drop table alter_part_tab1;
 set gp_default_storage_options=
 	"appendonly=true,orientation=column,compresslevel=1";
 show gp_default_storage_options;
-                                     gp_default_storage_options                                     
-----------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=1,checksum=true,orientation=column
+                                             gp_default_storage_options                                             
+--------------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=1,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table co1 (a int, b int) distributed by (a);
@@ -386,9 +386,9 @@ create database dsp3;
 set gp_default_storage_options=
 	"appendonly=true,orientation=column,compresslevel=0";
 show gp_default_storage_options;
-                             gp_default_storage_options                             
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                     gp_default_storage_options                                     
+----------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table co1(
@@ -399,9 +399,9 @@ create table co1(
 set gp_default_storage_options=
 	"appendonly=true,orientation=column,compresslevel=3";
 show gp_default_storage_options;
-                                     gp_default_storage_options                                     
-----------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=3,checksum=true,orientation=column
+                                             gp_default_storage_options                                             
+--------------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=3,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table co2(
@@ -414,9 +414,9 @@ create table co2(
 -- attribute encoding should be set correctly.
 set gp_default_storage_options='appendonly=false, orientation=column';
 show gp_default_storage_options;
-                             gp_default_storage_options                              
--------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                     gp_default_storage_options                                      
+-----------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table co3 (a int, b float) with (appendonly=true) distributed by (a);
@@ -457,9 +457,9 @@ select attrelid::regclass,attnum,attoptions
 alter database dsp1 set gp_default_storage_options="appendonly=false";
 \c dsp1
 show gp_default_storage_options;
-                            gp_default_storage_options                            
-----------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row
+                                    gp_default_storage_options                                    
+--------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 \c dsp3
@@ -467,41 +467,41 @@ alter database dsp1 set gp_default_storage_options=
 	"appendonly=true, compresstype=zlib";
 \c dsp1
 show gp_default_storage_options;
-                                   gp_default_storage_options                                    
--------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=1,checksum=true,orientation=row
+                                           gp_default_storage_options                                            
+-----------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=1,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 -- options without "appendonly"
 set gp_default_storage_options='compresstype=rle_type, orientation = column';
 show gp_default_storage_options;
-                                       gp_default_storage_options                                        
----------------------------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=rle_type,compresslevel=1,checksum=true,orientation=column
+                                               gp_default_storage_options                                                
+-------------------------------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=rle_type,compresslevel=1,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 set gp_default_storage_options='compresslevel=0,orientation=column';
 show gp_default_storage_options;
-                             gp_default_storage_options                              
--------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                     gp_default_storage_options                                      
+-----------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 set gp_default_storage_options=
 	'appendonly=false, checksum=false, orientation=column';
 show gp_default_storage_options;
-                              gp_default_storage_options                              
---------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,checksum=false,orientation=column
+                                      gp_default_storage_options                                      
+------------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,checksum=false,orientation=column,offloaded=false
 (1 row)
 
 \c dsp3
 set gp_default_storage_options=
 	"appendonly=true,orientation=column,compresslevel=5";
 show gp_default_storage_options;
-                                     gp_default_storage_options                                     
-----------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=5,checksum=true,orientation=column
+                                             gp_default_storage_options                                             
+--------------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=5,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 -- negative tests - should fail due to invalid combinations of
@@ -532,9 +532,9 @@ ERROR:  invalid storage option "checksumblah"
 set gp_default_storage_options='orientation=columnblah';
 ERROR:  invalid value "columnblah" for storage option "orientation"
 show gp_default_storage_options;
-                                     gp_default_storage_options                                     
-----------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=5,checksum=true,orientation=column
+                                             gp_default_storage_options                                             
+--------------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=5,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 -- negative tests - database level
@@ -549,15 +549,15 @@ ERROR:  compresstype "zlib" can't be used with compresslevel 0
 -- set_config() tests
 select pg_catalog.set_config('gp_default_storage_options',
     'appendonly=true, orientation=column', false);
-                                     set_config                                     
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                             set_config                                             
+----------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 show gp_default_storage_options;
-                             gp_default_storage_options                             
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                     gp_default_storage_options                                     
+----------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 create table co8 (a int, b float) distributed by (a);
@@ -583,15 +583,15 @@ select count(b) from co8;
 begin;
 select pg_catalog.set_config('gp_default_storage_options',
     'compresslevel=2', true);
-                                            set_config                                            
---------------------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=zlib,compresslevel=2,checksum=true,orientation=row
+                                                    set_config                                                    
+------------------------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=zlib,compresslevel=2,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 show gp_default_storage_options;
-                                    gp_default_storage_options                                    
---------------------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=zlib,compresslevel=2,checksum=true,orientation=row
+                                            gp_default_storage_options                                            
+------------------------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=zlib,compresslevel=2,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 create table ao1 (a int, b int) with (appendonly=true) distributed by (a);
@@ -618,9 +618,9 @@ select count(*) from ao1;
 end;
 -- GUC should be reset after end of transaction.
 show gp_default_storage_options;
-                             gp_default_storage_options                             
-------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column
+                                     gp_default_storage_options                                     
+----------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=column,offloaded=false
 (1 row)
 
 -- verify reset happendon on segments by create, insert, select.
@@ -646,9 +646,9 @@ select count(y) from co9;
 
 set gp_default_storage_options='compresstype=none';
 show gp_default_storage_options;
-                            gp_default_storage_options                            
-----------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row
+                                    gp_default_storage_options                                    
+--------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 -- compresstype should be correctly inferred.
@@ -715,9 +715,9 @@ select compresstype from pg_appendonly where relid = 'co10'::regclass;
 -- compression disabled by default, enable in WITH clause
 set gp_default_storage_options = 'appendonly=true';
 show gp_default_storage_options;
-                           gp_default_storage_options                            
----------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row
+                                   gp_default_storage_options                                    
+-------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 -- compresstype only
@@ -769,9 +769,9 @@ Distributed by: (a)
 -- compression enabled by default, disable in WITH clause
 set gp_default_storage_options = 'appendonly=true, compresstype=zlib';
 show gp_default_storage_options;
-                                   gp_default_storage_options                                    
--------------------------------------------------------------------------------------------------
- appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=1,checksum=true,orientation=row
+                                           gp_default_storage_options                                            
+-----------------------------------------------------------------------------------------------------------------
+ appendonly=true,blocksize=32768,compresstype=zlib,compresslevel=1,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 -- compresstype only
@@ -812,9 +812,9 @@ Distributed by: (a)
 
 set gp_default_storage_options='compresstype=none,compresslevel=2';
 show gp_default_storage_options;
-                                    gp_default_storage_options                                    
---------------------------------------------------------------------------------------------------
- appendonly=false,blocksize=32768,compresstype=none,compresslevel=2,checksum=true,orientation=row
+                                            gp_default_storage_options                                            
+------------------------------------------------------------------------------------------------------------------
+ appendonly=false,blocksize=32768,compresstype=none,compresslevel=2,checksum=true,orientation=row,offloaded=false
 (1 row)
 
 create table ao12 (a int, b int) with (appendonly=true) distributed by (a);
@@ -1075,5 +1075,5 @@ gp_default_storage_options value cannot be different on master and segments
 \!gpconfig -s gp_default_storage_options
 Values on all segments are consistent
 GUC          : gp_default_storage_options
-Master  value: appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row
-Segment value: appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row
+Master  value: appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false
+Segment value: appendonly=false,blocksize=32768,compresstype=none,checksum=true,orientation=row,offloaded=false

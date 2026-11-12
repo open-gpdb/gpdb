@@ -71,6 +71,14 @@ static relopt_bool boolRelOpts_gp[] =
 		},
 		ANALYZE_DEFAULT_HLL
 	},
+	{
+		{
+			SOPT_OFFLOADED,
+			"AO table is offloaded",
+			RELOPT_KIND_HEAP
+		},
+		AO_DEFAULT_OFFLOADED
+	},
 	/* list terminator */
 	{{NULL}}
 };
@@ -305,6 +313,16 @@ accumAOStorageOpt(char *name, char *value,
 		}
 		appendStringInfo(&buf, "%s=%s", SOPT_ORIENTATION, value);
 	}
+	else if (pg_strcasecmp(SOPT_OFFLOADED, name) == 0)
+	{
+		if (!parse_bool(value, &boolval))
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("invalid bool value \"%s\" for storage option \"" SOPT_OFFLOADED "\"",
+							value)));
+		appendStringInfoString(&buf, boolval ? SOPT_OFFLOADED "=true" :
+											   SOPT_OFFLOADED "=false");
+	}
 	else
 	{
 		ereport(ERROR,
@@ -334,6 +352,7 @@ resetAOStorageOpts(StdRdOptions *ao_opts)
 	ao_opts->compresslevel = AO_DEFAULT_COMPRESSLEVEL;
 	ao_opts->compresstype[0] = '\0';
 	ao_opts->orientation[0] = '\0';
+	ao_opts->offloaded = AO_DEFAULT_OFFLOADED;
 }
 
 /*
@@ -613,7 +632,8 @@ transformAOStdRdOptions(StdRdOptions *opts, Datum withOpts)
 				foundComplevel = false,
 				foundChecksum = false,
 				foundOrientation = false,
-				foundAnalyzeHLL = false;
+				foundAnalyzeHLL = false,
+				foundOffloaded = false;
 
 	/*
 	 * withOpts must be parsed to see if an option was spcified in WITH()
@@ -744,6 +764,17 @@ transformAOStdRdOptions(StdRdOptions *opts, Datum withOpts)
 				astate = accumArrayResult(astate, d, false, TEXTOID,
 										  CurrentMemoryContext);
 			}
+			soptLen = strlen(SOPT_OFFLOADED);
+			if (withLen > soptLen &&
+				pg_strncasecmp(strval, SOPT_OFFLOADED, soptLen) == 0)
+			{
+				foundOffloaded = true;
+				d = CStringGetTextDatum(opts->offloaded ?
+										SOPT_OFFLOADED "=true" :
+										SOPT_OFFLOADED "=false");
+				astate = accumArrayResult(astate, d, false, TEXTOID,
+										  CurrentMemoryContext);
+			}
 		}
 	}
 
@@ -821,6 +852,14 @@ transformAOStdRdOptions(StdRdOptions *opts, Datum withOpts)
 		astate = accumArrayResult(astate, d, false, TEXTOID,
 								  CurrentMemoryContext);
 	}
+	if ((opts->offloaded != AO_DEFAULT_OFFLOADED) && !foundOffloaded)
+	{
+		d = CStringGetTextDatum(opts->offloaded ?
+								SOPT_OFFLOADED "=true" :
+								SOPT_OFFLOADED "=false");
+		astate = accumArrayResult(astate, d, false, TEXTOID,
+								  CurrentMemoryContext);
+	}
 	return astate ?
 		makeArrayResult(astate, CurrentMemoryContext) :
 		PointerGetDatum(NULL);
@@ -840,6 +879,7 @@ validate_and_adjust_options(StdRdOptions *result,
 	relopt_value *checksum_opt;
 	relopt_value *orientation_opt;
 	relopt_value *analyze_hll_non_part_table_opt;
+	relopt_value *offloaded_opt;
 
 	/* fillfactor */
 	fillfactor_opt = get_option_set(options, num_options, SOPT_FILLFACTOR);
@@ -1107,6 +1147,23 @@ validate_and_adjust_options(StdRdOptions *result,
 		result->analyze_hll_non_part_table = analyze_hll_non_part_table_opt->values.bool_val;
 	}
 
+	/* offloaded */
+	offloaded_opt = get_option_set(options, num_options, SOPT_OFFLOADED);
+	if (offloaded_opt != NULL)
+	{
+		if (!KIND_IS_RELATION(kind) && validate)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("usage of parameter \"" SOPT_OFFLOADED "\" in a non relation object is not supported")));
+
+		if (!result->appendonly && validate)
+			ereport(ERROR,
+					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+					 errmsg("invalid option \"" SOPT_OFFLOADED "\" for base relation"),
+					 errhint("\"" SOPT_OFFLOADED "\" option is only valid for AO relations.")));
+		result->offloaded = offloaded_opt->values.bool_val;
+	}
+
 	if (result->appendonly && result->compresstype[0])
 		if (result->compresslevel == AO_DEFAULT_COMPRESSLEVEL)
 			result->compresslevel = setDefaultCompressionLevel(result->compresstype);
@@ -1142,6 +1199,9 @@ validate_and_refill_options(StdRdOptions *result, relopt_value *options,
 			result->columnstore = ao_storage_opts.columnstore;
 		if (!(get_option_set(options, numrelopts, SOPT_ANALYZEHLL)))
 			result->analyze_hll_non_part_table = ao_storage_opts.analyze_hll_non_part_table;
+
+		if (!(get_option_set(options, numrelopts, SOPT_OFFLOADED)))
+			result->offloaded = ao_storage_opts.offloaded;
 	}
 
 	validate_and_adjust_options(result, options, numrelopts, kind, validate);

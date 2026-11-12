@@ -53,7 +53,7 @@ jobs:
             },
             {
               "name": "test",
-              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests"
+              "extra_configure_flags": "--enable-debug-extensions --enable-tap-tests --enable-pl-untrusted-extensions"
             }
           ]}'
           # Output the matrix for GitHub Actions
@@ -156,7 +156,8 @@ jobs:
                                "contrib/xml2:installcheck"]
               },
               {"test":"ic-gpcontrib",
-               "make_configs":["gpcontrib/access_log:installcheck",
+               "make_configs":["gpcontrib/ast_log:installcheck",
+                               "gpcontrib/access_log:installcheck",
                                "gpcontrib/gp_array_agg:installcheck",
                                "gpcontrib/gp_debug_numsegments:installcheck",
                                "gpcontrib/gp_distribution_policy:installcheck",
@@ -739,7 +740,7 @@ jobs:
         run: |
           set -eux
           sudo apt update
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-kvm qemu-utils cloud-image-utils guestfs-tools
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y qemu-system-x86 qemu-utils cloud-image-utils guestfs-tools
 
           wget -q -O ubuntu-22.04.img https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
 
