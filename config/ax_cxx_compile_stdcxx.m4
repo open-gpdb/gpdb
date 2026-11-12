@@ -456,8 +456,6 @@ dnl  Tests for new features in C++14
 
 m4_define([_AX_CXX_COMPILE_STDCXX_testbody_new_in_14], [[
 
-// If the compiler admits that it is not ready for C++14, why torture it?
-// Hopefully, this will speed up the test.
 
 #ifndef __cplusplus
 

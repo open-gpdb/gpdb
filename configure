@@ -6799,8 +6799,6 @@ namespace cxx11
 
 
 
-// If the compiler admits that it is not ready for C++14, why torture it?
-// Hopefully, this will speed up the test.
 
 #ifndef __cplusplus
 
@@ -7234,8 +7232,6 @@ namespace cxx11
 
 
 
-// If the compiler admits that it is not ready for C++14, why torture it?
-// Hopefully, this will speed up the test.
 
 #ifndef __cplusplus
 
