@@ -489,6 +489,47 @@ AND d9 = g9 AND f9 = e9 AND e9 = timestamp '2010/11/11'
 AND d10 = g10 AND f10 = e10 AND e10 = timestamp '2016/10/11'
 AND d11 = g11 AND f11 = e11 AND e11 = timestamp '2016/09/11';
 
+
+DROP TABLE IF EXISTS t_out, t_in;
+
+CREATE TEMP TABLE t_out AS SELECT 1 a, 2 b DISTRIBUTED BY (b);
+CREATE TEMP TABLE t_in AS SELECT v.a FROM (VALUES (1),(1),(2)) v(a) DISTRIBUTED BY (a);
+ANALYZE t_out;
+ANALYZE t_in;
+
+-- Orca should be able to plan the following queries
+SET optimizer_trace_fallback = on;
+
+SELECT * FROM t_out
+WHERE t_out.b IN (SELECT count(*) OVER () FROM t_in WHERE t_in.a = t_out.a);
+
+SELECT * FROM t_out
+WHERE t_out.b IN (SELECT count(*) OVER () FROM t_in WHERE t_in.a = t_out.a)
+   OR t_out.a = 5;
+
+SELECT t_out.b IN (SELECT count(*) OVER () FROM t_in WHERE t_in.a = t_out.a)
+FROM t_out;
+
+SELECT * FROM t_out
+WHERE EXISTS (SELECT 1 FROM (SELECT count(*) OVER () c FROM t_in
+                             WHERE t_in.a = t_out.a) s
+              WHERE s.c = t_out.b);
+
+SELECT * FROM t_out
+WHERE NOT EXISTS (SELECT 1 FROM (SELECT count(*) OVER () c FROM t_in
+                                 WHERE t_in.a = t_out.a) s
+                  WHERE s.c = t_out.b);
+
+SELECT * FROM t_out
+WHERE t_out.b = (SELECT max(c) FROM (SELECT count(*) OVER () c FROM t_in
+                                     WHERE t_in.a = t_out.a) s);
+
+SELECT (SELECT max(c) FROM (SELECT count(*) OVER () c FROM t_in
+                            WHERE t_in.a = t_out.a) s)
+FROM t_out;
+
+RESET optimizer_trace_fallback;
+
 -- start_ignore
 drop table if exists bfv_planner_x;
 drop table if exists testbadsql;
