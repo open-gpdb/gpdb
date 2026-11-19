@@ -192,7 +192,7 @@ open_ds_write(Relation rel, DatumStreamWrite **ds, TupleDesc relationTupleDesc,
 										RelationGetRelationName(rel),
 										RelationGetRelid(rel),
 										/* title */ titleBuf.data,
-										XLogIsNeeded() && RelationNeedsWAL(rel));
+										XLogIsNeeded() && RelationNeedsRMAO(rel));
 
 
 		pfree(nspname);
@@ -2389,7 +2389,7 @@ aocs_addcol_init(Relation rel,
 											   attr, nspname, RelationGetRelationName(rel),
 											   RelationGetRelid(rel),
 											   titleBuf.data,
-											   XLogIsNeeded() && RelationNeedsWAL(rel));
+											   XLogIsNeeded() && RelationNeedsRMAO(rel));
 
 
 
