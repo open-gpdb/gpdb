@@ -199,6 +199,22 @@ BufferedReadIo(
 										 (char *) largeReadMemory,
 										 largeReadLen);
 
+		elogif(Debug_appendonly_print_read_block, LOG,
+			   "Append-Only storage read: table \"%s\", segment file \"%s\", "
+			   "coordinates: read position " INT64_FORMAT ", small offset %d; "
+			   "smgr_FileRead arguments: file %d, buffer %p, length %d; "
+			   "actual read length %d (equals large read length %d is %s)",
+			   bufferedRead->relationName,
+			   bufferedRead->filePathName,
+			   bufferedRead->largeReadPosition,
+			   offset,
+			   bufferedRead->file,
+			   largeReadMemory,
+			   largeReadLen,
+			   actualLen,
+			   bufferedRead->largeReadLen,
+			   (actualLen == bufferedRead->largeReadLen ? "true" : "false"));
+
 		if (actualLen == 0)
 			ereport(ERROR, (errcode_for_file_access(),
 							errmsg("read beyond eof in table \"%s\" file \"%s\", "
@@ -221,17 +237,6 @@ BufferedReadIo(
 								   offset,
 								   actualLen,
 								   bufferedRead->largeReadLen)));
-
-		elogif(Debug_appendonly_print_read_block, LOG,
-			   "Append-Only storage read: table \"%s\", segment file \"%s\", read position " INT64_FORMAT " (small offset %d), "
-			   "actual read length %d (equals large read length %d is %s)",
-			   bufferedRead->relationName,
-			   bufferedRead->filePathName,
-			   bufferedRead->largeReadPosition,
-			   offset,
-			   actualLen,
-			   bufferedRead->largeReadLen,
-			   (actualLen == bufferedRead->largeReadLen ? "true" : "false"));
 
 		largeReadLen -= actualLen;
 		largeReadMemory += actualLen;
